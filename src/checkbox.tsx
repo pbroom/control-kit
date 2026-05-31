@@ -5,10 +5,9 @@ import { cn } from './utils.js';
 
 export type CheckboxProps = Omit<
   React.ComponentProps<typeof CheckboxPrimitive.Root>,
-  'checked' | 'className' | 'onChange' | 'onCheckedChange'
+  'checked' | 'className' | 'onChange'
 > & {
   checked: boolean;
-  onCheckedChange?: (checked: boolean) => void;
   indicatorClassName?: string;
   labelClassName?: string;
   className?: string;

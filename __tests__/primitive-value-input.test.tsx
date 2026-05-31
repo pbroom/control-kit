@@ -175,6 +175,19 @@ describe('PrimitiveValueInput', () => {
     expect(html.indexOf('>px<')).toBeLessThan(html.indexOf('>D<'));
   });
 
+  it('exposes spinbutton range semantics for numeric keyboard controls', () => {
+    const html = renderPrimitive({
+      value: 42,
+      min: 0,
+      max: 100,
+    });
+
+    expect(html).toContain('role="spinbutton"');
+    expect(html).toContain('aria-valuemin="0"');
+    expect(html).toContain('aria-valuemax="100"');
+    expect(html).toContain('aria-valuenow="42"');
+  });
+
   it('commits valid text drafts on blur with text-input metadata', () => {
     const onValueChange = vi.fn();
     const container = mountPrimitive({ onValueChange });
@@ -346,6 +359,60 @@ describe('PrimitiveValueInput', () => {
     });
 
     expect(onValueChange).toHaveBeenLastCalledWith(5, {
+      interaction: 'keyboard',
+    });
+  });
+
+  it('keeps typed max values at the upper boundary in wrap mode', () => {
+    const onValueChange = vi.fn();
+    const container = mountPrimitive({
+      value: 95,
+      onValueChange,
+      min: 0,
+      max: 100,
+      wrapMode: 'wrap',
+    });
+    const input = container.querySelector('input') as HTMLInputElement;
+
+    act(() => {
+      input.focus();
+      changeInputValue(input, '100');
+    });
+    act(() => {
+      input.blur();
+    });
+
+    expect(onValueChange).toHaveBeenCalledTimes(1);
+    expect(onValueChange).toHaveBeenLastCalledWith(100, {
+      interaction: 'text-input',
+    });
+  });
+
+  it('steps from the active draft when keyboard stepping during editing', () => {
+    const onValueChange = vi.fn();
+    const container = mountPrimitive({
+      value: 42,
+      onValueChange,
+      horizontalArrowKeysMoveCaret: false,
+    });
+    const input = container.querySelector('input') as HTMLInputElement;
+
+    act(() => {
+      input.focus();
+      changeInputValue(input, '25');
+    });
+    act(() => {
+      input.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key: 'ArrowUp',
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    });
+
+    expect(onValueChange).toHaveBeenCalledTimes(1);
+    expect(onValueChange).toHaveBeenLastCalledWith(26, {
       interaction: 'keyboard',
     });
   });

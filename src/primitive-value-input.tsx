@@ -88,6 +88,10 @@ export function normalizePrimitiveValue(
   }
 
   if (mode === 'wrap') {
+    if (Object.is(value, max) || Math.abs(value - max) <= 1e-12) {
+      return max;
+    }
+
     const span = max - min;
     return ((((value - min) % span) + span) % span) + min;
   }
@@ -549,8 +553,10 @@ export function usePrimitiveValueInput({
         event.key === 'End'
       ) {
         const activeStep = getModifiedStep(event.shiftKey, event.altKey);
+        const stepBaseValue =
+          isEditing && parsedDraft !== null ? parsedDraft : value;
         const nextValue = getPrimitiveSteppedValue({
-          value,
+          value: stepBaseValue,
           key: event.key,
           min,
           max,
@@ -591,9 +597,11 @@ export function usePrimitiveValueInput({
       emitValue,
       getModifiedStep,
       horizontalArrowKeysMoveCaret,
+      isEditing,
       max,
       min,
       pageStep,
+      parsedDraft,
       readOnly,
       value,
       wrapMode,
@@ -893,6 +901,7 @@ export function usePrimitiveValueInput({
     currentValue,
     displayValue,
     draft,
+    ariaValueNow: parsedDraft ?? undefined,
     isDraftValid,
     isEditing,
     isScrubbing,
@@ -1004,6 +1013,7 @@ export function PrimitiveValueInput({
     isDraftValid,
     isEditing,
     isScrubbing,
+    ariaValueNow,
   } = usePrimitiveValueInput({
     value,
     onValueChange,
@@ -1106,8 +1116,12 @@ export function PrimitiveValueInput({
       <input
         ref={inputRef}
         type="text"
+        role="spinbutton"
         aria-label={ariaLabel}
         aria-invalid={isInvalid}
+        aria-valuemin={wrapMode === 'free' ? undefined : min}
+        aria-valuemax={wrapMode === 'free' ? undefined : max}
+        aria-valuenow={ariaValueNow}
         placeholder={placeholder}
         className="h-full min-w-0 flex-1 cursor-default bg-transparent py-0 pl-1 pr-0 font-sans tabular-nums text-white outline-none focus:cursor-text disabled:cursor-not-allowed"
         {...inputProps}
