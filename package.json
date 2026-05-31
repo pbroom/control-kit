@@ -1,0 +1,89 @@
+{
+  "name": "@color-kit/control-kit",
+  "version": "0.0.1",
+  "description": "React UI primitives for building operational color controls",
+  "type": "module",
+  "packageManager": "pnpm@10.30.3",
+  "engines": {
+    "node": ">=18"
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "src",
+    "LICENSE",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "clean": "rm -rf dist",
+    "dev": "tsup --watch",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "prepare": "pnpm build",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "react",
+    "ui",
+    "controls",
+    "color-picker"
+  ],
+  "author": "pbroom",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pbroom/control-kit.git"
+  },
+  "bugs": {
+    "url": "https://github.com/pbroom/control-kit/issues"
+  },
+  "homepage": "https://github.com/pbroom/control-kit#readme",
+  "publishConfig": {
+    "access": "public",
+    "tag": "next"
+  },
+  "dependencies": {
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.575.0",
+    "tailwind-merge": "^3.5.0"
+  },
+  "peerDependencies": {
+    "@base-ui/react": "^1.4.1",
+    "radix-ui": "^1.4.3",
+    "react": ">=19.0.0",
+    "react-dom": ">=19.0.0"
+  },
+  "devDependencies": {
+    "@base-ui/react": "^1.4.1",
+    "@types/react": "^19.2.13",
+    "@types/react-dom": "^19.2.3",
+    "jsdom": "^26.1.0",
+    "prettier": "^3.6.2",
+    "radix-ui": "^1.4.3",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "tsup": "^8.0.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}
