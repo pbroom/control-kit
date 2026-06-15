@@ -1455,15 +1455,33 @@ function NumberField({
   return (
     <label className="control-field">
       <span>{label}</span>
-      <input
-        type="number"
-        inputMode="decimal"
+      <PrimitiveValueInput
         value={Number.isFinite(value) ? value : 0}
+        onValueChange={(nextValue) => onChange(nextValue)}
+        ariaLabel={label}
+        leadingElement={null}
+        min={-100_000}
+        max={100_000}
+        wrapMode="free"
         step={step}
-        onChange={(event) => {
-          const nextValue = Number(event.currentTarget.value);
-          if (Number.isFinite(nextValue)) onChange(nextValue);
-        }}
+        fineStep={step / 10}
+        coarseStep={step * 10}
+        pageStep={step * 10}
+        precision={Number.isInteger(step) ? 0 : 3}
+        autoTrim
+        allowExpressions
+        parseExpression={parsePrimitiveExpression}
+        selectAllOnFocus
+        commitOnBlur
+        scrubEnabled
+        scrubPixelsPerStep={1}
+        scrubThreshold={1}
+        pointerLockEnabled={false}
+        disabled={false}
+        readOnly={false}
+        visualState="auto"
+        size="full"
+        density="compact"
       />
     </label>
   );
@@ -1500,14 +1518,13 @@ function SwitchField({
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <label className="switch-field">
-      <span>{label}</span>
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(event) => onChange(event.currentTarget.checked)}
-      />
-    </label>
+    <Checkbox
+      checked={checked}
+      className="switch-field"
+      onCheckedChange={(nextChecked) => onChange(nextChecked === true)}
+    >
+      {label}
+    </Checkbox>
   );
 }
 
