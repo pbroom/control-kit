@@ -1,12 +1,9 @@
 import {
   Activity,
-  Braces,
   CheckSquare,
-  Clipboard,
   Eye,
   History,
   MousePointer2,
-  RotateCcw,
   Settings2,
   SlidersHorizontal,
   SquareDashedMousePointer,
@@ -397,8 +394,6 @@ export function App() {
     },
   ]);
 
-  const activePageModel = LAB_PAGES.find((page) => page.key === activePage);
-
   const pushEvent = useCallback((source: string, message: string) => {
     setEvents((current) =>
       [
@@ -413,70 +408,8 @@ export function App() {
     );
   }, []);
 
-  const resetActivePage = useCallback(() => {
-    if (activePage === 'primitive') setPrimitiveState(INITIAL_PRIMITIVE_STATE);
-    if (activePage === 'multi') setMultiState(INITIAL_MULTI_STATE);
-    if (activePage === 'checkbox') setCheckboxState(INITIAL_CHECKBOX_STATE);
-    if (activePage === 'toggle') setToggleState(INITIAL_TOGGLE_STATE);
-    if (activePage === 'tooltip') setTooltipState(INITIAL_TOOLTIP_STATE);
-    pushEvent('Lab', `Reset ${activePageModel?.label ?? activePage}.`);
-  }, [activePage, activePageModel?.label, pushEvent]);
-
-  const exportState = useCallback(() => {
-    const snapshot = JSON.stringify(
-      {
-        activePage,
-        primitive: primitiveState,
-        multi: multiState,
-        checkbox: checkboxState,
-        toggle: toggleState,
-        tooltip: tooltipState,
-      },
-      null,
-      2,
-    );
-
-    const clipboardWrite = navigator.clipboard?.writeText(snapshot);
-    void clipboardWrite?.catch(() => undefined);
-    pushEvent('Lab', 'Copied current lab state to the clipboard.');
-  }, [
-    activePage,
-    checkboxState,
-    multiState,
-    primitiveState,
-    pushEvent,
-    toggleState,
-    tooltipState,
-  ]);
-
   return (
     <div className="lab-shell">
-      <header className="lab-header">
-        <div className="lab-brand">
-          <div className="lab-brand-mark">
-            <Braces aria-hidden="true" size={18} strokeWidth={1.8} />
-          </div>
-          <div>
-            <h1>Control Kit Lab</h1>
-            <p>Demo, test, refine, experiment.</p>
-          </div>
-        </div>
-        <div className="lab-toolbar" aria-label="Lab tools">
-          <span className="lab-status">
-            <Activity aria-hidden="true" size={14} />
-            Source linked
-          </span>
-          <IconButton label="Reset" onClick={resetActivePage}>
-            <RotateCcw aria-hidden="true" size={15} />
-            <span>Reset</span>
-          </IconButton>
-          <IconButton label="Export state" onClick={exportState}>
-            <Clipboard aria-hidden="true" size={15} />
-            <span>Export state</span>
-          </IconButton>
-        </div>
-      </header>
-
       <main className="lab-body">
         <nav className="lab-rail" aria-label="Components">
           <div className="lab-rail-heading">Components</div>
@@ -1482,27 +1415,6 @@ function SegmentedField<TValue extends string>({
         ))}
       </div>
     </div>
-  );
-}
-
-function IconButton({
-  label,
-  children,
-  onClick,
-}: {
-  label: string;
-  children: ReactNode;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      className="icon-button"
-      type="button"
-      aria-label={label}
-      onClick={onClick}
-    >
-      {children}
-    </button>
   );
 }
 

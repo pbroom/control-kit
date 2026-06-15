@@ -75,7 +75,7 @@ input:disabled {
 
 .lab-shell {
   display: grid;
-  grid-template-rows: 52px minmax(0, 1fr) 104px;
+  grid-template-rows: minmax(0, 1fr) 104px;
   height: 100vh;
   min-height: 100vh;
   overflow: hidden;
@@ -84,101 +84,6 @@ input:disabled {
     #171717;
   color: var(--text);
   --ck-lab-segmented-active-bg: #171717;
-}
-
-.lab-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  padding: 0 14px;
-  border-bottom: 1px solid rgb(255 255 255 / 0.08);
-  background: rgb(23 23 23 / 0.92);
-  backdrop-filter: blur(18px);
-}
-
-.lab-brand {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  gap: 10px;
-}
-
-.lab-brand-mark {
-  display: grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  border: 1px solid rgb(255 255 255 / 0.12);
-  border-radius: 12px;
-  color: var(--accent-text);
-  background: rgb(255 255 255 / 0.05);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04);
-}
-
-.lab-brand h1 {
-  margin: 0;
-  color: var(--text);
-  font-size: 14px;
-  font-weight: 650;
-  line-height: 1.1;
-  letter-spacing: 0;
-}
-
-.lab-brand p {
-  margin: 3px 0 0;
-  color: var(--text-muted);
-  font-size: 11px;
-}
-
-.lab-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.lab-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 28px;
-  padding: 0 10px;
-  border: 1px solid rgb(36 164 107 / 0.32);
-  border-radius: 12px;
-  color: rgb(165 240 204 / 0.95);
-  background: rgb(36 164 107 / 0.1);
-  font-size: 11px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.icon-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-height: 28px;
-  padding: 0 10px;
-  border: 1px solid transparent;
-  border-radius: 12px;
-  color: rgb(255 255 255 / 0.66);
-  background: transparent;
-  font-size: 11px;
-  font-weight: 600;
-  transition:
-    background-color 140ms ease,
-    color 140ms ease;
-}
-
-.icon-button:hover,
-.icon-button:focus-visible {
-  color: var(--text);
-  background: rgb(255 255 255 / 0.08);
-  outline: none;
-}
-
-.icon-button:focus-visible {
-  box-shadow: 0 0 0 2px rgb(82 136 219 / 0.8);
 }
 
 .lab-body {
@@ -570,19 +475,9 @@ input:disabled {
 
 @media (max-width: 980px) {
   .lab-shell {
-    grid-template-rows: auto auto auto;
+    grid-template-rows: auto auto;
     height: auto;
     overflow: visible;
-  }
-
-  .lab-header {
-    align-items: flex-start;
-    flex-direction: column;
-    padding: 12px;
-  }
-
-  .lab-toolbar {
-    flex-wrap: wrap;
   }
 
   .lab-body {

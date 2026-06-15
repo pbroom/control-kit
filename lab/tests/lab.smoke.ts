@@ -42,10 +42,6 @@ test('loads the lab and exercises the core component surfaces', async ({
   await expect(page.locator('.lab-stage .tooltip-demo')).toBeVisible();
   await page.getByRole('button', { name: 'Layer' }).hover();
   await expect(page.getByText('Layer tooltip preview')).toBeVisible();
-
-  await page.getByRole('button', { name: 'Export state' }).click();
-  await expect(page.locator('.event-log')).toContainText(
-    'Copied current lab state',
-  );
+  await expect(page.locator('.event-log')).toContainText('Layer opened');
   expect(browserErrors).toEqual([]);
 });
