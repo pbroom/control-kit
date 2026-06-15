@@ -21,30 +21,25 @@ test('loads the lab and exercises the core component surfaces', async ({
   const browserErrors = await collectBrowserErrors(page);
 
   await page.goto('/');
-  await expect(
-    page.getByRole('heading', { name: 'Primitive input' }),
-  ).toBeVisible();
+  await expect(page.locator('.lab-stage .primitive-demo')).toBeVisible();
   await page.getByLabel('Primitive input value').focus();
   await page.keyboard.press('ArrowUp');
 
   await page.getByRole('button', { name: /Multi input/ }).click();
-  await expect(
-    page.getByRole('heading', { name: 'Multi input' }),
-  ).toBeVisible();
-  await page.getByRole('button', { name: /^H\s+/ }).click();
+  await expect(page.locator('.lab-stage .multi-demo')).toBeVisible();
+  await page.getByLabel('Hue').focus();
+  await page.keyboard.press('ArrowUp');
 
   await page.getByRole('button', { name: /Checkbox/ }).click();
-  await expect(page.getByRole('heading', { name: 'Checkbox' })).toBeVisible();
+  await expect(page.locator('.lab-stage .checkbox-demo')).toBeVisible();
   await page.getByRole('checkbox', { name: /Enable preview updates/ }).click();
 
   await page.getByRole('button', { name: /Toggle group/ }).click();
-  await expect(
-    page.getByRole('heading', { name: 'Toggle group' }),
-  ).toBeVisible();
+  await expect(page.locator('.lab-stage .toggle-demo')).toBeVisible();
   await page.getByRole('button', { name: /Tune/ }).click();
 
   await page.getByRole('button', { name: /Tooltip/ }).click();
-  await expect(page.getByRole('heading', { name: 'Tooltip' })).toBeVisible();
+  await expect(page.locator('.lab-stage .tooltip-demo')).toBeVisible();
   await page.getByRole('button', { name: 'Layer' }).hover();
   await expect(page.getByText('Layer tooltip preview')).toBeVisible();
 

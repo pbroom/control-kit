@@ -4,7 +4,6 @@ import {
   CheckSquare,
   Clipboard,
   Eye,
-  Gauge,
   History,
   MousePointer2,
   RotateCcw,
@@ -504,16 +503,6 @@ export function App() {
         </nav>
 
         <section className="lab-stage-panel" aria-label="Live preview">
-          <div className="lab-stage-header">
-            <div>
-              <h2>{activePageModel?.label}</h2>
-              <p>{activePageModel?.summary}</p>
-            </div>
-            <span className="lab-stage-meter">
-              <Gauge aria-hidden="true" size={14} />
-              Live preview
-            </span>
-          </div>
           <div className="lab-stage">
             {activePage === 'primitive' ? (
               <PrimitiveDemo
@@ -596,64 +585,51 @@ function PrimitiveDemo({
 
   return (
     <div className="primitive-demo">
-      <div className="stage-ruler">
-        <span>min {state.min}</span>
-        <span>value {state.value}</span>
-        <span>max {state.max}</span>
-      </div>
-      <div className="primitive-surface">
-        <PrimitiveValueInput
-          value={state.value}
-          onValueChange={(value, details) => {
-            setState((current) => ({ ...current, value }));
-            onEvent(
-              'Primitive input',
-              `${details.interaction} committed ${formatNumber(value)}.`,
-            );
-          }}
-          ariaLabel="Primitive input value"
-          leadingElement={state.leadingElement || null}
-          trailingElement={state.trailingElement || null}
-          handleElement={state.handleElement || undefined}
-          handleSide={state.handleSide}
-          min={state.min}
-          max={state.max}
-          wrapMode={state.wrapMode}
-          step={state.step}
-          fineStep={state.fineStep}
-          coarseStep={state.coarseStep}
-          pageStep={state.pageStep}
-          precision={state.precision}
-          autoTrim={state.autoTrim}
-          allowExpressions={state.allowExpressions}
-          parseExpression={parsePrimitiveExpression}
-          selectAllOnFocus={state.selectAllOnFocus}
-          commitOnBlur={state.commitOnBlur}
-          scrubEnabled={state.scrubEnabled}
-          scrubPixelsPerStep={state.scrubPixelsPerStep}
-          scrubThreshold={state.scrubThreshold}
-          pointerLockEnabled={state.pointerLockEnabled}
-          horizontalArrowKeysMoveCaret={state.horizontalArrowKeysMoveCaret}
-          disabled={state.disabled}
-          readOnly={state.readOnly}
-          visualState={state.visualState}
-          visualTreatment={state.visualTreatment}
-          size={state.size}
-          density={state.density}
-          onInvalidCommit={(draft) =>
-            onEvent('Primitive input', `Rejected draft "${draft}".`)
-          }
-          onScrubbingChange={(isScrubbing) =>
-            setScrubbingState(isScrubbingRef, isScrubbing, onEvent)
-          }
-        />
-      </div>
-      <div className="stage-notes">
-        <span>
-          Try Arrow keys, PageUp/PageDown, Enter, Escape, and drag the handle.
-        </span>
-        <span>Expressions accept forms like +10, /2, or 12*3.</span>
-      </div>
+      <PrimitiveValueInput
+        value={state.value}
+        onValueChange={(value, details) => {
+          setState((current) => ({ ...current, value }));
+          onEvent(
+            'Primitive input',
+            `${details.interaction} committed ${formatNumber(value)}.`,
+          );
+        }}
+        ariaLabel="Primitive input value"
+        leadingElement={state.leadingElement || null}
+        trailingElement={state.trailingElement || null}
+        handleElement={state.handleElement || undefined}
+        handleSide={state.handleSide}
+        min={state.min}
+        max={state.max}
+        wrapMode={state.wrapMode}
+        step={state.step}
+        fineStep={state.fineStep}
+        coarseStep={state.coarseStep}
+        pageStep={state.pageStep}
+        precision={state.precision}
+        autoTrim={state.autoTrim}
+        allowExpressions={state.allowExpressions}
+        parseExpression={parsePrimitiveExpression}
+        selectAllOnFocus={state.selectAllOnFocus}
+        commitOnBlur={state.commitOnBlur}
+        scrubEnabled={state.scrubEnabled}
+        scrubPixelsPerStep={state.scrubPixelsPerStep}
+        scrubThreshold={state.scrubThreshold}
+        pointerLockEnabled={state.pointerLockEnabled}
+        horizontalArrowKeysMoveCaret={state.horizontalArrowKeysMoveCaret}
+        disabled={state.disabled}
+        readOnly={state.readOnly}
+        visualState={state.visualState}
+        visualTreatment={state.visualTreatment}
+        size={state.size}
+        density={state.density}
+        onInvalidCommit={(draft) =>
+          onEvent('Primitive input', `Rejected draft "${draft}".`)
+        }
+        onScrubbingChange={(isScrubbing) =>
+          setScrubbingState(isScrubbingRef, isScrubbing, onEvent)
+        }
+      />
     </div>
   );
 }
@@ -677,54 +653,28 @@ function MultiInputDemo({
   setState: Dispatch<SetStateAction<MultiState>>;
   onEvent: (source: string, message: string) => void;
 }) {
-  const previewColor = `oklch(${state.values.l * 100}% ${state.values.c} ${state.values.h} / ${state.values.a})`;
-
   return (
     <div className="multi-demo">
-      <div className="multi-swatch" style={{ background: previewColor }}>
-        <span>{previewColor}</span>
-      </div>
-      <div className="multi-control-row">
-        <MultiInputControl
-          values={state.values}
-          config={state.config}
-          fields={MULTI_FIELDS}
-          showLeadingLabels={state.showLeadingLabels}
-          parseExpression={parsePrimitiveExpression}
-          onFieldChange={(field, value) => {
-            setState((current) => ({
-              ...current,
-              values: {
-                ...current.values,
-                [field]: value,
-              },
-            }));
-            onEvent(
-              'Multi input',
-              `${FIELD_LABELS[field]} changed to ${formatNumber(value)}.`,
-            );
-          }}
-        />
-      </div>
-      <div className="channel-readout" aria-label="Channel values">
-        {MULTI_FIELDS.map((field) => (
-          <button
-            key={field.value}
-            className="channel-pill"
-            data-active={state.activeField === field.value || undefined}
-            type="button"
-            onClick={() =>
-              setState((current) => ({
-                ...current,
-                activeField: field.value,
-              }))
-            }
-          >
-            <strong>{field.label}</strong>
-            <span>{formatNumber(state.values[field.value])}</span>
-          </button>
-        ))}
-      </div>
+      <MultiInputControl
+        values={state.values}
+        config={state.config}
+        fields={MULTI_FIELDS}
+        showLeadingLabels={state.showLeadingLabels}
+        parseExpression={parsePrimitiveExpression}
+        onFieldChange={(field, value) => {
+          setState((current) => ({
+            ...current,
+            values: {
+              ...current.values,
+              [field]: value,
+            },
+          }));
+          onEvent(
+            'Multi input',
+            `${FIELD_LABELS[field]} changed to ${formatNumber(value)}.`,
+          );
+        }}
+      />
     </div>
   );
 }
@@ -740,29 +690,17 @@ function CheckboxDemo({
 }) {
   return (
     <div className="checkbox-demo">
-      <div className="dark-control-surface">
-        <Checkbox
-          checked={state.checked}
-          disabled={state.disabled}
-          onCheckedChange={(checked) => {
-            const nextChecked = checked === true;
-            setState((current) => ({ ...current, checked: nextChecked }));
-            onEvent('Checkbox', nextChecked ? 'Checked.' : 'Unchecked.');
-          }}
-        >
-          {state.label}
-        </Checkbox>
-      </div>
-      <div className="checkbox-grid">
-        <PreviewState
-          label="Checked"
-          value={state.checked ? 'true' : 'false'}
-        />
-        <PreviewState
-          label="Disabled"
-          value={state.disabled ? 'true' : 'false'}
-        />
-      </div>
+      <Checkbox
+        checked={state.checked}
+        disabled={state.disabled}
+        onCheckedChange={(checked) => {
+          const nextChecked = checked === true;
+          setState((current) => ({ ...current, checked: nextChecked }));
+          onEvent('Checkbox', nextChecked ? 'Checked.' : 'Unchecked.');
+        }}
+      >
+        {state.label}
+      </Checkbox>
     </div>
   );
 }
@@ -834,17 +772,6 @@ function ToggleDemo({
           </ToggleGroupItem>
         </ToggleGroup>
       )}
-      <div className="toggle-readout">
-        <PreviewState label="Mode" value={state.mode} />
-        <PreviewState
-          label="Value"
-          value={
-            state.mode === 'single'
-              ? (state.singleValue ?? 'none')
-              : state.multipleValues.join(', ') || 'none'
-          }
-        />
-      </div>
     </div>
   );
 }
@@ -1554,15 +1481,6 @@ function SegmentedField<TValue extends string>({
           </button>
         ))}
       </div>
-    </div>
-  );
-}
-
-function PreviewState({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="preview-state">
-      <span>{label}</span>
-      <strong>{value}</strong>
     </div>
   );
 }
