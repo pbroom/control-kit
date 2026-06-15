@@ -1,16 +1,11 @@
 import {
   Activity,
-  CheckSquare,
   Eye,
   History,
   MousePointer2,
   Settings2,
-  SlidersHorizontal,
   SquareDashedMousePointer,
-  ToggleLeft,
-  Type,
   Wand2,
-  type LucideIcon,
 } from 'lucide-react';
 import {
   useCallback,
@@ -51,8 +46,6 @@ type TooltipSide = 'top' | 'right' | 'bottom' | 'left';
 interface LabPage {
   key: LabPageKey;
   label: string;
-  summary: string;
-  Icon: LucideIcon;
 }
 
 interface EventLogEntry {
@@ -128,32 +121,22 @@ const LAB_PAGES: LabPage[] = [
   {
     key: 'primitive',
     label: 'Primitive input',
-    summary: 'Numeric value, keyboard stepping, scrubbing, and draft commits.',
-    Icon: Type,
   },
   {
     key: 'multi',
     label: 'Multi input',
-    summary: 'Compound channel controls built from primitive inputs.',
-    Icon: SlidersHorizontal,
   },
   {
     key: 'checkbox',
     label: 'Checkbox',
-    summary: 'Checked, unchecked, disabled, and label treatments.',
-    Icon: CheckSquare,
   },
   {
     key: 'toggle',
     label: 'Toggle group',
-    summary: 'Single and multiple segmented toggle behavior.',
-    Icon: ToggleLeft,
   },
   {
     key: 'tooltip',
     label: 'Tooltip',
-    summary: 'Placement, contrast, pointer, and handoff timing.',
-    Icon: MousePointer2,
   },
 ];
 
@@ -414,7 +397,7 @@ export function App() {
         <nav className="lab-rail" aria-label="Components">
           <div className="lab-rail-heading">Components</div>
           <div className="lab-page-list">
-            {LAB_PAGES.map(({ key, label, summary, Icon }) => (
+            {LAB_PAGES.map(({ key, label }) => (
               <button
                 key={key}
                 className="lab-page-button"
@@ -425,11 +408,7 @@ export function App() {
                   pushEvent('Lab', `Opened ${label}.`);
                 }}
               >
-                <Icon aria-hidden="true" size={16} strokeWidth={1.8} />
-                <span>
-                  <strong>{label}</strong>
-                  <small>{summary}</small>
-                </span>
+                {label}
               </button>
             ))}
           </div>

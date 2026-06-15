@@ -88,7 +88,7 @@ input:disabled {
 
 .lab-body {
   display: grid;
-  grid-template-columns: 244px minmax(420px, 1fr) 320px;
+  grid-template-columns: 192px minmax(420px, 1fr) 320px;
   min-height: 0;
   overflow: hidden;
 }
@@ -98,80 +98,49 @@ input:disabled {
   overflow: auto;
   border-right: 1px solid rgb(255 255 255 / 0.08);
   background: #171717;
-  padding: 14px 10px;
+  padding: 20px 14px;
 }
 
 .lab-rail-heading {
-  padding: 0 8px 9px;
-  color: var(--text-subtle);
-  font-size: 11px;
+  padding: 0 8px 8px;
+  color: var(--text);
+  font-size: 13px;
   font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  line-height: 1.2;
 }
 
 .lab-page-list {
   display: grid;
-  gap: 4px;
+  gap: 1px;
 }
 
 .lab-page-button {
-  display: grid;
-  grid-template-columns: 18px minmax(0, 1fr);
-  align-items: start;
-  gap: 9px;
+  display: flex;
+  align-items: center;
   width: 100%;
-  min-height: 58px;
-  padding: 9px 8px;
-  border: 1px solid transparent;
-  border-radius: 10px;
-  color: rgb(255 255 255 / 0.62);
+  min-height: 28px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  color: var(--text-muted);
   background: transparent;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1;
   text-align: left;
   outline: none;
-  transition:
-    background-color 140ms ease,
-    border-color 140ms ease,
-    color 140ms ease;
-}
-
-.lab-page-button svg {
-  margin-top: 2px;
-}
-
-.lab-page-button strong,
-.lab-page-button small {
-  display: block;
-}
-
-.lab-page-button strong {
-  color: currentColor;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.lab-page-button small {
-  margin-top: 2px;
-  color: rgb(255 255 255 / 0.42);
-  font-size: 11px;
-  line-height: 1.25;
+  transition: color 140ms ease;
 }
 
 .lab-page-button:hover,
 .lab-page-button:focus-visible {
-  border-color: transparent;
-  background: rgb(255 255 255 / 0.07);
-  color: rgb(255 255 255 / 0.84);
+  color: var(--text);
 }
 
 .lab-page-button[data-active] {
-  border-color: rgb(141 194 243 / 0.14);
-  background: var(--accent-soft);
-  color: var(--accent-text);
-}
-
-.lab-page-button[data-active] small {
-  color: rgb(255 255 255 / 0.55);
+  color: var(--text);
+  font-weight: 600;
 }
 
 .lab-stage-panel {
@@ -491,8 +460,9 @@ input:disabled {
   }
 
   .lab-page-list {
-    grid-template-columns: repeat(5, minmax(142px, 1fr));
-    overflow-x: auto;
+    grid-template-columns: repeat(auto-fit, minmax(108px, 1fr));
+    gap: 1px 10px;
+    overflow-x: visible;
   }
 
   .lab-stage-panel {
