@@ -2,9 +2,11 @@ import {
   Activity,
   Eye,
   History,
+  Monitor,
+  Moon,
   MousePointer2,
-  Settings2,
   SquareDashedMousePointer,
+  Sun,
   Wand2,
 } from 'lucide-react';
 import {
@@ -42,6 +44,7 @@ type LabPageKey = 'primitive' | 'multi' | 'checkbox' | 'toggle' | 'tooltip';
 type MultiFieldId = 'l' | 'c' | 'h' | 'a';
 type ToggleMode = 'single' | 'multiple';
 type TooltipSide = 'top' | 'right' | 'bottom' | 'left';
+type ThemeMode = 'system' | 'dark' | 'light';
 
 interface LabPage {
   key: LabPageKey;
@@ -139,6 +142,13 @@ const LAB_PAGES: LabPage[] = [
     label: 'Tooltip',
   },
 ];
+
+const THEME_MODES: ThemeMode[] = ['system', 'dark', 'light'];
+const THEME_LABELS: Record<ThemeMode, string> = {
+  system: 'System',
+  dark: 'Dark',
+  light: 'Light',
+};
 
 const INITIAL_PRIMITIVE_STATE: PrimitiveState = {
   value: 42,
@@ -368,6 +378,8 @@ export function App() {
   const [tooltipState, setTooltipState] = useState<TooltipState>(
     INITIAL_TOOLTIP_STATE,
   );
+  const [themeMode, setThemeMode] = useState<ThemeMode>('system');
+  const [isEventLogVisible, setEventLogVisible] = useState(false);
   const [events, setEvents] = useState<EventLogEntry[]>([
     {
       id: 'boot',
@@ -391,8 +403,15 @@ export function App() {
     );
   }, []);
 
+  const ThemeIcon =
+    themeMode === 'dark' ? Moon : themeMode === 'light' ? Sun : Monitor;
+
   return (
-    <div className="lab-shell">
+    <div
+      className="lab-shell"
+      data-event-log={isEventLogVisible || undefined}
+      data-theme={themeMode}
+    >
       <main className="lab-body">
         <nav className="lab-rail" aria-label="Components">
           <div className="lab-rail-heading">Components</div>
@@ -450,10 +469,38 @@ export function App() {
           </div>
         </section>
 
-        <aside className="lab-inspector" aria-label="Inspector">
+        <aside className="lab-inspector" aria-label="Properties">
           <div className="lab-inspector-title">
-            <Settings2 aria-hidden="true" size={16} />
-            <span>Inspector</span>
+            <span>Properties</span>
+            <div className="lab-inspector-actions">
+              <button
+                className="lab-icon-button"
+                type="button"
+                aria-label={`Theme: ${THEME_LABELS[themeMode]}. Switch theme.`}
+                title={`Theme: ${THEME_LABELS[themeMode]}`}
+                onClick={() =>
+                  setThemeMode((current) => {
+                    const currentIndex = THEME_MODES.indexOf(current);
+                    return THEME_MODES[(currentIndex + 1) % THEME_MODES.length];
+                  })
+                }
+              >
+                <ThemeIcon aria-hidden="true" size={14} />
+              </button>
+              <button
+                className="lab-icon-button"
+                type="button"
+                aria-label={
+                  isEventLogVisible ? 'Hide event log' : 'Show event log'
+                }
+                aria-pressed={isEventLogVisible}
+                data-active={isEventLogVisible || undefined}
+                title={isEventLogVisible ? 'Hide event log' : 'Show event log'}
+                onClick={() => setEventLogVisible((current) => !current)}
+              >
+                <History aria-hidden="true" size={14} />
+              </button>
+            </div>
           </div>
           {activePage === 'primitive' ? (
             <PrimitiveInspector
@@ -479,7 +526,7 @@ export function App() {
         </aside>
       </main>
 
-      <EventLog events={events} />
+      {isEventLogVisible ? <EventLog events={events} /> : null}
     </div>
   );
 }

@@ -21,7 +21,12 @@ test('loads the lab and exercises the core component surfaces', async ({
   const browserErrors = await collectBrowserErrors(page);
 
   await page.goto('/');
+  await expect(page.locator('.event-log')).toHaveCount(0);
   await expect(page.locator('.lab-stage .primitive-demo')).toBeVisible();
+  await expect(page.getByLabel(/Theme: System/)).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Show event log' }),
+  ).toBeVisible();
   await page.getByLabel('Primitive input value').focus();
   await page.keyboard.press('ArrowUp');
 
@@ -42,6 +47,16 @@ test('loads the lab and exercises the core component surfaces', async ({
   await expect(page.locator('.lab-stage .tooltip-demo')).toBeVisible();
   await page.getByRole('button', { name: 'Layer' }).hover();
   await expect(page.getByText('Layer tooltip preview')).toBeVisible();
+  await expect(page.locator('.event-log')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Show event log' }).click();
   await expect(page.locator('.event-log')).toContainText('Layer opened');
+  await page.getByRole('button', { name: 'Hide event log' }).click();
+  await expect(page.locator('.event-log')).toHaveCount(0);
+
+  await page.getByLabel(/Theme: System/).click();
+  await expect(page.locator('.lab-shell')).toHaveAttribute(
+    'data-theme',
+    'dark',
+  );
   expect(browserErrors).toEqual([]);
 });
