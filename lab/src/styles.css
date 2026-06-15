@@ -98,12 +98,12 @@ input:disabled {
   overflow: auto;
   border-right: 1px solid rgb(255 255 255 / 0.08);
   background: #171717;
-  padding: 20px 14px;
+  padding: 22px;
 }
 
 .lab-rail-heading {
-  padding: 0 8px 8px;
-  color: var(--text);
+  padding: 0 0 10px;
+  color: var(--text-muted);
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0;
@@ -112,35 +112,51 @@ input:disabled {
 
 .lab-page-list {
   display: grid;
-  gap: 1px;
+  gap: 4px;
 }
 
 .lab-page-button {
   display: flex;
   align-items: center;
-  width: 100%;
-  min-height: 28px;
-  padding: 0 8px;
+  width: max-content;
+  max-width: 100%;
+  min-height: 30px;
+  margin-left: -10px;
+  padding: 0 10px;
   border: 0;
-  border-radius: 6px;
+  border-radius: 10px;
   color: var(--text-muted);
   background: transparent;
   font-size: 13px;
   font-weight: 400;
   line-height: 1;
   text-align: left;
+  white-space: nowrap;
   outline: none;
-  transition: color 140ms ease;
+  transition:
+    background-color 140ms ease,
+    color 140ms ease;
 }
 
 .lab-page-button:hover,
 .lab-page-button:focus-visible {
   color: var(--text);
+  background: rgb(255 255 255 / 0.06);
+}
+
+.lab-page-button:focus-visible {
+  box-shadow: 0 0 0 2px rgb(82 136 219 / 0.72);
 }
 
 .lab-page-button[data-active] {
+  background: rgb(255 255 255 / 0.1);
   color: var(--text);
-  font-weight: 600;
+  font-weight: 500;
+}
+
+.lab-page-button[data-active]:hover,
+.lab-page-button[data-active]:focus-visible {
+  background: rgb(255 255 255 / 0.1);
 }
 
 .lab-stage-panel {
