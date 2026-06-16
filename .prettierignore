@@ -1,2 +1,6 @@
 vendor/sandpack/**
 pnpm-lock.yaml
+.gitignore
+.prettierignore
+dist-lab
+output

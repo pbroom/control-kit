@@ -1,4 +1,6 @@
 node_modules
 dist
+dist-lab
+output
 .DS_Store
 *.tgz

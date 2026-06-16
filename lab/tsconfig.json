@@ -1,0 +1,14 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "outDir": "../dist-lab",
+    "rootDir": "..",
+    "types": ["vite/client"],
+    "paths": {
+      "@color-kit/control-kit": ["../src/index.ts"]
+    }
+  },
+  "include": ["src/**/*", "vite.config.ts", "../src/**/*"]
+}
