@@ -20,4 +20,5 @@ export type LabPageNavigationItem = {
 export const LAB_PAGE_NAVIGATION: readonly LabPageNavigationItem[] = [
   { value: 'plane', label: 'ColorPlane' },
   { value: 'input', label: 'Input Primitive' },
+  { value: 'inputMulti', label: 'Input Multi' },
 ] as const;
