@@ -24,4 +24,5 @@ export const LAB_PAGE_NAVIGATION: readonly LabPageNavigationItem[] = [
   { value: 'checkbox', label: 'Checkbox' },
   { value: 'slider', label: 'Slider' },
   { value: 'tooltip', label: 'Tooltip' },
+  { value: 'menu', label: 'Menu' },
 ] as const;

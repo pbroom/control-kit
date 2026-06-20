@@ -37,6 +37,10 @@ const LAB_PAGE_LOADERS = {
     import('./pages/tooltip.js').then((module) => ({
       default: module.TooltipLabActivePage,
     })),
+  menu: () =>
+    import('./pages/menu.js').then((module) => ({
+      default: module.MenuLabActivePage,
+    })),
 } satisfies Partial<
   Record<LabPageKey, () => Promise<{ default: ActiveLabPageComponent }>>
 >;
