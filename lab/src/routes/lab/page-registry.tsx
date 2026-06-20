@@ -29,6 +29,10 @@ const LAB_PAGE_LOADERS = {
     import('./pages/checkbox.js').then((module) => ({
       default: module.CheckboxLabActivePage,
     })),
+  slider: () =>
+    import('./pages/slider.js').then((module) => ({
+      default: module.SliderLabActivePage,
+    })),
 } satisfies Partial<
   Record<LabPageKey, () => Promise<{ default: ActiveLabPageComponent }>>
 >;
