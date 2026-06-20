@@ -25,6 +25,10 @@ const LAB_PAGE_LOADERS = {
     import('./pages/input-multi.js').then((module) => ({
       default: module.InputMultiLabActivePage,
     })),
+  checkbox: () =>
+    import('./pages/checkbox.js').then((module) => ({
+      default: module.CheckboxLabActivePage,
+    })),
 } satisfies Partial<
   Record<LabPageKey, () => Promise<{ default: ActiveLabPageComponent }>>
 >;
