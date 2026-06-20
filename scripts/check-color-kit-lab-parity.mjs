@@ -109,7 +109,7 @@ const normalizedFilePairs = [
     source: 'apps/docs/src/routes/lab/shared.tsx',
     target: 'lab/src/routes/lab/shared.tsx',
     normalizeTarget: (content) =>
-      content.replace(
+      content.replaceAll(
         'useSubmenuHoverTimer<SelectOptionId>({\n    enabled: showSubmenus,\n  });',
         'useSubmenuHoverTimer({\n    enabled: showSubmenus,\n  });',
       ),
@@ -118,7 +118,7 @@ const normalizedFilePairs = [
     source: 'apps/docs/src/app.css',
     target: 'lab/src/styles.css',
     normalizeTarget: (content) =>
-      content.replace(
+      content.replaceAll(
         "@source './**/*.{ts,tsx}';\n@source '../../src/**/*.{ts,tsx}';",
         "/* @color-kit/control-kit intentionally ships src/ so Tailwind v4 can scan package-authored utilities. */\n@source '../node_modules/@color-kit/control-kit/src';",
       ),
@@ -242,8 +242,6 @@ async function main() {
     directoryFiles += result.fileCount;
   }
 
-  const labPages = await listFiles(repoRoot, 'lab/src/routes/lab/pages');
-
   if (failures.length > 0) {
     console.error('Color-kit lab parity check failed:');
     for (const failure of failures) {
@@ -251,6 +249,8 @@ async function main() {
     }
     process.exit(1);
   }
+
+  const labPages = await listFiles(repoRoot, 'lab/src/routes/lab/pages');
 
   const coreWasmGenerated = await stat(
     path.join(repoRoot, 'lab/src/vendor/color-kit/core-wasm/generated'),
