@@ -17,6 +17,10 @@ const LAB_PAGE_LOADERS = {
     import('./pages/color-plane.js').then((module) => ({
       default: module.PlaneLabActivePage,
     })),
+  input: () =>
+    import('./pages/input.js').then((module) => ({
+      default: module.InputLabActivePage,
+    })),
 } satisfies Partial<
   Record<LabPageKey, () => Promise<{ default: ActiveLabPageComponent }>>
 >;
