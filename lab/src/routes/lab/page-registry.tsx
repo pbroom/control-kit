@@ -12,7 +12,10 @@ type ActiveLabPageComponent = ComponentType<{
   isActive?: boolean;
 }>;
 
-const LAB_PAGE_LOADERS = {
+const LAB_PAGE_LOADERS: Record<
+  LabPageKey,
+  () => Promise<{ default: ActiveLabPageComponent }>
+> = {
   plane: () =>
     import('./pages/color-plane.js').then((module) => ({
       default: module.PlaneLabActivePage,
@@ -49,13 +52,15 @@ const LAB_PAGE_LOADERS = {
     import('./pages/toggle-button.js').then((module) => ({
       default: module.ToggleButtonLabActivePage,
     })),
-} satisfies Partial<
-  Record<LabPageKey, () => Promise<{ default: ActiveLabPageComponent }>>
->;
+  toggle: () =>
+    import('./pages/toggle-group.js').then((module) => ({
+      default: module.ToggleGroupLabActivePage,
+    })),
+};
 
 const LAZY_LAB_PAGES = Object.fromEntries(
   Object.entries(LAB_PAGE_LOADERS).map(([key, loader]) => [key, lazy(loader)]),
-) as Partial<Record<LabPageKey, LazyExoticComponent<ActiveLabPageComponent>>>;
+) as Record<LabPageKey, LazyExoticComponent<ActiveLabPageComponent>>;
 
 export function LazyActiveLabPage({
   activePage,
@@ -65,10 +70,6 @@ export function LazyActiveLabPage({
   isActive?: boolean;
 }) {
   const ActiveLabPage = LAZY_LAB_PAGES[activePage];
-
-  if (!ActiveLabPage) {
-    return null;
-  }
 
   return (
     <Suspense fallback={null}>
