@@ -39,6 +39,7 @@
     "lab": "vite --config lab/vite.config.ts",
     "lab:build": "vite build --config lab/vite.config.ts",
     "lab:preview": "vite preview --config lab/vite.config.ts",
+    "lab:reference-check": "node scripts/check-color-kit-lab-parity.mjs",
     "lab:smoke": "playwright test -c lab/playwright.config.ts",
     "lab:typecheck": "tsc -p lab/tsconfig.json --noEmit",
     "prepare": "pnpm build",
