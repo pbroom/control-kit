@@ -26,4 +26,5 @@ export const LAB_PAGE_NAVIGATION: readonly LabPageNavigationItem[] = [
   { value: 'tooltip', label: 'Tooltip' },
   { value: 'menu', label: 'Menu' },
   { value: 'select', label: 'Select' },
+  { value: 'toggleButton', label: 'Toggle Button' },
 ] as const;

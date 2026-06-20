@@ -45,6 +45,10 @@ const LAB_PAGE_LOADERS = {
     import('./pages/select.js').then((module) => ({
       default: module.SelectLabActivePage,
     })),
+  toggleButton: () =>
+    import('./pages/toggle-button.js').then((module) => ({
+      default: module.ToggleButtonLabActivePage,
+    })),
 } satisfies Partial<
   Record<LabPageKey, () => Promise<{ default: ActiveLabPageComponent }>>
 >;
