@@ -41,6 +41,10 @@ const LAB_PAGE_LOADERS = {
     import('./pages/menu.js').then((module) => ({
       default: module.MenuLabActivePage,
     })),
+  select: () =>
+    import('./pages/select.js').then((module) => ({
+      default: module.SelectLabActivePage,
+    })),
 } satisfies Partial<
   Record<LabPageKey, () => Promise<{ default: ActiveLabPageComponent }>>
 >;
