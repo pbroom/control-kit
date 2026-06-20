@@ -7,7 +7,14 @@
     "rootDir": "..",
     "types": ["vite/client"],
     "paths": {
-      "@color-kit/control-kit": ["../src/index.ts"]
+      "@/*": ["./src/*"],
+      "@color-kit/control-kit": ["../src/index.ts"],
+      "@color-kit/core-wasm": ["./src/vendor/color-kit/core-wasm/index.ts"],
+      "@color-kit/core": ["./src/vendor/color-kit/core/index.ts"],
+      "color-kit/react": ["./src/vendor/color-kit/react/index.ts"],
+      "@color-kit/react": ["./src/vendor/color-kit/react/index.ts"],
+      "color-kit/core": ["./src/vendor/color-kit/core/index.ts"],
+      "color-kit": ["./src/vendor/color-kit/core/index.ts"]
     }
   },
   "include": ["src/**/*", "vite.config.ts", "../src/**/*"]
