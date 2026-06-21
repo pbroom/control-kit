@@ -2730,6 +2730,7 @@ type LabPageFrameProps = {
 function LabPagePreviewFallback() {
   return (
     <div
+      role="status"
       aria-label="Loading preview"
       className="pointer-events-none flex h-[220px] w-[320px] max-w-[min(320px,calc(100vw-3rem))] items-center justify-center rounded-[18px] border border-white/8 bg-[#101010] shadow-[0_18px_45px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.04)]"
     >
@@ -2744,9 +2745,9 @@ function LabPagePreviewFallback() {
 
 function LabPagePropertiesFallback() {
   return (
-    <div aria-label="Loading properties" className="space-y-6">
+    <div role="status" aria-label="Loading properties" className="space-y-6">
       <section className="space-y-3">
-        <div className="h-4 w-28 animate-pulse rounded-full bg-white/12" />
+        <div className="h-4 w-28 animate-pulse rounded-full bg-white/[0.12]" />
         <div className="space-y-2">
           <div className="h-2.5 w-full animate-pulse rounded-full bg-white/[0.07]" />
           <div className="h-2.5 w-4/5 animate-pulse rounded-full bg-white/[0.05]" />
