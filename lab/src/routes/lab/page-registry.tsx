@@ -21,6 +21,10 @@ const LAB_PAGE_LOADERS = {
     import('./pages/input.js').then((module) => ({
       default: module.InputLabActivePage,
     })),
+  inputMulti: () =>
+    import('./pages/input-multi.js').then((module) => ({
+      default: module.InputMultiLabActivePage,
+    })),
 } satisfies Partial<
   Record<LabPageKey, () => Promise<{ default: ActiveLabPageComponent }>>
 >;
