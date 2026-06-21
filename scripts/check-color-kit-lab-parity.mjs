@@ -159,7 +159,7 @@ import { SelectList, SelectListItem } from '@/routes/lab/lab-menu';
         aria-label="Theme"
         align="start"
         collisionPadding={8}
-        side="right"
+        side="bottom"
         sideOffset={8}
         variant="ui3"
         className="z-[80] w-[150px]"

@@ -89,8 +89,8 @@ test('mirrors the color-kit lab pages and properties panel', async ({
     page.locator('main').getByText('control-kit', { exact: true }),
   ).toBeVisible();
 
-  const rail = page.locator('main .absolute.left-4.top-4');
-  await page.getByLabel('Toggle theme', { exact: true }).click();
+  const themeTrigger = page.getByLabel('Toggle theme', { exact: true });
+  await themeTrigger.click();
   const themeMenu = page.locator(
     '[data-slot="dropdown-menu-content"][aria-label="Theme"]',
   );
@@ -98,15 +98,17 @@ test('mirrors the color-kit lab pages and properties panel', async ({
   await expect(
     themeMenu.getByRole('menuitemradio', { name: 'Light', exact: true }),
   ).toBeVisible();
-  const [railBox, themeMenuBox] = await Promise.all([
-    rail.boundingBox(),
+  const [themeTriggerBox, themeMenuBox] = await Promise.all([
+    themeTrigger.boundingBox(),
     themeMenu.boundingBox(),
   ]);
-  expect(railBox).not.toBeNull();
+  expect(themeTriggerBox).not.toBeNull();
   expect(themeMenuBox).not.toBeNull();
-  expect(themeMenuBox!.x).toBeGreaterThanOrEqual(
-    railBox!.x + railBox!.width - 1,
+  expect(themeMenuBox!.y).toBeGreaterThanOrEqual(
+    themeTriggerBox!.y + themeTriggerBox!.height - 1,
   );
+  expect(themeMenuBox!.x).toBeGreaterThanOrEqual(themeTriggerBox!.x - 1);
+  expect(themeMenuBox!.x).toBeLessThanOrEqual(themeTriggerBox!.x + 1);
   await page.keyboard.press('Escape');
   await expect(themeMenu).toBeHidden();
 
