@@ -19,13 +19,4 @@ export type LabPageNavigationItem = {
 
 export const LAB_PAGE_NAVIGATION: readonly LabPageNavigationItem[] = [
   { value: 'plane', label: 'ColorPlane' },
-  { value: 'input', label: 'Input Primitive' },
-  { value: 'inputMulti', label: 'Input Multi' },
-  { value: 'checkbox', label: 'Checkbox' },
-  { value: 'slider', label: 'Slider' },
-  { value: 'tooltip', label: 'Tooltip' },
-  { value: 'menu', label: 'Menu' },
-  { value: 'select', label: 'Select' },
-  { value: 'toggleButton', label: 'Toggle Button' },
-  { value: 'toggle', label: 'Toggle Group' },
 ] as const;
