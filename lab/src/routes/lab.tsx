@@ -49,11 +49,11 @@ export function LabPage() {
     return () => window.clearTimeout(timeoutHandle);
   }, [activePage]);
 
-  const handlePageChange = (page: LabPageKey) => {
+  const handlePageChange = useCallback((page: LabPageKey) => {
     void preloadLabPage(page);
     setActivePage(page);
     setVisitedPages((pages) => appendVisitedPage(pages, page));
-  };
+  }, []);
 
   const handlePagePreload = useCallback((page: LabPageKey) => {
     void preloadLabPage(page);
