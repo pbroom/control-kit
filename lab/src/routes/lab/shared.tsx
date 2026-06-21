@@ -1379,10 +1379,12 @@ function ToggleField({
 function PagesPanel({
   activePage,
   onPageChange,
+  onPagePreload,
   pages,
 }: {
   activePage: LabPageKey;
   onPageChange: (page: LabPageKey) => void;
+  onPagePreload?: (page: LabPageKey) => void;
   pages: readonly LabPageNavigationItem[];
 }) {
   return (
@@ -1409,6 +1411,8 @@ function PagesPanel({
               }`}
               aria-pressed={isActive}
               onClick={() => onPageChange(page.value)}
+              onFocus={() => onPagePreload?.(page.value)}
+              onPointerEnter={() => onPagePreload?.(page.value)}
             >
               {page.label}
             </button>
@@ -2718,6 +2722,7 @@ type LabPanelTooltipProviderProps = {
 type LabPageFrameProps = {
   activePage: LabPageKey;
   onPageChange: (page: LabPageKey) => void;
+  onPagePreload?: (page: LabPageKey) => void;
   pages: readonly LabPageNavigationItem[];
   children: ReactNode;
 };
@@ -2741,6 +2746,7 @@ function LabPagePropertiesFallback() {
 function LabPageFrameContent({
   activePage,
   onPageChange,
+  onPagePreload,
   pages,
   children,
 }: LabPageFrameProps) {
@@ -2757,6 +2763,7 @@ function LabPageFrameContent({
             <PagesPanel
               activePage={activePage}
               onPageChange={onPageChange}
+              onPagePreload={onPagePreload}
               pages={pages}
             />
             {preview ?? <LabPagePreviewFallback />}

@@ -58,8 +58,30 @@ const LAB_PAGE_LOADERS: Record<
     })),
 };
 
+const LAB_PAGE_LOADER_ENTRIES = Object.entries(LAB_PAGE_LOADERS) as Array<
+  [LabPageKey, () => Promise<{ default: ActiveLabPageComponent }>]
+>;
+
+const LAB_PAGE_MODULE_PROMISES: Partial<
+  Record<LabPageKey, Promise<{ default: ActiveLabPageComponent }>>
+> = {};
+
+export function preloadLabPage(activePage: LabPageKey) {
+  return (LAB_PAGE_MODULE_PROMISES[activePage] ??=
+    LAB_PAGE_LOADERS[activePage]());
+}
+
+export function preloadLabPages(activePages: readonly LabPageKey[]) {
+  return Promise.all(
+    activePages.map((activePage) => preloadLabPage(activePage)),
+  );
+}
+
 const LAZY_LAB_PAGES = Object.fromEntries(
-  Object.entries(LAB_PAGE_LOADERS).map(([key, loader]) => [key, lazy(loader)]),
+  LAB_PAGE_LOADER_ENTRIES.map(([key]) => [
+    key,
+    lazy(() => preloadLabPage(key)),
+  ]),
 ) as Record<LabPageKey, LazyExoticComponent<ActiveLabPageComponent>>;
 
 export function LazyActiveLabPage({
