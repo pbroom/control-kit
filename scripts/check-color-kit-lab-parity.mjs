@@ -104,10 +104,31 @@ const directoryPairs = [
   },
 ];
 
+function normalizeStandaloneLabShell(content) {
+  return content
+    .replace("import { Link } from 'react-router';\n", '')
+    .replace(
+      /  const \[isSiteNavOpen, setIsSiteNavOpen\] = useState\(false\);\n\n  return \(\n    <div className="absolute left-4 top-4 z-20 w-\[190px\]">\n      <div className="flex items-center gap-2">[\s\S]*?      <div className="mt-3 space-y-0\.5">/,
+      `  return (
+    <div className="absolute left-4 top-4 z-20 w-[190px]">
+      <div className="flex items-center gap-2">
+        <div className="flex min-w-0 items-center rounded-lg px-1 py-1 font-[var(--font-brand)] text-[15px] font-bold text-white outline-none focus-visible:ring-2 focus-visible:ring-[#5288db]">
+          <span className="truncate">control-kit</span>
+        </div>
+        <div className="ml-auto [&_[data-slot=button]]:size-8 [&_[data-slot=button]]:min-h-8 [&_[data-slot=button]]:rounded-xl [&_[data-slot=button]]:text-white/65 [&_[data-slot=button]]:hover:bg-white/8 [&_[data-slot=button]]:hover:text-white">
+          <ThemeSwitcher />
+        </div>
+      </div>
+      <div className="mt-3 space-y-0.5">`,
+    )
+    .replace('          Color Kit', '          control-kit');
+}
+
 const normalizedFilePairs = [
   {
     source: 'apps/docs/src/routes/lab/shared.tsx',
     target: 'lab/src/routes/lab/shared.tsx',
+    normalizeSource: normalizeStandaloneLabShell,
     normalizeTarget: (content) =>
       content.replaceAll(
         'useSubmenuHoverTimer<SelectOptionId>({\n    enabled: showSubmenus,\n  });',
@@ -133,8 +154,15 @@ async function readText(root, relativePath) {
   return readFile(path.join(root, relativePath), 'utf8');
 }
 
-async function compareTextPair({ source, target, normalizeTarget }) {
-  const sourceText = await readText(referenceRoot, source);
+async function compareTextPair({
+  source,
+  target,
+  normalizeSource,
+  normalizeTarget,
+}) {
+  const sourceText = normalizeSource
+    ? normalizeSource(await readText(referenceRoot, source))
+    : await readText(referenceRoot, source);
   const targetText = normalizeTarget
     ? normalizeTarget(await readText(repoRoot, target))
     : await readText(repoRoot, target);
@@ -152,7 +180,8 @@ async function compareTextPair({ source, target, normalizeTarget }) {
 function shouldIgnore(relativePath, ignoredPaths) {
   return ignoredPaths.some(
     (ignoredPath) =>
-      relativePath === ignoredPath || relativePath.startsWith(`${ignoredPath}/`),
+      relativePath === ignoredPath ||
+      relativePath.startsWith(`${ignoredPath}/`),
   );
 }
 

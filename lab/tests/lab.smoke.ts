@@ -21,12 +21,14 @@ const LAB_PAGES = [
   {
     key: 'checkbox',
     label: 'Checkbox',
-    panelText: 'Preview the compact checkbox row used throughout the properties panel.',
+    panelText:
+      'Preview the compact checkbox row used throughout the properties panel.',
   },
   {
     key: 'slider',
     label: 'Slider',
-    panelText: 'Preview one ColorSlider instance and tune its slider-specific props.',
+    panelText:
+      'Preview one ColorSlider instance and tune its slider-specific props.',
   },
   {
     key: 'tooltip',
@@ -36,7 +38,8 @@ const LAB_PAGES = [
   {
     key: 'menu',
     label: 'Menu',
-    panelText: 'Tune the three-item menu shown above the reusable menu preview.',
+    panelText:
+      'Tune the three-item menu shown above the reusable menu preview.',
   },
   {
     key: 'select',
@@ -82,7 +85,9 @@ test('mirrors the color-kit lab pages and properties panel', async ({
 
   await mkdir(snapshotDir, { recursive: true });
   await page.goto('/');
-  await expect(page.getByText('color kit', { exact: true })).toBeVisible();
+  await expect(
+    page.locator('main').getByText('control-kit', { exact: true }),
+  ).toBeVisible();
 
   for (const [index, labPage] of LAB_PAGES.entries()) {
     const navButton = page
