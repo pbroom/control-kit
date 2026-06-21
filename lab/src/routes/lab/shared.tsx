@@ -114,7 +114,6 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react';
-import { Link } from 'react-router';
 import {
   DynamicLucideIcon,
   LucideIconPicker,
@@ -1386,55 +1385,16 @@ function PagesPanel({
   onPageChange: (page: LabPageKey) => void;
   pages: readonly LabPageNavigationItem[];
 }) {
-  const [isSiteNavOpen, setIsSiteNavOpen] = useState(false);
-
   return (
     <div className="absolute left-4 top-4 z-20 w-[190px]">
       <div className="flex items-center gap-2">
-        <button
-          type="button"
-          aria-label={
-            isSiteNavOpen ? 'Hide site navigation' : 'Show site navigation'
-          }
-          aria-expanded={isSiteNavOpen}
-          aria-controls="lab-site-nav"
-          className="flex size-8 shrink-0 items-center justify-center rounded-xl text-white/65 outline-none transition-[background-color,color] hover:bg-white/8 hover:text-white focus-visible:ring-2 focus-visible:ring-[#5288db]"
-          onClick={() => setIsSiteNavOpen((current) => !current)}
-        >
-          <Menu aria-hidden="true" className="size-4" />
-        </button>
-        <Link
-          to="/"
-          className="flex min-w-0 items-center rounded-lg px-1 py-1 font-[var(--font-brand)] text-[15px] font-bold text-white outline-none focus-visible:ring-2 focus-visible:ring-[#5288db]"
-        >
-          <span className="truncate">color kit</span>
-        </Link>
+        <div className="flex min-w-0 items-center rounded-lg px-1 py-1 font-[var(--font-brand)] text-[15px] font-bold text-white outline-none focus-visible:ring-2 focus-visible:ring-[#5288db]">
+          <span className="truncate">control-kit</span>
+        </div>
         <div className="ml-auto [&_[data-slot=button]]:size-8 [&_[data-slot=button]]:min-h-8 [&_[data-slot=button]]:rounded-xl [&_[data-slot=button]]:text-white/65 [&_[data-slot=button]]:hover:bg-white/8 [&_[data-slot=button]]:hover:text-white">
           <ThemeSwitcher />
         </div>
       </div>
-      <nav
-        id="lab-site-nav"
-        aria-label="Site navigation"
-        className="mt-3"
-        hidden={!isSiteNavOpen}
-      >
-        <div className="space-y-0.5">
-          {[
-            { label: 'Docs', to: '/docs/introduction' },
-            { label: 'Components', to: '/docs/components/color-area' },
-            { label: 'Registry', to: '/docs/shadcn-registry' },
-          ].map((item) => (
-            <Link
-              key={item.to}
-              to={item.to}
-              className="flex w-full items-center rounded-lg px-1 py-1.5 text-left text-sm font-medium text-white/55 outline-none transition-colors hover:text-white/80 focus-visible:ring-2 focus-visible:ring-[#5288db]"
-            >
-              {item.label}
-            </Link>
-          ))}
-        </div>
-      </nav>
       <div className="mt-3 space-y-0.5">
         {pages.map((page) => {
           const isActive = activePage === page.value;
@@ -1468,7 +1428,7 @@ function LabHeaderExit() {
       <div className="mx-auto flex h-14 w-full max-w-[1560px] items-center justify-between gap-4 px-4">
         <div className="docs-brand">
           <span className="docs-brand-dot" />
-          Color Kit
+          control-kit
         </div>
       </div>
     </div>
