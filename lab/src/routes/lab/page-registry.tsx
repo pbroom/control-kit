@@ -33,6 +33,10 @@ const LAB_PAGE_LOADERS = {
     import('./pages/slider.js').then((module) => ({
       default: module.SliderLabActivePage,
     })),
+  tooltip: () =>
+    import('./pages/tooltip.js').then((module) => ({
+      default: module.TooltipLabActivePage,
+    })),
 } satisfies Partial<
   Record<LabPageKey, () => Promise<{ default: ActiveLabPageComponent }>>
 >;
