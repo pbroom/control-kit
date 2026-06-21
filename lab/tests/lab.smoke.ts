@@ -1,4 +1,59 @@
+import { mkdir } from 'node:fs/promises';
+import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
+
+const LAB_PAGES = [
+  {
+    key: 'color-plane',
+    label: 'ColorPlane',
+    panelText: 'Drive the current sample color.',
+  },
+  {
+    key: 'input-primitive',
+    label: 'Input Primitive',
+    panelText: 'Choose what appears inside the scrub handle.',
+  },
+  {
+    key: 'input-multi',
+    label: 'Input Multi',
+    panelText: 'Configure the selected color channel input.',
+  },
+  {
+    key: 'checkbox',
+    label: 'Checkbox',
+    panelText: 'Preview the compact checkbox row used throughout the properties panel.',
+  },
+  {
+    key: 'slider',
+    label: 'Slider',
+    panelText: 'Preview one ColorSlider instance and tune its slider-specific props.',
+  },
+  {
+    key: 'tooltip',
+    label: 'Tooltip',
+    panelText: 'Tune the Radix initial hover delay',
+  },
+  {
+    key: 'menu',
+    label: 'Menu',
+    panelText: 'Tune the three-item menu shown above the reusable menu preview.',
+  },
+  {
+    key: 'select',
+    label: 'Select',
+    panelText: 'Preview the UI3 menu trigger state.',
+  },
+  {
+    key: 'toggle-button',
+    label: 'Toggle Button',
+    panelText: 'Preview selection separately from interaction feedback.',
+  },
+  {
+    key: 'toggle-group',
+    label: 'Toggle Group',
+    panelText: 'Preview the toggle group icon layout.',
+  },
+] as const;
 
 async function collectBrowserErrors(page: Page): Promise<string[]> {
   const errors: string[] = [];
@@ -15,48 +70,39 @@ async function collectBrowserErrors(page: Page): Promise<string[]> {
   return errors;
 }
 
-test('loads the lab and exercises the core component surfaces', async ({
+test('mirrors the color-kit lab pages and properties panel', async ({
   page,
-}) => {
+}, testInfo) => {
   const browserErrors = await collectBrowserErrors(page);
-
-  await page.goto('/');
-  await expect(page.locator('.event-log')).toHaveCount(0);
-  await expect(page.locator('.lab-stage .primitive-demo')).toBeVisible();
-  await expect(page.getByLabel(/Theme: System/)).toBeVisible();
-  await expect(
-    page.getByRole('button', { name: 'Show event log' }),
-  ).toBeVisible();
-  await page.getByLabel('Primitive input value').focus();
-  await page.keyboard.press('ArrowUp');
-
-  await page.getByRole('button', { name: /Multi input/ }).click();
-  await expect(page.locator('.lab-stage .multi-demo')).toBeVisible();
-  await page.getByLabel('Hue').focus();
-  await page.keyboard.press('ArrowUp');
-
-  await page.getByRole('button', { name: /Checkbox/ }).click();
-  await expect(page.locator('.lab-stage .checkbox-demo')).toBeVisible();
-  await page.getByRole('checkbox', { name: /Enable preview updates/ }).click();
-
-  await page.getByRole('button', { name: /Toggle group/ }).click();
-  await expect(page.locator('.lab-stage .toggle-demo')).toBeVisible();
-  await page.getByRole('button', { name: /Tune/ }).click();
-
-  await page.getByRole('button', { name: /Tooltip/ }).click();
-  await expect(page.locator('.lab-stage .tooltip-demo')).toBeVisible();
-  await page.getByRole('button', { name: 'Layer' }).hover();
-  await expect(page.getByText('Layer tooltip preview')).toBeVisible();
-  await expect(page.locator('.event-log')).toHaveCount(0);
-  await page.getByRole('button', { name: 'Show event log' }).click();
-  await expect(page.locator('.event-log')).toContainText('Layer opened');
-  await page.getByRole('button', { name: 'Hide event log' }).click();
-  await expect(page.locator('.event-log')).toHaveCount(0);
-
-  await page.getByLabel(/Theme: System/).click();
-  await expect(page.locator('.lab-shell')).toHaveAttribute(
-    'data-theme',
-    'dark',
+  const snapshotDir = path.resolve(
+    process.cwd(),
+    'output/lab-parity-snapshots',
+    testInfo.project.name,
   );
+
+  await mkdir(snapshotDir, { recursive: true });
+  await page.goto('/');
+  await expect(page.getByText('color kit', { exact: true })).toBeVisible();
+
+  for (const [index, labPage] of LAB_PAGES.entries()) {
+    const navButton = page
+      .locator('button[aria-pressed]')
+      .filter({ hasText: labPage.label });
+
+    if (index > 0) {
+      await navButton.click();
+    }
+
+    await expect(navButton).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('aside')).toContainText(labPage.panelText);
+    await page.screenshot({
+      path: path.join(
+        snapshotDir,
+        `${String(index + 1).padStart(2, '0')}-${labPage.key}.png`,
+      ),
+      fullPage: true,
+    });
+  }
+
   expect(browserErrors).toEqual([]);
 });

@@ -1,20 +1,23 @@
 import { defineConfig } from '@playwright/test';
 
+const labPort = Number(process.env.CONTROL_KIT_LAB_PORT ?? 5185);
+const labUrl = `http://127.0.0.1:${labPort}/`;
+
 export default defineConfig({
   testDir: './tests',
   testMatch: '**/*.smoke.ts',
   outputDir: '../output/playwright/results',
-  fullyParallel: true,
+  fullyParallel: false,
   reporter: [['list']],
+  workers: 1,
   webServer: {
-    command:
-      'pnpm exec vite --config vite.config.ts --host 127.0.0.1 --port 5175 --strictPort',
-    url: 'http://127.0.0.1:5175/',
-    reuseExistingServer: true,
+    command: `pnpm exec vite --config vite.config.ts --host 127.0.0.1 --port ${labPort} --strictPort`,
+    url: labUrl,
+    reuseExistingServer: false,
     timeout: 120_000,
   },
   use: {
-    baseURL: 'http://127.0.0.1:5175/',
+    baseURL: labUrl,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
