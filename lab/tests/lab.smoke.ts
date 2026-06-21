@@ -89,6 +89,27 @@ test('mirrors the color-kit lab pages and properties panel', async ({
     page.locator('main').getByText('control-kit', { exact: true }),
   ).toBeVisible();
 
+  const rail = page.locator('main .absolute.left-4.top-4');
+  await page.getByLabel('Toggle theme', { exact: true }).click();
+  const themeMenu = page.locator(
+    '[data-slot="dropdown-menu-content"][aria-label="Theme"]',
+  );
+  await expect(themeMenu).toBeVisible();
+  await expect(
+    themeMenu.getByRole('menuitemradio', { name: 'Light', exact: true }),
+  ).toBeVisible();
+  const [railBox, themeMenuBox] = await Promise.all([
+    rail.boundingBox(),
+    themeMenu.boundingBox(),
+  ]);
+  expect(railBox).not.toBeNull();
+  expect(themeMenuBox).not.toBeNull();
+  expect(themeMenuBox!.x).toBeGreaterThanOrEqual(
+    railBox!.x + railBox!.width - 1,
+  );
+  await page.keyboard.press('Escape');
+  await expect(themeMenu).toBeHidden();
+
   for (const [index, labPage] of LAB_PAGES.entries()) {
     const navButton = page
       .locator('button[aria-pressed]')

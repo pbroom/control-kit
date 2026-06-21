@@ -51,10 +51,6 @@ const exactFilePairs = [
     target: 'lab/src/components/theme-context.tsx',
   },
   {
-    source: 'apps/docs/src/components/theme-switcher.tsx',
-    target: 'lab/src/components/theme-switcher.tsx',
-  },
-  {
     source: 'apps/docs/src/components/ui/button.tsx',
     target: 'lab/src/components/ui/button.tsx',
   },
@@ -124,6 +120,67 @@ function normalizeStandaloneLabShell(content) {
     .replace('          Color Kit', '          control-kit');
 }
 
+function normalizeStandaloneThemeSwitcher(content) {
+  return content
+    .replace("import { Menu } from '@base-ui/react/menu';\n", '')
+    .replace(
+      "import { Circle, Moon, Sun } from 'lucide-react';",
+      "import { Moon, Sun } from 'lucide-react';",
+    )
+    .replace(
+      "import { cn } from '@/lib/utils';\n",
+      `import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { SelectList, SelectListItem } from '@/routes/lab/lab-menu';
+`,
+    )
+    .replace(
+      /  return \(\n    <Menu\.Root>[\s\S]*?    <\/Menu\.Root>\n  \);/,
+      `  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          aria-label="Toggle theme"
+        >
+          {resolvedTheme === 'dark' ? (
+            <Moon className="size-4" />
+          ) : (
+            <Sun className="size-4" />
+          )}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        aria-label="Theme"
+        align="start"
+        collisionPadding={8}
+        side="right"
+        sideOffset={8}
+        variant="ui3"
+        className="z-[80] w-[150px]"
+      >
+        <SelectList
+          openAlignment="none"
+          value={preference}
+          onValueChange={(value) => setPreference(value as ThemePreference)}
+        >
+          {options.map((option) => (
+            <SelectListItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectListItem>
+          ))}
+        </SelectList>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );`,
+    );
+}
+
 const normalizedFilePairs = [
   {
     source: 'apps/docs/src/routes/lab/shared.tsx',
@@ -134,6 +191,11 @@ const normalizedFilePairs = [
         'useSubmenuHoverTimer<SelectOptionId>({\n    enabled: showSubmenus,\n  });',
         'useSubmenuHoverTimer({\n    enabled: showSubmenus,\n  });',
       ),
+  },
+  {
+    source: 'apps/docs/src/components/theme-switcher.tsx',
+    target: 'lab/src/components/theme-switcher.tsx',
+    normalizeSource: normalizeStandaloneThemeSwitcher,
   },
   {
     source: 'apps/docs/src/app.css',
