@@ -1,62 +1,27 @@
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
+import { LAB_PAGE_NAVIGATION } from '../src/routes/lab/lab-page-runtime.js';
 
-const LAB_PAGES = [
-  {
-    key: 'color-plane',
-    label: 'ColorPlane',
-    panelText: 'Drive the current sample color.',
-  },
-  {
-    key: 'input-primitive',
-    label: 'Input Primitive',
-    panelText: 'Choose what appears inside the scrub handle.',
-  },
-  {
-    key: 'input-multi',
-    label: 'Input Multi',
-    panelText: 'Configure the selected color channel input.',
-  },
-  {
-    key: 'checkbox',
-    label: 'Checkbox',
-    panelText:
-      'Preview the compact checkbox row used throughout the properties panel.',
-  },
-  {
-    key: 'slider',
-    label: 'Slider',
-    panelText:
-      'Preview one ColorSlider instance and tune its slider-specific props.',
-  },
-  {
-    key: 'tooltip',
-    label: 'Tooltip',
-    panelText: 'Tune the Radix initial hover delay',
-  },
-  {
-    key: 'menu',
-    label: 'Menu',
-    panelText:
-      'Tune the three-item menu shown above the reusable menu preview.',
-  },
-  {
-    key: 'select',
-    label: 'Select',
-    panelText: 'Preview the UI3 menu trigger state.',
-  },
-  {
-    key: 'toggle-button',
-    label: 'Toggle Button',
-    panelText: 'Preview selection separately from interaction feedback.',
-  },
-  {
-    key: 'toggle-group',
-    label: 'Toggle Group',
-    panelText: 'Preview the toggle group icon layout.',
-  },
-] as const;
+const LAB_PAGE_PANEL_TEXT = {
+  plane: 'Drive the current sample color.',
+  input: 'Choose what appears inside the scrub handle.',
+  inputMulti: 'Configure the selected color channel input.',
+  checkbox:
+    'Preview the compact checkbox row used throughout the properties panel.',
+  slider:
+    'Preview one ColorSlider instance and tune its slider-specific props.',
+  tooltip: 'Tune the Radix initial hover delay',
+  menu: 'Tune the three-item menu shown above the reusable menu preview.',
+  select: 'Preview the UI3 menu trigger state.',
+  toggleButton: 'Preview selection separately from interaction feedback.',
+  toggle: 'Preview the toggle group icon layout.',
+} satisfies Record<(typeof LAB_PAGE_NAVIGATION)[number]['value'], string>;
+
+const LAB_PAGES = LAB_PAGE_NAVIGATION.map((labPage) => ({
+  ...labPage,
+  panelText: LAB_PAGE_PANEL_TEXT[labPage.value],
+}));
 
 async function collectBrowserErrors(page: Page): Promise<string[]> {
   const errors: string[] = [];
@@ -123,13 +88,13 @@ test('mirrors the color-kit lab pages and properties panel', async ({
       await navLink.click();
     }
 
-    await expect(page).toHaveURL(new RegExp(`/lab/${labPage.key}$`));
+    await expect(page).toHaveURL(new RegExp(`/lab/${labPage.slug}$`));
     await expect(navLink).toHaveAttribute('aria-current', 'page');
     await expect(page.locator('aside')).toContainText(labPage.panelText);
     await page.screenshot({
       path: path.join(
         snapshotDir,
-        `${String(index + 1).padStart(2, '0')}-${labPage.key}.png`,
+        `${String(index + 1).padStart(2, '0')}-${labPage.slug}.png`,
       ),
       fullPage: true,
     });
