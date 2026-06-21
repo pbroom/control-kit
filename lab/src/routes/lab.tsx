@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
+  getLabPagePath,
   LAB_PAGE_NAVIGATION,
   LazyActiveLabPage,
   preloadLabPage,
@@ -15,6 +16,11 @@ type PreloadWindow = Window & {
   cancelIdleCallback?: (handle: number) => void;
 };
 
+type LabPageProps = {
+  activePage: LabPageKey;
+  onPageChange: (page: LabPageKey) => void;
+};
+
 function appendVisitedPage(
   pages: readonly LabPageKey[],
   page: LabPageKey,
@@ -26,11 +32,10 @@ function ignorePreloadFailure(preloadPromise: Promise<unknown>) {
   void preloadPromise.catch(() => undefined);
 }
 
-export function LabPage() {
-  const [activePage, setActivePage] = useState<LabPageKey>('plane');
-  const [visitedPages, setVisitedPages] = useState<readonly LabPageKey[]>([
-    'plane',
-  ]);
+export function LabPage({ activePage, onPageChange }: LabPageProps) {
+  const [visitedPages, setVisitedPages] = useState<readonly LabPageKey[]>(
+    () => [activePage],
+  );
 
   useEffect(() => {
     const preloadPages = () => {
@@ -53,11 +58,17 @@ export function LabPage() {
     return () => window.clearTimeout(timeoutHandle);
   }, [activePage]);
 
-  const handlePageChange = useCallback((page: LabPageKey) => {
-    ignorePreloadFailure(preloadLabPage(page));
-    setActivePage(page);
-    setVisitedPages((pages) => appendVisitedPage(pages, page));
-  }, []);
+  useEffect(() => {
+    setVisitedPages((pages) => appendVisitedPage(pages, activePage));
+  }, [activePage]);
+
+  const handlePageChange = useCallback(
+    (page: LabPageKey) => {
+      ignorePreloadFailure(preloadLabPage(page));
+      onPageChange(page);
+    },
+    [onPageChange],
+  );
 
   const handlePagePreload = useCallback((page: LabPageKey) => {
     ignorePreloadFailure(preloadLabPage(page));
@@ -66,6 +77,7 @@ export function LabPage() {
   return (
     <LabPageFrame
       activePage={activePage}
+      getPageHref={getLabPagePath}
       onPageChange={handlePageChange}
       onPagePreload={handlePagePreload}
       pages={LAB_PAGE_NAVIGATION}

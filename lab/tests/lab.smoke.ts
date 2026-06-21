@@ -85,6 +85,7 @@ test('mirrors the color-kit lab pages and properties panel', async ({
 
   await mkdir(snapshotDir, { recursive: true });
   await page.goto('/');
+  await expect(page).toHaveURL(/\/lab\/color-plane$/);
   await expect(
     page.locator('main').getByText('control-kit', { exact: true }),
   ).toBeVisible();
@@ -113,15 +114,17 @@ test('mirrors the color-kit lab pages and properties panel', async ({
   await expect(themeMenu).toBeHidden();
 
   for (const [index, labPage] of LAB_PAGES.entries()) {
-    const navButton = page
-      .locator('button[aria-pressed]')
-      .filter({ hasText: labPage.label });
+    const navLink = page.getByRole('link', {
+      name: labPage.label,
+      exact: true,
+    });
 
     if (index > 0) {
-      await navButton.click();
+      await navLink.click();
     }
 
-    await expect(navButton).toHaveAttribute('aria-pressed', 'true');
+    await expect(page).toHaveURL(new RegExp(`/lab/${labPage.key}$`));
+    await expect(navLink).toHaveAttribute('aria-current', 'page');
     await expect(page.locator('aside')).toContainText(labPage.panelText);
     await page.screenshot({
       path: path.join(
@@ -131,6 +134,18 @@ test('mirrors the color-kit lab pages and properties panel', async ({
       fullPage: true,
     });
   }
+
+  await page.goto('/lab/menu');
+  await expect(page).toHaveURL(/\/lab\/menu$/);
+  await expect(page.locator('aside')).toContainText(
+    'Tune the three-item menu shown above the reusable menu preview.',
+  );
+
+  await page.goto('/lab/not-a-component');
+  await expect(page).toHaveURL(/\/lab\/color-plane$/);
+  await expect(page.locator('aside')).toContainText(
+    'Drive the current sample color.',
+  );
 
   expect(browserErrors).toEqual([]);
 });
