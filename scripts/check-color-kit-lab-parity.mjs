@@ -152,7 +152,8 @@ async function compareTextPair({ source, target, normalizeTarget }) {
 function shouldIgnore(relativePath, ignoredPaths) {
   return ignoredPaths.some(
     (ignoredPath) =>
-      relativePath === ignoredPath || relativePath.startsWith(`${ignoredPath}/`),
+      relativePath === ignoredPath ||
+      relativePath.startsWith(`${ignoredPath}/`),
   );
 }
 
@@ -209,6 +210,22 @@ async function compareDirectoryPair({ source, target, ignoreTarget = [] }) {
   return { ok: true, fileCount: sourceFiles.length };
 }
 
+function formatComparisonError({ source, target }, error) {
+  const message = error instanceof Error ? error.message : String(error);
+  return `${target} could not be compared with ${source}: ${message}`;
+}
+
+async function runComparison(pair, compare) {
+  try {
+    return await compare(pair);
+  } catch (error) {
+    return {
+      ok: false,
+      message: formatComparisonError(pair, error),
+    };
+  }
+}
+
 async function main() {
   const failures = [];
   let exactFiles = 0;
@@ -216,7 +233,7 @@ async function main() {
   let directoryFiles = 0;
 
   for (const pair of exactFilePairs) {
-    const result = await compareTextPair(pair);
+    const result = await runComparison(pair, compareTextPair);
     if (!result.ok) {
       failures.push(result.message);
       continue;
@@ -225,7 +242,7 @@ async function main() {
   }
 
   for (const pair of normalizedFilePairs) {
-    const result = await compareTextPair(pair);
+    const result = await runComparison(pair, compareTextPair);
     if (!result.ok) {
       failures.push(result.message);
       continue;
@@ -234,7 +251,7 @@ async function main() {
   }
 
   for (const pair of directoryPairs) {
-    const result = await compareDirectoryPair(pair);
+    const result = await runComparison(pair, compareDirectoryPair);
     if (!result.ok) {
       failures.push(result.message);
       continue;
