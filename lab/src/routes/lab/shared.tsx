@@ -1407,11 +1407,7 @@ function PagesPanel({
             <a
               key={page.value}
               href={getPageHref(page.value)}
-              className={`flex w-full items-center rounded-lg px-1 py-1.5 text-left text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[#5288db] ${
-                isActive
-                  ? 'font-semibold text-white'
-                  : 'font-medium text-white/55 hover:text-white/80'
-              }`}
+              className="ck-lab-page-link flex w-full items-center rounded-lg px-1 py-1.5 text-left text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[#5288db]"
               aria-current={isActive ? 'page' : undefined}
               onClick={(event) => {
                 if (!shouldHandlePageLinkInApp(event)) {

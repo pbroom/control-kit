@@ -177,3 +177,20 @@
 .ck-lab-select-long-menu:focus-within::-webkit-scrollbar-thumb {
   background-color: rgba(255, 255, 255, 0.22);
 }
+
+.ck-lab-page-link {
+  color: rgba(255, 255, 255, 0.45);
+  font-weight: 400;
+}
+
+.ck-lab-page-link:hover,
+.ck-lab-page-link:focus-visible {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.ck-lab-page-link[aria-current='page'],
+.ck-lab-page-link[aria-current='page']:hover,
+.ck-lab-page-link[aria-current='page']:focus-visible {
+  color: #fff;
+  font-weight: 600;
+}
