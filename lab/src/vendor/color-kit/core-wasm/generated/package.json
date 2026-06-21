@@ -1,0 +1,17 @@
+{
+  "name": "color_kit_core_wasm",
+  "type": "module",
+  "description": "Experimental WASM kernels for color-kit",
+  "version": "0.1.0",
+  "license": "MIT",
+  "files": [
+    "color_kit_core_wasm_bg.wasm",
+    "color_kit_core_wasm.js",
+    "color_kit_core_wasm.d.ts"
+  ],
+  "main": "color_kit_core_wasm.js",
+  "types": "color_kit_core_wasm.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}
