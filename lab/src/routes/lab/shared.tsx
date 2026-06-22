@@ -2720,6 +2720,145 @@ type LabPageNavigationItem = {
   label: string;
 };
 
+type LabPerformanceTone = 'low' | 'medium' | 'high';
+
+type LabPerformanceAnalysis = {
+  label: string;
+  summary: string;
+  profile: string;
+  tone: LabPerformanceTone;
+  hotPath: string;
+  primaryRisk: string;
+  guardrail: string;
+};
+
+type LabPerformanceSnapshot = {
+  status: 'measuring' | 'ready';
+  paintSettleMs: number | null;
+  moduleRequests: number;
+  moduleDurationMs: number;
+};
+
+const LAB_PERFORMANCE_ANALYSIS: Record<LabPageKey, LabPerformanceAnalysis> = {
+  plane: {
+    label: 'ColorPlane',
+    summary:
+      'Canvas-heavy preview with gamut math, worker-backed plane queries, and pointer-driven raster updates.',
+    profile: 'High',
+    tone: 'high',
+    hotPath: 'drag sampling',
+    primaryRisk: 'main-thread drag pressure',
+    guardrail: 'Keep color-plane work chunked and prefer worker/WASM paths.',
+  },
+  input: {
+    label: 'Input Primitive',
+    summary:
+      'Single controlled input with scrub gestures, parser paths, and formatted commit behavior.',
+    profile: 'Low',
+    tone: 'low',
+    hotPath: 'commit + scrub',
+    primaryRisk: 'scrub rerenders',
+    guardrail:
+      'Keep transient drag math local and avoid panel-wide state churn.',
+  },
+  inputMulti: {
+    label: 'Input Multi',
+    summary:
+      'Four coordinated primitive inputs sharing active-field state and per-channel numeric constraints.',
+    profile: 'Medium',
+    tone: 'medium',
+    hotPath: 'channel normalization',
+    primaryRisk: 'field fan-out',
+    guardrail:
+      'Update the edited channel only and preserve stable field configs.',
+  },
+  checkbox: {
+    label: 'Checkbox',
+    summary:
+      'Compact boolean control with minimal render cost and a single controlled checked state.',
+    profile: 'Low',
+    tone: 'low',
+    hotPath: 'state toggle',
+    primaryRisk: 'dense-list repeats',
+    guardrail:
+      'Keep label rendering simple and avoid per-row closures in lists.',
+  },
+  slider: {
+    label: 'Slider',
+    summary:
+      'Gradient rail preview with color interpolation, pointer updates, and optional chroma markers.',
+    profile: 'Medium',
+    tone: 'medium',
+    hotPath: 'drag + gradient',
+    primaryRisk: 'style recalculation',
+    guardrail: 'Throttle pointer work and reuse computed rail variables.',
+  },
+  tooltip: {
+    label: 'Tooltip',
+    summary:
+      'Portal-based overlay with delayed hover activation and modest layout work around placement.',
+    profile: 'Low',
+    tone: 'low',
+    hotPath: 'hover timer',
+    primaryRisk: 'timer churn',
+    guardrail:
+      'Keep provider delays stable and avoid remounting trigger groups.',
+  },
+  menu: {
+    label: 'Menu',
+    summary:
+      'Layered menu surface with optional shortcuts, dividers, submenus, and disabled states.',
+    profile: 'Medium',
+    tone: 'medium',
+    hotPath: 'open + submenu',
+    primaryRisk: 'portal layout',
+    guardrail: 'Keep item arrays stable and defer submenu work until open.',
+  },
+  select: {
+    label: 'Select',
+    summary:
+      'Menu-backed select trigger with keyboard state, icon variants, and reusable option rows.',
+    profile: 'Medium',
+    tone: 'medium',
+    hotPath: 'trigger + list',
+    primaryRisk: 'option remounts',
+    guardrail: 'Keep option descriptors stable and isolate trigger styling.',
+  },
+  toggleButton: {
+    label: 'Toggle Button',
+    summary:
+      'Single pressed-state control that mostly exercises visual-state styling and icon layout.',
+    profile: 'Low',
+    tone: 'low',
+    hotPath: 'pressed paint',
+    primaryRisk: 'state style churn',
+    guardrail: 'Prefer data-state styling over extra render branches.',
+  },
+  toggle: {
+    label: 'Toggle Group',
+    summary:
+      'Grouped controls with shared selection state, icon placement modes, and focus movement.',
+    profile: 'Medium',
+    tone: 'medium',
+    hotPath: 'selection + focus',
+    primaryRisk: 'group rerenders',
+    guardrail: 'Keep item descriptors stable and only update selected values.',
+  },
+};
+
+const LAB_PAGE_RESOURCE_HINTS: Record<LabPageKey, readonly string[]> = {
+  plane: ['color-plane'],
+  input: ['pages/input', 'input-'],
+  inputMulti: ['input-multi'],
+  checkbox: ['checkbox'],
+  slider: ['slider'],
+  tooltip: ['tooltip'],
+  menu: ['menu'],
+  select: ['select'],
+  toggleButton: ['toggle-button'],
+  toggle: ['toggle-group'],
+};
+
 function shouldHandlePageLinkInApp(event: ReactMouseEvent<HTMLAnchorElement>) {
   return (
     event.button === 0 &&
@@ -2727,6 +2866,160 @@ function shouldHandlePageLinkInApp(event: ReactMouseEvent<HTMLAnchorElement>) {
     !event.altKey &&
     !event.ctrlKey &&
     !event.shiftKey
+  );
+}
+
+function collectPageResourceStats(page: LabPageKey) {
+  const hints = LAB_PAGE_RESOURCE_HINTS[page];
+  const resources = performance.getEntriesByType(
+    'resource',
+  ) as PerformanceResourceTiming[];
+  const matchingResources = resources.filter((resource) =>
+    hints.some((hint) => resource.name.includes(hint)),
+  );
+
+  return {
+    moduleRequests: matchingResources.length,
+    moduleDurationMs: Math.round(
+      matchingResources.reduce(
+        (duration, resource) => duration + resource.duration,
+        0,
+      ),
+    ),
+  };
+}
+
+function useLabPerformanceSnapshot(activePage: LabPageKey) {
+  const [snapshot, setSnapshot] = useState<LabPerformanceSnapshot>(() => ({
+    status: 'measuring',
+    paintSettleMs: null,
+    moduleRequests: 0,
+    moduleDurationMs: 0,
+  }));
+
+  useEffect(() => {
+    const startedAt = performance.now();
+    const initialStats = collectPageResourceStats(activePage);
+    let firstFrame = 0;
+    let secondFrame = 0;
+
+    setSnapshot({
+      status: 'measuring',
+      paintSettleMs: null,
+      ...initialStats,
+    });
+
+    firstFrame = window.requestAnimationFrame(() => {
+      secondFrame = window.requestAnimationFrame(() => {
+        setSnapshot({
+          status: 'ready',
+          paintSettleMs: Math.max(0, Math.round(performance.now() - startedAt)),
+          ...collectPageResourceStats(activePage),
+        });
+      });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(firstFrame);
+      window.cancelAnimationFrame(secondFrame);
+    };
+  }, [activePage]);
+
+  return snapshot;
+}
+
+function formatPerformanceMetric(value: number | null, suffix: string) {
+  return value === null ? 'Measuring' : `${value}${suffix}`;
+}
+
+function LabPerformanceMetric({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+}) {
+  return (
+    <div className="min-w-0 rounded-[8px] border border-white/8 bg-white/[0.035] px-3 py-2">
+      <div className="truncate text-[10px] font-medium uppercase tracking-[0.14em] text-white/40">
+        {label}
+      </div>
+      <div className="mt-1 text-sm font-semibold leading-4 text-white">
+        {value}
+      </div>
+      <div className="mt-0.5 text-[11px] leading-4 text-white/45">{detail}</div>
+    </div>
+  );
+}
+
+function LabPerformanceAnalysisPanel({
+  activePage,
+}: {
+  activePage: LabPageKey;
+}) {
+  const analysis = LAB_PERFORMANCE_ANALYSIS[activePage];
+  const snapshot = useLabPerformanceSnapshot(activePage);
+  const toneClass = {
+    low: 'border-[rgba(110,231,183,0.2)] bg-[rgba(110,231,183,0.1)] text-emerald-100',
+    medium:
+      'border-[rgba(82,136,219,0.25)] bg-[rgba(82,136,219,0.12)] text-[#c9ddff]',
+    high: 'border-[rgba(252,211,77,0.25)] bg-[rgba(252,211,77,0.1)] text-amber-100',
+  } satisfies Record<LabPerformanceTone, string>;
+
+  return (
+    <section
+      aria-label={`Performance analysis for ${analysis.label}`}
+      className="border-t border-white/8 bg-[#151515] px-4 py-4 lg:h-[188px] lg:px-6"
+    >
+      <div className="grid h-full min-w-0 gap-4 lg:grid-cols-[minmax(260px,1.1fr)_repeat(4,minmax(0,1fr))] lg:items-stretch">
+        <div className="min-w-0">
+          <div className="flex min-w-0 items-center gap-2">
+            <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-white/40">
+              Performance Analysis
+            </p>
+            <span
+              className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] ${toneClass[analysis.tone]}`}
+            >
+              {analysis.profile}
+            </span>
+          </div>
+          <h2 className="mt-2 truncate text-sm font-semibold text-white">
+            {analysis.label}
+          </h2>
+          <p className="mt-1 line-clamp-2 text-xs leading-5 text-white/55">
+            {analysis.summary}
+          </p>
+          <p className="mt-2 text-[11px] leading-4 text-white/45">
+            {analysis.guardrail}
+          </p>
+        </div>
+
+        <LabPerformanceMetric
+          label="Paint settle"
+          value={formatPerformanceMetric(snapshot.paintSettleMs, 'ms')}
+          detail={
+            snapshot.status === 'ready' ? 'two-frame sample' : 'next paint'
+          }
+        />
+        <LabPerformanceMetric
+          label="Module hits"
+          value={String(snapshot.moduleRequests)}
+          detail={`${snapshot.moduleDurationMs}ms resource time`}
+        />
+        <LabPerformanceMetric
+          label="Hot path"
+          value={analysis.hotPath}
+          detail="primary interaction loop"
+        />
+        <LabPerformanceMetric
+          label="Risk"
+          value={analysis.primaryRisk}
+          detail="watch during iteration"
+        />
+      </div>
+    </section>
   );
 }
 
@@ -2806,18 +3099,22 @@ function LabPageFrameContent({
 
       <main className="h-screen min-h-screen min-w-0 bg-[#171717] [--ck-lab-segmented-active-bg:#171717] text-white lg:overflow-hidden">
         <div className="grid min-h-screen min-w-0 grid-cols-1 lg:h-full lg:grid-cols-[minmax(0,1fr)_300px]">
-          <section className="relative flex min-h-[420px] min-w-0 items-center justify-center overflow-hidden px-6 py-10 lg:min-h-0 lg:py-14">
-            <PagesPanel
-              activePage={activePage}
-              getPageHref={getPageHref}
-              onPageChange={onPageChange}
-              onPagePreload={onPagePreload}
-              pages={pages}
-            />
-            {preview ?? <LabPagePreviewFallback />}
-          </section>
+          <div className="flex min-h-screen min-w-0 flex-col lg:h-full lg:min-h-0">
+            <section className="relative flex min-h-[420px] min-w-0 flex-1 items-center justify-center overflow-hidden px-6 py-10 lg:min-h-0 lg:py-10">
+              <PagesPanel
+                activePage={activePage}
+                getPageHref={getPageHref}
+                onPageChange={onPageChange}
+                onPagePreload={onPagePreload}
+                pages={pages}
+              />
+              {preview ?? <LabPagePreviewFallback />}
+            </section>
 
-          <aside className="min-w-0 max-w-full overflow-hidden border-t border-white/8 p-3 lg:min-h-0 lg:border-t-0 lg:p-4">
+            <LabPerformanceAnalysisPanel activePage={activePage} />
+          </div>
+
+          <aside className="min-w-0 max-w-full overflow-hidden border-t border-white/8 p-3 lg:h-full lg:min-h-0 lg:border-t-0 lg:p-4">
             <div className="h-full w-full min-w-0 max-w-full overflow-hidden rounded-[24px] border border-white/8 bg-white/[0.03] [--ck-lab-segmented-active-bg:color-mix(in_srgb,#171717_97%,white_3%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] backdrop-blur lg:min-h-0">
               <ScrollArea className={LAB_PANEL_SCROLL_AREA_CLASS}>
                 <TooltipProvider

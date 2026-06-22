@@ -91,6 +91,27 @@ test('mirrors the color-kit lab pages and properties panel', async ({
     await expect(page).toHaveURL(new RegExp(`/lab/${labPage.slug}$`));
     await expect(navLink).toHaveAttribute('aria-current', 'page');
     await expect(page.locator('aside')).toContainText(labPage.panelText);
+    const performancePanel = page.getByRole('region', {
+      name: `Performance analysis for ${labPage.label}`,
+      exact: true,
+    });
+    await expect(performancePanel).toBeVisible();
+    await expect(performancePanel).toContainText('Paint settle');
+    await expect(performancePanel).toContainText('Module hits');
+
+    if (testInfo.project.name === 'desktop') {
+      const [performancePanelBox, propertiesPanelBox] = await Promise.all([
+        performancePanel.boundingBox(),
+        page.locator('aside').boundingBox(),
+      ]);
+      expect(performancePanelBox).not.toBeNull();
+      expect(propertiesPanelBox).not.toBeNull();
+      expect(
+        performancePanelBox!.x + performancePanelBox!.width,
+      ).toBeLessThanOrEqual(propertiesPanelBox!.x + 1);
+      expect(propertiesPanelBox!.height).toBeGreaterThanOrEqual(998);
+    }
+
     await page.screenshot({
       path: path.join(
         snapshotDir,
