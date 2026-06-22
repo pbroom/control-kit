@@ -96,8 +96,17 @@ test('mirrors the color-kit lab pages and properties panel', async ({
       exact: true,
     });
     await expect(performancePanel).toBeVisible();
-    await expect(performancePanel).toContainText('Paint settle');
-    await expect(performancePanel).toContainText('Module hits');
+    await expect(performancePanel).toContainText('FCP');
+    await expect(performancePanel).toContainText('LCP');
+    await expect(performancePanel).toContainText('CLS');
+    await expect(performancePanel).toContainText('INP');
+    await expect(performancePanel).toContainText('FPS');
+    await expect(performancePanel).toContainText('Loading');
+    await expect(performancePanel).toContainText('Timeline');
+    await expect(performancePanel).toContainText('Route selected');
+    await expect(
+      performancePanel.getByTestId('lab-performance-timeline'),
+    ).toBeVisible();
 
     if (testInfo.project.name === 'desktop') {
       const [performancePanelBox, propertiesPanelBox] = await Promise.all([
