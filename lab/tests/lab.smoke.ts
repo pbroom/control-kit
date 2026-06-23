@@ -219,15 +219,29 @@ test('mirrors the color-kit lab pages and properties panel', async ({
     }
 
     if (testInfo.project.name === 'desktop') {
+      const labScrollColumn = page.locator('[data-lab-page-scroll]');
       const [performancePanelBox, propertiesPanelBox] = await Promise.all([
         performancePanel.boundingBox(),
         page.locator('aside').boundingBox(),
       ]);
+      await expect(labScrollColumn).toHaveCount(1);
+      expect(
+        await labScrollColumn.evaluate(
+          (node) => getComputedStyle(node).overflowY,
+        ),
+      ).toBe('auto');
       expect(performancePanelBox).not.toBeNull();
       expect(propertiesPanelBox).not.toBeNull();
+      expect(performancePanelBox!.height).toBeGreaterThanOrEqual(300);
       expect(
         performancePanelBox!.x + performancePanelBox!.width,
       ).toBeLessThanOrEqual(propertiesPanelBox!.x + 1);
+      const viewport = page.viewportSize();
+      expect(viewport).not.toBeNull();
+      expect(
+        viewport!.height -
+          (performancePanelBox!.y + performancePanelBox!.height),
+      ).toBeGreaterThanOrEqual(24);
       expect(propertiesPanelBox!.height).toBeGreaterThanOrEqual(998);
     }
 

@@ -2807,8 +2807,11 @@ function LabPageFrameContent({
 
       <main className="h-screen min-h-screen min-w-0 bg-[#171717] [--ck-lab-segmented-active-bg:#171717] text-white lg:overflow-hidden">
         <div className="grid min-h-screen min-w-0 grid-cols-1 lg:h-full lg:grid-cols-[minmax(0,1fr)_300px]">
-          <div className="flex min-h-screen min-w-0 flex-col lg:h-full lg:min-h-0">
-            <section className="relative flex min-h-[420px] min-w-0 flex-1 items-center justify-center overflow-hidden px-6 py-10 lg:min-h-0 lg:py-10">
+          <div
+            className="flex min-h-screen min-w-0 flex-col lg:h-full lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:pb-8"
+            data-lab-page-scroll
+          >
+            <section className="relative flex min-h-[420px] min-w-0 flex-1 items-center justify-center overflow-hidden px-6 py-10 lg:py-10">
               <PagesPanel
                 activePage={activePage}
                 getPageHref={getPageHref}
