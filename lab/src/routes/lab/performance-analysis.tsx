@@ -838,11 +838,11 @@ function useLabPerformanceTelemetry(
 }
 
 type LabMetricRow = {
+  id: string;
   label: string;
   attribution: string;
-  curve: LabMetricCurveConfig;
-  metricKey: LabPerformanceMetricKey;
-  rawValue: number | null;
+  curve?: LabMetricCurveConfig;
+  rawValue?: number | null;
   value: string;
   tone: LabPerformanceTone;
 };
@@ -992,55 +992,69 @@ function LabMetricCurve({
 function LabMetricTable({ vitals }: { vitals: LabPerformanceVitals }) {
   const rows: LabMetricRow[] = [
     {
+      id: 'resources',
+      label: 'Matched resources',
+      attribution: `Route module fetches - ${vitals.resources.moduleDurationMs}ms total`,
+      value: String(vitals.resources.moduleRequests),
+      tone: vitals.resources.moduleRequests > 0 ? 'okay' : 'neutral',
+    },
+    {
+      id: 'long-tasks',
+      label: 'Long tasks',
+      attribution: 'Main-thread blocks observed',
+      value: String(vitals.longTasks),
+      tone: vitals.longTasks > 0 ? 'poor' : 'good',
+    },
+    {
+      id: 'fcp',
       label: 'First contentful paint (FCP)',
       attribution: vitals.attributions.fcp,
       curve: LAB_METRIC_CURVES.fcp,
-      metricKey: 'fcp',
       rawValue: vitals.fcpMs,
       value: formatMilliseconds(vitals.fcpMs),
       tone: getMetricTone('fcp', vitals.fcpMs),
     },
     {
+      id: 'lcp',
       label: 'Largest contentful paint (LCP)',
       attribution: vitals.attributions.lcp,
       curve: LAB_METRIC_CURVES.lcp,
-      metricKey: 'lcp',
       rawValue: vitals.lcpMs,
       value: formatLcpMilliseconds(vitals.lcpMs, vitals.attributions.lcp),
       tone: getMetricTone('lcp', vitals.lcpMs),
     },
     {
+      id: 'cls',
       label: 'Cumulative layout shift (CLS)',
       attribution: vitals.attributions.cls,
       curve: LAB_METRIC_CURVES.cls,
-      metricKey: 'cls',
       rawValue: vitals.cls,
       value: formatScore(vitals.cls),
       tone: getMetricTone('cls', vitals.cls),
     },
     {
+      id: 'inp',
       label: 'Interaction to next paint (INP)',
       attribution: vitals.attributions.inp,
       curve: LAB_METRIC_CURVES.inp,
-      metricKey: 'inp',
       rawValue: vitals.inpMs,
       value: formatMilliseconds(vitals.inpMs),
       tone: getMetricTone('inp', vitals.inpMs),
     },
     {
+      id: 'fps',
       label: 'Frame rate (FPS)',
       attribution: vitals.attributions.fps,
       curve: LAB_METRIC_CURVES.fps,
-      metricKey: 'fps',
       rawValue: vitals.fps,
       value: formatFps(vitals.fps),
       tone: getMetricTone('fps', vitals.fps),
     },
     {
+      id: 'loading',
       label: 'Loading state',
       attribution: vitals.attributions.loading,
       curve: LAB_METRIC_CURVES.loading,
-      metricKey: 'loading',
       rawValue: vitals.loadingMs,
       value: formatMilliseconds(vitals.loadingMs),
       tone: getMetricTone('loading', vitals.loadingMs),
@@ -1060,10 +1074,7 @@ function LabMetricTable({ vitals }: { vitals: LabPerformanceVitals }) {
       </colgroup>
       <tbody>
         {rows.map((row) => (
-          <tr
-            key={row.metricKey}
-            className="border-b border-white/6 last:border-b-0"
-          >
+          <tr key={row.id} className="border-b border-white/6 last:border-b-0">
             <th
               className="px-1.5 py-1.5 align-middle text-[11px] font-medium leading-4"
               scope="row"
@@ -1079,85 +1090,20 @@ function LabMetricTable({ vitals }: { vitals: LabPerformanceVitals }) {
               <span className="block truncate">{row.attribution}</span>
             </td>
             <td className="px-1.5 py-1.5 align-middle">
-              <LabMetricCurve
-                curve={row.curve}
-                label={row.label}
-                rawValue={row.rawValue}
-                tone={row.tone}
-              />
+              {row.curve ? (
+                <LabMetricCurve
+                  curve={row.curve}
+                  label={row.label}
+                  rawValue={row.rawValue ?? null}
+                  tone={row.tone}
+                />
+              ) : null}
             </td>
             <td
               className="w-[86px] px-1.5 py-1.5 text-right align-middle text-xs font-semibold leading-4"
               style={{ color: getMetricToneColor(row.tone) }}
             >
               <span className="block truncate">{row.value}</span>
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}
-
-function LabMatchingTable({ vitals }: { vitals: LabPerformanceVitals }) {
-  const rows = [
-    {
-      label: 'Matched resources',
-      detail: 'Route module fetches',
-      value: String(vitals.resources.moduleRequests),
-      meta: `${vitals.resources.moduleDurationMs}ms total`,
-      tone: vitals.resources.moduleRequests > 0 ? 'okay' : 'neutral',
-    },
-    {
-      label: 'Long tasks',
-      detail: 'Main-thread blocks',
-      value: String(vitals.longTasks),
-      meta: 'observed',
-      tone: vitals.longTasks > 0 ? 'poor' : 'good',
-    },
-  ] satisfies Array<{
-    detail: string;
-    label: string;
-    meta: string;
-    tone: LabPerformanceTone;
-    value: string;
-  }>;
-
-  return (
-    <table
-      aria-label="Performance matching metrics"
-      className="w-full table-fixed border-collapse text-left"
-    >
-      <tbody>
-        {rows.map((row) => (
-          <tr
-            key={row.label}
-            className="border-b border-white/6 last:border-b-0"
-          >
-            <th
-              className="w-[34%] px-1.5 py-1 align-middle text-[11px] font-medium leading-4"
-              scope="row"
-              style={{ color: 'rgba(255,255,255,0.58)' }}
-            >
-              <span className="block truncate">{row.label}</span>
-            </th>
-            <td
-              className="px-1.5 py-1 align-middle text-[11px] leading-4"
-              style={{ color: 'rgba(255,255,255,0.48)' }}
-            >
-              <span className="block truncate">{row.detail}</span>
-            </td>
-            <td
-              className="w-[86px] px-1.5 py-1 text-right align-middle text-sm font-semibold leading-4 tabular-nums"
-              style={{ color: getMetricToneColor(row.tone) }}
-            >
-              <span className="block truncate">{row.value}</span>
-            </td>
-            <td
-              className="w-[92px] px-1.5 py-1 text-right align-middle text-[11px] leading-4"
-              style={{ color: 'rgba(255,255,255,0.42)' }}
-            >
-              <span className="block truncate">{row.meta}</span>
             </td>
           </tr>
         ))}
@@ -1310,8 +1256,7 @@ export function LabPerformanceAnalysisPanel({
       data-lab-performance-panel
     >
       <div className="grid h-full min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_clamp(320px,25vw,480px)] lg:items-stretch">
-        <div className="grid min-h-0 min-w-0 grid-rows-[auto_1fr] gap-2">
-          <LabMatchingTable vitals={vitals} />
+        <div className="min-h-0 min-w-0">
           <LabMetricTable vitals={vitals} />
         </div>
         <LabPerformanceTimeline

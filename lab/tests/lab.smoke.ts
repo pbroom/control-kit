@@ -116,30 +116,24 @@ test('mirrors the color-kit lab pages and properties panel', async ({
     await expect(
       performancePanel.getByText('Performance Analysis', { exact: true }),
     ).toHaveCount(0);
-    const matchingTable = performancePanel.getByRole('table', {
-      name: 'Performance matching metrics',
-      exact: true,
-    });
-    await expect(matchingTable).toBeVisible();
-    await expect(matchingTable).toContainText('Matched resources');
-    await expect(matchingTable).toContainText('Long tasks');
-    await expect(matchingTable.locator('tbody tr')).toHaveCount(2);
     await expect(
-      matchingTable.locator('tbody tr').first().locator('th, td'),
-    ).toHaveCount(4);
-    expect(
-      await matchingTable.evaluate(
-        (table) => table.querySelectorAll('th span.rounded-full').length,
-      ),
-    ).toBe(0);
+      performancePanel.getByRole('table', {
+        name: 'Performance matching metrics',
+        exact: true,
+      }),
+    ).toHaveCount(0);
     const metricsTable = performancePanel.getByRole('table', {
       name: 'Performance metrics',
       exact: true,
     });
     await expect(metricsTable).toBeVisible();
+    await expect(metricsTable).toContainText('Matched resources');
+    await expect(metricsTable).toContainText('Route module fetches');
+    await expect(metricsTable).toContainText('Long tasks');
+    await expect(metricsTable).toContainText('Main-thread blocks observed');
     await expect(metricsTable).toContainText('Initial document paint');
     await expect(metricsTable).toContainText('requestAnimationFrame sampler');
-    await expect(metricsTable.locator('tbody tr')).toHaveCount(6);
+    await expect(metricsTable.locator('tbody tr')).toHaveCount(8);
     await expect(metricsTable.locator('svg[role="img"]')).toHaveCount(6);
     await expect(
       metricsTable.locator('tbody tr').first().locator('th, td'),
