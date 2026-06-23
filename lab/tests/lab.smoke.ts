@@ -112,6 +112,20 @@ test('mirrors the color-kit lab pages and properties panel', async ({
     await expect(performancePanel).toContainText('Loading state');
     await expect(performancePanel).toContainText('Timeline');
     await expect(performancePanel).toContainText('Route selected');
+    await expect(
+      performancePanel.getByText('Performance Analysis', { exact: true }),
+    ).toHaveCount(0);
+    const matchingTable = performancePanel.getByRole('table', {
+      name: 'Performance matching metrics',
+      exact: true,
+    });
+    await expect(matchingTable).toBeVisible();
+    await expect(matchingTable).toContainText('Matched resources');
+    await expect(matchingTable).toContainText('Long tasks');
+    await expect(matchingTable.locator('tbody tr')).toHaveCount(2);
+    await expect(
+      matchingTable.locator('tbody tr').first().locator('th, td'),
+    ).toHaveCount(4);
     const metricsTable = performancePanel.getByRole('table', {
       name: 'Performance metrics',
       exact: true,

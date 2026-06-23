@@ -1,19 +1,10 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { LabPageKey } from './shared.js';
 
 type LabPerformanceTone = 'good' | 'okay' | 'poor' | 'neutral';
 
 type LabPerformanceAnalysis = {
   label: string;
-  summary: string;
-  guardrail: string;
 };
 
 type LabPerformanceResourceStats = {
@@ -108,68 +99,33 @@ const IGNORED_INTERACTION_ENTRY_NAMES = new Set([
 const LAB_PERFORMANCE_ANALYSIS: Record<LabPageKey, LabPerformanceAnalysis> = {
   plane: {
     label: 'ColorPlane',
-    summary:
-      'Canvas-heavy preview with gamut math, worker-backed plane queries, and pointer-driven raster updates.',
-    guardrail: 'Watch drag sampling, worker handoff, and plane chunk fetches.',
   },
   input: {
     label: 'Input Primitive',
-    summary:
-      'Single controlled input with scrub gestures, parser paths, and formatted commit behavior.',
-    guardrail:
-      'Watch lazy chunk time, scrub rerenders, and input interaction latency.',
   },
   inputMulti: {
     label: 'Input Multi',
-    summary:
-      'Four coordinated primitive inputs sharing active-field state and per-channel numeric constraints.',
-    guardrail:
-      'Watch sibling field fan-out and per-channel normalization work.',
   },
   checkbox: {
     label: 'Checkbox',
-    summary:
-      'Compact boolean control with minimal render cost and a single controlled checked state.',
-    guardrail: 'Watch dense-list repeats and interaction responsiveness.',
   },
   slider: {
     label: 'Slider',
-    summary:
-      'Gradient rail preview with color interpolation, pointer updates, and optional chroma markers.',
-    guardrail:
-      'Watch drag frame rate, gradient recalculation, and marker render cost.',
   },
   tooltip: {
     label: 'Tooltip',
-    summary:
-      'Portal-based overlay with delayed hover activation and modest layout work around placement.',
-    guardrail: 'Watch hover timers, portal mount cost, and layout shifts.',
   },
   menu: {
     label: 'Menu',
-    summary:
-      'Layered menu surface with optional shortcuts, dividers, submenus, and disabled states.',
-    guardrail:
-      'Watch portal layout, submenu mount cost, and keyboard interaction latency.',
   },
   select: {
     label: 'Select',
-    summary:
-      'Menu-backed select trigger with keyboard state, icon variants, and reusable option rows.',
-    guardrail: 'Watch trigger-to-list paint time and option remounts.',
   },
   toggleButton: {
     label: 'Toggle Button',
-    summary:
-      'Single pressed-state control that mostly exercises visual-state styling and icon layout.',
-    guardrail: 'Watch pressed-state paint and interaction-to-next-paint.',
   },
   toggle: {
     label: 'Toggle Group',
-    summary:
-      'Grouped controls with shared selection state, icon placement modes, and focus movement.',
-    guardrail:
-      'Watch roving focus, group rerenders, and selected-value fan-out.',
   },
 };
 
@@ -1110,6 +1066,80 @@ function LabMetricTable({ vitals }: { vitals: LabPerformanceVitals }) {
     </table>
   );
 }
+
+function LabMatchingTable({ vitals }: { vitals: LabPerformanceVitals }) {
+  const rows = [
+    {
+      label: 'Matched resources',
+      detail: 'Route module fetches',
+      value: String(vitals.resources.moduleRequests),
+      meta: `${vitals.resources.moduleDurationMs}ms total`,
+      tone: vitals.resources.moduleRequests > 0 ? 'okay' : 'neutral',
+    },
+    {
+      label: 'Long tasks',
+      detail: 'Main-thread blocks',
+      value: String(vitals.longTasks),
+      meta: 'observed',
+      tone: vitals.longTasks > 0 ? 'poor' : 'good',
+    },
+  ] satisfies Array<{
+    detail: string;
+    label: string;
+    meta: string;
+    tone: LabPerformanceTone;
+    value: string;
+  }>;
+
+  return (
+    <table
+      aria-label="Performance matching metrics"
+      className="w-full table-fixed border-collapse text-left"
+    >
+      <tbody>
+        {rows.map((row) => (
+          <tr
+            key={row.label}
+            className="border-b border-white/6 last:border-b-0"
+          >
+            <th
+              className="w-[34%] px-1.5 py-1 align-middle text-[11px] font-medium leading-4"
+              scope="row"
+              style={{ color: 'rgba(255,255,255,0.58)' }}
+            >
+              <span className="flex min-w-0 items-center gap-2">
+                <span
+                  className="size-1.5 shrink-0 rounded-full"
+                  style={{ backgroundColor: getMetricToneColor(row.tone) }}
+                />
+                <span className="block truncate">{row.label}</span>
+              </span>
+            </th>
+            <td
+              className="px-1.5 py-1 align-middle text-[11px] leading-4"
+              style={{ color: 'rgba(255,255,255,0.48)' }}
+            >
+              <span className="block truncate">{row.detail}</span>
+            </td>
+            <td
+              className="w-[86px] px-1.5 py-1 text-right align-middle text-sm font-semibold leading-4 tabular-nums"
+              style={{ color: getMetricToneColor(row.tone) }}
+            >
+              <span className="block truncate">{row.value}</span>
+            </td>
+            <td
+              className="w-[92px] px-1.5 py-1 text-right align-middle text-[11px] leading-4"
+              style={{ color: 'rgba(255,255,255,0.42)' }}
+            >
+              <span className="block truncate">{row.meta}</span>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
 function getTimelineEventColor(kind: LabTimelineEventKind) {
   switch (kind) {
     case 'route':
@@ -1229,14 +1259,6 @@ function LabPerformanceTimeline({
   );
 }
 
-function BrowserSupportNote({ children }: { children: ReactNode }) {
-  return (
-    <span className="inline-flex rounded-full border border-white/8 bg-white/[0.04] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/60">
-      {children}
-    </span>
-  );
-}
-
 export function LabPerformanceAnalysisPanel({
   activePage,
   isLoading,
@@ -1249,11 +1271,6 @@ export function LabPerformanceAnalysisPanel({
     activePage,
     isLoading,
   );
-  const summary = useMemo(
-    () =>
-      `${vitals.resources.moduleRequests} matched resources, ${vitals.longTasks} long tasks observed`,
-    [vitals.longTasks, vitals.resources.moduleRequests],
-  );
 
   return (
     <section
@@ -1261,41 +1278,11 @@ export function LabPerformanceAnalysisPanel({
       className="border-t border-white/8 bg-[#151515] px-4 py-4 lg:h-[268px] lg:px-6"
       data-lab-performance-panel
     >
-      <div className="grid h-full min-w-0 gap-4 lg:grid-cols-[minmax(210px,0.75fr)_minmax(390px,1.1fr)_minmax(280px,1fr)] lg:items-stretch">
-        <div className="min-w-0">
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <p
-              className="text-[10px] font-medium uppercase tracking-[0.16em]"
-              style={{ color: 'rgba(255,255,255,0.42)' }}
-            >
-              Performance Analysis
-            </p>
-            <BrowserSupportNote>Live</BrowserSupportNote>
-          </div>
-          <h2 className="mt-2 truncate text-sm font-semibold text-white">
-            {analysis.label}
-          </h2>
-          <p
-            className="mt-1 text-xs leading-5"
-            style={{ color: 'rgba(255,255,255,0.56)' }}
-          >
-            {analysis.summary}
-          </p>
-          <p
-            className="mt-2 text-[11px] leading-4"
-            style={{ color: 'rgba(255,255,255,0.46)' }}
-          >
-            {analysis.guardrail}
-          </p>
-          <p
-            className="mt-3 text-[11px] leading-4"
-            style={{ color: 'rgba(255,255,255,0.42)' }}
-          >
-            {summary}
-          </p>
+      <div className="grid h-full min-w-0 gap-4 lg:grid-cols-[minmax(560px,1.65fr)_minmax(320px,1fr)] lg:items-stretch">
+        <div className="grid min-h-0 min-w-0 grid-rows-[auto_1fr] gap-2">
+          <LabMatchingTable vitals={vitals} />
+          <LabMetricTable vitals={vitals} />
         </div>
-
-        <LabMetricTable vitals={vitals} />
         <LabPerformanceTimeline
           events={timeline}
           currentTimeMs={timelineTimeMs}
