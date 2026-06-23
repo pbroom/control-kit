@@ -627,7 +627,6 @@ function useLabPerformanceTelemetry(
 type LabMetricRow = {
   label: string;
   value: string;
-  detail: string;
   tone: LabPerformanceTone;
 };
 
@@ -645,110 +644,68 @@ function getMetricToneColor(tone: LabPerformanceTone) {
 function LabMetricTable({ vitals }: { vitals: LabPerformanceVitals }) {
   const rows: LabMetricRow[] = [
     {
-      label: 'FCP',
+      label: 'First contentful paint (FCP)',
       value: formatMilliseconds(vitals.fcpMs),
-      detail: 'first contentful paint',
       tone: getMetricTone('fcp', vitals.fcpMs),
     },
     {
-      label: 'LCP',
+      label: 'Largest contentful paint (LCP)',
       value: formatMilliseconds(vitals.lcpMs),
-      detail: 'largest contentful paint',
       tone: getMetricTone('lcp', vitals.lcpMs),
     },
     {
-      label: 'CLS',
+      label: 'Cumulative layout shift (CLS)',
       value: formatScore(vitals.cls),
-      detail: 'layout shift score',
       tone: getMetricTone('cls', vitals.cls),
     },
     {
-      label: 'INP',
+      label: 'Interaction to next paint (INP)',
       value: formatMilliseconds(vitals.inpMs),
-      detail: 'max observed event',
       tone: getMetricTone('inp', vitals.inpMs),
     },
     {
-      label: 'FPS',
+      label: 'Frame rate (FPS)',
       value: formatFps(vitals.fps),
-      detail:
-        vitals.minFps === null
-          ? 'rolling frame sample'
-          : `${vitals.minFps} min`,
       tone: getMetricTone('fps', vitals.fps),
     },
     {
-      label: 'Loading',
+      label: 'Loading state',
       value: formatMilliseconds(vitals.loadingMs),
-      detail: `${vitals.resources.moduleRequests} resources / ${vitals.resources.moduleDurationMs}ms`,
       tone: getMetricTone('loading', vitals.loadingMs),
     },
   ];
 
   return (
-    <div className="min-w-0 overflow-hidden rounded-[10px] border border-white/8 bg-white/[0.025]">
-      <table
-        aria-label="Performance metrics"
-        className="h-full w-full table-fixed border-collapse text-left"
-      >
-        <thead>
-          <tr className="border-b border-white/8">
+    <table
+      aria-label="Performance metrics"
+      className="h-full w-full table-fixed border-collapse text-left"
+    >
+      <tbody>
+        {rows.map((row) => (
+          <tr
+            key={row.label}
+            className="border-b border-white/6 last:border-b-0"
+          >
             <th
-              className="w-[128px] px-3 py-2 text-[10px] font-medium uppercase tracking-[0.14em]"
-              scope="col"
-              style={{ color: 'rgba(255,255,255,0.42)' }}
+              className="px-1.5 py-1.5 align-middle text-[11px] font-medium leading-4"
+              scope="row"
+              style={{ color: 'rgba(255,255,255,0.58)' }}
             >
-              Metric
+              <span className="flex min-w-0 items-center gap-2">
+                <span
+                  className="size-1.5 shrink-0 rounded-full"
+                  style={{ backgroundColor: getMetricToneColor(row.tone) }}
+                />
+                <span className="block truncate">{row.label}</span>
+              </span>
             </th>
-            <th
-              className="w-[88px] px-3 py-2 text-[10px] font-medium uppercase tracking-[0.14em]"
-              scope="col"
-              style={{ color: 'rgba(255,255,255,0.42)' }}
-            >
-              Value
-            </th>
-            <th
-              className="px-3 py-2 text-[10px] font-medium uppercase tracking-[0.14em]"
-              scope="col"
-              style={{ color: 'rgba(255,255,255,0.42)' }}
-            >
-              Detail
-            </th>
+            <td className="w-[96px] px-1.5 py-1.5 text-right align-middle text-sm font-semibold leading-4 text-white">
+              <span className="block truncate">{row.value}</span>
+            </td>
           </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr
-              key={row.label}
-              className="border-b border-white/6 last:border-b-0"
-            >
-              <th
-                className="px-3 py-1.5 align-middle text-[11px] font-semibold uppercase tracking-[0.12em]"
-                scope="row"
-                style={{ color: 'rgba(255,255,255,0.68)' }}
-              >
-                <span className="flex min-w-0 items-center gap-2">
-                  <span
-                    className="size-1.5 shrink-0 rounded-full"
-                    style={{ backgroundColor: getMetricToneColor(row.tone) }}
-                  />
-                  <span className="whitespace-nowrap">{row.label}</span>
-                </span>
-              </th>
-              <td className="px-3 py-1.5 align-middle text-sm font-semibold leading-4 text-white">
-                <span className="block truncate">{row.value}</span>
-              </td>
-              <td
-                className="px-3 py-1.5 align-middle text-[11px] leading-4"
-                style={{ color: 'rgba(255,255,255,0.5)' }}
-              >
-                <span className="block truncate">{row.detail}</span>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+        ))}
+      </tbody>
+    </table>
   );
 }
 function getTimelineEventColor(kind: LabTimelineEventKind) {

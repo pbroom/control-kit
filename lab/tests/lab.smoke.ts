@@ -96,12 +96,20 @@ test('mirrors the color-kit lab pages and properties panel', async ({
       exact: true,
     });
     await expect(performancePanel).toBeVisible();
-    await expect(performancePanel).toContainText('FCP');
-    await expect(performancePanel).toContainText('LCP');
-    await expect(performancePanel).toContainText('CLS');
-    await expect(performancePanel).toContainText('INP');
-    await expect(performancePanel).toContainText('FPS');
-    await expect(performancePanel).toContainText('Loading');
+    await expect(performancePanel).toContainText(
+      'First contentful paint (FCP)',
+    );
+    await expect(performancePanel).toContainText(
+      'Largest contentful paint (LCP)',
+    );
+    await expect(performancePanel).toContainText(
+      'Cumulative layout shift (CLS)',
+    );
+    await expect(performancePanel).toContainText(
+      'Interaction to next paint (INP)',
+    );
+    await expect(performancePanel).toContainText('Frame rate (FPS)');
+    await expect(performancePanel).toContainText('Loading state');
     await expect(performancePanel).toContainText('Timeline');
     await expect(performancePanel).toContainText('Route selected');
     await expect(
@@ -110,6 +118,7 @@ test('mirrors the color-kit lab pages and properties panel', async ({
         exact: true,
       }),
     ).toBeVisible();
+    await expect(performancePanel.getByRole('columnheader')).toHaveCount(0);
     await expect(
       performancePanel.getByTestId('lab-performance-timeline'),
     ).toBeVisible();
