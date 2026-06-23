@@ -234,6 +234,12 @@ test('mirrors the color-kit lab pages and properties panel', async ({
       expect(propertiesPanelBox).not.toBeNull();
       expect(performancePanelBox!.height).toBeGreaterThanOrEqual(300);
       expect(
+        await performancePanel.evaluate(
+          (node) => getComputedStyle(node).borderRadius,
+        ),
+      ).toBe('24px');
+      expect(performancePanelBox!.x).toBeGreaterThanOrEqual(16);
+      expect(
         performancePanelBox!.x + performancePanelBox!.width,
       ).toBeLessThanOrEqual(propertiesPanelBox!.x + 1);
       const viewport = page.viewportSize();
@@ -243,6 +249,43 @@ test('mirrors the color-kit lab pages and properties panel', async ({
           (performancePanelBox!.y + performancePanelBox!.height),
       ).toBeGreaterThanOrEqual(24);
       expect(propertiesPanelBox!.height).toBeGreaterThanOrEqual(998);
+
+      if (labPage.value === 'slider') {
+        const resizeHandle = performancePanel.getByLabel(
+          'Resize performance analysis panel',
+          { exact: true },
+        );
+        await expect(resizeHandle).toBeVisible();
+        const handleBox = await resizeHandle.boundingBox();
+        expect(handleBox).not.toBeNull();
+
+        await page.mouse.move(
+          handleBox!.x + handleBox!.width / 2,
+          handleBox!.y + 2,
+        );
+        await page.mouse.down();
+        await page.mouse.move(
+          handleBox!.x + handleBox!.width / 2,
+          handleBox!.y - 60,
+        );
+        await page.mouse.up();
+
+        const resizedPanelBox = await performancePanel.boundingBox();
+        expect(resizedPanelBox).not.toBeNull();
+        expect(resizedPanelBox!.height).toBeGreaterThan(
+          performancePanelBox!.height + 40,
+        );
+        expect(viewport).not.toBeNull();
+        expect(
+          viewport!.height - (resizedPanelBox!.y + resizedPanelBox!.height),
+        ).toBeGreaterThanOrEqual(24);
+        await expect(performancePanel).not.toContainText(
+          'performance analysis panel',
+        );
+        await expect(performancePanel).not.toContainText(
+          'Layout shift source: slider',
+        );
+      }
     }
 
     await page.screenshot({

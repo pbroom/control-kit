@@ -1,4 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type {
+  CSSProperties,
+  KeyboardEvent as ReactKeyboardEvent,
+  PointerEvent as ReactPointerEvent,
+} from 'react';
 import type { LabPageKey } from './shared.js';
 
 type LabPerformanceTone = 'good' | 'okay' | 'poor' | 'neutral';
@@ -87,6 +92,11 @@ const TIMELINE_WINDOW_MS = 2000;
 const LAB_COMPONENT_PREVIEW_SELECTOR = '[data-lab-component-preview]';
 const LAB_LCP_PENDING_ATTRIBUTION = 'Largest preview element pending';
 const LAB_LCP_NO_PREVIEW_CANDIDATE_ATTRIBUTION = 'No preview LCP candidate';
+const LAB_PERFORMANCE_PANEL_DEFAULT_HEIGHT = 312;
+const LAB_PERFORMANCE_PANEL_MIN_HEIGHT = 260;
+const LAB_PERFORMANCE_PANEL_MAX_HEIGHT = 560;
+const LAB_PERFORMANCE_PANEL_RESIZE_STEP = 16;
+const LAB_PERFORMANCE_PANEL_LAYOUT_SHIFT_SUPPRESSION_MS = 700;
 const IGNORED_INTERACTION_ENTRY_NAMES = new Set([
   'mouseenter',
   'mouseleave',
@@ -99,6 +109,10 @@ const IGNORED_INTERACTION_ENTRY_NAMES = new Set([
   'pointerout',
   'pointerover',
 ]);
+
+type LabPerformancePanelStyle = CSSProperties & {
+  '--lab-performance-panel-height': string;
+};
 
 const LAB_PERFORMANCE_ANALYSIS: Record<LabPageKey, LabPerformanceAnalysis> = {
   plane: {
@@ -157,6 +171,17 @@ function getPerformanceTime() {
   return typeof performance === 'undefined' ? 0 : performance.now();
 }
 
+let analysisSurfaceLayoutShiftSuppressionUntil = 0;
+
+function suppressAnalysisSurfaceLayoutShifts() {
+  analysisSurfaceLayoutShiftSuppressionUntil =
+    getPerformanceTime() + LAB_PERFORMANCE_PANEL_LAYOUT_SHIFT_SUPPRESSION_MS;
+}
+
+function isAnalysisSurfaceTelemetrySuppressedAt(time: number) {
+  return time <= analysisSurfaceLayoutShiftSuppressionUntil;
+}
+
 function collectPageResourceStats(
   page: LabPageKey,
 ): LabPerformanceResourceStats {
@@ -211,6 +236,13 @@ function appendTimelineEvent(
 
   return [...(routeEvent ? [routeEvent] : []), ...recentEvents].sort(
     (first, second) => first.timeMs - second.timeMs,
+  );
+}
+
+function clampPerformancePanelHeight(height: number) {
+  return Math.min(
+    LAB_PERFORMANCE_PANEL_MAX_HEIGHT,
+    Math.max(LAB_PERFORMANCE_PANEL_MIN_HEIGHT, Math.round(height)),
   );
 }
 
@@ -316,13 +348,42 @@ function describeLcpAttribution(
   return 'Largest preview element';
 }
 
+function isAnalysisSurfaceLayoutShiftSource(node: Node) {
+  return (
+    node instanceof Element &&
+    (node.closest('[data-lab-performance-panel]') !== null ||
+      node.closest('aside') !== null)
+  );
+}
+
+function isComponentLayoutShiftEntry(entry: LayoutShiftPerformanceEntry) {
+  if (entry.hadRecentInput) {
+    return false;
+  }
+
+  const sources = (entry.sources ?? [])
+    .map((source) => source.node)
+    .filter((node): node is Node => Boolean(node));
+
+  return (
+    sources.length === 0 ||
+    sources.some((node) => !isAnalysisSurfaceLayoutShiftSource(node))
+  );
+}
+
 function describeLayoutShiftAttribution(
   entries: readonly LayoutShiftPerformanceEntry[],
 ) {
   const sources = entries
     .flatMap((entry) => entry.sources ?? [])
     .map((source) => source.node)
-    .filter((node): node is Node => Boolean(node));
+    .filter((node): node is Node => {
+      if (!node) {
+        return false;
+      }
+
+      return !isAnalysisSurfaceLayoutShiftSource(node);
+    });
 
   if (sources.length === 0) {
     return 'Layout shift without source nodes';
@@ -695,11 +756,13 @@ function useLabPerformanceTelemetry(
       'layout-shift',
       (entries) => {
         let addedShift = 0;
-        const shiftEntries = entries as LayoutShiftPerformanceEntry[];
+        const shiftEntries = (entries as LayoutShiftPerformanceEntry[])
+          .filter(
+            (entry) => !isAnalysisSurfaceTelemetrySuppressedAt(entry.startTime),
+          )
+          .filter(isComponentLayoutShiftEntry);
         for (const entry of shiftEntries) {
-          if (!entry.hadRecentInput) {
-            addedShift += entry.value;
-          }
+          addedShift += entry.value;
         }
 
         if (addedShift === 0) {
@@ -732,6 +795,9 @@ function useLabPerformanceTelemetry(
       'event',
       (entries) => {
         const interaction = (entries as InteractionPerformanceEntry[])
+          .filter(
+            (entry) => !isAnalysisSurfaceTelemetrySuppressedAt(entry.startTime),
+          )
           .filter(isInteractionEntryRelevant)
           .sort((first, second) => second.duration - first.duration)[0];
         if (!interaction) {
@@ -1241,17 +1307,154 @@ export function LabPerformanceAnalysisPanel({
   isLoading: boolean;
 }) {
   const analysis = LAB_PERFORMANCE_ANALYSIS[activePage];
+  const [panelHeight, setPanelHeight] = useState(
+    LAB_PERFORMANCE_PANEL_DEFAULT_HEIGHT,
+  );
+  const [isResizingPanel, setIsResizingPanel] = useState(false);
+  const resizeStateRef = useRef<{
+    startHeight: number;
+    startY: number;
+  } | null>(null);
   const { vitals, timeline, timelineTimeMs } = useLabPerformanceTelemetry(
     activePage,
     isLoading,
   );
 
+  const startPanelResize = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (event.button !== 0) {
+        return;
+      }
+
+      event.preventDefault();
+      suppressAnalysisSurfaceLayoutShifts();
+      event.currentTarget.setPointerCapture(event.pointerId);
+      resizeStateRef.current = {
+        startHeight: panelHeight,
+        startY: event.clientY,
+      };
+      setIsResizingPanel(true);
+    },
+    [panelHeight],
+  );
+
+  const resizePanelWithKeyboard = useCallback(
+    (event: ReactKeyboardEvent<HTMLDivElement>) => {
+      const step = event.shiftKey
+        ? LAB_PERFORMANCE_PANEL_RESIZE_STEP * 3
+        : LAB_PERFORMANCE_PANEL_RESIZE_STEP;
+
+      if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        suppressAnalysisSurfaceLayoutShifts();
+        setPanelHeight((height) => clampPerformancePanelHeight(height + step));
+        return;
+      }
+
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        suppressAnalysisSurfaceLayoutShifts();
+        setPanelHeight((height) => clampPerformancePanelHeight(height - step));
+        return;
+      }
+
+      if (event.key === 'Home') {
+        event.preventDefault();
+        suppressAnalysisSurfaceLayoutShifts();
+        setPanelHeight(LAB_PERFORMANCE_PANEL_MIN_HEIGHT);
+        return;
+      }
+
+      if (event.key === 'End') {
+        event.preventDefault();
+        suppressAnalysisSurfaceLayoutShifts();
+        setPanelHeight(LAB_PERFORMANCE_PANEL_MAX_HEIGHT);
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (!isResizingPanel) {
+      return;
+    }
+
+    let resizeAnimationFrame = 0;
+    const previousCursor = document.body.style.cursor;
+    const previousUserSelect = document.body.style.userSelect;
+
+    const handlePointerMove = (event: PointerEvent) => {
+      const resizeState = resizeStateRef.current;
+
+      if (!resizeState) {
+        return;
+      }
+
+      const nextHeight = clampPerformancePanelHeight(
+        resizeState.startHeight + resizeState.startY - event.clientY,
+      );
+
+      suppressAnalysisSurfaceLayoutShifts();
+      cancelAnimationFrame(resizeAnimationFrame);
+      resizeAnimationFrame = requestAnimationFrame(() => {
+        setPanelHeight(nextHeight);
+      });
+    };
+
+    const stopPanelResize = () => {
+      suppressAnalysisSurfaceLayoutShifts();
+      resizeStateRef.current = null;
+      setIsResizingPanel(false);
+    };
+
+    document.body.style.cursor = 'ns-resize';
+    document.body.style.userSelect = 'none';
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', stopPanelResize);
+    window.addEventListener('pointercancel', stopPanelResize);
+
+    return () => {
+      cancelAnimationFrame(resizeAnimationFrame);
+      document.body.style.cursor = previousCursor;
+      document.body.style.userSelect = previousUserSelect;
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', stopPanelResize);
+      window.removeEventListener('pointercancel', stopPanelResize);
+    };
+  }, [isResizingPanel]);
+
+  const panelStyle: LabPerformancePanelStyle = {
+    '--lab-performance-panel-height': `${panelHeight}px`,
+  };
+
   return (
     <section
       aria-label={`Performance analysis for ${analysis.label}`}
-      className="border-t border-white/8 bg-[#151515] px-4 py-4 lg:h-[312px] lg:px-6"
+      className="relative mx-4 overflow-hidden rounded-[24px] border border-white/8 bg-[#151515] px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] lg:h-[var(--lab-performance-panel-height)] lg:px-6"
       data-lab-performance-panel
+      style={panelStyle}
     >
+      <div
+        aria-label="Resize performance analysis panel"
+        aria-orientation="horizontal"
+        aria-valuemax={LAB_PERFORMANCE_PANEL_MAX_HEIGHT}
+        aria-valuemin={LAB_PERFORMANCE_PANEL_MIN_HEIGHT}
+        aria-valuenow={panelHeight}
+        className="group absolute inset-x-0 top-0 z-20 hidden h-4 cursor-ns-resize touch-none items-start justify-center rounded-t-[24px] outline-none focus-visible:ring-2 focus-visible:ring-[#5288db]/80 lg:flex"
+        data-lab-performance-resize-handle
+        onKeyDown={resizePanelWithKeyboard}
+        onPointerDown={startPanelResize}
+        role="separator"
+        tabIndex={0}
+      >
+        <span
+          className={`mt-1 block h-0.5 w-10 rounded-full transition-colors ${
+            isResizingPanel
+              ? 'bg-[#5288db]/90'
+              : 'bg-white/16 group-hover:bg-white/28 group-focus-visible:bg-[#5288db]/90'
+          }`}
+        />
+      </div>
       <div className="grid h-full min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_clamp(320px,25vw,480px)] lg:items-stretch">
         <div className="min-h-0 min-w-0">
           <LabMetricTable vitals={vitals} />
