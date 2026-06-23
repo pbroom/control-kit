@@ -112,12 +112,18 @@ test('mirrors the color-kit lab pages and properties panel', async ({
     await expect(performancePanel).toContainText('Loading state');
     await expect(performancePanel).toContainText('Timeline');
     await expect(performancePanel).toContainText('Route selected');
+    const metricsTable = performancePanel.getByRole('table', {
+      name: 'Performance metrics',
+      exact: true,
+    });
+    await expect(metricsTable).toBeVisible();
+    await expect(metricsTable).toContainText('Initial document paint');
+    await expect(metricsTable).toContainText('Largest visible element');
+    await expect(metricsTable).toContainText('requestAnimationFrame sampler');
+    await expect(metricsTable.locator('tbody tr')).toHaveCount(6);
     await expect(
-      performancePanel.getByRole('table', {
-        name: 'Performance metrics',
-        exact: true,
-      }),
-    ).toBeVisible();
+      metricsTable.locator('tbody tr').first().locator('th, td'),
+    ).toHaveCount(3);
     await expect(performancePanel.getByRole('columnheader')).toHaveCount(0);
     await expect(
       performancePanel.getByTestId('lab-performance-timeline'),

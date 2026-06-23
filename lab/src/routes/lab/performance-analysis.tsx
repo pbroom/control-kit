@@ -21,6 +21,16 @@ type LabPerformanceResourceStats = {
   moduleDurationMs: number;
 };
 
+type LabPerformanceMetricKey =
+  | 'fcp'
+  | 'lcp'
+  | 'cls'
+  | 'inp'
+  | 'fps'
+  | 'loading';
+
+type LabPerformanceAttributions = Record<LabPerformanceMetricKey, string>;
+
 type LabPerformanceVitals = {
   fcpMs: number | null;
   lcpMs: number | null;
@@ -31,6 +41,7 @@ type LabPerformanceVitals = {
   loadingMs: number | null;
   longTasks: number;
   resources: LabPerformanceResourceStats;
+  attributions: LabPerformanceAttributions;
 };
 
 type LabTimelineEventKind =
@@ -52,12 +63,17 @@ type LabTimelineEvent = {
 type LayoutShiftPerformanceEntry = PerformanceEntry & {
   value: number;
   hadRecentInput: boolean;
+  sources?: Array<{
+    node?: Node | null;
+  }>;
 };
 
 type LargestContentfulPaintPerformanceEntry = PerformanceEntry & {
+  element?: Element | null;
   renderTime?: number;
   loadTime?: number;
   size?: number;
+  url?: string;
 };
 
 type InteractionPerformanceEntry = PerformanceEntry & {
@@ -248,6 +264,130 @@ function readInitialPaintMetric(name: string) {
   return entry ? Math.round(entry.startTime) : null;
 }
 
+function truncateAttribution(value: string, maxLength = 42) {
+  return value.length > maxLength
+    ? `${value.slice(0, maxLength - 3)}...`
+    : value;
+}
+
+function getReadableElementName(element: Element) {
+  if (element instanceof HTMLInputElement) {
+    return (
+      element.getAttribute('aria-label') ||
+      element.placeholder ||
+      element.value ||
+      element.name
+    );
+  }
+
+  if (element instanceof HTMLImageElement) {
+    return element.alt || element.currentSrc.split('/').at(-1);
+  }
+
+  return (
+    element.getAttribute('aria-label') ||
+    element.getAttribute('title') ||
+    element.textContent?.replace(/\s+/g, ' ').trim()
+  );
+}
+
+function describeAttributionTarget(
+  target: EventTarget | Node | null | undefined,
+) {
+  if (!(target instanceof Element)) {
+    return 'document';
+  }
+
+  if (target.closest('[data-lab-performance-panel]')) {
+    return 'performance analysis panel';
+  }
+
+  if (target.closest('aside')) {
+    return 'properties panel';
+  }
+
+  const attributedElement =
+    target.closest(
+      'button, input, textarea, select, canvas, svg, a, label, [role], [aria-label]',
+    ) ?? target;
+  const tagName = attributedElement.tagName.toLowerCase();
+  const role = attributedElement.getAttribute('role');
+  const descriptor = role ?? tagName;
+  const readableName = getReadableElementName(attributedElement);
+
+  return truncateAttribution(
+    readableName ? `${descriptor} "${readableName}"` : descriptor,
+  );
+}
+
+function describeLcpAttribution(
+  entry: LargestContentfulPaintPerformanceEntry | undefined,
+) {
+  if (!entry) {
+    return 'Largest visible element pending';
+  }
+
+  if (entry.element) {
+    return `Largest visible element: ${describeAttributionTarget(entry.element)}`;
+  }
+
+  if (entry.url) {
+    return `Largest visible asset: ${truncateAttribution(
+      entry.url.split('/').at(-1) ?? entry.url,
+    )}`;
+  }
+
+  return 'Largest visible element';
+}
+
+function describeLayoutShiftAttribution(
+  entries: readonly LayoutShiftPerformanceEntry[],
+) {
+  const sources = entries
+    .flatMap((entry) => entry.sources ?? [])
+    .map((source) => source.node)
+    .filter((node): node is Node => Boolean(node));
+
+  if (sources.length === 0) {
+    return 'Layout shift without source nodes';
+  }
+
+  const uniqueSources = Array.from(
+    new Set(sources.map((node) => describeAttributionTarget(node))),
+  );
+  return `Layout shift source: ${uniqueSources.slice(0, 2).join(', ')}`;
+}
+
+function getInitialAttributions(
+  isLoading: boolean,
+): LabPerformanceAttributions {
+  return {
+    fcp: 'Initial document paint',
+    lcp: 'Largest visible element pending',
+    cls: 'No layout shift sources',
+    inp: 'No interaction observed',
+    fps: 'requestAnimationFrame sampler',
+    loading: isLoading
+      ? 'Preview/properties slots pending'
+      : 'No loading state observed',
+  };
+}
+
+function describeLoadingAttribution(
+  resources: LabPerformanceResourceStats,
+  hadLoadingState: boolean,
+) {
+  if (!hadLoadingState) {
+    return 'No loading state observed';
+  }
+
+  return resources.moduleRequests > 0
+    ? `${resources.moduleRequests} matched route resource${
+        resources.moduleRequests === 1 ? '' : 's'
+      }`
+    : 'Preview/properties slots';
+}
+
 function getInitialVitals(
   activePage: LabPageKey,
   isLoading: boolean,
@@ -262,11 +402,12 @@ function getInitialVitals(
     loadingMs: isLoading ? null : 0,
     longTasks: 0,
     resources: collectPageResourceStats(activePage),
+    attributions: getInitialAttributions(isLoading),
   };
 }
 
 function getMetricTone(
-  key: 'fcp' | 'lcp' | 'cls' | 'inp' | 'fps' | 'loading',
+  key: LabPerformanceMetricKey,
   value: number | null,
 ): LabPerformanceTone {
   if (value === null) {
@@ -356,13 +497,34 @@ function useLabPerformanceTelemetry(
     routeStartRef.current = routeStart;
     loadingStartRef.current = isLoading ? routeStart : null;
     setTimelineTimeMs(0);
-    setVitals((current) => ({
-      ...getInitialVitals(activePage, isLoading),
-      fcpMs: current.fcpMs ?? readInitialPaintMetric('first-contentful-paint'),
-      lcpMs: current.lcpMs,
-      cls: current.cls,
-      inpMs: current.inpMs,
-    }));
+    setVitals((current) => {
+      const initialVitals = getInitialVitals(activePage, isLoading);
+
+      return {
+        ...initialVitals,
+        fcpMs:
+          current.fcpMs ?? readInitialPaintMetric('first-contentful-paint'),
+        lcpMs: current.lcpMs,
+        cls: current.cls,
+        inpMs: current.inpMs,
+        attributions: {
+          ...initialVitals.attributions,
+          fcp: current.fcpMs
+            ? current.attributions.fcp
+            : initialVitals.attributions.fcp,
+          lcp: current.lcpMs
+            ? current.attributions.lcp
+            : initialVitals.attributions.lcp,
+          cls:
+            current.cls > 0
+              ? current.attributions.cls
+              : initialVitals.attributions.cls,
+          inp: current.inpMs
+            ? current.attributions.inp
+            : initialVitals.attributions.inp,
+        },
+      };
+    });
     setTimeline([
       createTimelineEvent(
         'route',
@@ -401,6 +563,10 @@ function useLabPerformanceTelemetry(
       setVitals((current) => ({
         ...current,
         loadingMs: null,
+        attributions: {
+          ...current.attributions,
+          loading: 'Preview/properties slots pending',
+        },
       }));
       return;
     }
@@ -414,6 +580,10 @@ function useLabPerformanceTelemetry(
         ...current,
         loadingMs: duration,
         resources,
+        attributions: {
+          ...current.attributions,
+          loading: describeLoadingAttribution(resources, true),
+        },
       }));
       addTimelineEvent(
         'loading',
@@ -430,10 +600,19 @@ function useLabPerformanceTelemetry(
         now,
       );
     } else {
+      const resources = collectPageResourceStats(activePage);
+
       setVitals((current) => ({
         ...current,
         loadingMs: current.loadingMs ?? 0,
-        resources: collectPageResourceStats(activePage),
+        resources,
+        attributions: {
+          ...current.attributions,
+          loading:
+            current.loadingMs === null
+              ? current.attributions.loading
+              : describeLoadingAttribution(resources, false),
+        },
       }));
     }
   }, [activePage, addTimelineEvent, isLoading]);
@@ -470,7 +649,14 @@ function useLabPerformanceTelemetry(
           return;
         }
         const fcpMs = Math.round(fcp.startTime);
-        setVitals((current) => ({ ...current, fcpMs }));
+        setVitals((current) => ({
+          ...current,
+          fcpMs,
+          attributions: {
+            ...current.attributions,
+            fcp: 'Initial document paint',
+          },
+        }));
       },
       { type: 'paint', buffered: true },
     );
@@ -487,7 +673,14 @@ function useLabPerformanceTelemetry(
         const lcpMs = Math.round(
           candidate.renderTime || candidate.loadTime || candidate.startTime,
         );
-        setVitals((current) => ({ ...current, lcpMs }));
+        setVitals((current) => ({
+          ...current,
+          lcpMs,
+          attributions: {
+            ...current.attributions,
+            lcp: describeLcpAttribution(candidate),
+          },
+        }));
         addTimelineEvent(
           'vital',
           'LCP candidate',
@@ -502,7 +695,8 @@ function useLabPerformanceTelemetry(
       'layout-shift',
       (entries) => {
         let addedShift = 0;
-        for (const entry of entries as LayoutShiftPerformanceEntry[]) {
+        const shiftEntries = entries as LayoutShiftPerformanceEntry[];
+        for (const entry of shiftEntries) {
           if (!entry.hadRecentInput) {
             addedShift += entry.value;
           }
@@ -515,6 +709,13 @@ function useLabPerformanceTelemetry(
         setVitals((current) => ({
           ...current,
           cls: current.cls + addedShift,
+          attributions: {
+            ...current.attributions,
+            cls:
+              addedShift >= 0.0005
+                ? describeLayoutShiftAttribution(shiftEntries)
+                : current.attributions.cls,
+          },
         }));
         if (addedShift >= 0.001) {
           addTimelineEvent(
@@ -540,6 +741,12 @@ function useLabPerformanceTelemetry(
         setVitals((current) => ({
           ...current,
           inpMs: Math.max(current.inpMs ?? 0, inpMs),
+          attributions: {
+            ...current.attributions,
+            inp: `${interaction.name || 'interaction'} on ${describeAttributionTarget(
+              interaction.target,
+            )}`,
+          },
         }));
         addTimelineEvent(
           'interaction',
@@ -609,6 +816,10 @@ function useLabPerformanceTelemetry(
           ...current,
           fps: Math.round(1000 / averageInterval),
           minFps: Math.round(1000 / worstInterval),
+          attributions: {
+            ...current.attributions,
+            fps: 'requestAnimationFrame sampler',
+          },
         }));
         setTimelineTimeMs(Math.max(0, Math.round(now - routeStartRef.current)));
         lastUpdateTime = now;
@@ -626,6 +837,7 @@ function useLabPerformanceTelemetry(
 
 type LabMetricRow = {
   label: string;
+  attribution: string;
   value: string;
   tone: LabPerformanceTone;
 };
@@ -645,31 +857,37 @@ function LabMetricTable({ vitals }: { vitals: LabPerformanceVitals }) {
   const rows: LabMetricRow[] = [
     {
       label: 'First contentful paint (FCP)',
+      attribution: vitals.attributions.fcp,
       value: formatMilliseconds(vitals.fcpMs),
       tone: getMetricTone('fcp', vitals.fcpMs),
     },
     {
       label: 'Largest contentful paint (LCP)',
+      attribution: vitals.attributions.lcp,
       value: formatMilliseconds(vitals.lcpMs),
       tone: getMetricTone('lcp', vitals.lcpMs),
     },
     {
       label: 'Cumulative layout shift (CLS)',
+      attribution: vitals.attributions.cls,
       value: formatScore(vitals.cls),
       tone: getMetricTone('cls', vitals.cls),
     },
     {
       label: 'Interaction to next paint (INP)',
+      attribution: vitals.attributions.inp,
       value: formatMilliseconds(vitals.inpMs),
       tone: getMetricTone('inp', vitals.inpMs),
     },
     {
       label: 'Frame rate (FPS)',
+      attribution: vitals.attributions.fps,
       value: formatFps(vitals.fps),
       tone: getMetricTone('fps', vitals.fps),
     },
     {
       label: 'Loading state',
+      attribution: vitals.attributions.loading,
       value: formatMilliseconds(vitals.loadingMs),
       tone: getMetricTone('loading', vitals.loadingMs),
     },
@@ -680,6 +898,11 @@ function LabMetricTable({ vitals }: { vitals: LabPerformanceVitals }) {
       aria-label="Performance metrics"
       className="h-full w-full table-fixed border-collapse text-left"
     >
+      <colgroup>
+        <col className="w-[43%]" />
+        <col className="w-[35%]" />
+        <col className="w-[96px]" />
+      </colgroup>
       <tbody>
         {rows.map((row) => (
           <tr
@@ -699,6 +922,13 @@ function LabMetricTable({ vitals }: { vitals: LabPerformanceVitals }) {
                 <span className="block truncate">{row.label}</span>
               </span>
             </th>
+            <td
+              className="px-1.5 py-1.5 align-middle text-[11px] leading-4"
+              style={{ color: 'rgba(255,255,255,0.48)' }}
+              title={row.attribution}
+            >
+              <span className="block truncate">{row.attribution}</span>
+            </td>
             <td className="w-[96px] px-1.5 py-1.5 text-right align-middle text-sm font-semibold leading-4 text-white">
               <span className="block truncate">{row.value}</span>
             </td>
