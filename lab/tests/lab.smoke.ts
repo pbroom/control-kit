@@ -178,6 +178,25 @@ test('mirrors the color-kit lab pages and properties panel', async ({
     await expect(
       performancePanel.getByTestId('lab-performance-timeline-bar').first(),
     ).toBeVisible();
+    const timelineColumnsAreSeparated = await timelineShell.evaluate((shell) =>
+      Array.from(
+        shell.querySelectorAll(
+          '[data-testid="lab-performance-timeline"] > div',
+        ),
+      ).map((row) => {
+        const [timeCell, labelCell] = Array.from(row.children);
+        if (!timeCell || !labelCell) {
+          return false;
+        }
+
+        return (
+          timeCell.getBoundingClientRect().right <=
+          labelCell.getBoundingClientRect().left
+        );
+      }),
+    );
+    expect(timelineColumnsAreSeparated.length).toBeGreaterThan(0);
+    expect(timelineColumnsAreSeparated.every(Boolean)).toBe(true);
     expect(
       await timelineShell.evaluate(
         (node) => getComputedStyle(node).borderWidth,

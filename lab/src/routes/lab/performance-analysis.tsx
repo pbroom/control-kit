@@ -1179,13 +1179,17 @@ function LabPerformanceTimeline({
             <div
               key={event.id}
               aria-label={`${event.label}: ${event.detail}`}
-              className="grid min-w-0 grid-cols-[42px_minmax(0,1fr)_64px] items-center gap-2 text-[11px] leading-4"
+              className="grid min-w-0 grid-cols-[72px_minmax(0,1fr)_64px] items-center gap-2 text-[11px] leading-4"
             >
-              <span className="tabular-nums" style={{ color }}>
+              <span
+                className="block min-w-0 truncate text-right tabular-nums"
+                style={{ color }}
+                title={`${event.timeMs}ms`}
+              >
                 {event.timeMs}ms
               </span>
               <span
-                className="truncate"
+                className="min-w-0 truncate"
                 style={{ color: 'rgba(255,255,255,0.62)' }}
                 title={`${event.label}: ${event.detail}`}
               >
