@@ -1309,7 +1309,7 @@ export function LabPerformanceAnalysisPanel({
       className="border-t border-white/8 bg-[#151515] px-4 py-4 lg:h-[268px] lg:px-6"
       data-lab-performance-panel
     >
-      <div className="grid h-full min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_240px] lg:items-stretch">
+      <div className="grid h-full min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_clamp(320px,25vw,480px)] lg:items-stretch">
         <div className="grid min-h-0 min-w-0 grid-rows-[auto_1fr] gap-2">
           <LabMatchingTable vitals={vitals} />
           <LabMetricTable vitals={vitals} />

@@ -182,6 +182,14 @@ test('mirrors the color-kit lab pages and properties panel', async ({
         (node) => getComputedStyle(node).borderWidth,
       ),
     ).toBe('0px');
+    if (testInfo.project.name === 'desktop') {
+      const timelineBox = await timelineShell.boundingBox();
+      const viewport = page.viewportSize();
+
+      expect(timelineBox).not.toBeNull();
+      expect(viewport).not.toBeNull();
+      expect(timelineBox!.width).toBeGreaterThanOrEqual(viewport!.width * 0.22);
+    }
 
     if (labPage.value === 'inputMulti') {
       await performancePanel.getByTestId('lab-performance-timeline').hover();
