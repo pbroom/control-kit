@@ -254,6 +254,11 @@ test('mirrors the color-kit lab pages and properties panel', async ({
           .locator('aside')
           .evaluate((node) => getComputedStyle(node).paddingLeft),
       ).toBe('0px');
+      const metricsTableBox = await metricsTable.boundingBox();
+      expect(metricsTableBox).not.toBeNull();
+      expect(metricsTableBox!.height).toBeLessThan(
+        performancePanelBox!.height - 24,
+      );
 
       if (labPage.value === 'slider') {
         const resizeHandle = performancePanel.getByLabel(
@@ -280,6 +285,11 @@ test('mirrors the color-kit lab pages and properties panel', async ({
         expect(resizedPanelBox!.height).toBeGreaterThan(
           performancePanelBox!.height + 40,
         );
+        const resizedMetricsTableBox = await metricsTable.boundingBox();
+        expect(resizedMetricsTableBox).not.toBeNull();
+        expect(
+          Math.abs(resizedMetricsTableBox!.height - metricsTableBox!.height),
+        ).toBeLessThanOrEqual(2);
         expect(viewport).not.toBeNull();
         expect(
           viewport!.height - (resizedPanelBox!.y + resizedPanelBox!.height),

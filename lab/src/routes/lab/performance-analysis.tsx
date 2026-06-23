@@ -1123,7 +1123,7 @@ function LabMetricTable({ vitals }: { vitals: LabPerformanceVitals }) {
   return (
     <table
       aria-label="Performance metrics"
-      className="h-full w-full table-fixed border-collapse text-left"
+      className="w-full table-fixed border-collapse text-left"
     >
       <colgroup>
         <col className="w-[34%]" />
@@ -1455,7 +1455,7 @@ export function LabPerformanceAnalysisPanel({
           }`}
         />
       </div>
-      <div className="grid h-full min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_clamp(320px,25vw,480px)] lg:items-stretch">
+      <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_clamp(320px,25vw,480px)] lg:items-start">
         <div className="min-h-0 min-w-0">
           <LabMetricTable vitals={vitals} />
         </div>
