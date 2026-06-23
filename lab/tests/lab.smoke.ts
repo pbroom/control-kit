@@ -90,6 +90,7 @@ test('mirrors the color-kit lab pages and properties panel', async ({
 
     await expect(page).toHaveURL(new RegExp(`/lab/${labPage.slug}$`));
     await expect(navLink).toHaveAttribute('aria-current', 'page');
+    await expect(page.locator('[data-lab-component-preview]')).toHaveCount(1);
     await expect(page.locator('aside')).toContainText(labPage.panelText);
     const performancePanel = page.getByRole('region', {
       name: `Performance analysis for ${labPage.label}`,
@@ -137,13 +138,20 @@ test('mirrors the color-kit lab pages and properties panel', async ({
     });
     await expect(metricsTable).toBeVisible();
     await expect(metricsTable).toContainText('Initial document paint');
-    await expect(metricsTable).toContainText('Largest visible element');
     await expect(metricsTable).toContainText('requestAnimationFrame sampler');
     await expect(metricsTable.locator('tbody tr')).toHaveCount(6);
     await expect(metricsTable.locator('svg[role="img"]')).toHaveCount(6);
     await expect(
       metricsTable.locator('tbody tr').first().locator('th, td'),
     ).toHaveCount(4);
+    const lcpRow = metricsTable.locator('tbody tr', {
+      hasText: 'Largest contentful paint (LCP)',
+    });
+    await expect(lcpRow).toContainText('LCP');
+    const lcpText = await lcpRow.textContent();
+    expect(lcpText).toMatch(/Largest preview element|No preview LCP candidate/);
+    await expect(lcpRow).not.toContainText('properties panel');
+    await expect(metricsTable).not.toContainText('Preview/properties');
     expect(
       await metricsTable.evaluate(
         (table) => table.querySelectorAll('th span.rounded-full').length,

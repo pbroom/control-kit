@@ -2816,12 +2816,14 @@ function LabPageFrameContent({
                 onPagePreload={onPagePreload}
                 pages={pages}
               />
-              {preview ?? <LabPagePreviewFallback />}
+              <div className="contents" data-lab-component-preview>
+                {preview ?? <LabPagePreviewFallback />}
+              </div>
             </section>
 
             <LabPerformanceAnalysisPanel
               activePage={activePage}
-              isLoading={!preview || !properties}
+              isLoading={!preview}
             />
           </div>
 

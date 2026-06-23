@@ -84,6 +84,9 @@ type InteractionPerformanceEntry = PerformanceEntry & {
 
 const MAX_TIMELINE_EVENTS = 12;
 const TIMELINE_WINDOW_MS = 2000;
+const LAB_COMPONENT_PREVIEW_SELECTOR = '[data-lab-component-preview]';
+const LAB_LCP_PENDING_ATTRIBUTION = 'Largest preview element pending';
+const LAB_LCP_NO_PREVIEW_CANDIDATE_ATTRIBUTION = 'No preview LCP candidate';
 const IGNORED_INTERACTION_ENTRY_NAMES = new Set([
   'mouseenter',
   'mouseleave',
@@ -218,6 +221,12 @@ function isPerformancePanelEventTarget(target: EventTarget | null | undefined) {
   );
 }
 
+function isComponentPreviewLcpCandidate(
+  entry: LargestContentfulPaintPerformanceEntry,
+) {
+  return Boolean(entry.element?.closest(LAB_COMPONENT_PREVIEW_SELECTOR));
+}
+
 function isInteractionEntryRelevant(entry: InteractionPerformanceEntry) {
   return (
     !IGNORED_INTERACTION_ENTRY_NAMES.has(entry.name) &&
@@ -291,20 +300,20 @@ function describeLcpAttribution(
   entry: LargestContentfulPaintPerformanceEntry | undefined,
 ) {
   if (!entry) {
-    return 'Largest visible element pending';
+    return LAB_LCP_PENDING_ATTRIBUTION;
   }
 
   if (entry.element) {
-    return `Largest visible element: ${describeAttributionTarget(entry.element)}`;
+    return `Largest preview element: ${describeAttributionTarget(entry.element)}`;
   }
 
   if (entry.url) {
-    return `Largest visible asset: ${truncateAttribution(
+    return `Largest preview asset: ${truncateAttribution(
       entry.url.split('/').at(-1) ?? entry.url,
     )}`;
   }
 
-  return 'Largest visible element';
+  return 'Largest preview element';
 }
 
 function describeLayoutShiftAttribution(
@@ -330,12 +339,12 @@ function getInitialAttributions(
 ): LabPerformanceAttributions {
   return {
     fcp: 'Initial document paint',
-    lcp: 'Largest visible element pending',
+    lcp: LAB_LCP_PENDING_ATTRIBUTION,
     cls: 'No layout shift sources',
     inp: 'No interaction observed',
     fps: 'requestAnimationFrame sampler',
     loading: isLoading
-      ? 'Preview/properties slots pending'
+      ? 'Component preview pending'
       : 'No loading state observed',
   };
 }
@@ -352,7 +361,7 @@ function describeLoadingAttribution(
     ? `${resources.moduleRequests} matched route resource${
         resources.moduleRequests === 1 ? '' : 's'
       }`
-    : 'Preview/properties slots';
+    : 'Component preview slot';
 }
 
 function getInitialVitals(
@@ -401,6 +410,13 @@ function formatMilliseconds(value: number | null) {
   return value === null ? 'Waiting' : `${Math.round(value)}ms`;
 }
 
+function formatLcpMilliseconds(value: number | null, attribution: string) {
+  return value === null &&
+    attribution === LAB_LCP_NO_PREVIEW_CANDIDATE_ATTRIBUTION
+    ? 'N/A'
+    : formatMilliseconds(value);
+}
+
 function formatScore(value: number | null) {
   return value === null ? 'Waiting' : value.toFixed(3);
 }
@@ -434,7 +450,7 @@ function useLabPerformanceTelemetry(
           createTimelineEvent(
             'loading',
             'Loading state shown',
-            'Preview/properties slots pending',
+            'Component preview pending',
             routeStartRef.current,
             routeStartRef.current,
           ),
@@ -479,7 +495,7 @@ function useLabPerformanceTelemetry(
         ...initialVitals,
         fcpMs:
           current.fcpMs ?? readInitialPaintMetric('first-contentful-paint'),
-        lcpMs: current.lcpMs,
+        lcpMs: null,
         cls: current.cls,
         inpMs: current.inpMs,
         attributions: {
@@ -487,9 +503,7 @@ function useLabPerformanceTelemetry(
           fcp: current.fcpMs
             ? current.attributions.fcp
             : initialVitals.attributions.fcp,
-          lcp: current.lcpMs
-            ? current.attributions.lcp
-            : initialVitals.attributions.lcp,
+          lcp: initialVitals.attributions.lcp,
           cls:
             current.cls > 0
               ? current.attributions.cls
@@ -513,7 +527,7 @@ function useLabPerformanceTelemetry(
             createTimelineEvent(
               'loading',
               'Loading state shown',
-              'Preview/properties slots pending',
+              'Component preview pending',
               routeStart,
               routeStart,
             ),
@@ -531,7 +545,7 @@ function useLabPerformanceTelemetry(
         addTimelineEvent(
           'loading',
           'Loading state shown',
-          'Preview/properties slots pending',
+          'Component preview pending',
           now,
         );
       }
@@ -540,7 +554,7 @@ function useLabPerformanceTelemetry(
         loadingMs: null,
         attributions: {
           ...current.attributions,
-          loading: 'Preview/properties slots pending',
+          loading: 'Component preview pending',
         },
       }));
       return;
@@ -558,6 +572,10 @@ function useLabPerformanceTelemetry(
         attributions: {
           ...current.attributions,
           loading: describeLoadingAttribution(resources, true),
+          lcp:
+            current.lcpMs === null
+              ? LAB_LCP_NO_PREVIEW_CANDIDATE_ATTRIBUTION
+              : current.attributions.lcp,
         },
       }));
       addTimelineEvent(
@@ -589,6 +607,10 @@ function useLabPerformanceTelemetry(
             current.loadingMs === null
               ? current.attributions.loading
               : describeLoadingAttribution(resources, false),
+          lcp:
+            current.lcpMs === null
+              ? LAB_LCP_NO_PREVIEW_CANDIDATE_ATTRIBUTION
+              : current.attributions.lcp,
         },
       }));
     }
@@ -641,9 +663,9 @@ function useLabPerformanceTelemetry(
     observe(
       'largest-contentful-paint',
       (entries) => {
-        const candidate = entries.at(-1) as
-          | LargestContentfulPaintPerformanceEntry
-          | undefined;
+        const candidate = (entries as LargestContentfulPaintPerformanceEntry[])
+          .filter(isComponentPreviewLcpCandidate)
+          .at(-1);
         if (!candidate) {
           return;
         }
@@ -984,7 +1006,7 @@ function LabMetricTable({ vitals }: { vitals: LabPerformanceVitals }) {
       curve: LAB_METRIC_CURVES.lcp,
       metricKey: 'lcp',
       rawValue: vitals.lcpMs,
-      value: formatMilliseconds(vitals.lcpMs),
+      value: formatLcpMilliseconds(vitals.lcpMs, vitals.attributions.lcp),
       tone: getMetricTone('lcp', vitals.lcpMs),
     },
     {
