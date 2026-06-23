@@ -108,6 +108,13 @@ test('mirrors the color-kit lab pages and properties panel', async ({
       performancePanel.getByTestId('lab-performance-timeline'),
     ).toBeVisible();
 
+    if (labPage.value === 'inputMulti') {
+      await performancePanel.getByTestId('lab-performance-timeline').hover();
+      await page.waitForTimeout(200);
+      await expect(performancePanel).not.toContainText('pointerover');
+      await expect(performancePanel).toContainText('Route selected');
+    }
+
     if (testInfo.project.name === 'desktop') {
       const [performancePanelBox, propertiesPanelBox] = await Promise.all([
         performancePanel.boundingBox(),

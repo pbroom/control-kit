@@ -63,10 +63,23 @@ type LargestContentfulPaintPerformanceEntry = PerformanceEntry & {
 type InteractionPerformanceEntry = PerformanceEntry & {
   duration: number;
   interactionId?: number;
+  target?: EventTarget | null;
 };
 
 const MAX_TIMELINE_EVENTS = 12;
 const TIMELINE_WINDOW_MS = 2000;
+const IGNORED_INTERACTION_ENTRY_NAMES = new Set([
+  'mouseenter',
+  'mouseleave',
+  'mousemove',
+  'mouseout',
+  'mouseover',
+  'pointerenter',
+  'pointerleave',
+  'pointermove',
+  'pointerout',
+  'pointerover',
+]);
 
 const LAB_PERFORMANCE_ANALYSIS: Record<LabPageKey, LabPerformanceAnalysis> = {
   plane: {
@@ -212,6 +225,21 @@ function appendTimelineEvent(
 
   return [...(routeEvent ? [routeEvent] : []), ...recentEvents].sort(
     (first, second) => first.timeMs - second.timeMs,
+  );
+}
+
+function isPerformancePanelEventTarget(target: EventTarget | null | undefined) {
+  return (
+    target instanceof Element &&
+    target.closest('[data-lab-performance-panel]') !== null
+  );
+}
+
+function isInteractionEntryRelevant(entry: InteractionPerformanceEntry) {
+  return (
+    !IGNORED_INTERACTION_ENTRY_NAMES.has(entry.name) &&
+    !isPerformancePanelEventTarget(entry.target) &&
+    (entry.interactionId || entry.duration >= 16)
   );
 }
 
@@ -503,7 +531,7 @@ function useLabPerformanceTelemetry(
       'event',
       (entries) => {
         const interaction = (entries as InteractionPerformanceEntry[])
-          .filter((entry) => entry.interactionId || entry.duration >= 16)
+          .filter(isInteractionEntryRelevant)
           .sort((first, second) => second.duration - first.duration)[0];
         if (!interaction) {
           return;
@@ -755,7 +783,7 @@ function LabPerformanceTimeline({
             <div
               key={event.id}
               aria-label={`${event.label}: ${event.detail}`}
-              className="absolute"
+              className="pointer-events-none absolute"
               style={{
                 left: `${left}%`,
                 top,
@@ -833,6 +861,7 @@ export function LabPerformanceAnalysisPanel({
     <section
       aria-label={`Performance analysis for ${analysis.label}`}
       className="border-t border-white/8 bg-[#151515] px-4 py-4 lg:h-[268px] lg:px-6"
+      data-lab-performance-panel
     >
       <div className="grid h-full min-w-0 gap-4 lg:grid-cols-[minmax(210px,0.75fr)_minmax(390px,1.1fr)_minmax(280px,1fr)] lg:items-stretch">
         <div className="min-w-0">
