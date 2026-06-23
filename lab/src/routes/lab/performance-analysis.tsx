@@ -52,6 +52,7 @@ type LabTimelineEventKind =
   | 'long-task';
 
 type LabTimelineEvent = {
+  durationMs: number;
   id: string;
   kind: LabTimelineEventKind;
   label: string;
@@ -181,8 +182,10 @@ function createTimelineEvent(
   detail: string,
   routeStart: number,
   at = getPerformanceTime(),
+  durationMs = 0,
 ): LabTimelineEvent {
   return {
+    durationMs: Math.max(0, Math.round(durationMs)),
     id: `${kind}-${label}-${at}-${Math.random().toString(36).slice(2)}`,
     kind,
     label,
@@ -445,11 +448,19 @@ function useLabPerformanceTelemetry(
       label: string,
       detail: string,
       at?: number,
+      durationMs?: number,
     ) => {
       setTimeline((events) =>
         appendTimelineEvent(
           events,
-          createTimelineEvent(kind, label, detail, routeStartRef.current, at),
+          createTimelineEvent(
+            kind,
+            label,
+            detail,
+            routeStartRef.current,
+            at,
+            durationMs,
+          ),
         ),
       );
     },
@@ -554,6 +565,7 @@ function useLabPerformanceTelemetry(
         'Slots ready',
         `${duration}ms loading state`,
         now,
+        duration,
       );
       addTimelineEvent(
         'resource',
@@ -562,6 +574,7 @@ function useLabPerformanceTelemetry(
           : 'No matching resource',
         `${resources.moduleRequests} entries / ${resources.moduleDurationMs}ms`,
         now,
+        resources.moduleDurationMs,
       );
     } else {
       const resources = collectPageResourceStats(activePage);
@@ -650,6 +663,7 @@ function useLabPerformanceTelemetry(
           'LCP candidate',
           `${lcpMs}ms / ${Math.round(candidate.size ?? 0)}px`,
           candidate.startTime,
+          lcpMs,
         );
       },
       { type: 'largest-contentful-paint', buffered: true },
@@ -717,6 +731,7 @@ function useLabPerformanceTelemetry(
           'Interaction',
           `${interaction.name || 'input'} ${inpMs}ms`,
           interaction.startTime,
+          inpMs,
         );
       },
       {
@@ -742,6 +757,7 @@ function useLabPerformanceTelemetry(
             'Long task',
             `${Math.round(entry.duration)}ms main thread`,
             entry.startTime,
+            entry.duration,
           );
         }
       },
@@ -1170,15 +1186,12 @@ function LabPerformanceTimeline({
     ...events.map((event) => event.timeMs),
   );
   const routeEvent = events.find((event) => event.kind === 'route');
-  const visibleEvents = routeEvent
-    ? [routeEvent, ...events.filter((event) => event !== routeEvent).slice(-7)]
-    : events.slice(-8);
   const visibleRows = routeEvent
     ? [routeEvent, ...events.filter((event) => event !== routeEvent).slice(-4)]
     : events.slice(-5);
 
   return (
-    <div className="min-w-0 rounded-[10px] border border-white/8 bg-white/[0.025] p-3">
+    <div className="min-w-0" data-testid="lab-performance-timeline-shell">
       <div className="flex items-center justify-between gap-3">
         <div
           className="text-[10px] font-medium uppercase tracking-[0.14em]"
@@ -1194,66 +1207,74 @@ function LabPerformanceTimeline({
         </div>
       </div>
 
-      <div
-        className="relative mt-3 h-12 overflow-hidden"
-        data-testid="lab-performance-timeline"
-      >
-        <div className="absolute left-0 right-0 top-6 h-px bg-white/10" />
-        {visibleEvents.map((event, index) => {
-          const left = Math.min(
-            96,
-            Math.max(0, (event.timeMs / TIMELINE_WINDOW_MS) * 96),
+      <div className="mt-2 grid gap-1.5" data-testid="lab-performance-timeline">
+        {visibleRows.map((event) => {
+          const endPercent = clamp(
+            (event.timeMs / TIMELINE_WINDOW_MS) * 100,
+            0,
+            100,
           );
-          const top = 12 + (index % 2) * 10;
+          const startTimeMs =
+            event.durationMs > 0
+              ? Math.max(0, event.timeMs - event.durationMs)
+              : event.timeMs;
+          const startPercent = clamp(
+            (startTimeMs / TIMELINE_WINDOW_MS) * 100,
+            0,
+            100,
+          );
+          const widthPercent = Math.max(1.5, endPercent - startPercent);
           const color = getTimelineEventColor(event.kind);
 
           return (
             <div
               key={event.id}
               aria-label={`${event.label}: ${event.detail}`}
-              className="pointer-events-none absolute"
-              style={{
-                left: `${left}%`,
-                top,
-                transform: 'translateX(-50%)',
-              }}
+              className="grid min-w-0 grid-cols-[42px_minmax(0,1fr)_64px] items-center gap-2 text-[11px] leading-4"
             >
-              <div
-                className="mx-auto h-5 w-px"
-                style={{ backgroundColor: color }}
-              />
-              <div
-                className="size-2 rounded-full shadow-[0_0_0_3px_rgba(255,255,255,0.04)]"
-                style={{ backgroundColor: color }}
-              />
+              <span className="tabular-nums" style={{ color }}>
+                {event.timeMs}ms
+              </span>
+              <span
+                className="truncate"
+                style={{ color: 'rgba(255,255,255,0.62)' }}
+                title={`${event.label}: ${event.detail}`}
+              >
+                <span className="font-medium">{event.label}</span>
+                <span style={{ color: 'rgba(255,255,255,0.42)' }}>
+                  {' '}
+                  {event.detail}
+                </span>
+              </span>
+              <span aria-hidden="true" className="relative h-4">
+                <span className="absolute left-0 right-0 top-1/2 h-px -translate-y-1/2 bg-white/10" />
+                <span
+                  className="absolute top-1/2 h-[3px] -translate-y-1/2 rounded-full"
+                  data-testid="lab-performance-timeline-bar"
+                  style={{
+                    backgroundColor: color,
+                    left: `${startPercent}%`,
+                    width: `${widthPercent}%`,
+                  }}
+                />
+                <span
+                  className="absolute top-0 h-4 w-px"
+                  style={{
+                    backgroundColor: color,
+                    left: `${startPercent}%`,
+                  }}
+                />
+                <span
+                  className="absolute top-0 h-4 w-px"
+                  style={{
+                    backgroundColor: color,
+                    left: `${Math.min(100, startPercent + widthPercent)}%`,
+                  }}
+                />
+              </span>
             </div>
           );
         })}
-      </div>
-
-      <div className="mt-2 grid gap-1">
-        {visibleRows.map((event) => (
-          <div
-            key={`${event.id}-row`}
-            className="grid min-w-0 grid-cols-[44px_90px_minmax(0,1fr)] gap-2 text-[11px] leading-4"
-          >
-            <span style={{ color: getTimelineEventColor(event.kind) }}>
-              {event.timeMs}ms
-            </span>
-            <span
-              className="truncate font-medium"
-              style={{ color: 'rgba(255,255,255,0.68)' }}
-            >
-              {event.label}
-            </span>
-            <span
-              className="truncate"
-              style={{ color: 'rgba(255,255,255,0.58)' }}
-            >
-              {event.detail}
-            </span>
-          </div>
-        ))}
       </div>
     </div>
   );
@@ -1278,7 +1299,7 @@ export function LabPerformanceAnalysisPanel({
       className="border-t border-white/8 bg-[#151515] px-4 py-4 lg:h-[268px] lg:px-6"
       data-lab-performance-panel
     >
-      <div className="grid h-full min-w-0 gap-4 lg:grid-cols-[minmax(560px,1.65fr)_minmax(320px,1fr)] lg:items-stretch">
+      <div className="grid h-full min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_240px] lg:items-stretch">
         <div className="grid min-h-0 min-w-0 grid-rows-[auto_1fr] gap-2">
           <LabMatchingTable vitals={vitals} />
           <LabMetricTable vitals={vitals} />

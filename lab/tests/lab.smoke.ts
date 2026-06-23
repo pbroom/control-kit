@@ -140,9 +140,21 @@ test('mirrors the color-kit lab pages and properties panel', async ({
       metricsTable.locator('tbody tr').first().locator('th, td'),
     ).toHaveCount(4);
     await expect(performancePanel.getByRole('columnheader')).toHaveCount(0);
+    const timelineShell = performancePanel.getByTestId(
+      'lab-performance-timeline-shell',
+    );
+    await expect(timelineShell).toBeVisible();
     await expect(
       performancePanel.getByTestId('lab-performance-timeline'),
     ).toBeVisible();
+    await expect(
+      performancePanel.getByTestId('lab-performance-timeline-bar').first(),
+    ).toBeVisible();
+    expect(
+      await timelineShell.evaluate(
+        (node) => getComputedStyle(node).borderWidth,
+      ),
+    ).toBe('0px');
 
     if (labPage.value === 'inputMulti') {
       await performancePanel.getByTestId('lab-performance-timeline').hover();
