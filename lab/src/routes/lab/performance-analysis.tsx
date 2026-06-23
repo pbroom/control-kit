@@ -624,94 +624,133 @@ function useLabPerformanceTelemetry(
   return { vitals, timeline, timelineTimeMs };
 }
 
-function LabMetricCard({
-  label,
-  value,
-  detail,
-  tone,
-}: {
+type LabMetricRow = {
   label: string;
   value: string;
   detail: string;
   tone: LabPerformanceTone;
-}) {
-  const toneClass = {
-    good: 'border-[rgba(110,231,183,0.22)] bg-[rgba(110,231,183,0.075)]',
-    okay: 'border-[rgba(252,211,77,0.24)] bg-[rgba(252,211,77,0.08)]',
-    poor: 'border-[rgba(248,113,113,0.25)] bg-[rgba(248,113,113,0.08)]',
-    neutral: 'border-white/8 bg-white/[0.035]',
+};
+
+function getMetricToneColor(tone: LabPerformanceTone) {
+  const toneColors = {
+    good: '#34d399',
+    okay: '#fbbf24',
+    poor: '#f87171',
+    neutral: 'rgba(255,255,255,0.36)',
   } satisfies Record<LabPerformanceTone, string>;
 
+  return toneColors[tone];
+}
+
+function LabMetricTable({ vitals }: { vitals: LabPerformanceVitals }) {
+  const rows: LabMetricRow[] = [
+    {
+      label: 'FCP',
+      value: formatMilliseconds(vitals.fcpMs),
+      detail: 'first contentful paint',
+      tone: getMetricTone('fcp', vitals.fcpMs),
+    },
+    {
+      label: 'LCP',
+      value: formatMilliseconds(vitals.lcpMs),
+      detail: 'largest contentful paint',
+      tone: getMetricTone('lcp', vitals.lcpMs),
+    },
+    {
+      label: 'CLS',
+      value: formatScore(vitals.cls),
+      detail: 'layout shift score',
+      tone: getMetricTone('cls', vitals.cls),
+    },
+    {
+      label: 'INP',
+      value: formatMilliseconds(vitals.inpMs),
+      detail: 'max observed event',
+      tone: getMetricTone('inp', vitals.inpMs),
+    },
+    {
+      label: 'FPS',
+      value: formatFps(vitals.fps),
+      detail:
+        vitals.minFps === null
+          ? 'rolling frame sample'
+          : `${vitals.minFps} min`,
+      tone: getMetricTone('fps', vitals.fps),
+    },
+    {
+      label: 'Loading',
+      value: formatMilliseconds(vitals.loadingMs),
+      detail: `${vitals.resources.moduleRequests} resources / ${vitals.resources.moduleDurationMs}ms`,
+      tone: getMetricTone('loading', vitals.loadingMs),
+    },
+  ];
+
   return (
-    <div
-      className={`min-w-0 rounded-[8px] border px-3 py-2 ${toneClass[tone]}`}
-    >
-      <div
-        className="truncate text-[10px] font-medium uppercase tracking-[0.14em]"
-        style={{ color: 'rgba(255,255,255,0.42)' }}
+    <div className="min-w-0 overflow-hidden rounded-[10px] border border-white/8 bg-white/[0.025]">
+      <table
+        aria-label="Performance metrics"
+        className="h-full w-full table-fixed border-collapse text-left"
       >
-        {label}
-      </div>
-      <div className="mt-1 text-sm font-semibold leading-4 text-white">
-        {value}
-      </div>
-      <div
-        className="mt-0.5 text-[11px] leading-4"
-        style={{ color: 'rgba(255,255,255,0.48)' }}
-      >
-        {detail}
-      </div>
+        <thead>
+          <tr className="border-b border-white/8">
+            <th
+              className="w-[128px] px-3 py-2 text-[10px] font-medium uppercase tracking-[0.14em]"
+              scope="col"
+              style={{ color: 'rgba(255,255,255,0.42)' }}
+            >
+              Metric
+            </th>
+            <th
+              className="w-[88px] px-3 py-2 text-[10px] font-medium uppercase tracking-[0.14em]"
+              scope="col"
+              style={{ color: 'rgba(255,255,255,0.42)' }}
+            >
+              Value
+            </th>
+            <th
+              className="px-3 py-2 text-[10px] font-medium uppercase tracking-[0.14em]"
+              scope="col"
+              style={{ color: 'rgba(255,255,255,0.42)' }}
+            >
+              Detail
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr
+              key={row.label}
+              className="border-b border-white/6 last:border-b-0"
+            >
+              <th
+                className="px-3 py-1.5 align-middle text-[11px] font-semibold uppercase tracking-[0.12em]"
+                scope="row"
+                style={{ color: 'rgba(255,255,255,0.68)' }}
+              >
+                <span className="flex min-w-0 items-center gap-2">
+                  <span
+                    className="size-1.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: getMetricToneColor(row.tone) }}
+                  />
+                  <span className="whitespace-nowrap">{row.label}</span>
+                </span>
+              </th>
+              <td className="px-3 py-1.5 align-middle text-sm font-semibold leading-4 text-white">
+                <span className="block truncate">{row.value}</span>
+              </td>
+              <td
+                className="px-3 py-1.5 align-middle text-[11px] leading-4"
+                style={{ color: 'rgba(255,255,255,0.5)' }}
+              >
+                <span className="block truncate">{row.detail}</span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
-
-function LabMetricGrid({ vitals }: { vitals: LabPerformanceVitals }) {
-  return (
-    <div className="grid min-w-0 grid-cols-2 gap-2 lg:grid-cols-3">
-      <LabMetricCard
-        label="FCP"
-        value={formatMilliseconds(vitals.fcpMs)}
-        detail="first contentful paint"
-        tone={getMetricTone('fcp', vitals.fcpMs)}
-      />
-      <LabMetricCard
-        label="LCP"
-        value={formatMilliseconds(vitals.lcpMs)}
-        detail="largest contentful paint"
-        tone={getMetricTone('lcp', vitals.lcpMs)}
-      />
-      <LabMetricCard
-        label="CLS"
-        value={formatScore(vitals.cls)}
-        detail="layout shift score"
-        tone={getMetricTone('cls', vitals.cls)}
-      />
-      <LabMetricCard
-        label="INP"
-        value={formatMilliseconds(vitals.inpMs)}
-        detail="max observed event"
-        tone={getMetricTone('inp', vitals.inpMs)}
-      />
-      <LabMetricCard
-        label="FPS"
-        value={formatFps(vitals.fps)}
-        detail={
-          vitals.minFps === null
-            ? 'rolling frame sample'
-            : `${vitals.minFps} min`
-        }
-        tone={getMetricTone('fps', vitals.fps)}
-      />
-      <LabMetricCard
-        label="Loading"
-        value={formatMilliseconds(vitals.loadingMs)}
-        detail={`${vitals.resources.moduleRequests} resources / ${vitals.resources.moduleDurationMs}ms`}
-        tone={getMetricTone('loading', vitals.loadingMs)}
-      />
-    </div>
-  );
-}
-
 function getTimelineEventColor(kind: LabTimelineEventKind) {
   switch (kind) {
     case 'route':
@@ -897,7 +936,7 @@ export function LabPerformanceAnalysisPanel({
           </p>
         </div>
 
-        <LabMetricGrid vitals={vitals} />
+        <LabMetricTable vitals={vitals} />
         <LabPerformanceTimeline
           events={timeline}
           currentTimeMs={timelineTimeMs}

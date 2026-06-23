@@ -105,6 +105,12 @@ test('mirrors the color-kit lab pages and properties panel', async ({
     await expect(performancePanel).toContainText('Timeline');
     await expect(performancePanel).toContainText('Route selected');
     await expect(
+      performancePanel.getByRole('table', {
+        name: 'Performance metrics',
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(
       performancePanel.getByTestId('lab-performance-timeline'),
     ).toBeVisible();
 
