@@ -135,6 +135,13 @@ test('mirrors the color-kit lab pages and properties panel', async ({
     await expect(metricsTable).toContainText('requestAnimationFrame sampler');
     await expect(metricsTable.locator('tbody tr')).toHaveCount(8);
     await expect(metricsTable.locator('svg[role="img"]')).toHaveCount(6);
+    expect(
+      await metricsTable.evaluate((table) =>
+        Array.from(table.querySelectorAll('svg[role="img"]')).map(
+          (svg) => svg.querySelectorAll('path').length,
+        ),
+      ),
+    ).toEqual([1, 1, 1, 1, 1, 1]);
     await expect(
       metricsTable.locator('tbody tr').first().locator('th, td'),
     ).toHaveCount(4);

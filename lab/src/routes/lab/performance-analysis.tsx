@@ -948,16 +948,9 @@ function LabMetricCurve({
       <path
         d="M4 17 C16 17 17 4 40 4 C63 4 64 17 76 17"
         fill="none"
-        stroke="rgba(255,255,255,0.12)"
-        strokeLinecap="round"
-        strokeWidth="1.5"
-      />
-      <path
-        d="M10 17 C21 17 23 8 40 8 C57 8 59 17 70 17"
-        fill="none"
         stroke="rgba(255,255,255,0.2)"
         strokeLinecap="round"
-        strokeWidth="1"
+        strokeWidth="1.25"
       />
       <line
         stroke="rgba(255,255,255,0.18)"
