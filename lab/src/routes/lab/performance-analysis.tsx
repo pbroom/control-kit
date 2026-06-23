@@ -1430,7 +1430,7 @@ export function LabPerformanceAnalysisPanel({
   return (
     <section
       aria-label={`Performance analysis for ${analysis.label}`}
-      className="relative mx-4 overflow-hidden rounded-[24px] border border-white/8 bg-[#151515] px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] lg:h-[var(--lab-performance-panel-height)] lg:px-6"
+      className="relative mx-3 overflow-hidden rounded-[24px] border border-white/8 bg-[#151515] px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] lg:h-[var(--lab-performance-panel-height)] lg:px-6"
       data-lab-performance-panel
       style={panelStyle}
     >

@@ -2808,7 +2808,7 @@ function LabPageFrameContent({
       <main className="h-screen min-h-screen min-w-0 bg-[#171717] [--ck-lab-segmented-active-bg:#171717] text-white lg:overflow-hidden">
         <div className="grid min-h-screen min-w-0 grid-cols-1 lg:h-full lg:grid-cols-[minmax(0,1fr)_300px]">
           <div
-            className="flex min-h-screen min-w-0 flex-col lg:h-full lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:pb-8"
+            className="flex min-h-screen min-w-0 flex-col lg:h-full lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:pb-3"
             data-lab-page-scroll
           >
             <section className="relative flex min-h-[420px] min-w-0 flex-1 items-center justify-center overflow-hidden px-6 py-10 lg:py-10">
@@ -2830,7 +2830,7 @@ function LabPageFrameContent({
             />
           </div>
 
-          <aside className="min-w-0 max-w-full overflow-hidden border-t border-white/8 p-3 lg:h-full lg:min-h-0 lg:border-t-0 lg:p-4">
+          <aside className="min-w-0 max-w-full overflow-hidden border-t border-white/8 p-3 lg:h-full lg:min-h-0 lg:border-t-0 lg:py-4 lg:pr-4 lg:pl-0">
             <div className="h-full w-full min-w-0 max-w-full overflow-hidden rounded-[24px] border border-white/8 bg-white/[0.03] [--ck-lab-segmented-active-bg:color-mix(in_srgb,#171717_97%,white_3%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] backdrop-blur lg:min-h-0">
               <ScrollArea className={LAB_PANEL_SCROLL_AREA_CLASS}>
                 <TooltipProvider

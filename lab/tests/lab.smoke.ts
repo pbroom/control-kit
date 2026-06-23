@@ -238,7 +238,7 @@ test('mirrors the color-kit lab pages and properties panel', async ({
           (node) => getComputedStyle(node).borderRadius,
         ),
       ).toBe('24px');
-      expect(performancePanelBox!.x).toBeGreaterThanOrEqual(16);
+      expect(performancePanelBox!.x).toBeGreaterThanOrEqual(12);
       expect(
         performancePanelBox!.x + performancePanelBox!.width,
       ).toBeLessThanOrEqual(propertiesPanelBox!.x + 1);
@@ -247,8 +247,13 @@ test('mirrors the color-kit lab pages and properties panel', async ({
       expect(
         viewport!.height -
           (performancePanelBox!.y + performancePanelBox!.height),
-      ).toBeGreaterThanOrEqual(24);
+      ).toBeGreaterThanOrEqual(12);
       expect(propertiesPanelBox!.height).toBeGreaterThanOrEqual(998);
+      expect(
+        await page
+          .locator('aside')
+          .evaluate((node) => getComputedStyle(node).paddingLeft),
+      ).toBe('0px');
 
       if (labPage.value === 'slider') {
         const resizeHandle = performancePanel.getByLabel(
@@ -278,7 +283,7 @@ test('mirrors the color-kit lab pages and properties panel', async ({
         expect(viewport).not.toBeNull();
         expect(
           viewport!.height - (resizedPanelBox!.y + resizedPanelBox!.height),
-        ).toBeGreaterThanOrEqual(24);
+        ).toBeGreaterThanOrEqual(12);
         await expect(performancePanel).not.toContainText(
           'performance analysis panel',
         );
