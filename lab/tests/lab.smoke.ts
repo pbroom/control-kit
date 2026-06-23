@@ -126,6 +126,11 @@ test('mirrors the color-kit lab pages and properties panel', async ({
     await expect(
       matchingTable.locator('tbody tr').first().locator('th, td'),
     ).toHaveCount(4);
+    expect(
+      await matchingTable.evaluate(
+        (table) => table.querySelectorAll('th span.rounded-full').length,
+      ),
+    ).toBe(0);
     const metricsTable = performancePanel.getByRole('table', {
       name: 'Performance metrics',
       exact: true,
@@ -139,6 +144,11 @@ test('mirrors the color-kit lab pages and properties panel', async ({
     await expect(
       metricsTable.locator('tbody tr').first().locator('th, td'),
     ).toHaveCount(4);
+    expect(
+      await metricsTable.evaluate(
+        (table) => table.querySelectorAll('th span.rounded-full').length,
+      ),
+    ).toBe(0);
     await expect(performancePanel.getByRole('columnheader')).toHaveCount(0);
     const timelineShell = performancePanel.getByTestId(
       'lab-performance-timeline-shell',

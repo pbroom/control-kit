@@ -1047,13 +1047,7 @@ function LabMetricTable({ vitals }: { vitals: LabPerformanceVitals }) {
               scope="row"
               style={{ color: 'rgba(255,255,255,0.58)' }}
             >
-              <span className="flex min-w-0 items-center gap-2">
-                <span
-                  className="size-1.5 shrink-0 rounded-full"
-                  style={{ backgroundColor: getMetricToneColor(row.tone) }}
-                />
-                <span className="block truncate">{row.label}</span>
-              </span>
+              <span className="block truncate">{row.label}</span>
             </th>
             <td
               className="px-1.5 py-1.5 align-middle text-[11px] leading-4"
@@ -1123,13 +1117,7 @@ function LabMatchingTable({ vitals }: { vitals: LabPerformanceVitals }) {
               scope="row"
               style={{ color: 'rgba(255,255,255,0.58)' }}
             >
-              <span className="flex min-w-0 items-center gap-2">
-                <span
-                  className="size-1.5 shrink-0 rounded-full"
-                  style={{ backgroundColor: getMetricToneColor(row.tone) }}
-                />
-                <span className="block truncate">{row.label}</span>
-              </span>
+              <span className="block truncate">{row.label}</span>
             </th>
             <td
               className="px-1.5 py-1 align-middle text-[11px] leading-4"
