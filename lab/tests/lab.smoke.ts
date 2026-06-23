@@ -149,6 +149,15 @@ test('mirrors the color-kit lab pages and properties panel', async ({
         (table) => table.querySelectorAll('th span.rounded-full').length,
       ),
     ).toBe(0);
+    expect(
+      await metricsTable
+        .locator('tbody tr')
+        .first()
+        .locator('td')
+        .last()
+        .locator('span')
+        .evaluate((node) => getComputedStyle(node).fontSize),
+    ).toBe('12px');
     await expect(performancePanel.getByRole('columnheader')).toHaveCount(0);
     const timelineShell = performancePanel.getByTestId(
       'lab-performance-timeline-shell',
