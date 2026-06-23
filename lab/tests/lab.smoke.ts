@@ -121,9 +121,10 @@ test('mirrors the color-kit lab pages and properties panel', async ({
     await expect(metricsTable).toContainText('Largest visible element');
     await expect(metricsTable).toContainText('requestAnimationFrame sampler');
     await expect(metricsTable.locator('tbody tr')).toHaveCount(6);
+    await expect(metricsTable.locator('svg[role="img"]')).toHaveCount(6);
     await expect(
       metricsTable.locator('tbody tr').first().locator('th, td'),
-    ).toHaveCount(3);
+    ).toHaveCount(4);
     await expect(performancePanel.getByRole('columnheader')).toHaveCount(0);
     await expect(
       performancePanel.getByTestId('lab-performance-timeline'),

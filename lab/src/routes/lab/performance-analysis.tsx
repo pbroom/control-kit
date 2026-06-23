@@ -31,6 +31,14 @@ type LabPerformanceMetricKey =
 
 type LabPerformanceAttributions = Record<LabPerformanceMetricKey, string>;
 
+type LabMetricCurveDirection = 'higher' | 'lower';
+
+type LabMetricCurveConfig = {
+  direction: LabMetricCurveDirection;
+  max: number;
+  min: number;
+};
+
 type LabPerformanceVitals = {
   fcpMs: number | null;
   lcpMs: number | null;
@@ -838,6 +846,9 @@ function useLabPerformanceTelemetry(
 type LabMetricRow = {
   label: string;
   attribution: string;
+  curve: LabMetricCurveConfig;
+  metricKey: LabPerformanceMetricKey;
+  rawValue: number | null;
   value: string;
   tone: LabPerformanceTone;
 };
@@ -853,41 +864,190 @@ function getMetricToneColor(tone: LabPerformanceTone) {
   return toneColors[tone];
 }
 
+const LAB_METRIC_CURVES = {
+  fcp: {
+    direction: 'lower',
+    min: 0,
+    max: 5000,
+  },
+  lcp: {
+    direction: 'lower',
+    min: 0,
+    max: 6000,
+  },
+  cls: {
+    direction: 'lower',
+    min: 0,
+    max: 0.4,
+  },
+  inp: {
+    direction: 'lower',
+    min: 0,
+    max: 800,
+  },
+  fps: {
+    direction: 'higher',
+    min: 30,
+    max: 75,
+  },
+  loading: {
+    direction: 'lower',
+    min: 0,
+    max: 600,
+  },
+} satisfies Record<LabPerformanceMetricKey, LabMetricCurveConfig>;
+
+function clamp(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function getMetricCurveRank(
+  value: number | null,
+  config: LabMetricCurveConfig,
+) {
+  if (value === null) {
+    return 0.5;
+  }
+
+  const range = config.max - config.min;
+  const normalized = range === 0 ? 0.5 : (value - config.min) / range;
+  const rawRank = config.direction === 'higher' ? normalized : 1 - normalized;
+
+  return clamp(rawRank, 0, 1);
+}
+
+function formatMetricCurveLabel(
+  label: string,
+  rank: number,
+  tone: LabPerformanceTone,
+) {
+  if (tone === 'neutral') {
+    return `${label} has not reported yet`;
+  }
+
+  return `${label} ranks ${Math.round(rank * 100)}% across the quality curve`;
+}
+
+function LabMetricCurve({
+  curve,
+  label,
+  rawValue,
+  tone,
+}: {
+  curve: LabMetricCurveConfig;
+  label: string;
+  rawValue: number | null;
+  tone: LabPerformanceTone;
+}) {
+  const rank = getMetricCurveRank(rawValue, curve);
+  const markerX = 8 + rank * 64;
+  const markerColor = getMetricToneColor(tone);
+  const accessibleLabel = formatMetricCurveLabel(label, rank, tone);
+
+  return (
+    <svg
+      aria-label={accessibleLabel}
+      className="block h-5 w-full min-w-[72px] overflow-visible"
+      role="img"
+      viewBox="0 0 80 20"
+    >
+      <path
+        d="M4 17 C16 17 17 4 40 4 C63 4 64 17 76 17"
+        fill="none"
+        stroke="rgba(255,255,255,0.12)"
+        strokeLinecap="round"
+        strokeWidth="1.5"
+      />
+      <path
+        d="M10 17 C21 17 23 8 40 8 C57 8 59 17 70 17"
+        fill="none"
+        stroke="rgba(255,255,255,0.2)"
+        strokeLinecap="round"
+        strokeWidth="1"
+      />
+      <line
+        stroke="rgba(255,255,255,0.18)"
+        strokeLinecap="round"
+        strokeWidth="1"
+        x1="8"
+        x2="72"
+        y1="17"
+        y2="17"
+      />
+      <line
+        stroke={markerColor}
+        strokeLinecap="round"
+        strokeWidth="1.5"
+        x1={markerX}
+        x2={markerX}
+        y1="3"
+        y2="18"
+      />
+      <circle
+        cx={markerX}
+        cy="17"
+        fill={markerColor}
+        r="2.5"
+        stroke="rgba(15,15,15,0.9)"
+        strokeWidth="1"
+      />
+    </svg>
+  );
+}
+
 function LabMetricTable({ vitals }: { vitals: LabPerformanceVitals }) {
   const rows: LabMetricRow[] = [
     {
       label: 'First contentful paint (FCP)',
       attribution: vitals.attributions.fcp,
+      curve: LAB_METRIC_CURVES.fcp,
+      metricKey: 'fcp',
+      rawValue: vitals.fcpMs,
       value: formatMilliseconds(vitals.fcpMs),
       tone: getMetricTone('fcp', vitals.fcpMs),
     },
     {
       label: 'Largest contentful paint (LCP)',
       attribution: vitals.attributions.lcp,
+      curve: LAB_METRIC_CURVES.lcp,
+      metricKey: 'lcp',
+      rawValue: vitals.lcpMs,
       value: formatMilliseconds(vitals.lcpMs),
       tone: getMetricTone('lcp', vitals.lcpMs),
     },
     {
       label: 'Cumulative layout shift (CLS)',
       attribution: vitals.attributions.cls,
+      curve: LAB_METRIC_CURVES.cls,
+      metricKey: 'cls',
+      rawValue: vitals.cls,
       value: formatScore(vitals.cls),
       tone: getMetricTone('cls', vitals.cls),
     },
     {
       label: 'Interaction to next paint (INP)',
       attribution: vitals.attributions.inp,
+      curve: LAB_METRIC_CURVES.inp,
+      metricKey: 'inp',
+      rawValue: vitals.inpMs,
       value: formatMilliseconds(vitals.inpMs),
       tone: getMetricTone('inp', vitals.inpMs),
     },
     {
       label: 'Frame rate (FPS)',
       attribution: vitals.attributions.fps,
+      curve: LAB_METRIC_CURVES.fps,
+      metricKey: 'fps',
+      rawValue: vitals.fps,
       value: formatFps(vitals.fps),
       tone: getMetricTone('fps', vitals.fps),
     },
     {
       label: 'Loading state',
       attribution: vitals.attributions.loading,
+      curve: LAB_METRIC_CURVES.loading,
+      metricKey: 'loading',
+      rawValue: vitals.loadingMs,
       value: formatMilliseconds(vitals.loadingMs),
       tone: getMetricTone('loading', vitals.loadingMs),
     },
@@ -899,14 +1059,15 @@ function LabMetricTable({ vitals }: { vitals: LabPerformanceVitals }) {
       className="h-full w-full table-fixed border-collapse text-left"
     >
       <colgroup>
-        <col className="w-[43%]" />
-        <col className="w-[35%]" />
-        <col className="w-[96px]" />
+        <col className="w-[34%]" />
+        <col className="w-[31%]" />
+        <col className="w-[92px]" />
+        <col className="w-[86px]" />
       </colgroup>
       <tbody>
         {rows.map((row) => (
           <tr
-            key={row.label}
+            key={row.metricKey}
             className="border-b border-white/6 last:border-b-0"
           >
             <th
@@ -929,7 +1090,15 @@ function LabMetricTable({ vitals }: { vitals: LabPerformanceVitals }) {
             >
               <span className="block truncate">{row.attribution}</span>
             </td>
-            <td className="w-[96px] px-1.5 py-1.5 text-right align-middle text-sm font-semibold leading-4 text-white">
+            <td className="px-1.5 py-1.5 align-middle">
+              <LabMetricCurve
+                curve={row.curve}
+                label={row.label}
+                rawValue={row.rawValue}
+                tone={row.tone}
+              />
+            </td>
+            <td className="w-[86px] px-1.5 py-1.5 text-right align-middle text-sm font-semibold leading-4 text-white">
               <span className="block truncate">{row.value}</span>
             </td>
           </tr>
