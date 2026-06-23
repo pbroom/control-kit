@@ -1098,7 +1098,10 @@ function LabMetricTable({ vitals }: { vitals: LabPerformanceVitals }) {
                 tone={row.tone}
               />
             </td>
-            <td className="w-[86px] px-1.5 py-1.5 text-right align-middle text-sm font-semibold leading-4 text-white">
+            <td
+              className="w-[86px] px-1.5 py-1.5 text-right align-middle text-sm font-semibold leading-4"
+              style={{ color: getMetricToneColor(row.tone) }}
+            >
               <span className="block truncate">{row.value}</span>
             </td>
           </tr>
