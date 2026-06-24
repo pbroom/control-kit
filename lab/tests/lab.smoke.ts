@@ -306,6 +306,11 @@ test('mirrors the color-kit lab pages and properties panel', async ({
           (node) => getComputedStyle(node).scrollbarColor,
         ),
       ).toBe('rgba(255, 255, 255, 0.1) rgba(0, 0, 0, 0)');
+      expect(
+        await metricsShell.evaluate(
+          (node) => getComputedStyle(node).scrollbarGutter,
+        ),
+      ).toBe('stable');
       if (labPage.value === 'inputMulti') {
         await metricsShell.dispatchEvent('scroll');
         await expect(metricsShell).toHaveClass(
@@ -366,13 +371,29 @@ test('mirrors the color-kit lab pages and properties panel', async ({
           return {
             clientHeight: node.clientHeight,
             overflowY: style.overflowY,
+            scrollbarGutter: style.scrollbarGutter,
             scrollHeight: node.scrollHeight,
           };
         });
         expect(clippedMetricsState.overflowY).toBe('auto');
+        expect(clippedMetricsState.scrollbarGutter).toBe('stable');
         expect(clippedMetricsState.scrollHeight).toBeGreaterThan(
           clippedMetricsState.clientHeight,
         );
+        const resizedMetricsTableBox = await metricsTable.boundingBox();
+        expect(resizedMetricsTableBox).not.toBeNull();
+        expect(
+          Math.abs(resizedMetricsTableBox!.width - metricsTableBox!.width),
+        ).toBeLessThanOrEqual(1);
+        await metricsShell.dispatchEvent('scroll');
+        await expect(metricsShell).toHaveClass(
+          /ck-lab-performance-metrics-scroll-active/,
+        );
+        const activeMetricsTableBox = await metricsTable.boundingBox();
+        expect(activeMetricsTableBox).not.toBeNull();
+        expect(
+          Math.abs(activeMetricsTableBox!.width - resizedMetricsTableBox!.width),
+        ).toBeLessThanOrEqual(1);
         expect(viewport).not.toBeNull();
         expect(
           viewport!.height - (resizedPanelBox!.y + resizedPanelBox!.height),
