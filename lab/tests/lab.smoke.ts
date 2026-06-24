@@ -195,13 +195,34 @@ test('mirrors the color-kit lab pages and properties panel', async ({
         const actualEndMs = Number(row.getAttribute('data-actual-end-ms'));
         const storyEndMs = Number(row.getAttribute('data-story-end-ms'));
         const storyStartMs = Number(row.getAttribute('data-story-start-ms'));
+        const storyDurationMs = Number(
+          row.getAttribute('data-story-duration-ms'),
+        );
+        const track = row.children[2] as HTMLElement | undefined;
+        const verticalCapCount = track
+          ? Array.from(track.children).filter((child) => {
+              if (child === bar) {
+                return false;
+              }
+
+              const rect = child.getBoundingClientRect();
+
+              return rect.height > 8 && rect.width <= 2;
+            }).length
+          : 0;
+        const barBox = bar?.getBoundingClientRect();
 
         return {
           actualDurationMs,
           actualEndMs,
+          barHeight: barBox?.height ?? 0,
           barLeft: Number.parseFloat(bar?.style.left ?? ''),
+          capCount: verticalCapCount,
           displayedTime: timeCell?.textContent?.trim() ?? '',
-          storyDurationMs: storyEndMs - storyStartMs,
+          computedStoryDurationMs: storyEndMs - storyStartMs,
+          storyDurationMs,
+          storyEndMs,
+          storyStartMs,
         };
       }),
     );
@@ -221,9 +242,21 @@ test('mirrors the color-kit lab pages and properties panel', async ({
     ).toBe(true);
     expect(
       timelineRows.every(
+        (row) => row.storyDurationMs >= Math.max(1, row.actualDurationMs),
+      ),
+    ).toBe(true);
+    expect(
+      timelineRows.every(
         (row) =>
-          Math.abs(row.storyDurationMs - row.actualDurationMs) <=
-          (row.actualDurationMs > 0 ? 1 : 0),
+          Math.abs(row.storyDurationMs - row.computedStoryDurationMs) <= 1,
+      ),
+    ).toBe(true);
+    expect(timelineRows.every((row) => row.barHeight <= 4)).toBe(true);
+    expect(timelineRows.every((row) => row.capCount === 0)).toBe(true);
+    expect(
+      timelineRows.slice(1).every(
+        (row, index) =>
+          Math.abs(row.storyStartMs - timelineRows[index]!.storyEndMs) <= 1,
       ),
     ).toBe(true);
     const timelineColumnsAreSeparated = await timelineShell.evaluate((shell) =>

@@ -88,8 +88,7 @@ type InteractionPerformanceEntry = PerformanceEntry & {
 };
 
 const MAX_TIMELINE_EVENTS = 12;
-const TIMELINE_STORY_IDLE_GAP_MS = 120;
-const TIMELINE_STORY_MIN_WINDOW_MS = 360;
+const TIMELINE_STORY_MIN_EVENT_MS = 24;
 const LAB_COMPONENT_PREVIEW_SELECTOR = '[data-lab-component-preview]';
 const LAB_LCP_PENDING_ATTRIBUTION = 'Largest preview element pending';
 const LAB_LCP_NO_PREVIEW_CANDIDATE_ATTRIBUTION = 'No preview LCP candidate';
@@ -123,13 +122,8 @@ type LabTimelineStoryRow = {
   actualGapMs: number;
   actualStartMs: number;
   event: LabTimelineEvent;
+  storyDurationMs: number;
   storyEndMs: number;
-  storyStartMs: number;
-};
-
-type LabTimelineStorySegment = {
-  actualEndMs: number;
-  actualStartMs: number;
   storyStartMs: number;
 };
 
@@ -265,92 +259,36 @@ function getTimelineEventActualBounds(event: LabTimelineEvent) {
   return { actualEndMs, actualStartMs };
 }
 
-function createTimelineStorySegments(
-  events: readonly LabTimelineEvent[],
-): LabTimelineStorySegment[] {
-  let activeEndMs = 0;
-  let storyCursorMs = 0;
-  const segments: LabTimelineStorySegment[] = [];
-  const intervals = events
-    .map((event) => getTimelineEventActualBounds(event))
-    .sort(
-      (first, second) =>
-        first.actualStartMs - second.actualStartMs ||
-        first.actualEndMs - second.actualEndMs,
-    );
-
-  for (const interval of intervals) {
-    const lastSegment = segments[segments.length - 1];
-
-    if (!lastSegment || interval.actualStartMs > activeEndMs) {
-      const actualGapMs = Math.max(0, interval.actualStartMs - activeEndMs);
-      storyCursorMs += Math.min(actualGapMs, TIMELINE_STORY_IDLE_GAP_MS);
-      segments.push({
-        actualEndMs: interval.actualEndMs,
-        actualStartMs: interval.actualStartMs,
-        storyStartMs: storyCursorMs,
-      });
-      storyCursorMs += Math.max(
-        0,
-        interval.actualEndMs - interval.actualStartMs,
-      );
-      activeEndMs = interval.actualEndMs;
-      continue;
-    }
-
-    if (interval.actualEndMs > activeEndMs) {
-      storyCursorMs += interval.actualEndMs - activeEndMs;
-      lastSegment.actualEndMs = interval.actualEndMs;
-      activeEndMs = interval.actualEndMs;
-    }
-  }
-
-  return segments;
-}
-
-function mapActualTimeToStoryTime(
-  segments: readonly LabTimelineStorySegment[],
-  actualTimeMs: number,
-) {
-  const segment = segments.find(
-    (current) =>
-      actualTimeMs >= current.actualStartMs &&
-      actualTimeMs <= current.actualEndMs,
-  );
-
-  if (!segment) {
-    return 0;
-  }
-
-  return segment.storyStartMs + actualTimeMs - segment.actualStartMs;
-}
-
 function createTimelineStoryRows(
   events: readonly LabTimelineEvent[],
 ): LabTimelineStoryRow[] {
   let previousActualEndMs = 0;
-  const storySegments = createTimelineStorySegments(events);
+  let storyCursorMs = 0;
 
   return events.map((event, index) => {
     const { actualEndMs, actualStartMs } =
       getTimelineEventActualBounds(event);
+    const actualDurationMs = Math.max(0, actualEndMs - actualStartMs);
     const actualGapMs =
       index === 0
         ? actualStartMs
         : Math.max(0, actualStartMs - previousActualEndMs);
-    const storyStartMs = mapActualTimeToStoryTime(
-      storySegments,
-      actualStartMs,
+    const storyStartMs = storyCursorMs;
+    const storyDurationMs = Math.max(
+      actualDurationMs,
+      TIMELINE_STORY_MIN_EVENT_MS,
     );
-    const storyEndMs = mapActualTimeToStoryTime(storySegments, actualEndMs);
+    const storyEndMs = storyStartMs + storyDurationMs;
 
     previousActualEndMs = Math.max(previousActualEndMs, actualEndMs);
+    storyCursorMs = storyEndMs;
 
     return {
       actualEndMs,
       actualGapMs,
       actualStartMs,
       event,
+      storyDurationMs,
       storyEndMs,
       storyStartMs,
     };
@@ -1324,7 +1262,7 @@ function LabPerformanceTimeline({
     : events.slice(-5);
   const storyRows = createTimelineStoryRows(visibleRows);
   const storyWindowMs = Math.max(
-    TIMELINE_STORY_MIN_WINDOW_MS,
+    1,
     ...storyRows.map((row) => row.storyEndMs),
   );
 
@@ -1349,7 +1287,6 @@ function LabPerformanceTimeline({
       <div className="mt-2 grid gap-1.5" data-testid="lab-performance-timeline">
         {storyRows.map((row) => {
           const { event } = row;
-          const isInstantEvent = row.actualStartMs === row.actualEndMs;
           const endPercent = clamp(
             (row.storyEndMs / storyWindowMs) * 100,
             0,
@@ -1361,6 +1298,11 @@ function LabPerformanceTimeline({
             100,
           );
           const widthPercent = Math.max(0, endPercent - startPercent);
+          const displayWidthPercent = clamp(
+            Math.max(widthPercent, 1),
+            0,
+            Math.max(0, 100 - startPercent),
+          );
           const color = getTimelineEventColor(event.kind);
           const actualDurationMs = Math.max(
             0,
@@ -1371,8 +1313,8 @@ function LabPerformanceTimeline({
               ? `${row.actualStartMs}-${row.actualEndMs}ms after route; ${actualDurationMs}ms duration`
               : `${row.actualEndMs}ms after route`;
           const idleCompressionTitle =
-            row.actualGapMs > TIMELINE_STORY_IDLE_GAP_MS
-              ? `; ${row.actualGapMs}ms idle gap compressed before this event`
+            row.actualGapMs > 0
+              ? `; ${row.actualGapMs}ms idle gap hidden before this event`
               : '';
 
           return (
@@ -1384,6 +1326,7 @@ function LabPerformanceTimeline({
               data-actual-end-ms={row.actualEndMs}
               data-actual-start-ms={row.actualStartMs}
               data-lab-performance-timeline-row
+              data-story-duration-ms={row.storyDurationMs}
               data-story-end-ms={row.storyEndMs}
               data-story-start-ms={row.storyStartMs}
             >
@@ -1408,36 +1351,14 @@ function LabPerformanceTimeline({
               <span aria-hidden="true" className="relative h-4">
                 <span className="absolute left-0 right-0 top-1/2 h-px -translate-y-1/2 bg-white/10" />
                 <span
-                  className={`absolute rounded-full ${
-                    isInstantEvent
-                      ? 'top-0 h-4 w-px'
-                      : 'top-1/2 h-[3px] -translate-y-1/2'
-                  }`}
+                  className="absolute top-1/2 h-[3px] -translate-y-1/2 rounded-full"
                   data-testid="lab-performance-timeline-bar"
                   style={{
                     backgroundColor: color,
                     left: `${startPercent}%`,
-                    width: isInstantEvent ? undefined : `${widthPercent}%`,
+                    width: `${displayWidthPercent}%`,
                   }}
                 />
-                {isInstantEvent ? null : (
-                  <>
-                    <span
-                      className="absolute top-0 h-4 w-px"
-                      style={{
-                        backgroundColor: color,
-                        left: `${startPercent}%`,
-                      }}
-                    />
-                    <span
-                      className="absolute top-0 h-4 w-px"
-                      style={{
-                        backgroundColor: color,
-                        left: `${Math.min(100, startPercent + widthPercent)}%`,
-                      }}
-                    />
-                  </>
-                )}
               </span>
             </div>
           );
