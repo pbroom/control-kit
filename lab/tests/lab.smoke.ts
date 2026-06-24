@@ -142,6 +142,46 @@ test('mirrors the color-kit lab pages and properties panel', async ({
         ),
       ),
     ).toEqual([1, 1, 1, 1, 1, 1]);
+    const metricCurves = await metricsTable.evaluate((table) =>
+      Array.from(table.querySelectorAll('svg[role="img"]')).map((svg) => {
+        const curveLine = svg.querySelector(
+          '[data-testid="lab-performance-metric-curve-line"]',
+        );
+        const markerLine = svg.querySelector(
+          '[data-testid="lab-performance-metric-marker-line"]',
+        );
+        const markerDot = svg.querySelector(
+          '[data-testid="lab-performance-metric-marker-dot"]',
+        );
+        const rank = Number(markerDot?.getAttribute('data-rank'));
+        const expectedMarkerY = 17 - Math.sin(rank * Math.PI) * 13;
+
+        return {
+          curveLineCount: curveLine ? 1 : 0,
+          groundLineCount: Array.from(svg.querySelectorAll('line')).filter(
+            (line) =>
+              line.getAttribute('data-testid') !==
+              'lab-performance-metric-marker-line',
+          ).length,
+          markerDotX: Number(markerDot?.getAttribute('cx')),
+          markerDotY: Number(markerDot?.getAttribute('cy')),
+          markerLineCount: markerLine ? 1 : 0,
+          markerLineX: Number(markerLine?.getAttribute('x1')),
+          rank,
+          expectedMarkerY,
+        };
+      }),
+    );
+    expect(
+      metricCurves.every(
+        (curve) =>
+          curve.curveLineCount === 1 &&
+          curve.groundLineCount === 0 &&
+          curve.markerLineCount === 1 &&
+          Math.abs(curve.markerDotX - curve.markerLineX) <= 0.01 &&
+          Math.abs(curve.markerDotY - curve.expectedMarkerY) <= 0.01,
+      ),
+    ).toBe(true);
     await expect(
       metricsTable.locator('tbody tr').first().locator('th, td'),
     ).toHaveCount(4);
@@ -254,10 +294,12 @@ test('mirrors the color-kit lab pages and properties panel', async ({
     expect(timelineRows.every((row) => row.barHeight <= 4)).toBe(true);
     expect(timelineRows.every((row) => row.capCount === 0)).toBe(true);
     expect(
-      timelineRows.slice(1).every(
-        (row, index) =>
-          Math.abs(row.storyStartMs - timelineRows[index]!.storyEndMs) <= 1,
-      ),
+      timelineRows
+        .slice(1)
+        .every(
+          (row, index) =>
+            Math.abs(row.storyStartMs - timelineRows[index]!.storyEndMs) <= 1,
+        ),
     ).toBe(true);
     const timelineColumnsAreSeparated = await timelineShell.evaluate((shell) =>
       Array.from(
@@ -425,7 +467,9 @@ test('mirrors the color-kit lab pages and properties panel', async ({
         const activeMetricsTableBox = await metricsTable.boundingBox();
         expect(activeMetricsTableBox).not.toBeNull();
         expect(
-          Math.abs(activeMetricsTableBox!.width - resizedMetricsTableBox!.width),
+          Math.abs(
+            activeMetricsTableBox!.width - resizedMetricsTableBox!.width,
+          ),
         ).toBeLessThanOrEqual(1);
         expect(viewport).not.toBeNull();
         expect(

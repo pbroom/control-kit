@@ -266,8 +266,7 @@ function createTimelineStoryRows(
   let storyCursorMs = 0;
 
   return events.map((event, index) => {
-    const { actualEndMs, actualStartMs } =
-      getTimelineEventActualBounds(event);
+    const { actualEndMs, actualStartMs } = getTimelineEventActualBounds(event);
     const actualDurationMs = Math.max(0, actualEndMs - actualStartMs);
     const actualGapMs =
       index === 0
@@ -1017,6 +1016,40 @@ function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
 }
 
+const LAB_METRIC_CURVE_START_X = 8;
+const LAB_METRIC_CURVE_END_X = 72;
+const LAB_METRIC_CURVE_BASELINE_Y = 17;
+const LAB_METRIC_CURVE_PEAK_Y = 4;
+
+function formatSvgNumber(value: number) {
+  return value.toFixed(2).replace(/\.?0+$/, '');
+}
+
+function getMetricCurveY(rank: number) {
+  const normalizedRank = clamp(rank, 0, 1);
+  const amplitude = LAB_METRIC_CURVE_BASELINE_Y - LAB_METRIC_CURVE_PEAK_Y;
+
+  return (
+    LAB_METRIC_CURVE_BASELINE_Y - Math.sin(normalizedRank * Math.PI) * amplitude
+  );
+}
+
+function createMetricCurvePath() {
+  const samples = 32;
+
+  return Array.from({ length: samples + 1 }, (_, index) => {
+    const rank = index / samples;
+    const x =
+      LAB_METRIC_CURVE_START_X +
+      rank * (LAB_METRIC_CURVE_END_X - LAB_METRIC_CURVE_START_X);
+    const y = getMetricCurveY(rank);
+
+    return `${index === 0 ? 'M' : 'L'}${formatSvgNumber(x)} ${formatSvgNumber(y)}`;
+  }).join(' ');
+}
+
+const LAB_METRIC_CURVE_PATH = createMetricCurvePath();
+
 function getMetricCurveRank(
   value: number | null,
   config: LabMetricCurveConfig,
@@ -1056,7 +1089,10 @@ function LabMetricCurve({
   tone: LabPerformanceTone;
 }) {
   const rank = getMetricCurveRank(rawValue, curve);
-  const markerX = 8 + rank * 64;
+  const markerX =
+    LAB_METRIC_CURVE_START_X +
+    rank * (LAB_METRIC_CURVE_END_X - LAB_METRIC_CURVE_START_X);
+  const markerY = getMetricCurveY(rank);
   const markerColor = getMetricToneColor(tone);
   const accessibleLabel = formatMetricCurveLabel(label, rank, tone);
 
@@ -1068,25 +1104,19 @@ function LabMetricCurve({
       viewBox="0 0 80 20"
     >
       <path
-        d="M4 17 C16 17 17 4 40 4 C63 4 64 17 76 17"
+        d={LAB_METRIC_CURVE_PATH}
+        data-testid="lab-performance-metric-curve-line"
         fill="none"
         stroke="rgba(255,255,255,0.2)"
         strokeLinecap="round"
+        strokeLinejoin="round"
         strokeWidth="1.25"
-      />
-      <line
-        stroke="rgba(255,255,255,0.18)"
-        strokeLinecap="round"
-        strokeWidth="1"
-        x1="8"
-        x2="72"
-        y1="17"
-        y2="17"
       />
       <line
         stroke={markerColor}
         strokeLinecap="round"
         strokeWidth="1.5"
+        data-testid="lab-performance-metric-marker-line"
         x1={markerX}
         x2={markerX}
         y1="3"
@@ -1094,7 +1124,9 @@ function LabMetricCurve({
       />
       <circle
         cx={markerX}
-        cy="17"
+        cy={markerY}
+        data-rank={rank}
+        data-testid="lab-performance-metric-marker-dot"
         fill={markerColor}
         r="2.5"
         stroke="rgba(15,15,15,0.9)"
@@ -1261,10 +1293,7 @@ function LabPerformanceTimeline({
     ? [routeEvent, ...events.filter((event) => event !== routeEvent).slice(-4)]
     : events.slice(-5);
   const storyRows = createTimelineStoryRows(visibleRows);
-  const storyWindowMs = Math.max(
-    1,
-    ...storyRows.map((row) => row.storyEndMs),
-  );
+  const storyWindowMs = Math.max(1, ...storyRows.map((row) => row.storyEndMs));
 
   return (
     <div className="min-w-0" data-testid="lab-performance-timeline-shell">
