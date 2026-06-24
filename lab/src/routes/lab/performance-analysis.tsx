@@ -96,10 +96,11 @@ const TIMELINE_STORY_MIN_WINDOW_MS = 360;
 const LAB_COMPONENT_PREVIEW_SELECTOR = '[data-lab-component-preview]';
 const LAB_LCP_PENDING_ATTRIBUTION = 'Largest preview element pending';
 const LAB_LCP_NO_PREVIEW_CANDIDATE_ATTRIBUTION = 'No preview LCP candidate';
-const LAB_PERFORMANCE_PANEL_DEFAULT_HEIGHT = 312;
-const LAB_PERFORMANCE_PANEL_MIN_HEIGHT = 260;
+const LAB_PERFORMANCE_PANEL_DEFAULT_HEIGHT = 560;
+const LAB_PERFORMANCE_PANEL_MIN_HEIGHT = 128;
 const LAB_PERFORMANCE_PANEL_MAX_HEIGHT = 560;
 const LAB_PERFORMANCE_PANEL_RESIZE_STEP = 16;
+const LAB_PERFORMANCE_PANEL_VERTICAL_PADDING = 32;
 const LAB_PERFORMANCE_PANEL_LAYOUT_SHIFT_SUPPRESSION_MS = 700;
 const IGNORED_INTERACTION_ENTRY_NAMES = new Set([
   'mouseenter',
@@ -115,6 +116,7 @@ const IGNORED_INTERACTION_ENTRY_NAMES = new Set([
 ]);
 
 type LabPerformancePanelStyle = CSSProperties & {
+  '--lab-performance-panel-content-max-height': string;
   '--lab-performance-panel-height': string;
 };
 
@@ -1367,6 +1369,8 @@ export function LabPerformanceAnalysisPanel({
     LAB_PERFORMANCE_PANEL_DEFAULT_HEIGHT,
   );
   const [isResizingPanel, setIsResizingPanel] = useState(false);
+  const contentRef = useRef<HTMLDivElement | null>(null);
+  const userSizedPanelRef = useRef(false);
   const resizeStateRef = useRef<{
     startHeight: number;
     startY: number;
@@ -1384,6 +1388,7 @@ export function LabPerformanceAnalysisPanel({
 
       event.preventDefault();
       suppressAnalysisSurfaceLayoutShifts();
+      userSizedPanelRef.current = true;
       event.currentTarget.setPointerCapture(event.pointerId);
       resizeStateRef.current = {
         startHeight: panelHeight,
@@ -1403,6 +1408,7 @@ export function LabPerformanceAnalysisPanel({
       if (event.key === 'ArrowUp') {
         event.preventDefault();
         suppressAnalysisSurfaceLayoutShifts();
+        userSizedPanelRef.current = true;
         setPanelHeight((height) => clampPerformancePanelHeight(height + step));
         return;
       }
@@ -1410,6 +1416,7 @@ export function LabPerformanceAnalysisPanel({
       if (event.key === 'ArrowDown') {
         event.preventDefault();
         suppressAnalysisSurfaceLayoutShifts();
+        userSizedPanelRef.current = true;
         setPanelHeight((height) => clampPerformancePanelHeight(height - step));
         return;
       }
@@ -1417,6 +1424,7 @@ export function LabPerformanceAnalysisPanel({
       if (event.key === 'Home') {
         event.preventDefault();
         suppressAnalysisSurfaceLayoutShifts();
+        userSizedPanelRef.current = true;
         setPanelHeight(LAB_PERFORMANCE_PANEL_MIN_HEIGHT);
         return;
       }
@@ -1424,11 +1432,60 @@ export function LabPerformanceAnalysisPanel({
       if (event.key === 'End') {
         event.preventDefault();
         suppressAnalysisSurfaceLayoutShifts();
+        userSizedPanelRef.current = true;
         setPanelHeight(LAB_PERFORMANCE_PANEL_MAX_HEIGHT);
       }
     },
     [],
   );
+
+  useEffect(() => {
+    userSizedPanelRef.current = false;
+  }, [activePage]);
+
+  useEffect(() => {
+    const contentNode = contentRef.current;
+
+    if (!contentNode) {
+      return;
+    }
+
+    const fitPanelToContent = () => {
+      if (userSizedPanelRef.current) {
+        return;
+      }
+
+      const metricsTable = contentNode.querySelector('table');
+      const timelineShell = contentNode.querySelector(
+        '[data-testid="lab-performance-timeline-shell"]',
+      );
+      const contentHeight = Math.max(
+        contentNode.scrollHeight,
+        metricsTable?.scrollHeight ?? 0,
+        timelineShell?.scrollHeight ?? 0,
+      );
+      const nextHeight = clampPerformancePanelHeight(
+        contentHeight + LAB_PERFORMANCE_PANEL_VERTICAL_PADDING,
+      );
+
+      setPanelHeight((height) =>
+        Math.abs(height - nextHeight) <= 1 ? height : nextHeight,
+      );
+    };
+
+    fitPanelToContent();
+
+    if (typeof ResizeObserver === 'undefined') {
+      return;
+    }
+
+    const resizeObserver = new ResizeObserver(fitPanelToContent);
+    resizeObserver.observe(contentNode);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [activePage]);
 
   useEffect(() => {
     if (!isResizingPanel) {
@@ -1480,13 +1537,17 @@ export function LabPerformanceAnalysisPanel({
   }, [isResizingPanel]);
 
   const panelStyle: LabPerformancePanelStyle = {
+    '--lab-performance-panel-content-max-height': `${Math.max(
+      0,
+      panelHeight - LAB_PERFORMANCE_PANEL_VERTICAL_PADDING,
+    )}px`,
     '--lab-performance-panel-height': `${panelHeight}px`,
   };
 
   return (
     <section
       aria-label={`Performance analysis for ${analysis.label}`}
-      className="relative mx-3 overflow-hidden rounded-[24px] border border-white/8 bg-[#151515] px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] lg:h-[var(--lab-performance-panel-height)] lg:px-6"
+      className="relative mx-3 min-h-[128px] overflow-hidden rounded-[24px] border border-white/8 bg-[#151515] px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] lg:max-h-[var(--lab-performance-panel-height)] lg:px-6"
       data-lab-performance-panel
       style={panelStyle}
     >
@@ -1511,8 +1572,14 @@ export function LabPerformanceAnalysisPanel({
           }`}
         />
       </div>
-      <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_clamp(320px,25vw,480px)] lg:items-start">
-        <div className="min-h-0 min-w-0">
+      <div
+        className="grid min-h-0 min-w-0 gap-4 lg:max-h-[var(--lab-performance-panel-content-max-height)] lg:grid-cols-[minmax(0,1fr)_clamp(320px,25vw,480px)] lg:items-start"
+        ref={contentRef}
+      >
+        <div
+          className="min-h-0 min-w-0 overflow-y-auto overscroll-contain pr-1 lg:max-h-[var(--lab-performance-panel-content-max-height)]"
+          data-testid="lab-performance-metrics-shell"
+        >
           <LabMetricTable vitals={vitals} />
         </div>
         <LabPerformanceTimeline

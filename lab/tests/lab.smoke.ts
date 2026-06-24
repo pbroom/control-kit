@@ -235,6 +235,9 @@ test('mirrors the color-kit lab pages and properties panel', async ({
 
     if (testInfo.project.name === 'desktop') {
       const labScrollColumn = page.locator('[data-lab-page-scroll]');
+      const metricsShell = performancePanel.getByTestId(
+        'lab-performance-metrics-shell',
+      );
       const [performancePanelBox, propertiesPanelBox] = await Promise.all([
         performancePanel.boundingBox(),
         page.locator('aside').boundingBox(),
@@ -247,7 +250,6 @@ test('mirrors the color-kit lab pages and properties panel', async ({
       ).toBe('auto');
       expect(performancePanelBox).not.toBeNull();
       expect(propertiesPanelBox).not.toBeNull();
-      expect(performancePanelBox!.height).toBeGreaterThanOrEqual(300);
       expect(
         await performancePanel.evaluate(
           (node) => getComputedStyle(node).borderRadius,
@@ -257,6 +259,19 @@ test('mirrors the color-kit lab pages and properties panel', async ({
       expect(
         performancePanelBox!.x + performancePanelBox!.width,
       ).toBeLessThanOrEqual(propertiesPanelBox!.x + 1);
+      const metricsTableBox = await metricsTable.boundingBox();
+      const metricsShellBox = await metricsShell.boundingBox();
+      const timelineFitBox = await timelineShell.boundingBox();
+      expect(metricsTableBox).not.toBeNull();
+      expect(metricsShellBox).not.toBeNull();
+      expect(timelineFitBox).not.toBeNull();
+      expect(performancePanelBox!.height).toBeGreaterThanOrEqual(128);
+      expect(performancePanelBox!.height).toBeLessThanOrEqual(
+        Math.max(metricsTableBox!.height, timelineFitBox!.height) + 64,
+      );
+      expect(metricsShellBox!.height).toBeGreaterThanOrEqual(
+        metricsTableBox!.height - 4,
+      );
       const viewport = page.viewportSize();
       expect(viewport).not.toBeNull();
       expect(
@@ -269,11 +284,6 @@ test('mirrors the color-kit lab pages and properties panel', async ({
           .locator('aside')
           .evaluate((node) => getComputedStyle(node).paddingLeft),
       ).toBe('0px');
-      const metricsTableBox = await metricsTable.boundingBox();
-      expect(metricsTableBox).not.toBeNull();
-      expect(metricsTableBox!.height).toBeLessThan(
-        performancePanelBox!.height - 24,
-      );
 
       if (labPage.value === 'slider') {
         const resizeHandle = performancePanel.getByLabel(
@@ -291,20 +301,27 @@ test('mirrors the color-kit lab pages and properties panel', async ({
         await page.mouse.down();
         await page.mouse.move(
           handleBox!.x + handleBox!.width / 2,
-          handleBox!.y - 60,
+          handleBox!.y + 260,
         );
         await page.mouse.up();
 
         const resizedPanelBox = await performancePanel.boundingBox();
         expect(resizedPanelBox).not.toBeNull();
-        expect(resizedPanelBox!.height).toBeGreaterThan(
-          performancePanelBox!.height + 40,
+        expect(resizedPanelBox!.height).toBeGreaterThanOrEqual(128);
+        expect(resizedPanelBox!.height).toBeLessThanOrEqual(150);
+        const clippedMetricsState = await metricsShell.evaluate((node) => {
+          const style = getComputedStyle(node);
+
+          return {
+            clientHeight: node.clientHeight,
+            overflowY: style.overflowY,
+            scrollHeight: node.scrollHeight,
+          };
+        });
+        expect(clippedMetricsState.overflowY).toBe('auto');
+        expect(clippedMetricsState.scrollHeight).toBeGreaterThan(
+          clippedMetricsState.clientHeight,
         );
-        const resizedMetricsTableBox = await metricsTable.boundingBox();
-        expect(resizedMetricsTableBox).not.toBeNull();
-        expect(
-          Math.abs(resizedMetricsTableBox!.height - metricsTableBox!.height),
-        ).toBeLessThanOrEqual(2);
         expect(viewport).not.toBeNull();
         expect(
           viewport!.height - (resizedPanelBox!.y + resizedPanelBox!.height),
