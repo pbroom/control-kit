@@ -298,6 +298,14 @@ test('mirrors the color-kit lab pages and properties panel', async ({
       expect(metricsTableBox).not.toBeNull();
       expect(metricsShellBox).not.toBeNull();
       expect(timelineFitBox).not.toBeNull();
+      await expect(metricsShell).toHaveClass(
+        /ck-lab-performance-metrics-scroll/,
+      );
+      expect(
+        await metricsShell.evaluate(
+          (node) => getComputedStyle(node).scrollbarColor,
+        ),
+      ).toBe('rgba(0, 0, 0, 0) rgba(0, 0, 0, 0)');
       expect(performancePanelBox!.height).toBeGreaterThanOrEqual(128);
       expect(performancePanelBox!.height).toBeLessThanOrEqual(
         Math.max(metricsTableBox!.height, timelineFitBox!.height) + 64,

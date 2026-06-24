@@ -1666,7 +1666,7 @@ export function LabPerformanceAnalysisPanel({
         ref={contentRef}
       >
         <div
-          className="min-h-0 min-w-0 overflow-y-auto overscroll-contain pr-1 lg:max-h-[var(--lab-performance-panel-content-max-height)]"
+          className="ck-lab-performance-metrics-scroll min-h-0 min-w-0 overflow-y-auto overscroll-contain pr-1 lg:max-h-[var(--lab-performance-panel-content-max-height)]"
           data-testid="lab-performance-metrics-shell"
         >
           <LabMetricTable vitals={vitals} />
