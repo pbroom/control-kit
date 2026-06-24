@@ -181,18 +181,51 @@ test('mirrors the color-kit lab pages and properties panel', async ({
       'lab-performance-timeline-bar',
     );
     await expect(timelineBars.first()).toBeVisible();
-    const timelineBarLefts = await timelineBars.evaluateAll((bars) =>
-      bars.map((bar) => Number.parseFloat((bar as HTMLElement).style.left)),
+    const timelineRows = await timelineShell.evaluate((shell) =>
+      Array.from(
+        shell.querySelectorAll('[data-lab-performance-timeline-row]'),
+      ).map((row) => {
+        const bar = row.querySelector(
+          '[data-testid="lab-performance-timeline-bar"]',
+        ) as HTMLElement | null;
+        const timeCell = row.children[0] as HTMLElement | undefined;
+        const actualDurationMs = Number(
+          row.getAttribute('data-actual-duration-ms'),
+        );
+        const actualEndMs = Number(row.getAttribute('data-actual-end-ms'));
+        const storyEndMs = Number(row.getAttribute('data-story-end-ms'));
+        const storyStartMs = Number(row.getAttribute('data-story-start-ms'));
+
+        return {
+          actualDurationMs,
+          actualEndMs,
+          barLeft: Number.parseFloat(bar?.style.left ?? ''),
+          displayedTime: timeCell?.textContent?.trim() ?? '',
+          storyDurationMs: storyEndMs - storyStartMs,
+        };
+      }),
     );
-    expect(timelineBarLefts.length).toBeGreaterThan(1);
+    expect(timelineRows.length).toBeGreaterThan(1);
     expect(
-      timelineBarLefts.every(
-        (left) => Number.isFinite(left) && left >= 0 && left <= 100,
+      timelineRows.every(
+        (row) =>
+          Number.isFinite(row.barLeft) &&
+          row.barLeft >= 0 &&
+          row.barLeft <= 100,
       ),
     ).toBe(true);
     expect(
-      new Set(timelineBarLefts.map((left) => Math.round(left))).size,
-    ).toBeGreaterThan(1);
+      timelineRows.every(
+        (row) => row.displayedTime === `${Math.round(row.actualEndMs)}ms`,
+      ),
+    ).toBe(true);
+    expect(
+      timelineRows.every(
+        (row) =>
+          Math.abs(row.storyDurationMs - row.actualDurationMs) <=
+          (row.actualDurationMs > 0 ? 1 : 0),
+      ),
+    ).toBe(true);
     const timelineColumnsAreSeparated = await timelineShell.evaluate((shell) =>
       Array.from(
         shell.querySelectorAll(
