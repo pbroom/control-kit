@@ -88,7 +88,11 @@ type InteractionPerformanceEntry = PerformanceEntry & {
 };
 
 const MAX_TIMELINE_EVENTS = 12;
-const TIMELINE_WINDOW_MS = 2000;
+const TIMELINE_STORY_IDLE_GAP_MS = 120;
+const TIMELINE_STORY_MARKER_MS = 36;
+const TIMELINE_STORY_MIN_DURATION_MS = 18;
+const TIMELINE_STORY_MAX_DURATION_MS = 160;
+const TIMELINE_STORY_MIN_WINDOW_MS = 360;
 const LAB_COMPONENT_PREVIEW_SELECTOR = '[data-lab-component-preview]';
 const LAB_LCP_PENDING_ATTRIBUTION = 'Largest preview element pending';
 const LAB_LCP_NO_PREVIEW_CANDIDATE_ATTRIBUTION = 'No preview LCP candidate';
@@ -112,6 +116,13 @@ const IGNORED_INTERACTION_ENTRY_NAMES = new Set([
 
 type LabPerformancePanelStyle = CSSProperties & {
   '--lab-performance-panel-height': string;
+};
+
+type LabTimelineStoryRow = {
+  actualGapMs: number;
+  event: LabTimelineEvent;
+  storyEndMs: number;
+  storyStartMs: number;
 };
 
 const LAB_PERFORMANCE_ANALYSIS: Record<LabPageKey, LabPerformanceAnalysis> = {
@@ -237,6 +248,44 @@ function appendTimelineEvent(
   return [...(routeEvent ? [routeEvent] : []), ...recentEvents].sort(
     (first, second) => first.timeMs - second.timeMs,
   );
+}
+
+function createTimelineStoryRows(
+  events: readonly LabTimelineEvent[],
+): LabTimelineStoryRow[] {
+  let storyCursorMs = 0;
+  let previousActualEndMs = 0;
+
+  return events.map((event, index) => {
+    const actualStartMs = Math.max(0, event.timeMs - event.durationMs);
+    const actualEndMs = Math.max(actualStartMs, event.timeMs);
+    const actualGapMs =
+      index === 0
+        ? actualStartMs
+        : Math.max(0, actualStartMs - previousActualEndMs);
+    const storyGapMs =
+      index === 0 ? 0 : Math.min(actualGapMs, TIMELINE_STORY_IDLE_GAP_MS);
+    const storyDurationMs =
+      event.durationMs > 0
+        ? clamp(
+            event.durationMs,
+            TIMELINE_STORY_MIN_DURATION_MS,
+            TIMELINE_STORY_MAX_DURATION_MS,
+          )
+        : TIMELINE_STORY_MARKER_MS;
+    const storyStartMs = storyCursorMs + storyGapMs;
+    const storyEndMs = storyStartMs + storyDurationMs;
+
+    storyCursorMs = storyEndMs;
+    previousActualEndMs = Math.max(previousActualEndMs, actualEndMs);
+
+    return {
+      actualGapMs,
+      event,
+      storyEndMs,
+      storyStartMs,
+    };
+  });
 }
 
 function clampPerformancePanelHeight(height: number) {
@@ -1204,6 +1253,11 @@ function LabPerformanceTimeline({
   const visibleRows = routeEvent
     ? [routeEvent, ...events.filter((event) => event !== routeEvent).slice(-4)]
     : events.slice(-5);
+  const storyRows = createTimelineStoryRows(visibleRows);
+  const storyWindowMs = Math.max(
+    TIMELINE_STORY_MIN_WINDOW_MS,
+    ...storyRows.map((row) => row.storyEndMs),
+  );
 
   return (
     <div className="min-w-0" data-testid="lab-performance-timeline-shell">
@@ -1217,42 +1271,44 @@ function LabPerformanceTimeline({
         <div
           className="min-w-[88px] text-right text-[11px] tabular-nums"
           style={{ color: 'rgba(255,255,255,0.48)' }}
+          title={`${Math.round(elapsedTimeMs)}ms observed; idle gaps hidden`}
         >
-          {Math.round(elapsedTimeMs)}ms elapsed
+          {visibleRows.length} events
         </div>
       </div>
 
       <div className="mt-2 grid gap-1.5" data-testid="lab-performance-timeline">
-        {visibleRows.map((event) => {
+        {storyRows.map((row) => {
+          const { event } = row;
           const endPercent = clamp(
-            (event.timeMs / TIMELINE_WINDOW_MS) * 100,
+            (row.storyEndMs / storyWindowMs) * 100,
             0,
             100,
           );
-          const startTimeMs =
-            event.durationMs > 0
-              ? Math.max(0, event.timeMs - event.durationMs)
-              : event.timeMs;
           const startPercent = clamp(
-            (startTimeMs / TIMELINE_WINDOW_MS) * 100,
+            (row.storyStartMs / storyWindowMs) * 100,
             0,
             100,
           );
           const widthPercent = Math.max(1.5, endPercent - startPercent);
           const color = getTimelineEventColor(event.kind);
+          const actualTimeTitle =
+            row.actualGapMs > TIMELINE_STORY_IDLE_GAP_MS
+              ? `${event.timeMs}ms after route; ${row.actualGapMs}ms idle gap compressed`
+              : `${event.timeMs}ms after route`;
 
           return (
             <div
               key={event.id}
-              aria-label={`${event.label}: ${event.detail}`}
+              aria-label={`${event.label}: ${event.detail}; actual ${event.timeMs}ms after route`}
               className="grid min-w-0 grid-cols-[72px_minmax(0,1fr)_64px] items-center gap-2 text-[11px] leading-4"
             >
               <span
                 className="block min-w-0 truncate text-right tabular-nums"
                 style={{ color }}
-                title={`${event.timeMs}ms`}
+                title={actualTimeTitle}
               >
-                {event.timeMs}ms
+                {formatMilliseconds(row.storyStartMs)}
               </span>
               <span
                 className="min-w-0 truncate"

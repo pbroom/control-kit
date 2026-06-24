@@ -175,9 +175,24 @@ test('mirrors the color-kit lab pages and properties panel', async ({
     await expect(
       performancePanel.getByTestId('lab-performance-timeline'),
     ).toBeVisible();
-    await expect(
-      performancePanel.getByTestId('lab-performance-timeline-bar').first(),
-    ).toBeVisible();
+    await expect(timelineShell).toContainText('events');
+    await expect(timelineShell).not.toContainText('elapsed');
+    const timelineBars = performancePanel.getByTestId(
+      'lab-performance-timeline-bar',
+    );
+    await expect(timelineBars.first()).toBeVisible();
+    const timelineBarLefts = await timelineBars.evaluateAll((bars) =>
+      bars.map((bar) => Number.parseFloat((bar as HTMLElement).style.left)),
+    );
+    expect(timelineBarLefts.length).toBeGreaterThan(1);
+    expect(
+      timelineBarLefts.every(
+        (left) => Number.isFinite(left) && left >= 0 && left <= 100,
+      ),
+    ).toBe(true);
+    expect(
+      new Set(timelineBarLefts.map((left) => Math.round(left))).size,
+    ).toBeGreaterThan(1);
     const timelineColumnsAreSeparated = await timelineShell.evaluate((shell) =>
       Array.from(
         shell.querySelectorAll(
