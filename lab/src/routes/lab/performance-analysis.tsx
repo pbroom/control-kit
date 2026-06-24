@@ -99,6 +99,7 @@ const LAB_PERFORMANCE_PANEL_MAX_HEIGHT = 560;
 const LAB_PERFORMANCE_PANEL_RESIZE_STEP = 16;
 const LAB_PERFORMANCE_PANEL_VERTICAL_PADDING = 32;
 const LAB_PERFORMANCE_PANEL_LAYOUT_SHIFT_SUPPRESSION_MS = 700;
+const LAB_PERFORMANCE_SCROLLBAR_ACTIVE_MS = 700;
 const IGNORED_INTERACTION_ENTRY_NAMES = new Set([
   'mouseenter',
   'mouseleave',
@@ -1458,8 +1459,11 @@ export function LabPerformanceAnalysisPanel({
     LAB_PERFORMANCE_PANEL_DEFAULT_HEIGHT,
   );
   const [isResizingPanel, setIsResizingPanel] = useState(false);
+  const [isMetricsScrollbarActive, setIsMetricsScrollbarActive] =
+    useState(false);
   const contentRef = useRef<HTMLDivElement | null>(null);
   const userSizedPanelRef = useRef(false);
+  const metricsScrollbarIdleTimerRef = useRef<number | null>(null);
   const resizeStateRef = useRef<{
     startHeight: number;
     startY: number;
@@ -1527,6 +1531,26 @@ export function LabPerformanceAnalysisPanel({
     },
     [],
   );
+
+  const showMetricsScrollbar = useCallback(() => {
+    if (metricsScrollbarIdleTimerRef.current !== null) {
+      window.clearTimeout(metricsScrollbarIdleTimerRef.current);
+    }
+
+    setIsMetricsScrollbarActive(true);
+    metricsScrollbarIdleTimerRef.current = window.setTimeout(() => {
+      metricsScrollbarIdleTimerRef.current = null;
+      setIsMetricsScrollbarActive(false);
+    }, LAB_PERFORMANCE_SCROLLBAR_ACTIVE_MS);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (metricsScrollbarIdleTimerRef.current !== null) {
+        window.clearTimeout(metricsScrollbarIdleTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     userSizedPanelRef.current = false;
@@ -1666,8 +1690,18 @@ export function LabPerformanceAnalysisPanel({
         ref={contentRef}
       >
         <div
-          className="ck-lab-performance-metrics-scroll min-h-0 min-w-0 overflow-y-auto overscroll-contain pr-1 lg:max-h-[var(--lab-performance-panel-content-max-height)]"
+          className={[
+            'ck-lab-performance-metrics-scroll min-h-0 min-w-0 overflow-y-auto overscroll-contain pr-1 lg:max-h-[var(--lab-performance-panel-content-max-height)]',
+            isMetricsScrollbarActive
+              ? 'ck-lab-performance-metrics-scroll-active'
+              : null,
+          ]
+            .filter(Boolean)
+            .join(' ')}
           data-testid="lab-performance-metrics-shell"
+          onPointerDown={showMetricsScrollbar}
+          onScroll={showMetricsScrollbar}
+          onWheel={showMetricsScrollbar}
         >
           <LabMetricTable vitals={vitals} />
         </div>
