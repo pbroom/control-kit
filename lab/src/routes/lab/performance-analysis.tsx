@@ -2273,6 +2273,7 @@ export function LabPerformanceAnalysisPanel({
   const resizeStateRef = useRef<{
     lastHeight: number;
     startHeight: number;
+    startedCollapsed: boolean;
     startY: number;
   } | null>(null);
   const { vitals, timeline, timelineTimeMs } = useLabPerformanceTelemetry(
@@ -2306,6 +2307,7 @@ export function LabPerformanceAnalysisPanel({
       resizeStateRef.current = {
         lastHeight: startHeight,
         startHeight,
+        startedCollapsed: startHeight <= LAB_PERFORMANCE_PANEL_COLLAPSED_HEIGHT,
         startY: event.clientY,
       };
       setIsResizingPanel(true);
@@ -2463,13 +2465,17 @@ export function LabPerformanceAnalysisPanel({
       cancelAnimationFrame(resizeAnimationFrame);
       const lastHeight =
         resizeStateRef.current?.lastHeight ?? panelHeightRef.current;
+      const startedCollapsed =
+        resizeStateRef.current?.startedCollapsed ?? false;
       const nextHeight =
-        lastHeight < LAB_PERFORMANCE_PANEL_MIN_HEIGHT
-          ? LAB_PERFORMANCE_PANEL_COLLAPSED_HEIGHT
-          : clampPerformancePanelOpenHeight(
-              lastHeight,
-              panelMaxHeightRef.current,
-            );
+        startedCollapsed && lastHeight > LAB_PERFORMANCE_PANEL_COLLAPSED_HEIGHT
+          ? panelMaxHeightRef.current
+          : lastHeight < LAB_PERFORMANCE_PANEL_MIN_HEIGHT
+            ? LAB_PERFORMANCE_PANEL_COLLAPSED_HEIGHT
+            : clampPerformancePanelOpenHeight(
+                lastHeight,
+                panelMaxHeightRef.current,
+              );
       resizeStateRef.current = null;
       setPanelHeight(nextHeight);
       setIsResizingPanel(false);

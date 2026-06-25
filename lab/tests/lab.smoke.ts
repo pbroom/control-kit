@@ -17,7 +17,6 @@ const DEFAULT_METRIC_ROW_ORDER = [
 ];
 const DESKTOP_VIEWPORT = { height: 1000, width: 1440 };
 const COMPACT_DESKTOP_VIEWPORT = { height: 998, width: 1182 };
-const LAB_COLLAPSED_PANEL_RESTORE_MIN_HEIGHT = 128;
 const LAB_COLLAPSED_PANEL_HANDLE_HEIGHT = 32;
 
 const LAB_PAGE_PANEL_TEXT = {
@@ -616,6 +615,10 @@ test('mirrors the color-kit lab pages and properties panel', async ({
           { exact: true },
         );
         await expect(resizeHandle).toBeVisible();
+        const targetOpenPanelHeight = Number(
+          await resizeHandle.getAttribute('aria-valuemax'),
+        );
+        expect(targetOpenPanelHeight).toBeGreaterThan(128);
         const handleBox = await resizeHandle.boundingBox();
         expect(handleBox).not.toBeNull();
         expect(handleBox!.height).toBeGreaterThanOrEqual(
@@ -662,10 +665,20 @@ test('mirrors the color-kit lab pages and properties panel', async ({
         await expect
           .poll(async () => (await performancePanel.boundingBox())?.height ?? 0)
           .toBeLessThan(rubberBandPanelBox!.height - 8);
+        await expect(resizeHandle).toHaveAttribute(
+          'aria-valuenow',
+          String(targetOpenPanelHeight),
+        );
+        await expect
+          .poll(async () => (await performancePanel.boundingBox())?.height ?? 0)
+          .toBeLessThanOrEqual(targetOpenPanelHeight + 2);
         const snappedOpenPanelBox = await performancePanel.boundingBox();
         expect(snappedOpenPanelBox).not.toBeNull();
         expect(snappedOpenPanelBox!.height).toBeLessThanOrEqual(
-          Math.max(metricsTableBox!.height, timelineFitBox!.height) + 64,
+          targetOpenPanelHeight + 2,
+        );
+        expect(snappedOpenPanelBox!.height).toBeGreaterThanOrEqual(
+          targetOpenPanelHeight - 2,
         );
 
         const snappedHandleBox = await resizeHandle.boundingBox();
@@ -824,7 +837,7 @@ test('mirrors the color-kit lab pages and properties panel', async ({
         await page.mouse.down();
         await page.mouse.move(
           collapsedHandleBox!.x + collapsedHandleBox!.width / 2,
-          collapsedHandleBox!.y - 170,
+          collapsedHandleBox!.y - 40,
         );
         await page.mouse.up();
 
@@ -832,10 +845,17 @@ test('mirrors the color-kit lab pages and properties panel', async ({
           'data-lab-performance-panel-collapsed',
           'false',
         );
+        await expect(resizeHandle).toHaveAttribute(
+          'aria-valuenow',
+          String(targetOpenPanelHeight),
+        );
+        await expect
+          .poll(async () => (await performancePanel.boundingBox())?.height ?? 0)
+          .toBeGreaterThanOrEqual(targetOpenPanelHeight - 2);
         const restoredPanelBox = await performancePanel.boundingBox();
         expect(restoredPanelBox).not.toBeNull();
-        expect(restoredPanelBox!.height).toBeGreaterThan(
-          LAB_COLLAPSED_PANEL_RESTORE_MIN_HEIGHT,
+        expect(restoredPanelBox!.height).toBeLessThanOrEqual(
+          targetOpenPanelHeight + 2,
         );
       }
     }
