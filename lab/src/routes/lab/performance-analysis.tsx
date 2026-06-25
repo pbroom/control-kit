@@ -26,6 +26,7 @@ import {
 } from 'react';
 import type {
   CSSProperties,
+  FocusEvent as ReactFocusEvent,
   KeyboardEvent as ReactKeyboardEvent,
   PointerEvent as ReactPointerEvent,
 } from 'react';
@@ -174,6 +175,20 @@ type LabMetricRowId = (typeof LAB_METRIC_ROW_IDS)[number];
 type LabPerformancePanelStyle = CSSProperties & {
   '--lab-performance-panel-content-max-height': string;
   '--lab-performance-panel-height': string;
+};
+
+type LabMetricRangeSegment = {
+  end: number;
+  start: number;
+  tone: Exclude<LabPerformanceTone, 'neutral'>;
+};
+
+type LabMetricRangeCardPlacement = 'bottom' | 'top';
+
+type LabMetricRangeCardState = {
+  left: number;
+  placement: LabMetricRangeCardPlacement;
+  top: number;
 };
 
 type LabTimelineStoryRow = {
@@ -1158,10 +1173,12 @@ function clamp(value: number, min: number, max: number) {
 
 const LAB_METRIC_RANGE_START_X = 6;
 const LAB_METRIC_RANGE_END_X = 74;
-const LAB_METRIC_RANGE_Y = 8;
-const LAB_METRIC_RANGE_HEIGHT = 4;
+const LAB_METRIC_RANGE_Y = 9;
+const LAB_METRIC_RANGE_HEIGHT = 2;
 const LAB_METRIC_RANGE_MARKER_Y1 = 4;
 const LAB_METRIC_RANGE_MARKER_Y2 = 16;
+const LAB_METRIC_RANGE_CARD_WIDTH = 184;
+const LAB_METRIC_RANGE_CARD_VIEWPORT_MARGIN = 8;
 
 function formatSvgNumber(value: number) {
   return value.toFixed(2).replace(/\.?0+$/, '');
@@ -1201,7 +1218,9 @@ function formatMetricRangeValue(value: number, config: LabMetricRangeConfig) {
   }
 }
 
-function getMetricRangeSegments(config: LabMetricRangeConfig) {
+function getMetricRangeSegments(
+  config: LabMetricRangeConfig,
+): LabMetricRangeSegment[] {
   const goodRange =
     config.direction === 'higher'
       ? {
@@ -1257,6 +1276,31 @@ function getMetricRangeToneLabel(tone: LabPerformanceTone) {
   }
 }
 
+function getMetricRangeDisplayLabel(tone: LabPerformanceTone) {
+  switch (tone) {
+    case 'good':
+      return 'Good';
+    case 'okay':
+      return 'Needs improvement';
+    case 'poor':
+      return 'Poor';
+    case 'neutral':
+      return 'Not reported';
+  }
+}
+
+function isMetricRangeSegmentActive({
+  rawValue,
+  segment,
+  tone,
+}: {
+  rawValue: number | null;
+  segment: LabMetricRangeSegment;
+  tone: LabPerformanceTone;
+}) {
+  return rawValue !== null && segment.tone === tone;
+}
+
 function formatMetricRangeLabel(
   label: string,
   range: LabMetricRangeConfig,
@@ -1281,6 +1325,28 @@ function formatMetricRangeLabel(
   return `${label} is ${valueLabel} in the ${getMetricRangeToneLabel(
     tone,
   )} range; ${segments}`;
+}
+
+function getMetricRangeCardPosition(element: HTMLElement) {
+  const rect = element.getBoundingClientRect();
+  const viewportWidth =
+    window.innerWidth || document.documentElement.clientWidth;
+  const centeredLeft = rect.left + rect.width / 2;
+  const left = clamp(
+    centeredLeft,
+    LAB_METRIC_RANGE_CARD_WIDTH / 2 + LAB_METRIC_RANGE_CARD_VIEWPORT_MARGIN,
+    viewportWidth -
+      LAB_METRIC_RANGE_CARD_WIDTH / 2 -
+      LAB_METRIC_RANGE_CARD_VIEWPORT_MARGIN,
+  );
+  const placement: LabMetricRangeCardPlacement =
+    rect.top > 112 ? 'top' : 'bottom';
+
+  return {
+    left,
+    placement,
+    top: placement === 'top' ? rect.top - 8 : rect.bottom + 8,
+  };
 }
 
 function LabMetricRangeChart({
@@ -1310,61 +1376,171 @@ function LabMetricRangeChart({
     valueLabel,
     tone,
   );
+  const [rangeCard, setRangeCard] = useState<LabMetricRangeCardState | null>(
+    null,
+  );
+  const showRangeCard = useCallback(
+    (
+      event:
+        | ReactFocusEvent<HTMLDivElement>
+        | ReactPointerEvent<HTMLDivElement>,
+    ) => {
+      setRangeCard(getMetricRangeCardPosition(event.currentTarget));
+    },
+    [],
+  );
+  const hideRangeCard = useCallback(() => setRangeCard(null), []);
 
   return (
-    <svg
-      aria-label={accessibleLabel}
-      className="block h-5 w-full min-w-[72px] overflow-visible"
-      role="img"
-      viewBox="0 0 80 20"
+    <div
+      aria-label={`${label} range chart`}
+      className="relative min-w-[72px] outline-none"
+      data-testid="lab-performance-metric-range-trigger"
+      onBlur={hideRangeCard}
+      onFocus={showRangeCard}
+      onPointerEnter={showRangeCard}
+      onPointerLeave={hideRangeCard}
+      tabIndex={0}
     >
-      {segments.map((segment) => {
-        const segmentX = getMetricRangeX(segment.start, range);
-        const segmentEndX = getMetricRangeX(segment.end, range);
+      <svg
+        aria-label={accessibleLabel}
+        className="block h-5 w-full min-w-[72px] overflow-visible"
+        role="img"
+        viewBox="0 0 80 20"
+      >
+        {segments.map((segment) => {
+          const segmentX = getMetricRangeX(segment.start, range);
+          const segmentEndX = getMetricRangeX(segment.end, range);
+          const isActiveSegment = isMetricRangeSegmentActive({
+            rawValue,
+            segment,
+            tone,
+          });
 
-        return (
-          <rect
-            data-range-end={segment.end}
-            data-range-start={segment.start}
-            data-range-tone={segment.tone}
-            data-testid="lab-performance-metric-range-segment"
-            fill={getMetricToneColor(segment.tone)}
-            height={LAB_METRIC_RANGE_HEIGHT}
-            key={segment.tone}
-            opacity={segment.tone === 'poor' ? 0.62 : 0.76}
-            rx="1"
-            width={formatSvgNumber(Math.max(1, segmentEndX - segmentX))}
-            x={formatSvgNumber(segmentX)}
-            y={LAB_METRIC_RANGE_Y}
-          />
-        );
-      })}
-      {markerX === null ? null : (
-        <>
-          <line
-            data-position={markerPosition}
-            data-testid="lab-performance-metric-marker-line"
-            data-value={rawValue ?? undefined}
-            stroke={markerColor}
-            strokeLinecap="round"
-            strokeWidth="1.5"
-            x1={formatSvgNumber(markerX)}
-            x2={formatSvgNumber(markerX)}
-            y1={LAB_METRIC_RANGE_MARKER_Y1}
-            y2={LAB_METRIC_RANGE_MARKER_Y2}
-          />
-          <circle
-            cx={formatSvgNumber(markerX)}
-            cy={LAB_METRIC_RANGE_Y + LAB_METRIC_RANGE_HEIGHT / 2}
-            data-testid="lab-performance-metric-marker-dot"
-            fill={markerColor}
-            r="2.25"
-            stroke="rgba(15,15,15,0.9)"
-            strokeWidth="1"
-          />
-        </>
-      )}
-    </svg>
+          return (
+            <rect
+              data-active={isActiveSegment ? 'true' : 'false'}
+              data-range-end={segment.end}
+              data-range-start={segment.start}
+              data-range-tone={segment.tone}
+              data-testid="lab-performance-metric-range-segment"
+              fill={
+                isActiveSegment
+                  ? getMetricToneColor(segment.tone)
+                  : 'rgba(255,255,255,0.14)'
+              }
+              height={LAB_METRIC_RANGE_HEIGHT}
+              key={segment.tone}
+              opacity={isActiveSegment ? 0.95 : 1}
+              rx="1"
+              width={formatSvgNumber(Math.max(1, segmentEndX - segmentX))}
+              x={formatSvgNumber(segmentX)}
+              y={LAB_METRIC_RANGE_Y}
+            />
+          );
+        })}
+        {markerX === null ? null : (
+          <>
+            <line
+              data-position={markerPosition}
+              data-testid="lab-performance-metric-marker-line"
+              data-value={rawValue ?? undefined}
+              stroke={markerColor}
+              strokeLinecap="round"
+              strokeWidth="1.25"
+              x1={formatSvgNumber(markerX)}
+              x2={formatSvgNumber(markerX)}
+              y1={LAB_METRIC_RANGE_MARKER_Y1}
+              y2={LAB_METRIC_RANGE_MARKER_Y2}
+            />
+            <circle
+              cx={formatSvgNumber(markerX)}
+              cy={LAB_METRIC_RANGE_Y + LAB_METRIC_RANGE_HEIGHT / 2}
+              data-testid="lab-performance-metric-marker-dot"
+              fill={markerColor}
+              r="2"
+              stroke="rgba(15,15,15,0.9)"
+              strokeWidth="1"
+            />
+          </>
+        )}
+      </svg>
+      {rangeCard ? (
+        <div
+          className={[
+            'pointer-events-none fixed z-[70] w-[184px] rounded-[6px] border border-white/10 bg-[#252525] px-2.5 py-2 text-[10px] leading-4 text-white/70 opacity-100 shadow-[0_10px_24px_rgba(0,0,0,0.28)]',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          data-testid="lab-performance-metric-range-card"
+          role="tooltip"
+          style={{
+            left: `${rangeCard.left}px`,
+            top: `${rangeCard.top}px`,
+            transform:
+              rangeCard.placement === 'top'
+                ? 'translate(-50%, -100%)'
+                : 'translateX(-50%)',
+          }}
+        >
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <span className="truncate font-medium text-white/80">{label}</span>
+            <span
+              className="shrink-0 font-semibold"
+              style={{ color: markerColor }}
+            >
+              {valueLabel}
+            </span>
+          </div>
+          <div className="grid gap-0.5">
+            {segments.map((segment) => {
+              const isActiveSegment = isMetricRangeSegmentActive({
+                rawValue,
+                segment,
+                tone,
+              });
+
+              return (
+                <div
+                  className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1.5"
+                  data-active={isActiveSegment ? 'true' : 'false'}
+                  data-testid="lab-performance-metric-range-card-row"
+                  key={segment.tone}
+                >
+                  <span
+                    className="size-1.5 rounded-full"
+                    style={{
+                      backgroundColor: isActiveSegment
+                        ? getMetricToneColor(segment.tone)
+                        : 'rgba(255,255,255,0.24)',
+                    }}
+                  />
+                  <span
+                    className={`truncate ${
+                      isActiveSegment
+                        ? 'text-white/[0.88]'
+                        : 'text-white/[0.52]'
+                    }`}
+                  >
+                    {getMetricRangeDisplayLabel(segment.tone)}
+                  </span>
+                  <span
+                    className={`font-medium ${
+                      isActiveSegment
+                        ? 'text-white/[0.88]'
+                        : 'text-white/[0.52]'
+                    }`}
+                  >
+                    {formatMetricRangeValue(segment.start, range)} -{' '}
+                    {formatMetricRangeValue(segment.end, range)}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 }
 

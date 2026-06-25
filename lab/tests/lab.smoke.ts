@@ -196,12 +196,22 @@ test('mirrors the color-kit lab pages and properties panel', async ({
         );
 
         return {
+          activeSegmentCount: segments.filter(
+            (segment) => segment.getAttribute('data-active') === 'true',
+          ).length,
           ariaLabel: svg.getAttribute('aria-label') ?? '',
+          coloredSegmentCount: segments.filter(
+            (segment) =>
+              segment.getAttribute('fill') !== 'rgba(255,255,255,0.14)',
+          ).length,
           markerDotX: Number(markerDot?.getAttribute('cx')),
           markerDotY: Number(markerDot?.getAttribute('cy')),
           markerLineCount: markerLine ? 1 : 0,
           markerLineX: Number(markerLine?.getAttribute('x1')),
           segmentCount: segments.length,
+          segmentHeights: segments.map((segment) =>
+            Number(segment.getAttribute('height')),
+          ),
           segmentTones: segments.map((segment) =>
             segment.getAttribute('data-range-tone'),
           ),
@@ -215,6 +225,9 @@ test('mirrors the color-kit lab pages and properties panel', async ({
           chart.segmentTones.includes('good') &&
           chart.segmentTones.includes('okay') &&
           chart.segmentTones.includes('poor') &&
+          chart.activeSegmentCount <= 1 &&
+          chart.coloredSegmentCount === chart.activeSegmentCount &&
+          chart.segmentHeights.every((height) => height === 2) &&
           !chart.ariaLabel.includes('quality curve'),
       ),
     ).toBe(true);
@@ -244,16 +257,40 @@ test('mirrors the color-kit lab pages and properties panel', async ({
         markerLineX: Number(markerLine?.getAttribute('x1')),
         markerPosition: Number(markerLine?.getAttribute('data-position')),
         segments: segments.map((segment) => ({
+          active: segment.getAttribute('data-active') === 'true',
           end: Number(segment.getAttribute('data-range-end')),
+          fill: segment.getAttribute('fill'),
+          height: Number(segment.getAttribute('height')),
           start: Number(segment.getAttribute('data-range-start')),
           tone: segment.getAttribute('data-range-tone'),
         })),
       };
     });
     expect(fcpRangeDetails.segments).toEqual([
-      { end: 1800, start: 0, tone: 'good' },
-      { end: 3000, start: 1800, tone: 'okay' },
-      { end: 5000, start: 3000, tone: 'poor' },
+      {
+        active: true,
+        end: 1800,
+        fill: '#34d399',
+        height: 2,
+        start: 0,
+        tone: 'good',
+      },
+      {
+        active: false,
+        end: 3000,
+        fill: 'rgba(255,255,255,0.14)',
+        height: 2,
+        start: 1800,
+        tone: 'okay',
+      },
+      {
+        active: false,
+        end: 5000,
+        fill: 'rgba(255,255,255,0.14)',
+        height: 2,
+        start: 3000,
+        tone: 'poor',
+      },
     ]);
     expect(fcpRangeDetails.markerPosition).toBeGreaterThanOrEqual(0);
     expect(fcpRangeDetails.markerPosition).toBeLessThanOrEqual(1);
@@ -261,6 +298,25 @@ test('mirrors the color-kit lab pages and properties panel', async ({
       Math.abs(fcpRangeDetails.markerDotX - fcpRangeDetails.markerLineX),
     ).toBeLessThanOrEqual(0.01);
     expect(fcpRangeDetails.markerDotY).toBe(10);
+    const fcpRangeTrigger = metricsTable.locator(
+      '[data-metric-row-id="fcp"] [data-testid="lab-performance-metric-range-trigger"]',
+    );
+    await fcpRangeTrigger.hover();
+    const fcpRangeCard = page.getByTestId('lab-performance-metric-range-card');
+    await expect(fcpRangeCard).toBeVisible();
+    await expect(fcpRangeCard).toContainText('First contentful paint (FCP)');
+    await expect(fcpRangeCard).toContainText('Good');
+    await expect(fcpRangeCard).toContainText('0ms - 1800ms');
+    await expect(fcpRangeCard).toContainText('Needs improvement');
+    await expect(fcpRangeCard).toContainText('1800ms - 3000ms');
+    await expect(fcpRangeCard).toContainText('Poor');
+    await expect(fcpRangeCard).toContainText('3000ms - 5000ms');
+    await expect(
+      fcpRangeCard.locator(
+        '[data-testid="lab-performance-metric-range-card-row"]',
+      ),
+    ).toHaveCount(3);
+    await expect(fcpRangeCard.locator('[data-active="true"]')).toHaveCount(1);
     await expect(
       metricsTable.locator('tbody tr').first().locator('th, td'),
     ).toHaveCount(4);
@@ -452,6 +508,11 @@ test('mirrors the color-kit lab pages and properties panel', async ({
       expect(timelineFitBox).not.toBeNull();
       await expect(metricsShell).toHaveClass(
         /ck-lab-performance-metrics-scroll/,
+      );
+      await page.mouse.move(0, 0);
+      await page.waitForTimeout(800);
+      await expect(metricsShell).not.toHaveClass(
+        /ck-lab-performance-metrics-scroll-active/,
       );
       expect(
         await metricsShell.evaluate(
