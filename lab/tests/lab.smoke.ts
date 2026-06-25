@@ -186,9 +186,6 @@ test('mirrors the color-kit lab pages and properties panel', async ({
         const markerLine = svg.querySelector(
           '[data-testid="lab-performance-metric-marker-line"]',
         );
-        const markerDot = svg.querySelector(
-          '[data-testid="lab-performance-metric-marker-dot"]',
-        );
         const segments = Array.from(
           svg.querySelectorAll(
             '[data-testid="lab-performance-metric-range-segment"]',
@@ -204,8 +201,9 @@ test('mirrors the color-kit lab pages and properties panel', async ({
             (segment) =>
               segment.getAttribute('fill') !== 'rgba(255,255,255,0.14)',
           ).length,
-          markerDotX: Number(markerDot?.getAttribute('cx')),
-          markerDotY: Number(markerDot?.getAttribute('cy')),
+          markerDotCount: svg.querySelectorAll(
+            '[data-testid="lab-performance-metric-marker-dot"]',
+          ).length,
           markerLineCount: markerLine ? 1 : 0,
           markerLineX: Number(markerLine?.getAttribute('x1')),
           segmentCount: segments.length,
@@ -227,6 +225,7 @@ test('mirrors the color-kit lab pages and properties panel', async ({
           chart.segmentTones.includes('poor') &&
           chart.activeSegmentCount <= 1 &&
           chart.coloredSegmentCount === chart.activeSegmentCount &&
+          chart.markerDotCount === 0 &&
           chart.segmentHeights.every((height) => height === 2) &&
           !chart.ariaLabel.includes('quality curve'),
       ),
@@ -242,9 +241,6 @@ test('mirrors the color-kit lab pages and properties panel', async ({
       const markerLine = svg.querySelector(
         '[data-testid="lab-performance-metric-marker-line"]',
       );
-      const markerDot = svg.querySelector(
-        '[data-testid="lab-performance-metric-marker-dot"]',
-      );
       const segments = Array.from(
         svg.querySelectorAll(
           '[data-testid="lab-performance-metric-range-segment"]',
@@ -252,8 +248,9 @@ test('mirrors the color-kit lab pages and properties panel', async ({
       );
 
       return {
-        markerDotX: Number(markerDot?.getAttribute('cx')),
-        markerDotY: Number(markerDot?.getAttribute('cy')),
+        markerDotCount: svg.querySelectorAll(
+          '[data-testid="lab-performance-metric-marker-dot"]',
+        ).length,
         markerLineX: Number(markerLine?.getAttribute('x1')),
         markerPosition: Number(markerLine?.getAttribute('data-position')),
         segments: segments.map((segment) => ({
@@ -294,10 +291,8 @@ test('mirrors the color-kit lab pages and properties panel', async ({
     ]);
     expect(fcpRangeDetails.markerPosition).toBeGreaterThanOrEqual(0);
     expect(fcpRangeDetails.markerPosition).toBeLessThanOrEqual(1);
-    expect(
-      Math.abs(fcpRangeDetails.markerDotX - fcpRangeDetails.markerLineX),
-    ).toBeLessThanOrEqual(0.01);
-    expect(fcpRangeDetails.markerDotY).toBe(10);
+    expect(fcpRangeDetails.markerDotCount).toBe(0);
+    expect(Number.isFinite(fcpRangeDetails.markerLineX)).toBe(true);
     const fcpRangeTrigger = metricsTable.locator(
       '[data-metric-row-id="fcp"] [data-testid="lab-performance-metric-range-trigger"]',
     );

@@ -1616,29 +1616,18 @@ function LabMetricRangeChart({
           );
         })}
         {markerX === null ? null : (
-          <>
-            <line
-              data-position={markerPosition}
-              data-testid="lab-performance-metric-marker-line"
-              data-value={rawValue ?? undefined}
-              stroke={markerColor}
-              strokeLinecap="round"
-              strokeWidth="1.25"
-              x1={formatSvgNumber(markerX)}
-              x2={formatSvgNumber(markerX)}
-              y1={LAB_METRIC_RANGE_MARKER_Y1}
-              y2={LAB_METRIC_RANGE_MARKER_Y2}
-            />
-            <circle
-              cx={formatSvgNumber(markerX)}
-              cy={LAB_METRIC_RANGE_Y + LAB_METRIC_RANGE_HEIGHT / 2}
-              data-testid="lab-performance-metric-marker-dot"
-              fill={markerColor}
-              r="2"
-              stroke="rgba(15,15,15,0.9)"
-              strokeWidth="1"
-            />
-          </>
+          <line
+            data-position={markerPosition}
+            data-testid="lab-performance-metric-marker-line"
+            data-value={rawValue ?? undefined}
+            stroke={markerColor}
+            strokeLinecap="round"
+            strokeWidth="1.25"
+            x1={formatSvgNumber(markerX)}
+            x2={formatSvgNumber(markerX)}
+            y1={LAB_METRIC_RANGE_MARKER_Y1}
+            y2={LAB_METRIC_RANGE_MARKER_Y2}
+          />
         )}
       </svg>
       {rangeCard ? (
