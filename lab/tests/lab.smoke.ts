@@ -573,12 +573,38 @@ test('mirrors the color-kit lab pages and properties panel', async ({
         await metricsShell.evaluate(
           (node) => getComputedStyle(node).scrollbarColor,
         ),
-      ).toBe('rgba(255, 255, 255, 0.1) rgba(0, 0, 0, 0)');
+      ).toBe('rgba(0, 0, 0, 0) rgba(0, 0, 0, 0)');
       expect(
         await metricsShell.evaluate(
           (node) => getComputedStyle(node).scrollbarGutter,
         ),
       ).toBe('stable');
+      await page.mouse.move(
+        metricsShellBox!.x + metricsShellBox!.width / 2,
+        metricsShellBox!.y + 12,
+      );
+      await expect(metricsShell).not.toHaveClass(
+        /ck-lab-performance-metrics-scroll-active/,
+      );
+      await page.mouse.move(
+        metricsShellBox!.x + metricsShellBox!.width - 4,
+        metricsShellBox!.y + 12,
+      );
+      await expect(metricsShell).toHaveClass(
+        /ck-lab-performance-metrics-scroll-active/,
+      );
+      expect(
+        await metricsShell.evaluate(
+          (node) => getComputedStyle(node).scrollbarColor,
+        ),
+      ).toBe('rgba(255, 255, 255, 0.28) rgba(0, 0, 0, 0)');
+      await page.mouse.move(
+        metricsShellBox!.x + metricsShellBox!.width / 2,
+        metricsShellBox!.y + 12,
+      );
+      await expect(metricsShell).not.toHaveClass(
+        /ck-lab-performance-metrics-scroll-active/,
+      );
       if (labPage.value === 'inputMulti') {
         await metricsShell.dispatchEvent('scroll');
         await expect(metricsShell).toHaveClass(

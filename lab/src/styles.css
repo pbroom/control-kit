@@ -180,13 +180,10 @@
 
 .ck-lab-performance-metrics-scroll {
   scrollbar-gutter: stable;
-  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+  scrollbar-color: transparent transparent;
   scrollbar-width: thin;
 }
 
-.ck-lab-performance-metrics-scroll:hover,
-.ck-lab-performance-metrics-scroll:focus,
-.ck-lab-performance-metrics-scroll:focus-within,
 .ck-lab-performance-metrics-scroll-active {
   scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
 }
@@ -201,14 +198,11 @@
 
 .ck-lab-performance-metrics-scroll::-webkit-scrollbar-thumb {
   background-clip: content-box;
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: transparent;
   border: 2px solid transparent;
   border-radius: 999px;
 }
 
-.ck-lab-performance-metrics-scroll:hover::-webkit-scrollbar-thumb,
-.ck-lab-performance-metrics-scroll:focus::-webkit-scrollbar-thumb,
-.ck-lab-performance-metrics-scroll:focus-within::-webkit-scrollbar-thumb,
 .ck-lab-performance-metrics-scroll-active::-webkit-scrollbar-thumb {
   background-color: rgba(255, 255, 255, 0.32);
 }

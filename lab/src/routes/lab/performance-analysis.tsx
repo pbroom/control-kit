@@ -159,6 +159,7 @@ const LAB_PERFORMANCE_PANEL_VERTICAL_PADDING =
   LAB_PERFORMANCE_PANEL_SURFACE_PADDING_BOTTOM;
 const LAB_PERFORMANCE_PANEL_LAYOUT_SHIFT_SUPPRESSION_MS = 700;
 const LAB_PERFORMANCE_SCROLLBAR_ACTIVE_MS = 700;
+const LAB_PERFORMANCE_SCROLLBAR_REVEAL_ZONE_PX = 24;
 const LAB_METRIC_LABEL_TRUNCATION_TOLERANCE_PX = 1;
 const LAB_METRIC_LABEL_TRUNCATION_TRIGGER_COUNT = 2;
 const LAB_METRIC_ROW_DRAG_ACTIVATION_Y_PX = 8;
@@ -2265,6 +2266,8 @@ export function LabPerformanceAnalysisPanel({
   const [isResizingPanel, setIsResizingPanel] = useState(false);
   const [isMetricsScrollbarActive, setIsMetricsScrollbarActive] =
     useState(false);
+  const [isMetricsScrollbarRailHovered, setIsMetricsScrollbarRailHovered] =
+    useState(false);
   const contentRef = useRef<HTMLDivElement | null>(null);
   const panelHeightRef = useRef(panelHeight);
   const panelMaxHeightRef = useRef(panelMaxHeight);
@@ -2369,6 +2372,23 @@ export function LabPerformanceAnalysisPanel({
       metricsScrollbarIdleTimerRef.current = null;
       setIsMetricsScrollbarActive(false);
     }, LAB_PERFORMANCE_SCROLLBAR_ACTIVE_MS);
+  }, []);
+
+  const syncMetricsScrollbarRailHover = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      const rect = event.currentTarget.getBoundingClientRect();
+      const distanceFromRightEdge = rect.right - event.clientX;
+
+      setIsMetricsScrollbarRailHovered(
+        distanceFromRightEdge >= 0 &&
+          distanceFromRightEdge <= LAB_PERFORMANCE_SCROLLBAR_REVEAL_ZONE_PX,
+      );
+    },
+    [],
+  );
+
+  const hideMetricsScrollbarRailHover = useCallback(() => {
+    setIsMetricsScrollbarRailHovered(false);
   }, []);
 
   useEffect(() => {
@@ -2595,14 +2615,15 @@ export function LabPerformanceAnalysisPanel({
           <div
             className={[
               'ck-lab-performance-metrics-scroll min-h-0 min-w-0 overflow-y-auto overscroll-contain pr-1 lg:max-h-[var(--lab-performance-panel-content-max-height)]',
-              isMetricsScrollbarActive
+              isMetricsScrollbarActive || isMetricsScrollbarRailHovered
                 ? 'ck-lab-performance-metrics-scroll-active'
                 : null,
             ]
               .filter(Boolean)
               .join(' ')}
             data-testid="lab-performance-metrics-shell"
-            onPointerDown={showMetricsScrollbar}
+            onPointerLeave={hideMetricsScrollbarRailHover}
+            onPointerMove={syncMetricsScrollbarRailHover}
             onScroll={showMetricsScrollbar}
             onWheel={showMetricsScrollbar}
           >
