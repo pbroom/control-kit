@@ -322,8 +322,10 @@ test('mirrors the color-kit lab pages and properties panel', async ({
     ).toHaveCount(4);
     const lcpRow = metricsTable.locator('[data-metric-row-id="lcp"]');
     await expect(lcpRow).toContainText('LCP');
+    await expect(lcpRow.locator('td').last()).toContainText(/\d+ms/);
     const lcpText = await lcpRow.textContent();
-    expect(lcpText).toMatch(/Largest preview element|No preview LCP candidate/);
+    expect(lcpText).toMatch(/Largest preview element/);
+    expect(lcpText).not.toMatch(/No preview LCP candidate|N\/A|Waiting/);
     await expect(lcpRow).not.toContainText('properties panel');
     await expect(metricsTable).not.toContainText('Preview/properties');
     expect(

@@ -112,6 +112,12 @@ type LargestContentfulPaintPerformanceEntry = PerformanceEntry & {
   url?: string;
 };
 
+type LabPreviewLcpCandidate = {
+  element: Element;
+  priority: number;
+  size: number;
+};
+
 type InteractionPerformanceEntry = PerformanceEntry & {
   duration: number;
   interactionId?: number;
@@ -121,6 +127,19 @@ type InteractionPerformanceEntry = PerformanceEntry & {
 const MAX_TIMELINE_EVENTS = 12;
 const TIMELINE_STORY_MIN_EVENT_MS = 24;
 const LAB_COMPONENT_PREVIEW_SELECTOR = '[data-lab-component-preview]';
+const LAB_PREVIEW_LCP_IGNORED_TAGS = new Set([
+  'clippath',
+  'defs',
+  'lineargradient',
+  'mask',
+  'metadata',
+  'pattern',
+  'radialgradient',
+  'script',
+  'style',
+  'template',
+  'title',
+]);
 const LAB_LCP_PENDING_ATTRIBUTION = 'Largest preview element pending';
 const LAB_LCP_NO_PREVIEW_CANDIDATE_ATTRIBUTION = 'No preview LCP candidate';
 const LAB_PERFORMANCE_PANEL_DEFAULT_HEIGHT = 560;
@@ -388,6 +407,105 @@ function isComponentPreviewLcpCandidate(
   return Boolean(entry.element?.closest(LAB_COMPONENT_PREVIEW_SELECTOR));
 }
 
+function getVisibleElementArea(element: Element) {
+  const rect = element.getBoundingClientRect();
+
+  if (rect.width < 1 || rect.height < 1) {
+    return 0;
+  }
+
+  const style = window.getComputedStyle(element);
+
+  if (
+    style.display === 'none' ||
+    style.visibility === 'hidden' ||
+    Number(style.opacity) === 0
+  ) {
+    return 0;
+  }
+
+  const viewportWidth =
+    window.innerWidth || document.documentElement.clientWidth;
+  const viewportHeight =
+    window.innerHeight || document.documentElement.clientHeight;
+  const visibleWidth = Math.max(
+    0,
+    Math.min(rect.right, viewportWidth) - Math.max(rect.left, 0),
+  );
+  const visibleHeight = Math.max(
+    0,
+    Math.min(rect.bottom, viewportHeight) - Math.max(rect.top, 0),
+  );
+
+  return visibleWidth * visibleHeight;
+}
+
+function getPreviewLcpCandidatePriority(element: Element) {
+  const tagName = element.tagName.toLowerCase();
+
+  if (['canvas', 'img', 'svg', 'video'].includes(tagName)) {
+    return 4;
+  }
+
+  if (
+    ['button', 'input', 'label', 'select', 'textarea'].includes(tagName) ||
+    element.hasAttribute('role') ||
+    element.hasAttribute('aria-label')
+  ) {
+    return 3;
+  }
+
+  if (element.textContent?.trim()) {
+    return 2;
+  }
+
+  return 1;
+}
+
+function findLargestComponentPreviewCandidate(): LabPreviewLcpCandidate | null {
+  const previewRoot = document.querySelector(LAB_COMPONENT_PREVIEW_SELECTOR);
+
+  if (!previewRoot) {
+    return null;
+  }
+
+  let largestCandidate: LabPreviewLcpCandidate | null = null;
+
+  for (const element of Array.from(previewRoot.querySelectorAll('*'))) {
+    if (
+      LAB_PREVIEW_LCP_IGNORED_TAGS.has(element.tagName.toLowerCase()) ||
+      element.closest('aside') ||
+      element.closest('[data-lab-performance-panel]')
+    ) {
+      continue;
+    }
+
+    const area = getVisibleElementArea(element);
+    const size = Math.round(area);
+    const priority = getPreviewLcpCandidatePriority(element);
+    const largestSize: number =
+      largestCandidate === null ? 0 : largestCandidate.size;
+    const largestPriority: number =
+      largestCandidate === null ? 0 : largestCandidate.priority;
+
+    if (
+      size <= 0 ||
+      size < largestSize ||
+      (size === largestSize && priority <= largestPriority)
+    ) {
+      continue;
+    }
+
+    largestCandidate = {
+      element,
+      priority,
+      size,
+    };
+  }
+
+  return largestCandidate;
+}
+
 function isInteractionEntryRelevant(entry: InteractionPerformanceEntry) {
   return (
     !IGNORED_INTERACTION_ENTRY_NAMES.has(entry.name) &&
@@ -475,6 +593,12 @@ function describeLcpAttribution(
   }
 
   return 'Largest preview element';
+}
+
+function describePreviewLcpAttribution(candidate: LabPreviewLcpCandidate) {
+  return `Largest preview element: ${describeAttributionTarget(
+    candidate.element,
+  )}`;
 }
 
 function isAnalysisSurfaceLayoutShiftSource(node: Node) {
@@ -762,10 +886,7 @@ function useLabPerformanceTelemetry(
         attributions: {
           ...current.attributions,
           loading: describeLoadingAttribution(resources, true),
-          lcp:
-            current.lcpMs === null
-              ? LAB_LCP_NO_PREVIEW_CANDIDATE_ATTRIBUTION
-              : current.attributions.lcp,
+          lcp: current.attributions.lcp,
         },
       }));
       addTimelineEvent(
@@ -797,13 +918,68 @@ function useLabPerformanceTelemetry(
             current.loadingMs === null
               ? current.attributions.loading
               : describeLoadingAttribution(resources, false),
-          lcp:
-            current.lcpMs === null
-              ? LAB_LCP_NO_PREVIEW_CANDIDATE_ATTRIBUTION
-              : current.attributions.lcp,
+          lcp: current.attributions.lcp,
         },
       }));
     }
+  }, [activePage, addTimelineEvent, isLoading]);
+
+  useEffect(() => {
+    if (isLoading) {
+      return;
+    }
+
+    let isCancelled = false;
+    let secondFrame = 0;
+    const firstFrame = requestAnimationFrame(() => {
+      secondFrame = requestAnimationFrame(() => {
+        if (isCancelled) {
+          return;
+        }
+
+        const candidate = findLargestComponentPreviewCandidate();
+
+        if (!candidate) {
+          setVitals((current) => ({
+            ...current,
+            lcpMs: null,
+            attributions: {
+              ...current.attributions,
+              lcp: LAB_LCP_NO_PREVIEW_CANDIDATE_ATTRIBUTION,
+            },
+          }));
+          return;
+        }
+
+        const measuredAt = getPerformanceTime();
+        const lcpMs = Math.max(
+          0,
+          Math.round(measuredAt - routeStartRef.current),
+        );
+
+        setVitals((current) => ({
+          ...current,
+          lcpMs,
+          attributions: {
+            ...current.attributions,
+            lcp: describePreviewLcpAttribution(candidate),
+          },
+        }));
+        addTimelineEvent(
+          'vital',
+          'Preview LCP',
+          `${lcpMs}ms / ${candidate.size}px`,
+          measuredAt,
+          lcpMs,
+        );
+      });
+    });
+
+    return () => {
+      isCancelled = true;
+      cancelAnimationFrame(firstFrame);
+      cancelAnimationFrame(secondFrame);
+    };
   }, [activePage, addTimelineEvent, isLoading]);
 
   useEffect(() => {
