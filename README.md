@@ -41,10 +41,13 @@ This repo includes a focused Vite lab for demoing and refining the package UI
 primitives without the larger `color-kit` docs site.
 
 ```sh
-pnpm lab
+pnpm dev
 pnpm lab:typecheck
 pnpm lab:build
 ```
 
 The lab imports the package source directly, so local component edits are visible
 without packing or publishing the package.
+
+Use `pnpm dev:package` when you specifically want the package build watcher
+instead of the lab server.

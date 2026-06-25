@@ -33,10 +33,11 @@
   "scripts": {
     "build": "tsup",
     "clean": "rm -rf dist",
-    "dev": "tsup --watch",
+    "dev": "vite --config lab/vite.config.ts --host 127.0.0.1 --port 5175 --strictPort --clearScreen false",
+    "dev:package": "tsup --watch",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "lab": "vite --config lab/vite.config.ts",
+    "lab": "pnpm dev",
     "lab:build": "vite build --config lab/vite.config.ts",
     "lab:preview": "vite preview --config lab/vite.config.ts",
     "lab:reference-check": "node scripts/check-color-kit-lab-parity.mjs",
