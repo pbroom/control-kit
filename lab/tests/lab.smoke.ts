@@ -567,7 +567,26 @@ test('mirrors the color-kit lab pages and properties panel', async ({
         await page.mouse.down();
         await page.mouse.move(
           handleBox!.x + handleBox!.width / 2,
-          handleBox!.y + 260,
+          handleBox!.y + 18,
+        );
+        await page.mouse.up();
+
+        const smallDragPanelBox = await performancePanel.boundingBox();
+        expect(smallDragPanelBox).not.toBeNull();
+        expect(smallDragPanelBox!.height).toBeLessThan(
+          performancePanelBox!.height - 4,
+        );
+        const shrunkenHandleBox = await resizeHandle.boundingBox();
+        expect(shrunkenHandleBox).not.toBeNull();
+
+        await page.mouse.move(
+          shrunkenHandleBox!.x + shrunkenHandleBox!.width / 2,
+          shrunkenHandleBox!.y + 2,
+        );
+        await page.mouse.down();
+        await page.mouse.move(
+          shrunkenHandleBox!.x + shrunkenHandleBox!.width / 2,
+          shrunkenHandleBox!.y + 260,
         );
         await page.mouse.up();
 

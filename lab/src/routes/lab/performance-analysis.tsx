@@ -2226,9 +2226,16 @@ export function LabPerformanceAnalysisPanel({
       event.preventDefault();
       suppressAnalysisSurfaceLayoutShifts();
       userSizedPanelRef.current = true;
+      const panelElement = event.currentTarget.closest<HTMLElement>(
+        '[data-lab-performance-panel]',
+      );
+      const startHeight = clampPerformancePanelHeight(
+        panelElement?.getBoundingClientRect().height ?? panelHeight,
+      );
+
       event.currentTarget.setPointerCapture(event.pointerId);
       resizeStateRef.current = {
-        startHeight: panelHeight,
+        startHeight,
         startY: event.clientY,
       };
       setIsResizingPanel(true);
