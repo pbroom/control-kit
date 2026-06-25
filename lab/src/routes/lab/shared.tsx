@@ -42,6 +42,14 @@ import {
   type PrimitiveVisualState,
   type PrimitiveWrapMode,
 } from '@color-kit/control-kit';
+import LayoutAlignBottomIcon from '@hugeicons/core-free-icons/LayoutAlignBottomIcon';
+import LayoutAlignRightIcon from '@hugeicons/core-free-icons/LayoutAlignRightIcon';
+import LayoutBottomIcon from '@hugeicons/core-free-icons/LayoutBottomIcon';
+import LayoutRightIcon from '@hugeicons/core-free-icons/LayoutRightIcon';
+import {
+  HugeiconsIcon,
+  type IconSvgElement as HugeIconSvgElement,
+} from '@hugeicons/react';
 import {
   ArrowBigDown,
   ArrowBigUp,
@@ -86,10 +94,6 @@ import {
   MousePointer2,
   Option,
   Palette,
-  PanelBottomClose,
-  PanelBottomOpen,
-  PanelRightClose,
-  PanelRightOpen,
   Pencil,
   Pipette,
   Play,
@@ -2909,7 +2913,7 @@ function LabPagePropertiesFallback() {
 
 type LabPanelToggleButtonProps = {
   'aria-controls': string;
-  icon: LucideIcon;
+  icon: HugeIconSvgElement;
   isPressed: boolean;
   label: string;
   onClick: () => void;
@@ -2933,18 +2937,22 @@ function LabPanelToggleButton({
           aria-label={label}
           aria-pressed={isPressed}
           className={[
-            'flex h-8 w-8 items-center justify-center rounded-[12px] border border-white/8 text-white/62 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] outline-none transition-[background-color,border-color,color,box-shadow]',
-            'hover:border-white/16 hover:bg-white/[0.08] hover:text-white/88 focus-visible:ring-2 focus-visible:ring-[#5288db] active:border-white/22 active:bg-white/[0.12] active:text-white',
-            isPressed
-              ? 'bg-white/[0.10] text-white/92'
-              : 'bg-[#202020]/95 backdrop-blur',
+            'flex h-8 w-8 items-center justify-center rounded-[10px] border border-transparent bg-transparent outline-none transition-[background-color,border-color,color,box-shadow]',
+            'hover:bg-white/[0.07] hover:text-white/88 focus-visible:ring-2 focus-visible:ring-[#5288db] active:bg-white/[0.10] active:text-white',
+            isPressed ? 'text-white/92' : 'text-white/38 hover:text-white/62',
           ]
             .filter(Boolean)
             .join(' ')}
           data-testid={testId}
           onClick={onClick}
         >
-          <Icon aria-hidden className="h-4 w-4" strokeWidth={2.1} />
+          <HugeiconsIcon
+            aria-hidden
+            className="h-4 w-4"
+            icon={Icon}
+            size={16}
+            strokeWidth={1.8}
+          />
         </button>
       </TooltipTrigger>
       <TooltipContent side="left">{label}</TooltipContent>
@@ -2964,11 +2972,11 @@ function LabPanelToggleControls({
   onTogglePropertiesPanel: () => void;
 }) {
   const PropertiesIcon = isPropertiesPanelCollapsed
-    ? PanelRightOpen
-    : PanelRightClose;
+    ? LayoutAlignRightIcon
+    : LayoutRightIcon;
   const PerformanceIcon = isPerformancePanelCollapsed
-    ? PanelBottomOpen
-    : PanelBottomClose;
+    ? LayoutAlignBottomIcon
+    : LayoutBottomIcon;
 
   return (
     <TooltipProvider delayDuration={350} skipDelayDuration={120}>
