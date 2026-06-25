@@ -939,6 +939,60 @@ test('mirrors the color-kit lab pages and properties panel', async ({
         expect(restoredPanelBox!.height).toBeLessThanOrEqual(
           targetOpenPanelHeight + 2,
         );
+
+        await resizeHandle.dblclick();
+        await expect(performancePanel).toHaveAttribute(
+          'data-lab-performance-panel-collapsed',
+          'true',
+        );
+        await expect(resizeHandle).toHaveAttribute('aria-valuenow', '0');
+        await expect
+          .poll(async () => (await performancePanel.boundingBox())?.height ?? 0)
+          .toBeLessThanOrEqual(LAB_COLLAPSED_PANEL_HANDLE_HEIGHT);
+
+        await resizeHandle.dblclick();
+        await expect(performancePanel).toHaveAttribute(
+          'data-lab-performance-panel-collapsed',
+          'false',
+        );
+        await expect(resizeHandle).toHaveAttribute(
+          'aria-valuenow',
+          String(targetOpenPanelHeight),
+        );
+        await expect
+          .poll(async () => (await performancePanel.boundingBox())?.height ?? 0)
+          .toBeGreaterThanOrEqual(targetOpenPanelHeight - 2);
+
+        const doubleClickOpenHandleBox = await resizeHandle.boundingBox();
+        expect(doubleClickOpenHandleBox).not.toBeNull();
+        await page.mouse.move(
+          doubleClickOpenHandleBox!.x + doubleClickOpenHandleBox!.width / 2,
+          doubleClickOpenHandleBox!.y + 2,
+        );
+        await page.mouse.down();
+        await page.mouse.move(
+          doubleClickOpenHandleBox!.x + doubleClickOpenHandleBox!.width / 2,
+          doubleClickOpenHandleBox!.y + 40,
+        );
+        await page.mouse.up();
+
+        const partialPanelBox = await performancePanel.boundingBox();
+        expect(partialPanelBox).not.toBeNull();
+        expect(partialPanelBox!.height).toBeGreaterThanOrEqual(128);
+        expect(partialPanelBox!.height).toBeLessThan(targetOpenPanelHeight - 4);
+
+        await resizeHandle.dblclick();
+        await expect(performancePanel).toHaveAttribute(
+          'data-lab-performance-panel-collapsed',
+          'false',
+        );
+        await expect(resizeHandle).toHaveAttribute(
+          'aria-valuenow',
+          String(targetOpenPanelHeight),
+        );
+        await expect
+          .poll(async () => (await performancePanel.boundingBox())?.height ?? 0)
+          .toBeGreaterThanOrEqual(targetOpenPanelHeight - 2);
       }
     }
 

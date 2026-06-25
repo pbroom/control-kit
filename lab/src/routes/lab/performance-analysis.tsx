@@ -30,6 +30,7 @@ import type {
   CSSProperties,
   FocusEvent as ReactFocusEvent,
   KeyboardEvent as ReactKeyboardEvent,
+  MouseEvent as ReactMouseEvent,
   PointerEvent as ReactPointerEvent,
 } from 'react';
 import type { LabPageKey } from './shared.js';
@@ -2388,6 +2389,29 @@ export function LabPerformanceAnalysisPanel({
     [panelMaxHeight],
   );
 
+  const togglePanelWithDoubleClick = useCallback(
+    (event: ReactMouseEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      const currentHeight = clampPerformancePanelHeight(
+        panelHeightRef.current,
+        panelMaxHeightRef.current,
+      );
+      const maxHeight = panelMaxHeightRef.current;
+      const isFullHeight = Math.abs(currentHeight - maxHeight) <= 1;
+
+      suppressAnalysisSurfaceLayoutShifts();
+      userSizedPanelRef.current = true;
+      resizeStateRef.current = null;
+      setIsResizingPanel(false);
+      setPanelHeight(
+        isFullHeight ? LAB_PERFORMANCE_PANEL_COLLAPSED_HEIGHT : maxHeight,
+      );
+    },
+    [],
+  );
+
   const showMetricsScrollbar = useCallback(() => {
     if (metricsScrollbarIdleTimerRef.current !== null) {
       window.clearTimeout(metricsScrollbarIdleTimerRef.current);
@@ -2605,6 +2629,7 @@ export function LabPerformanceAnalysisPanel({
         className="group absolute inset-x-0 top-0 z-30 hidden h-8 cursor-ns-resize touch-none items-start justify-center rounded-t-[24px] outline-none focus-visible:ring-2 focus-visible:ring-white/35 lg:flex"
         data-lab-performance-resize-handle
         onKeyDown={resizePanelWithKeyboard}
+        onDoubleClick={togglePanelWithDoubleClick}
         onPointerDown={startPanelResize}
         role="separator"
         tabIndex={0}
