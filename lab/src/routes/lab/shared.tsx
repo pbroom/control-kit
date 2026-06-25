@@ -106,6 +106,7 @@ import {
   Fragment,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -1029,6 +1030,118 @@ const PANEL_TWO_COLUMN_GRID_CLASS =
 
 const LAB_PANEL_SCROLL_AREA_CLASS =
   'h-full w-full min-w-0 max-w-full overflow-hidden [&>[data-radix-scroll-area-viewport]]:w-full [&>[data-radix-scroll-area-viewport]]:min-w-0 [&>[data-radix-scroll-area-viewport]]:max-w-full [&>[data-radix-scroll-area-viewport]]:overflow-x-hidden [&>[data-radix-scroll-area-viewport]>div]:!block [&>[data-radix-scroll-area-viewport]>div]:!w-full [&>[data-radix-scroll-area-viewport]>div]:!min-w-0 [&>[data-radix-scroll-area-viewport]>div]:!max-w-full';
+const LAB_PAGE_CONTENT_CROSSFADE_MS = 72;
+
+type LabPageCrossfadeItem = {
+  content: ReactNode;
+  id: number;
+  key: LabPageKey;
+};
+
+function LabPageCrossfadeSlot({
+  activePage,
+  activeClassName,
+  className = 'relative',
+  exitingClassName,
+  fallback,
+  content,
+  testId,
+}: {
+  activePage: LabPageKey;
+  activeClassName: string;
+  className?: string;
+  exitingClassName: string;
+  fallback: ReactNode;
+  content: ReactNode;
+  testId: string;
+}) {
+  const nextItemIdRef = useRef(1);
+  const resolvedContent = content ?? fallback;
+  const previousActiveItemRef = useRef<Pick<
+    LabPageCrossfadeItem,
+    'content' | 'key'
+  > | null>(null);
+  const [exitingItems, setExitingItems] = useState<
+    readonly LabPageCrossfadeItem[]
+  >([]);
+
+  useLayoutEffect(() => {
+    const previousActiveItem = previousActiveItemRef.current;
+
+    if (previousActiveItem && previousActiveItem.key !== activePage) {
+      setExitingItems((currentItems) => [
+        ...currentItems,
+        {
+          ...previousActiveItem,
+          id: nextItemIdRef.current,
+        },
+      ]);
+      nextItemIdRef.current += 1;
+    }
+
+    previousActiveItemRef.current = {
+      content: resolvedContent,
+      key: activePage,
+    };
+  }, [activePage, resolvedContent]);
+
+  useEffect(() => {
+    if (exitingItems.length === 0) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setExitingItems([]);
+    }, LAB_PAGE_CONTENT_CROSSFADE_MS);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [exitingItems.length]);
+
+  return (
+    <div
+      className={className}
+      data-lab-crossfade-slot={testId}
+      data-testid={testId}
+    >
+      {exitingItems.map((item) => (
+        <div
+          aria-hidden
+          className={[
+            exitingClassName,
+            'ck-lab-page-crossfade-exit pointer-events-none',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          data-lab-crossfade-key={item.key}
+          data-lab-crossfade-phase="exit"
+          key={item.id}
+          style={
+            {
+              '--ck-lab-page-crossfade-duration': `${LAB_PAGE_CONTENT_CROSSFADE_MS}ms`,
+            } as CSSProperties
+          }
+        >
+          {item.content}
+        </div>
+      ))}
+      <div
+        className={[activeClassName, 'ck-lab-page-crossfade-enter']
+          .filter(Boolean)
+          .join(' ')}
+        data-lab-crossfade-key={activePage}
+        data-lab-crossfade-phase="enter"
+        key={activePage}
+        style={
+          {
+            '--ck-lab-page-crossfade-duration': `${LAB_PAGE_CONTENT_CROSSFADE_MS}ms`,
+          } as CSSProperties
+        }
+      >
+        {resolvedContent}
+      </div>
+    </div>
+  );
+}
 
 function getSegmentedFieldItemStateClass(isSelected: boolean): string {
   return isSelected
@@ -2819,8 +2932,19 @@ function LabPageFrameContent({
                 onPagePreload={onPagePreload}
                 pages={pages}
               />
-              <div className="contents" data-lab-component-preview>
-                {preview ?? <LabPagePreviewFallback />}
+              <div
+                className="pointer-events-none absolute inset-0 flex min-w-0 items-center justify-center px-6 py-10"
+                data-lab-component-preview
+              >
+                <LabPageCrossfadeSlot
+                  activePage={activePage}
+                  activeClassName="pointer-events-auto absolute inset-0 flex min-w-0 items-center justify-center"
+                  className="relative h-full w-full min-w-0"
+                  content={preview}
+                  exitingClassName="absolute inset-0 flex min-w-0 items-center justify-center"
+                  fallback={<LabPagePreviewFallback />}
+                  testId="lab-preview-crossfade"
+                />
               </div>
             </section>
 
@@ -2839,8 +2963,15 @@ function LabPageFrameContent({
                     panelTooltipProviderProps.skipDelayDuration
                   }
                 >
-                  <div className="w-full min-w-0 max-w-full space-y-6 overflow-x-hidden p-4">
-                    {properties ?? <LabPagePropertiesFallback />}
+                  <div className="w-full min-w-0 max-w-full overflow-x-hidden p-4">
+                    <LabPageCrossfadeSlot
+                      activePage={activePage}
+                      activeClassName="w-full min-w-0 max-w-full space-y-6"
+                      content={properties}
+                      exitingClassName="absolute inset-x-0 top-0 w-full min-w-0 max-w-full space-y-6"
+                      fallback={<LabPagePropertiesFallback />}
+                      testId="lab-properties-crossfade"
+                    />
                   </div>
                 </TooltipProvider>
               </ScrollArea>

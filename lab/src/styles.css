@@ -140,8 +140,43 @@
   }
 }
 
+@keyframes ck-lab-page-crossfade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes ck-lab-page-crossfade-out {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+.ck-lab-page-crossfade-enter {
+  animation: ck-lab-page-crossfade-in
+    var(--ck-lab-page-crossfade-duration, 72ms) ease-out both;
+}
+
+.ck-lab-page-crossfade-exit {
+  animation: ck-lab-page-crossfade-out
+    var(--ck-lab-page-crossfade-duration, 72ms) ease-out both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ck-lab-header-exit {
+    animation-duration: 1ms;
+  }
+
+  .ck-lab-page-crossfade-enter,
+  .ck-lab-page-crossfade-exit {
     animation-duration: 1ms;
   }
 }

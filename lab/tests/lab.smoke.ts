@@ -121,6 +121,22 @@ test('mirrors the color-kit lab pages and properties panel', async ({
     await expect(page).toHaveURL(new RegExp(`/lab/${labPage.slug}$`));
     await expect(navLink).toHaveAttribute('aria-current', 'page');
     await expect(page.locator('[data-lab-component-preview]')).toHaveCount(1);
+    const previewCrossfade = page.getByTestId('lab-preview-crossfade');
+    const propertiesCrossfade = page.getByTestId('lab-properties-crossfade');
+    await expect(previewCrossfade).toBeVisible();
+    await expect(propertiesCrossfade).toBeVisible();
+    await expect(
+      previewCrossfade.locator('[data-lab-crossfade-phase="enter"]'),
+    ).toHaveAttribute('data-lab-crossfade-key', labPage.value);
+    await expect(
+      propertiesCrossfade.locator('[data-lab-crossfade-phase="enter"]'),
+    ).toHaveAttribute('data-lab-crossfade-key', labPage.value);
+    await expect(
+      page.getByRole('status', { name: 'Loading preview', exact: true }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole('status', { name: 'Loading properties', exact: true }),
+    ).toHaveCount(0);
     await expect(page.locator('aside')).toContainText(labPage.panelText);
     const performancePanel = page.getByRole('region', {
       name: `Performance analysis for ${labPage.label}`,
