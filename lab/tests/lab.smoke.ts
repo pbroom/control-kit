@@ -18,6 +18,7 @@ const DEFAULT_METRIC_ROW_ORDER = [
 const DESKTOP_VIEWPORT = { height: 1000, width: 1440 };
 const COMPACT_DESKTOP_VIEWPORT = { height: 998, width: 1182 };
 const LAB_COLLAPSED_PANEL_RESTORE_MIN_HEIGHT = 128;
+const LAB_COLLAPSED_PANEL_HANDLE_HEIGHT = 32;
 
 const LAB_PAGE_PANEL_TEXT = {
   plane: 'Drive the current sample color.',
@@ -617,15 +618,67 @@ test('mirrors the color-kit lab pages and properties panel', async ({
         await expect(resizeHandle).toBeVisible();
         const handleBox = await resizeHandle.boundingBox();
         expect(handleBox).not.toBeNull();
+        expect(handleBox!.height).toBeGreaterThanOrEqual(
+          LAB_COLLAPSED_PANEL_HANDLE_HEIGHT,
+        );
+        const resizeGrip = resizeHandle.locator(
+          '[data-lab-performance-resize-grip]',
+        );
+        const gripBox = await resizeGrip.boundingBox();
+        expect(gripBox).not.toBeNull();
+        expect(gripBox!.height).toBeGreaterThanOrEqual(4);
+        expect(gripBox!.width).toBeGreaterThanOrEqual(80);
 
         await page.mouse.move(
           handleBox!.x + handleBox!.width / 2,
           handleBox!.y + 2,
         );
         await page.mouse.down();
+        await expect
+          .poll(() =>
+            resizeGrip.evaluate(
+              (node) => getComputedStyle(node).backgroundColor,
+            ),
+          )
+          .toMatch(/(?:255, 255, 255|0\.6\))/);
+        expect(
+          await resizeGrip.evaluate(
+            (node) => getComputedStyle(node).backgroundColor,
+          ),
+        ).not.toContain('82, 136, 219');
         await page.mouse.move(
           handleBox!.x + handleBox!.width / 2,
-          handleBox!.y + 18,
+          handleBox!.y - 220,
+        );
+        const rubberBandPanelBox = await performancePanel.boundingBox();
+        expect(rubberBandPanelBox).not.toBeNull();
+        expect(rubberBandPanelBox!.height).toBeGreaterThan(
+          performancePanelBox!.height,
+        );
+        expect(rubberBandPanelBox!.height).toBeLessThan(
+          performancePanelBox!.height + 120,
+        );
+        await page.mouse.up();
+        await expect
+          .poll(async () => (await performancePanel.boundingBox())?.height ?? 0)
+          .toBeLessThan(rubberBandPanelBox!.height - 8);
+        const snappedOpenPanelBox = await performancePanel.boundingBox();
+        expect(snappedOpenPanelBox).not.toBeNull();
+        expect(snappedOpenPanelBox!.height).toBeLessThanOrEqual(
+          Math.max(metricsTableBox!.height, timelineFitBox!.height) + 64,
+        );
+
+        const snappedHandleBox = await resizeHandle.boundingBox();
+        expect(snappedHandleBox).not.toBeNull();
+
+        await page.mouse.move(
+          snappedHandleBox!.x + snappedHandleBox!.width / 2,
+          snappedHandleBox!.y + 2,
+        );
+        await page.mouse.down();
+        await page.mouse.move(
+          snappedHandleBox!.x + snappedHandleBox!.width / 2,
+          snappedHandleBox!.y + 18,
         );
         await page.mouse.up();
 
@@ -718,21 +771,48 @@ test('mirrors the color-kit lab pages and properties panel', async ({
         );
         const collapsedPanelBox = await performancePanel.boundingBox();
         expect(collapsedPanelBox).not.toBeNull();
-        expect(collapsedPanelBox!.height).toBeLessThanOrEqual(1);
+        expect(collapsedPanelBox!.height).toBeLessThanOrEqual(
+          LAB_COLLAPSED_PANEL_HANDLE_HEIGHT,
+        );
         await expect(resizeHandle).toBeVisible();
-        const collapsedSurfaceState = await performancePanel
-          .locator('[data-lab-performance-panel-surface]')
-          .evaluate((node) => ({
-            ariaHidden: node.getAttribute('aria-hidden'),
-          }));
+        const panelSurface = performancePanel.locator(
+          '[data-lab-performance-panel-surface]',
+        );
+        const collapsedSurfaceState = await panelSurface.evaluate((node) => ({
+          ariaHidden: node.getAttribute('aria-hidden'),
+        }));
         expect(collapsedSurfaceState.ariaHidden).toBe('true');
         await expect
           .poll(() =>
-            performancePanel
-              .locator('[data-lab-performance-panel-surface]')
-              .evaluate((node) => Number(getComputedStyle(node).opacity)),
+            panelSurface.evaluate(
+              (node) => node.getBoundingClientRect().height,
+            ),
+          )
+          .toBeLessThanOrEqual(1);
+        await expect
+          .poll(() =>
+            panelSurface.evaluate((node) =>
+              Number(getComputedStyle(node).opacity),
+            ),
           )
           .toBeLessThanOrEqual(0.05);
+        const collapsedScrollState = await labScrollColumn.evaluate((node) => ({
+          clientHeight: node.clientHeight,
+          scrollHeight: node.scrollHeight,
+        }));
+        expect(collapsedScrollState.scrollHeight).toBeLessThanOrEqual(
+          collapsedScrollState.clientHeight + 1,
+        );
+        const collapsedDocumentScrollState = await page.evaluate(() => ({
+          pageHeight: Math.max(
+            document.body.scrollHeight,
+            document.documentElement.scrollHeight,
+          ),
+          viewportHeight: window.innerHeight,
+        }));
+        expect(collapsedDocumentScrollState.pageHeight).toBeLessThanOrEqual(
+          collapsedDocumentScrollState.viewportHeight + 1,
+        );
 
         const collapsedHandleBox = await resizeHandle.boundingBox();
         expect(collapsedHandleBox).not.toBeNull();

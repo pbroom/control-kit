@@ -1,6 +1,7 @@
 import {
   closestCenter,
   DndContext,
+  MouseSensor,
   PointerSensor,
   useSensor,
   useSensors,
@@ -143,12 +144,19 @@ const LAB_PREVIEW_LCP_IGNORED_TAGS = new Set([
 ]);
 const LAB_LCP_PENDING_ATTRIBUTION = 'Largest preview element pending';
 const LAB_LCP_NO_PREVIEW_CANDIDATE_ATTRIBUTION = 'No preview LCP candidate';
-const LAB_PERFORMANCE_PANEL_DEFAULT_HEIGHT = 560;
+const LAB_PERFORMANCE_PANEL_DEFAULT_HEIGHT = 320;
 const LAB_PERFORMANCE_PANEL_COLLAPSED_HEIGHT = 0;
+const LAB_PERFORMANCE_PANEL_HANDLE_HIT_AREA = 32;
 const LAB_PERFORMANCE_PANEL_MIN_HEIGHT = 128;
-const LAB_PERFORMANCE_PANEL_MAX_HEIGHT = 560;
+const LAB_PERFORMANCE_PANEL_RUBBER_BAND_LIMIT = 96;
+const LAB_PERFORMANCE_PANEL_RUBBER_BAND_RESISTANCE = 56;
 const LAB_PERFORMANCE_PANEL_RESIZE_STEP = 16;
-const LAB_PERFORMANCE_PANEL_VERTICAL_PADDING = 32;
+const LAB_PERFORMANCE_PANEL_SURFACE_PADDING_BOTTOM = 16;
+const LAB_PERFORMANCE_PANEL_SURFACE_PADDING_TOP =
+  LAB_PERFORMANCE_PANEL_HANDLE_HIT_AREA;
+const LAB_PERFORMANCE_PANEL_VERTICAL_PADDING =
+  LAB_PERFORMANCE_PANEL_SURFACE_PADDING_TOP +
+  LAB_PERFORMANCE_PANEL_SURFACE_PADDING_BOTTOM;
 const LAB_PERFORMANCE_PANEL_LAYOUT_SHIFT_SUPPRESSION_MS = 700;
 const LAB_PERFORMANCE_SCROLLBAR_ACTIVE_MS = 700;
 const LAB_METRIC_LABEL_TRUNCATION_TOLERANCE_PX = 1;
@@ -195,6 +203,7 @@ type LabMetricRowId = (typeof LAB_METRIC_ROW_IDS)[number];
 
 type LabPerformancePanelStyle = CSSProperties & {
   '--lab-performance-panel-content-max-height': string;
+  '--lab-performance-panel-frame-height': string;
   '--lab-performance-panel-height': string;
   '--lab-performance-panel-opacity': string;
   '--lab-performance-panel-translate-y': string;
@@ -391,18 +400,35 @@ function createTimelineStoryRows(
   });
 }
 
-function clampPerformancePanelHeight(height: number) {
+function clampPerformancePanelHeight(height: number, maxHeight: number) {
   return Math.min(
-    LAB_PERFORMANCE_PANEL_MAX_HEIGHT,
+    maxHeight,
     Math.max(LAB_PERFORMANCE_PANEL_COLLAPSED_HEIGHT, Math.round(height)),
   );
 }
 
-function clampPerformancePanelOpenHeight(height: number) {
+function clampPerformancePanelOpenHeight(height: number, maxHeight: number) {
   return Math.min(
-    LAB_PERFORMANCE_PANEL_MAX_HEIGHT,
+    maxHeight,
     Math.max(LAB_PERFORMANCE_PANEL_MIN_HEIGHT, Math.round(height)),
   );
+}
+
+function getPerformancePanelRubberBandOvershoot(overshoot: number) {
+  return (
+    LAB_PERFORMANCE_PANEL_RUBBER_BAND_LIMIT *
+    (1 - Math.exp(-overshoot / LAB_PERFORMANCE_PANEL_RUBBER_BAND_RESISTANCE))
+  );
+}
+
+function getPerformancePanelDragHeight(height: number, maxHeight: number) {
+  if (height > maxHeight) {
+    return Math.round(
+      maxHeight + getPerformancePanelRubberBandOvershoot(height - maxHeight),
+    );
+  }
+
+  return clampPerformancePanelHeight(height, maxHeight);
 }
 
 function getPerformancePanelCollapseProgress(height: number) {
@@ -1832,6 +1858,7 @@ function LabMetricTable({ vitals }: { vitals: LabPerformanceVitals }) {
   const tableRef = useRef<HTMLTableElement>(null);
   const sensors = useSensors(
     useSensor(PointerSensor, LAB_METRIC_ROW_SENSOR_OPTIONS),
+    useSensor(MouseSensor, LAB_METRIC_ROW_SENSOR_OPTIONS),
   );
   const rows: LabMetricRow[] = [
     {
@@ -2232,13 +2259,19 @@ export function LabPerformanceAnalysisPanel({
   const [panelHeight, setPanelHeight] = useState(
     LAB_PERFORMANCE_PANEL_DEFAULT_HEIGHT,
   );
+  const [panelMaxHeight, setPanelMaxHeight] = useState(
+    LAB_PERFORMANCE_PANEL_DEFAULT_HEIGHT,
+  );
   const [isResizingPanel, setIsResizingPanel] = useState(false);
   const [isMetricsScrollbarActive, setIsMetricsScrollbarActive] =
     useState(false);
   const contentRef = useRef<HTMLDivElement | null>(null);
+  const panelHeightRef = useRef(panelHeight);
+  const panelMaxHeightRef = useRef(panelMaxHeight);
   const userSizedPanelRef = useRef(false);
   const metricsScrollbarIdleTimerRef = useRef<number | null>(null);
   const resizeStateRef = useRef<{
+    lastHeight: number;
     startHeight: number;
     startY: number;
   } | null>(null);
@@ -2246,6 +2279,14 @@ export function LabPerformanceAnalysisPanel({
     activePage,
     isLoading,
   );
+
+  useEffect(() => {
+    panelHeightRef.current = panelHeight;
+  }, [panelHeight]);
+
+  useEffect(() => {
+    panelMaxHeightRef.current = panelMaxHeight;
+  }, [panelMaxHeight]);
 
   const startPanelResize = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -2256,21 +2297,20 @@ export function LabPerformanceAnalysisPanel({
       event.preventDefault();
       suppressAnalysisSurfaceLayoutShifts();
       userSizedPanelRef.current = true;
-      const panelElement = event.currentTarget.closest<HTMLElement>(
-        '[data-lab-performance-panel]',
-      );
       const startHeight = clampPerformancePanelHeight(
-        panelElement?.getBoundingClientRect().height ?? panelHeight,
+        panelHeightRef.current,
+        panelMaxHeightRef.current,
       );
 
       event.currentTarget.setPointerCapture(event.pointerId);
       resizeStateRef.current = {
+        lastHeight: startHeight,
         startHeight,
         startY: event.clientY,
       };
       setIsResizingPanel(true);
     },
-    [panelHeight],
+    [],
   );
 
   const resizePanelWithKeyboard = useCallback(
@@ -2283,7 +2323,9 @@ export function LabPerformanceAnalysisPanel({
         event.preventDefault();
         suppressAnalysisSurfaceLayoutShifts();
         userSizedPanelRef.current = true;
-        setPanelHeight((height) => clampPerformancePanelHeight(height + step));
+        setPanelHeight((height) =>
+          clampPerformancePanelOpenHeight(height + step, panelMaxHeight),
+        );
         return;
       }
 
@@ -2291,7 +2333,9 @@ export function LabPerformanceAnalysisPanel({
         event.preventDefault();
         suppressAnalysisSurfaceLayoutShifts();
         userSizedPanelRef.current = true;
-        setPanelHeight((height) => clampPerformancePanelHeight(height - step));
+        setPanelHeight((height) =>
+          clampPerformancePanelHeight(height - step, panelMaxHeight),
+        );
         return;
       }
 
@@ -2307,10 +2351,10 @@ export function LabPerformanceAnalysisPanel({
         event.preventDefault();
         suppressAnalysisSurfaceLayoutShifts();
         userSizedPanelRef.current = true;
-        setPanelHeight(LAB_PERFORMANCE_PANEL_MAX_HEIGHT);
+        setPanelHeight(panelMaxHeight);
       }
     },
-    [],
+    [panelMaxHeight],
   );
 
   const showMetricsScrollbar = useCallback(() => {
@@ -2345,10 +2389,6 @@ export function LabPerformanceAnalysisPanel({
     }
 
     const fitPanelToContent = () => {
-      if (userSizedPanelRef.current) {
-        return;
-      }
-
       const metricsTable = contentNode.querySelector('table');
       const timelineShell = contentNode.querySelector(
         '[data-testid="lab-performance-timeline-shell"]',
@@ -2360,7 +2400,15 @@ export function LabPerformanceAnalysisPanel({
       );
       const nextHeight = clampPerformancePanelOpenHeight(
         contentHeight + LAB_PERFORMANCE_PANEL_VERTICAL_PADDING,
+        Number.MAX_SAFE_INTEGER,
       );
+      setPanelMaxHeight((height) =>
+        Math.abs(height - nextHeight) <= 1 ? height : nextHeight,
+      );
+
+      if (userSizedPanelRef.current) {
+        return;
+      }
 
       setPanelHeight((height) =>
         Math.abs(height - nextHeight) <= 1 ? height : nextHeight,
@@ -2397,10 +2445,12 @@ export function LabPerformanceAnalysisPanel({
         return;
       }
 
-      const nextHeight = clampPerformancePanelHeight(
+      const nextHeight = getPerformancePanelDragHeight(
         resizeState.startHeight + resizeState.startY - event.clientY,
+        panelMaxHeightRef.current,
       );
 
+      resizeState.lastHeight = nextHeight;
       suppressAnalysisSurfaceLayoutShifts();
       cancelAnimationFrame(resizeAnimationFrame);
       resizeAnimationFrame = requestAnimationFrame(() => {
@@ -2410,7 +2460,18 @@ export function LabPerformanceAnalysisPanel({
 
     const stopPanelResize = () => {
       suppressAnalysisSurfaceLayoutShifts();
+      cancelAnimationFrame(resizeAnimationFrame);
+      const lastHeight =
+        resizeStateRef.current?.lastHeight ?? panelHeightRef.current;
+      const nextHeight =
+        lastHeight < LAB_PERFORMANCE_PANEL_MIN_HEIGHT
+          ? LAB_PERFORMANCE_PANEL_COLLAPSED_HEIGHT
+          : clampPerformancePanelOpenHeight(
+              lastHeight,
+              panelMaxHeightRef.current,
+            );
       resizeStateRef.current = null;
+      setPanelHeight(nextHeight);
       setIsResizingPanel(false);
     };
 
@@ -2433,11 +2494,25 @@ export function LabPerformanceAnalysisPanel({
   const collapseProgress = getPerformancePanelCollapseProgress(panelHeight);
   const isPanelCollapsed =
     panelHeight <= LAB_PERFORMANCE_PANEL_COLLAPSED_HEIGHT;
+  const panelFrameHeight = Math.max(
+    panelHeight,
+    LAB_PERFORMANCE_PANEL_HANDLE_HIT_AREA,
+  );
+  const surfacePaddingBottom = `${(
+    LAB_PERFORMANCE_PANEL_SURFACE_PADDING_BOTTOM * collapseProgress
+  ).toFixed(2)}px`;
+  const surfacePaddingTop = `${(
+    LAB_PERFORMANCE_PANEL_SURFACE_PADDING_TOP * collapseProgress
+  ).toFixed(2)}px`;
+  const accessiblePanelHeight = Math.round(
+    Math.min(panelHeight, panelMaxHeight),
+  );
   const panelStyle: LabPerformancePanelStyle = {
     '--lab-performance-panel-content-max-height': `${Math.max(
       0,
       panelHeight - LAB_PERFORMANCE_PANEL_VERTICAL_PADDING,
     )}px`,
+    '--lab-performance-panel-frame-height': `${panelFrameHeight}px`,
     '--lab-performance-panel-height': `${panelHeight}px`,
     '--lab-performance-panel-opacity': collapseProgress.toFixed(3),
     '--lab-performance-panel-translate-y': `${Math.round(
@@ -2448,7 +2523,14 @@ export function LabPerformanceAnalysisPanel({
   return (
     <section
       aria-label={`Performance analysis for ${analysis.label}`}
-      className="relative mx-3 shrink-0 overflow-visible lg:h-[var(--lab-performance-panel-height)]"
+      className={[
+        'relative mx-3 shrink-0 overflow-hidden lg:h-[var(--lab-performance-panel-frame-height)]',
+        isResizingPanel
+          ? null
+          : 'transition-[height] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]',
+      ]
+        .filter(Boolean)
+        .join(' ')}
       data-lab-performance-panel-collapsed={isPanelCollapsed ? 'true' : 'false'}
       data-lab-performance-panel
       style={panelStyle}
@@ -2456,11 +2538,13 @@ export function LabPerformanceAnalysisPanel({
       <div
         aria-label="Resize performance analysis panel"
         aria-orientation="horizontal"
-        aria-valuemax={LAB_PERFORMANCE_PANEL_MAX_HEIGHT}
+        aria-valuemax={Math.round(panelMaxHeight)}
         aria-valuemin={LAB_PERFORMANCE_PANEL_COLLAPSED_HEIGHT}
-        aria-valuenow={panelHeight}
-        aria-valuetext={isPanelCollapsed ? 'Collapsed' : `${panelHeight}px`}
-        className="group absolute inset-x-0 top-0 z-30 hidden h-4 cursor-ns-resize touch-none items-start justify-center rounded-t-[24px] outline-none focus-visible:ring-2 focus-visible:ring-[#5288db]/80 lg:flex"
+        aria-valuenow={accessiblePanelHeight}
+        aria-valuetext={
+          isPanelCollapsed ? 'Collapsed' : `${accessiblePanelHeight}px`
+        }
+        className="group absolute inset-x-0 top-0 z-30 hidden h-8 cursor-ns-resize touch-none items-start justify-center rounded-t-[24px] outline-none focus-visible:ring-2 focus-visible:ring-white/35 lg:flex"
         data-lab-performance-resize-handle
         onKeyDown={resizePanelWithKeyboard}
         onPointerDown={startPanelResize}
@@ -2468,19 +2552,30 @@ export function LabPerformanceAnalysisPanel({
         tabIndex={0}
       >
         <span
-          className={`mt-1 block h-0.5 w-10 rounded-full transition-colors ${
+          className={`mt-2 block h-1 w-20 rounded-full transition-colors ${
             isResizingPanel
-              ? 'bg-[#5288db]/90'
-              : 'bg-white/16 group-hover:bg-white/28 group-focus-visible:bg-[#5288db]/90'
+              ? 'bg-white/60'
+              : 'bg-white/16 group-hover:bg-white/40 group-active:bg-white/60 group-focus-visible:bg-white/50'
           }`}
+          data-lab-performance-resize-grip
         />
       </div>
       <div
         aria-hidden={isPanelCollapsed ? true : undefined}
         inert={isPanelCollapsed ? true : undefined}
-        className="min-h-[128px] overflow-hidden rounded-[24px] border border-white/8 bg-[#151515] px-4 py-4 opacity-[var(--lab-performance-panel-opacity)] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-[opacity,transform,border-color,background-color] duration-150 ease-out lg:h-full lg:min-h-0 lg:px-6 lg:translate-y-[var(--lab-performance-panel-translate-y)]"
+        className={[
+          'box-border min-h-[128px] overflow-hidden rounded-[24px] border border-white/8 bg-[#151515] px-4 py-0 opacity-[var(--lab-performance-panel-opacity)] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] lg:h-[var(--lab-performance-panel-height)] lg:min-h-0 lg:px-6 lg:translate-y-[var(--lab-performance-panel-translate-y)]',
+          isResizingPanel
+            ? 'transition-[opacity,transform,padding,border-color,background-color] duration-75 ease-out'
+            : 'transition-[height,opacity,transform,padding,border-color,background-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]',
+        ]
+          .filter(Boolean)
+          .join(' ')}
         data-lab-performance-panel-surface
         style={{
+          borderWidth: isPanelCollapsed ? 0 : undefined,
+          paddingBottom: surfacePaddingBottom,
+          paddingTop: surfacePaddingTop,
           transform: 'translateY(var(--lab-performance-panel-translate-y))',
         }}
       >
