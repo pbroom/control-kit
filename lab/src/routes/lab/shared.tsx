@@ -1037,7 +1037,7 @@ const PANEL_TWO_COLUMN_GRID_CLASS =
   'grid w-full min-w-0 max-w-full grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3';
 
 const LAB_PANEL_SCROLL_AREA_CLASS =
-  'h-full w-full min-w-0 max-w-full overflow-hidden [&>[data-radix-scroll-area-viewport]]:w-full [&>[data-radix-scroll-area-viewport]]:min-w-0 [&>[data-radix-scroll-area-viewport]]:max-w-full [&>[data-radix-scroll-area-viewport]]:overflow-x-hidden [&>[data-radix-scroll-area-viewport]>div]:!block [&>[data-radix-scroll-area-viewport]>div]:!w-full [&>[data-radix-scroll-area-viewport]>div]:!min-w-0 [&>[data-radix-scroll-area-viewport]>div]:!max-w-full';
+  'ck-lab-properties-scroll-area h-full w-full min-w-0 max-w-full overflow-hidden [&>[data-radix-scroll-area-viewport]]:w-full [&>[data-radix-scroll-area-viewport]]:min-w-0 [&>[data-radix-scroll-area-viewport]]:max-w-full [&>[data-radix-scroll-area-viewport]]:overflow-x-hidden [&>[data-radix-scroll-area-viewport]>div]:!block [&>[data-radix-scroll-area-viewport]>div]:!w-full [&>[data-radix-scroll-area-viewport]>div]:!min-w-0 [&>[data-radix-scroll-area-viewport]>div]:!max-w-full';
 const LAB_PAGE_CONTENT_CROSSFADE_MS = 72;
 
 type LabPageCrossfadeItem = {
@@ -3123,6 +3123,7 @@ function LabPageFrameContent({
                     <LabPageCrossfadeSlot
                       activePage={activePage}
                       activeClassName="w-full min-w-0 max-w-full space-y-6"
+                      className="relative overflow-hidden"
                       content={properties}
                       exitingClassName="absolute inset-x-0 top-0 w-full min-w-0 max-w-full space-y-6"
                       fallback={<LabPagePropertiesFallback />}

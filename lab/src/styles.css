@@ -170,6 +170,12 @@
     var(--ck-lab-page-crossfade-duration, 72ms) ease-out both;
 }
 
+.ck-lab-properties-scroll-area:has([data-lab-crossfade-phase='exit'])
+  [data-slot='scroll-area-scrollbar'] {
+  opacity: 0 !important;
+  pointer-events: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ck-lab-header-exit {
     animation-duration: 1ms;
