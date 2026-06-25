@@ -143,6 +143,46 @@ test('mirrors the color-kit lab pages and properties panel', async ({
       exact: true,
     });
     await expect(performancePanel).toBeVisible();
+    if (index === 0 && testInfo.project.name === 'desktop') {
+      const panelToggleControls = page.getByTestId('lab-panel-toggle-controls');
+      const propertiesToggle = page.getByTestId('lab-toggle-properties-panel');
+      const performanceToggle = page.getByTestId(
+        'lab-toggle-performance-panel',
+      );
+      const propertiesPanel = page.locator('[data-lab-properties-panel]');
+
+      await expect(panelToggleControls).toBeVisible();
+      await expect(propertiesToggle).toHaveAttribute('aria-pressed', 'true');
+      await expect(performanceToggle).toHaveAttribute('aria-pressed', 'true');
+
+      await propertiesToggle.click();
+      await expect(propertiesPanel).toHaveAttribute(
+        'data-lab-properties-panel-collapsed',
+        'true',
+      );
+      await expect(propertiesToggle).toHaveAttribute('aria-pressed', 'false');
+
+      await propertiesToggle.click();
+      await expect(propertiesPanel).toHaveAttribute(
+        'data-lab-properties-panel-collapsed',
+        'false',
+      );
+      await expect(propertiesToggle).toHaveAttribute('aria-pressed', 'true');
+
+      await performanceToggle.click();
+      await expect(performancePanel).toHaveAttribute(
+        'data-lab-performance-panel-collapsed',
+        'true',
+      );
+      await expect(performanceToggle).toHaveAttribute('aria-pressed', 'false');
+
+      await performanceToggle.click();
+      await expect(performancePanel).toHaveAttribute(
+        'data-lab-performance-panel-collapsed',
+        'false',
+      );
+      await expect(performanceToggle).toHaveAttribute('aria-pressed', 'true');
+    }
     await expect(performancePanel).toContainText(
       'First contentful paint (FCP)',
     );

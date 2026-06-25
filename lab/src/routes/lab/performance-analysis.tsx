@@ -2251,10 +2251,14 @@ function LabPerformanceTimeline({
 
 export function LabPerformanceAnalysisPanel({
   activePage,
+  isCollapsed,
   isLoading,
+  onCollapsedChange,
 }: {
   activePage: LabPageKey;
+  isCollapsed?: boolean;
   isLoading: boolean;
+  onCollapsedChange?: (isCollapsed: boolean) => void;
 }) {
   const analysis = LAB_PERFORMANCE_ANALYSIS[activePage];
   const [panelHeight, setPanelHeight] = useState(
@@ -2291,6 +2295,28 @@ export function LabPerformanceAnalysisPanel({
   useEffect(() => {
     panelMaxHeightRef.current = panelMaxHeight;
   }, [panelMaxHeight]);
+
+  useEffect(() => {
+    if (isCollapsed === undefined) {
+      return;
+    }
+
+    const currentHeight = panelHeightRef.current;
+    const isCurrentlyCollapsed =
+      currentHeight <= LAB_PERFORMANCE_PANEL_COLLAPSED_HEIGHT;
+
+    if (isCollapsed === isCurrentlyCollapsed) {
+      return;
+    }
+
+    suppressAnalysisSurfaceLayoutShifts();
+    userSizedPanelRef.current = true;
+    setPanelHeight(
+      isCollapsed
+        ? LAB_PERFORMANCE_PANEL_COLLAPSED_HEIGHT
+        : panelMaxHeightRef.current,
+    );
+  }, [isCollapsed]);
 
   const startPanelResize = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -2520,6 +2546,11 @@ export function LabPerformanceAnalysisPanel({
   const collapseProgress = getPerformancePanelCollapseProgress(panelHeight);
   const isPanelCollapsed =
     panelHeight <= LAB_PERFORMANCE_PANEL_COLLAPSED_HEIGHT;
+
+  useEffect(() => {
+    onCollapsedChange?.(isPanelCollapsed);
+  }, [isPanelCollapsed, onCollapsedChange]);
+
   const panelFrameHeight = Math.max(
     panelHeight,
     LAB_PERFORMANCE_PANEL_HANDLE_HIT_AREA,
@@ -2559,6 +2590,7 @@ export function LabPerformanceAnalysisPanel({
         .join(' ')}
       data-lab-performance-panel-collapsed={isPanelCollapsed ? 'true' : 'false'}
       data-lab-performance-panel
+      id="lab-performance-panel"
       style={panelStyle}
     >
       <div

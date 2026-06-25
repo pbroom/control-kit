@@ -86,6 +86,10 @@ import {
   MousePointer2,
   Option,
   Palette,
+  PanelBottomClose,
+  PanelBottomOpen,
+  PanelRightClose,
+  PanelRightOpen,
   Pencil,
   Pipette,
   Play,
@@ -2903,6 +2907,106 @@ function LabPagePropertiesFallback() {
   );
 }
 
+type LabPanelToggleButtonProps = {
+  'aria-controls': string;
+  icon: LucideIcon;
+  isPressed: boolean;
+  label: string;
+  onClick: () => void;
+  testId: string;
+};
+
+function LabPanelToggleButton({
+  'aria-controls': ariaControls,
+  icon: Icon,
+  isPressed,
+  label,
+  onClick,
+  testId,
+}: LabPanelToggleButtonProps) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          aria-controls={ariaControls}
+          aria-label={label}
+          aria-pressed={isPressed}
+          className={[
+            'flex h-8 w-8 items-center justify-center rounded-[12px] border border-white/8 text-white/62 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] outline-none transition-[background-color,border-color,color,box-shadow]',
+            'hover:border-white/16 hover:bg-white/[0.08] hover:text-white/88 focus-visible:ring-2 focus-visible:ring-[#5288db] active:border-white/22 active:bg-white/[0.12] active:text-white',
+            isPressed
+              ? 'bg-white/[0.10] text-white/92'
+              : 'bg-[#202020]/95 backdrop-blur',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          data-testid={testId}
+          onClick={onClick}
+        >
+          <Icon aria-hidden className="h-4 w-4" strokeWidth={2.1} />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="left">{label}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+function LabPanelToggleControls({
+  isPerformancePanelCollapsed,
+  isPropertiesPanelCollapsed,
+  onTogglePerformancePanel,
+  onTogglePropertiesPanel,
+}: {
+  isPerformancePanelCollapsed: boolean;
+  isPropertiesPanelCollapsed: boolean;
+  onTogglePerformancePanel: () => void;
+  onTogglePropertiesPanel: () => void;
+}) {
+  const PropertiesIcon = isPropertiesPanelCollapsed
+    ? PanelRightOpen
+    : PanelRightClose;
+  const PerformanceIcon = isPerformancePanelCollapsed
+    ? PanelBottomOpen
+    : PanelBottomClose;
+
+  return (
+    <TooltipProvider delayDuration={350} skipDelayDuration={120}>
+      <div
+        aria-label="Panel visibility controls"
+        className="pointer-events-auto absolute top-4 right-[calc(var(--lab-properties-panel-width)+0.75rem)] z-40 hidden gap-2 lg:flex"
+        data-testid="lab-panel-toggle-controls"
+        role="toolbar"
+      >
+        <LabPanelToggleButton
+          aria-controls="lab-performance-panel"
+          icon={PerformanceIcon}
+          isPressed={!isPerformancePanelCollapsed}
+          label={
+            isPerformancePanelCollapsed
+              ? 'Show performance panel'
+              : 'Hide performance panel'
+          }
+          onClick={onTogglePerformancePanel}
+          testId="lab-toggle-performance-panel"
+        />
+        <LabPanelToggleButton
+          aria-controls="lab-properties-panel"
+          icon={PropertiesIcon}
+          isPressed={!isPropertiesPanelCollapsed}
+          label={
+            isPropertiesPanelCollapsed
+              ? 'Show properties panel'
+              : 'Hide properties panel'
+          }
+          onClick={onTogglePropertiesPanel}
+          testId="lab-toggle-properties-panel"
+        />
+      </div>
+    </TooltipProvider>
+  );
+}
+
 function LabPageFrameContent({
   activePage,
   getPageHref,
@@ -2913,13 +3017,39 @@ function LabPageFrameContent({
 }: LabPageFrameProps) {
   const { panelTooltipProviderProps, preview, properties } =
     useLabPageSlotContent();
+  const [isPropertiesPanelCollapsed, setIsPropertiesPanelCollapsed] =
+    useState(false);
+  const [isPerformancePanelCollapsed, setIsPerformancePanelCollapsed] =
+    useState(false);
+  const isLabPageLoading = preview === null;
+  const togglePropertiesPanel = useCallback(() => {
+    setIsPropertiesPanelCollapsed((isCollapsed) => !isCollapsed);
+  }, []);
+  const togglePerformancePanel = useCallback(() => {
+    setIsPerformancePanelCollapsed((isCollapsed) => !isCollapsed);
+  }, []);
 
   return (
     <div className="min-h-screen overflow-hidden bg-[#171717]">
       <LabHeaderExit />
 
-      <main className="h-screen min-h-screen min-w-0 bg-[#171717] [--ck-lab-segmented-active-bg:#171717] text-white lg:overflow-hidden">
-        <div className="grid min-h-screen min-w-0 grid-cols-1 lg:h-full lg:grid-cols-[minmax(0,1fr)_300px]">
+      <main
+        className="h-screen min-h-screen min-w-0 bg-[#171717] [--ck-lab-segmented-active-bg:#171717] text-white lg:overflow-hidden"
+        style={
+          {
+            '--lab-properties-panel-width': isPropertiesPanelCollapsed
+              ? '0px'
+              : '300px',
+          } as CSSProperties
+        }
+      >
+        <div className="relative grid min-h-screen min-w-0 grid-cols-1 transition-[grid-template-columns] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] lg:h-full lg:grid-cols-[minmax(0,1fr)_var(--lab-properties-panel-width)]">
+          <LabPanelToggleControls
+            isPerformancePanelCollapsed={isPerformancePanelCollapsed}
+            isPropertiesPanelCollapsed={isPropertiesPanelCollapsed}
+            onTogglePerformancePanel={togglePerformancePanel}
+            onTogglePropertiesPanel={togglePropertiesPanel}
+          />
           <div
             className="flex min-h-screen min-w-0 flex-col lg:h-full lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:pb-3"
             data-lab-page-scroll
@@ -2950,11 +3080,29 @@ function LabPageFrameContent({
 
             <LabPerformanceAnalysisPanel
               activePage={activePage}
-              isLoading={!preview}
+              isCollapsed={isPerformancePanelCollapsed}
+              isLoading={isLabPageLoading}
+              onCollapsedChange={setIsPerformancePanelCollapsed}
             />
           </div>
 
-          <aside className="min-w-0 max-w-full overflow-hidden border-t border-white/8 p-3 lg:h-full lg:min-h-0 lg:border-t-0 lg:py-4 lg:pr-4 lg:pl-0">
+          <aside
+            aria-hidden={isPropertiesPanelCollapsed ? true : undefined}
+            className={[
+              'min-w-0 max-w-full overflow-hidden border-t border-white/8 p-3 transition-[opacity,padding,border-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] lg:h-full lg:min-h-0 lg:border-t-0 lg:py-4 lg:pr-4 lg:pl-0',
+              isPropertiesPanelCollapsed
+                ? 'lg:pointer-events-none lg:border-transparent lg:pr-0 lg:opacity-0'
+                : 'lg:opacity-100',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+            data-lab-properties-panel
+            data-lab-properties-panel-collapsed={
+              isPropertiesPanelCollapsed ? 'true' : 'false'
+            }
+            id="lab-properties-panel"
+            inert={isPropertiesPanelCollapsed ? true : undefined}
+          >
             <div className="h-full w-full min-w-0 max-w-full overflow-hidden rounded-[24px] border border-white/8 bg-white/[0.03] [--ck-lab-segmented-active-bg:color-mix(in_srgb,#171717_97%,white_3%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] backdrop-blur lg:min-h-0">
               <ScrollArea className={LAB_PANEL_SCROLL_AREA_CLASS}>
                 <TooltipProvider
