@@ -1,3 +1,22 @@
+import {
+  closestCenter,
+  DndContext,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import type {
+  DragEndEvent,
+  Modifier,
+  PointerSensorOptions,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
   CSSProperties,
@@ -99,6 +118,31 @@ const LAB_PERFORMANCE_PANEL_RESIZE_STEP = 16;
 const LAB_PERFORMANCE_PANEL_VERTICAL_PADDING = 32;
 const LAB_PERFORMANCE_PANEL_LAYOUT_SHIFT_SUPPRESSION_MS = 700;
 const LAB_PERFORMANCE_SCROLLBAR_ACTIVE_MS = 700;
+const LAB_METRIC_ROW_DRAG_ACTIVATION_Y_PX = 8;
+const LAB_METRIC_ROW_ORDER_STORAGE_KEY =
+  'control-kit:lab:performance-metric-row-order:v1';
+const LAB_METRIC_ROW_IDS = [
+  'resources',
+  'long-tasks',
+  'fcp',
+  'lcp',
+  'cls',
+  'inp',
+  'fps',
+  'loading',
+] as const;
+const LAB_METRIC_ROW_ID_SET = new Set<string>(LAB_METRIC_ROW_IDS);
+const LAB_METRIC_ROW_SENSOR_OPTIONS = {
+  activationConstraint: {
+    distance: {
+      y: LAB_METRIC_ROW_DRAG_ACTIVATION_Y_PX,
+    },
+  },
+} satisfies PointerSensorOptions;
+const restrictMetricRowDragToVerticalAxis: Modifier = ({ transform }) => ({
+  ...transform,
+  x: 0,
+});
 const IGNORED_INTERACTION_ENTRY_NAMES = new Set([
   'mouseenter',
   'mouseleave',
@@ -111,6 +155,8 @@ const IGNORED_INTERACTION_ENTRY_NAMES = new Set([
   'pointerout',
   'pointerover',
 ]);
+
+type LabMetricRowId = (typeof LAB_METRIC_ROW_IDS)[number];
 
 type LabPerformancePanelStyle = CSSProperties & {
   '--lab-performance-panel-content-max-height': string;
@@ -959,7 +1005,7 @@ function useLabPerformanceTelemetry(
 }
 
 type LabMetricRow = {
-  id: string;
+  id: LabMetricRowId;
   label: string;
   attribution: string;
   curve?: LabMetricCurveConfig;
@@ -967,6 +1013,68 @@ type LabMetricRow = {
   value: string;
   tone: LabPerformanceTone;
 };
+
+function isLabMetricRowId(value: unknown): value is LabMetricRowId {
+  return typeof value === 'string' && LAB_METRIC_ROW_ID_SET.has(value);
+}
+
+function normalizeMetricRowOrder(value: unknown): LabMetricRowId[] {
+  const providedOrder = Array.isArray(value) ? value : [];
+  const seen = new Set<LabMetricRowId>();
+  const normalizedOrder: LabMetricRowId[] = [];
+
+  for (const rowId of providedOrder) {
+    if (!isLabMetricRowId(rowId) || seen.has(rowId)) {
+      continue;
+    }
+
+    seen.add(rowId);
+    normalizedOrder.push(rowId);
+  }
+
+  for (const rowId of LAB_METRIC_ROW_IDS) {
+    if (!seen.has(rowId)) {
+      normalizedOrder.push(rowId);
+    }
+  }
+
+  return normalizedOrder;
+}
+
+function readStoredMetricRowOrder() {
+  if (typeof window === 'undefined') {
+    return [...LAB_METRIC_ROW_IDS];
+  }
+
+  try {
+    const storedValue = window.localStorage.getItem(
+      LAB_METRIC_ROW_ORDER_STORAGE_KEY,
+    );
+
+    if (!storedValue) {
+      return [...LAB_METRIC_ROW_IDS];
+    }
+
+    return normalizeMetricRowOrder(JSON.parse(storedValue));
+  } catch {
+    return [...LAB_METRIC_ROW_IDS];
+  }
+}
+
+function writeStoredMetricRowOrder(rowOrder: readonly LabMetricRowId[]) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(
+      LAB_METRIC_ROW_ORDER_STORAGE_KEY,
+      JSON.stringify(rowOrder),
+    );
+  } catch {
+    // Ignore storage failures so the table remains reorderable in private modes.
+  }
+}
 
 function getMetricToneColor(tone: LabPerformanceTone) {
   const toneColors = {
@@ -1136,7 +1244,85 @@ function LabMetricCurve({
   );
 }
 
+function LabSortableMetricRow({ row }: { row: LabMetricRow }) {
+  const {
+    attributes,
+    isDragging,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+  } = useSortable({
+    attributes: {
+      role: 'row',
+      roleDescription: 'sortable performance metric row',
+      tabIndex: 0,
+    },
+    id: row.id,
+  });
+  const rowStyle: CSSProperties = {
+    transform: CSS.Transform.toString(
+      transform ? { ...transform, x: 0, scaleX: 1, scaleY: 1 } : null,
+    ),
+    transition,
+  };
+
+  return (
+    <tr
+      className={[
+        'cursor-grab touch-none select-none border-b border-white/6 outline-none last:border-b-0 active:cursor-grabbing focus-visible:bg-white/[0.035] focus-visible:ring-1 focus-visible:ring-[#5288db]/70',
+        isDragging
+          ? 'relative z-10 bg-white/[0.045] shadow-[0_6px_18px_rgba(0,0,0,0.24)]'
+          : null,
+      ]
+        .filter(Boolean)
+        .join(' ')}
+      data-lab-performance-metric-row
+      data-metric-row-id={row.id}
+      ref={setNodeRef}
+      style={rowStyle}
+      {...attributes}
+      {...listeners}
+    >
+      <th
+        className="px-1.5 py-1.5 align-middle text-[11px] font-medium leading-4"
+        scope="row"
+        style={{ color: 'rgba(255,255,255,0.58)' }}
+      >
+        <span className="block truncate">{row.label}</span>
+      </th>
+      <td
+        className="px-1.5 py-1.5 align-middle text-[11px] leading-4"
+        style={{ color: 'rgba(255,255,255,0.48)' }}
+        title={row.attribution}
+      >
+        <span className="block truncate">{row.attribution}</span>
+      </td>
+      <td className="px-1.5 py-1.5 align-middle">
+        {row.curve ? (
+          <LabMetricCurve
+            curve={row.curve}
+            label={row.label}
+            rawValue={row.rawValue ?? null}
+            tone={row.tone}
+          />
+        ) : null}
+      </td>
+      <td
+        className="w-[86px] px-1.5 py-1.5 text-right align-middle text-xs font-semibold leading-4"
+        style={{ color: getMetricToneColor(row.tone) }}
+      >
+        <span className="block truncate">{row.value}</span>
+      </td>
+    </tr>
+  );
+}
+
 function LabMetricTable({ vitals }: { vitals: LabPerformanceVitals }) {
+  const [rowOrder, setRowOrder] = useState(readStoredMetricRowOrder);
+  const sensors = useSensors(
+    useSensor(PointerSensor, LAB_METRIC_ROW_SENSOR_OPTIONS),
+  );
   const rows: LabMetricRow[] = [
     {
       id: 'resources',
@@ -1207,55 +1393,70 @@ function LabMetricTable({ vitals }: { vitals: LabPerformanceVitals }) {
       tone: getMetricTone('loading', vitals.loadingMs),
     },
   ];
+  const rowsById = new Map<LabMetricRowId, LabMetricRow>(
+    rows.map((row) => [row.id, row]),
+  );
+  const orderedRows = rowOrder
+    .map((rowId) => rowsById.get(rowId))
+    .filter((row): row is LabMetricRow => Boolean(row));
+  const orderedRowIds = orderedRows.map((row) => row.id);
+  const reorderRows = useCallback(({ active, over }: DragEndEvent) => {
+    if (!over || active.id === over.id) {
+      return;
+    }
+
+    const activeId = active.id;
+    const overId = over.id;
+
+    if (!isLabMetricRowId(activeId) || !isLabMetricRowId(overId)) {
+      return;
+    }
+
+    setRowOrder((currentOrder) => {
+      const normalizedOrder = normalizeMetricRowOrder(currentOrder);
+      const activeIndex = normalizedOrder.indexOf(activeId);
+      const overIndex = normalizedOrder.indexOf(overId);
+
+      if (activeIndex === -1 || overIndex === -1) {
+        return currentOrder;
+      }
+
+      const nextOrder = arrayMove(normalizedOrder, activeIndex, overIndex);
+      writeStoredMetricRowOrder(nextOrder);
+
+      return nextOrder;
+    });
+  }, []);
 
   return (
-    <table
-      aria-label="Performance metrics"
-      className="w-full table-fixed border-collapse text-left"
+    <DndContext
+      collisionDetection={closestCenter}
+      modifiers={[restrictMetricRowDragToVerticalAxis]}
+      onDragEnd={reorderRows}
+      sensors={sensors}
     >
-      <colgroup>
-        <col className="w-[34%]" />
-        <col className="w-[31%]" />
-        <col className="w-[92px]" />
-        <col className="w-[86px]" />
-      </colgroup>
-      <tbody>
-        {rows.map((row) => (
-          <tr key={row.id} className="border-b border-white/6 last:border-b-0">
-            <th
-              className="px-1.5 py-1.5 align-middle text-[11px] font-medium leading-4"
-              scope="row"
-              style={{ color: 'rgba(255,255,255,0.58)' }}
-            >
-              <span className="block truncate">{row.label}</span>
-            </th>
-            <td
-              className="px-1.5 py-1.5 align-middle text-[11px] leading-4"
-              style={{ color: 'rgba(255,255,255,0.48)' }}
-              title={row.attribution}
-            >
-              <span className="block truncate">{row.attribution}</span>
-            </td>
-            <td className="px-1.5 py-1.5 align-middle">
-              {row.curve ? (
-                <LabMetricCurve
-                  curve={row.curve}
-                  label={row.label}
-                  rawValue={row.rawValue ?? null}
-                  tone={row.tone}
-                />
-              ) : null}
-            </td>
-            <td
-              className="w-[86px] px-1.5 py-1.5 text-right align-middle text-xs font-semibold leading-4"
-              style={{ color: getMetricToneColor(row.tone) }}
-            >
-              <span className="block truncate">{row.value}</span>
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+      <table
+        aria-label="Performance metrics"
+        className="w-full table-fixed border-collapse text-left"
+      >
+        <colgroup>
+          <col className="w-[34%]" />
+          <col className="w-[31%]" />
+          <col className="w-[92px]" />
+          <col className="w-[86px]" />
+        </colgroup>
+        <SortableContext
+          items={orderedRowIds}
+          strategy={verticalListSortingStrategy}
+        >
+          <tbody>
+            {orderedRows.map((row) => (
+              <LabSortableMetricRow key={row.id} row={row} />
+            ))}
+          </tbody>
+        </SortableContext>
+      </table>
+    </DndContext>
   );
 }
 

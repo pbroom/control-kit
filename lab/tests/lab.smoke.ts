@@ -1,7 +1,20 @@
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import { LAB_PAGE_NAVIGATION } from '../src/routes/lab/lab-page-runtime.js';
+
+const LAB_METRIC_ROW_ORDER_STORAGE_KEY =
+  'control-kit:lab:performance-metric-row-order:v1';
+const DEFAULT_METRIC_ROW_ORDER = [
+  'resources',
+  'long-tasks',
+  'fcp',
+  'lcp',
+  'cls',
+  'inp',
+  'fps',
+  'loading',
+];
 
 const LAB_PAGE_PANEL_TEXT = {
   plane: 'Drive the current sample color.',
@@ -36,6 +49,14 @@ async function collectBrowserErrors(page: Page): Promise<string[]> {
   });
 
   return errors;
+}
+
+async function getMetricRowOrder(metricsTable: Locator) {
+  return metricsTable.evaluate((table) =>
+    Array.from(table.querySelectorAll('[data-lab-performance-metric-row]')).map(
+      (row) => row.getAttribute('data-metric-row-id'),
+    ),
+  );
 }
 
 test('mirrors the color-kit lab pages and properties panel', async ({
@@ -491,6 +512,67 @@ test('mirrors the color-kit lab pages and properties panel', async ({
       ),
       fullPage: true,
     });
+
+    if (testInfo.project.name === 'desktop' && labPage.value === 'tooltip') {
+      const metricRows = metricsTable.locator(
+        '[data-lab-performance-metric-row]',
+      );
+      await expect(metricRows).toHaveCount(DEFAULT_METRIC_ROW_ORDER.length);
+      expect(await getMetricRowOrder(metricsTable)).toEqual(
+        DEFAULT_METRIC_ROW_ORDER,
+      );
+
+      const [firstMetricRowBox, secondMetricRowBox] = await Promise.all([
+        metricRows.nth(0).boundingBox(),
+        metricRows.nth(1).boundingBox(),
+      ]);
+      expect(firstMetricRowBox).not.toBeNull();
+      expect(secondMetricRowBox).not.toBeNull();
+
+      const dragX = firstMetricRowBox!.x + firstMetricRowBox!.width / 2;
+      const dragStartY = firstMetricRowBox!.y + firstMetricRowBox!.height / 2;
+      const dragEndY = secondMetricRowBox!.y + secondMetricRowBox!.height / 2;
+      await page.mouse.move(dragX, dragStartY);
+      await page.mouse.down();
+      await page.mouse.move(dragX, dragEndY, { steps: 8 });
+      await page.mouse.up();
+
+      const reorderedMetricRows = [
+        'long-tasks',
+        'resources',
+        'fcp',
+        'lcp',
+        'cls',
+        'inp',
+        'fps',
+        'loading',
+      ];
+      await expect
+        .poll(() => getMetricRowOrder(metricsTable))
+        .toEqual(reorderedMetricRows);
+
+      await page.reload();
+      await expect(page).toHaveURL(new RegExp(`/lab/${labPage.slug}$`));
+      const reloadedMetricsTable = page
+        .getByRole('region', {
+          name: `Performance analysis for ${labPage.label}`,
+          exact: true,
+        })
+        .getByRole('table', {
+          name: 'Performance metrics',
+          exact: true,
+        });
+      await expect
+        .poll(() => getMetricRowOrder(reloadedMetricsTable))
+        .toEqual(reorderedMetricRows);
+
+      await page.evaluate(
+        (storageKey) => window.localStorage.removeItem(storageKey),
+        LAB_METRIC_ROW_ORDER_STORAGE_KEY,
+      );
+      await page.reload();
+      await expect(page).toHaveURL(new RegExp(`/lab/${labPage.slug}$`));
+    }
   }
 
   await page.goto('/lab/menu');
