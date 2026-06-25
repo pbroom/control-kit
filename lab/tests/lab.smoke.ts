@@ -300,6 +300,24 @@ test('mirrors the color-kit lab pages and properties panel', async ({
     await fcpRangeTrigger.hover();
     const fcpRangeCard = page.getByTestId('lab-performance-metric-range-card');
     await expect(fcpRangeCard).toBeVisible();
+    const rangeCardSurface = await fcpRangeCard.evaluate((card) => {
+      const style = getComputedStyle(card);
+
+      return {
+        backdropFilter: style.backdropFilter,
+        backgroundColor: style.backgroundColor,
+        borderRadius: style.borderRadius,
+        borderTopColor: style.borderTopColor,
+        boxShadow: style.boxShadow,
+        width: card.getBoundingClientRect().width,
+      };
+    });
+    expect(rangeCardSurface.width).toBeGreaterThanOrEqual(286);
+    expect(rangeCardSurface.borderRadius).toBe('12px');
+    expect(rangeCardSurface.backgroundColor).toMatch(/\/ 0\.03\)|0\.03\)/);
+    expect(rangeCardSurface.borderTopColor).toMatch(/\/ 0\.08\)|0\.08\)/);
+    expect(rangeCardSurface.boxShadow).toContain('rgba(255, 255, 255, 0.03)');
+    expect(rangeCardSurface.backdropFilter).toContain('blur');
     await expect(fcpRangeCard).toContainText('First contentful paint (FCP)');
     await expect(fcpRangeCard).toContainText('Good');
     await expect(fcpRangeCard).toContainText('0ms - 1800ms');
@@ -312,12 +330,47 @@ test('mirrors the color-kit lab pages and properties panel', async ({
         '[data-testid="lab-performance-metric-range-card-row"]',
       ),
     ).toHaveCount(3);
+    expect(
+      await fcpRangeCard.evaluate((card) =>
+        Array.from(
+          card.querySelectorAll(
+            '[data-lab-performance-metric-range-card-copy]',
+          ),
+        ).map((node) => {
+          const element = node as HTMLElement;
+          const style = getComputedStyle(element);
+
+          return {
+            overflowX: style.overflowX,
+            textOverflow: style.textOverflow,
+            text: element.textContent ?? '',
+          };
+        }),
+      ),
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          overflowX: 'visible',
+          text: 'First contentful paint (FCP)',
+          textOverflow: 'clip',
+        }),
+        expect.objectContaining({
+          overflowX: 'visible',
+          text: 'Needs improvement',
+          textOverflow: 'clip',
+        }),
+      ]),
+    );
     await expect(fcpRangeCard.locator('[data-active="true"]')).toHaveCount(1);
     await expect(
       metricsTable.locator('tbody tr').first().locator('th, td'),
     ).toHaveCount(4);
     const lcpRow = metricsTable.locator('[data-metric-row-id="lcp"]');
     await expect(lcpRow).toContainText('LCP');
+    await lcpRow
+      .locator('[data-testid="lab-performance-metric-range-trigger"]')
+      .hover();
+    await expect(fcpRangeCard).toContainText('Largest contentful paint (LCP)');
     await expect(lcpRow.locator('td').last()).toContainText(/\d+ms/);
     const lcpText = await lcpRow.textContent();
     expect(lcpText).toMatch(/Largest preview element/);

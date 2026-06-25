@@ -24,6 +24,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { createPortal } from 'react-dom';
 import type {
   CSSProperties,
   FocusEvent as ReactFocusEvent,
@@ -1371,7 +1372,7 @@ const LAB_METRIC_RANGE_Y = 9;
 const LAB_METRIC_RANGE_HEIGHT = 2;
 const LAB_METRIC_RANGE_MARKER_Y1 = 4;
 const LAB_METRIC_RANGE_MARKER_Y2 = 16;
-const LAB_METRIC_RANGE_CARD_WIDTH = 184;
+const LAB_METRIC_RANGE_CARD_WIDTH = 288;
 const LAB_METRIC_RANGE_CARD_VIEWPORT_MARGIN = 8;
 
 function formatSvgNumber(value: number) {
@@ -1648,81 +1649,92 @@ function LabMetricRangeChart({
           />
         )}
       </svg>
-      {rangeCard ? (
-        <div
-          className={[
-            'pointer-events-none fixed z-[70] w-[184px] rounded-[6px] border border-white/10 bg-[#252525] px-2.5 py-2 text-[10px] leading-4 text-white/70 opacity-100 shadow-[0_10px_24px_rgba(0,0,0,0.28)]',
-          ]
-            .filter(Boolean)
-            .join(' ')}
-          data-testid="lab-performance-metric-range-card"
-          role="tooltip"
-          style={{
-            left: `${rangeCard.left}px`,
-            top: `${rangeCard.top}px`,
-            transform:
-              rangeCard.placement === 'top'
-                ? 'translate(-50%, -100%)'
-                : 'translateX(-50%)',
-          }}
-        >
-          <div className="mb-1 flex items-center justify-between gap-2">
-            <span className="truncate font-medium text-white/80">{label}</span>
-            <span
-              className="shrink-0 font-semibold"
-              style={{ color: markerColor }}
+      {rangeCard && typeof document !== 'undefined'
+        ? createPortal(
+            <div
+              className={[
+                'pointer-events-none fixed z-[70] w-[288px] max-w-[calc(100vw-16px)] rounded-[12px] border border-white/8 bg-white/[0.03] px-3 py-2.5 text-[10px] leading-4 text-white/70 opacity-100 shadow-[0_18px_45px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.03)] backdrop-blur',
+              ]
+                .filter(Boolean)
+                .join(' ')}
+              data-testid="lab-performance-metric-range-card"
+              role="tooltip"
+              style={{
+                left: `${rangeCard.left}px`,
+                top: `${rangeCard.top}px`,
+                transform:
+                  rangeCard.placement === 'top'
+                    ? 'translate(-50%, -100%)'
+                    : 'translateX(-50%)',
+              }}
             >
-              {valueLabel}
-            </span>
-          </div>
-          <div className="grid gap-0.5">
-            {segments.map((segment) => {
-              const isActiveSegment = isMetricRangeSegmentActive({
-                rawValue,
-                segment,
-                tone,
-              });
-
-              return (
-                <div
-                  className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1.5"
-                  data-active={isActiveSegment ? 'true' : 'false'}
-                  data-testid="lab-performance-metric-range-card-row"
-                  key={segment.tone}
+              <div className="mb-1 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+                <span
+                  className="min-w-0 font-medium text-white/85"
+                  data-lab-performance-metric-range-card-copy
                 >
-                  <span
-                    className="size-1.5 rounded-full"
-                    style={{
-                      backgroundColor: isActiveSegment
-                        ? getMetricToneColor(segment.tone)
-                        : 'rgba(255,255,255,0.24)',
-                    }}
-                  />
-                  <span
-                    className={`truncate ${
-                      isActiveSegment
-                        ? 'text-white/[0.88]'
-                        : 'text-white/[0.52]'
-                    }`}
-                  >
-                    {getMetricRangeDisplayLabel(segment.tone)}
-                  </span>
-                  <span
-                    className={`font-medium ${
-                      isActiveSegment
-                        ? 'text-white/[0.88]'
-                        : 'text-white/[0.52]'
-                    }`}
-                  >
-                    {formatMetricRangeValue(segment.start, range)} -{' '}
-                    {formatMetricRangeValue(segment.end, range)}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      ) : null}
+                  {label}
+                </span>
+                <span
+                  className="shrink-0 font-semibold"
+                  data-lab-performance-metric-range-card-copy
+                  style={{ color: markerColor }}
+                >
+                  {valueLabel}
+                </span>
+              </div>
+              <div className="grid gap-0.5">
+                {segments.map((segment) => {
+                  const isActiveSegment = isMetricRangeSegmentActive({
+                    rawValue,
+                    segment,
+                    tone,
+                  });
+
+                  return (
+                    <div
+                      className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1.5"
+                      data-active={isActiveSegment ? 'true' : 'false'}
+                      data-testid="lab-performance-metric-range-card-row"
+                      key={segment.tone}
+                    >
+                      <span
+                        className="size-1.5 rounded-full"
+                        style={{
+                          backgroundColor: isActiveSegment
+                            ? getMetricToneColor(segment.tone)
+                            : 'rgba(255,255,255,0.24)',
+                        }}
+                      />
+                      <span
+                        className={`min-w-0 ${
+                          isActiveSegment
+                            ? 'text-white/[0.88]'
+                            : 'text-white/[0.52]'
+                        }`}
+                        data-lab-performance-metric-range-card-copy
+                      >
+                        {getMetricRangeDisplayLabel(segment.tone)}
+                      </span>
+                      <span
+                        className={`whitespace-nowrap font-medium ${
+                          isActiveSegment
+                            ? 'text-white/[0.88]'
+                            : 'text-white/[0.52]'
+                        }`}
+                        data-lab-performance-metric-range-card-copy
+                      >
+                        {formatMetricRangeValue(segment.start, range)} -{' '}
+                        {formatMetricRangeValue(segment.end, range)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }
