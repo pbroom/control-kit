@@ -143,6 +143,7 @@ const LAB_PREVIEW_LCP_IGNORED_TAGS = new Set([
 const LAB_LCP_PENDING_ATTRIBUTION = 'Largest preview element pending';
 const LAB_LCP_NO_PREVIEW_CANDIDATE_ATTRIBUTION = 'No preview LCP candidate';
 const LAB_PERFORMANCE_PANEL_DEFAULT_HEIGHT = 560;
+const LAB_PERFORMANCE_PANEL_COLLAPSED_HEIGHT = 0;
 const LAB_PERFORMANCE_PANEL_MIN_HEIGHT = 128;
 const LAB_PERFORMANCE_PANEL_MAX_HEIGHT = 560;
 const LAB_PERFORMANCE_PANEL_RESIZE_STEP = 16;
@@ -194,6 +195,8 @@ type LabMetricRowId = (typeof LAB_METRIC_ROW_IDS)[number];
 type LabPerformancePanelStyle = CSSProperties & {
   '--lab-performance-panel-content-max-height': string;
   '--lab-performance-panel-height': string;
+  '--lab-performance-panel-opacity': string;
+  '--lab-performance-panel-translate-y': string;
 };
 
 type LabMetricRangeSegment = {
@@ -390,7 +393,22 @@ function createTimelineStoryRows(
 function clampPerformancePanelHeight(height: number) {
   return Math.min(
     LAB_PERFORMANCE_PANEL_MAX_HEIGHT,
+    Math.max(LAB_PERFORMANCE_PANEL_COLLAPSED_HEIGHT, Math.round(height)),
+  );
+}
+
+function clampPerformancePanelOpenHeight(height: number) {
+  return Math.min(
+    LAB_PERFORMANCE_PANEL_MAX_HEIGHT,
     Math.max(LAB_PERFORMANCE_PANEL_MIN_HEIGHT, Math.round(height)),
+  );
+}
+
+function getPerformancePanelCollapseProgress(height: number) {
+  return clamp(
+    height / LAB_PERFORMANCE_PANEL_MIN_HEIGHT,
+    LAB_PERFORMANCE_PANEL_COLLAPSED_HEIGHT,
+    1,
   );
 }
 
@@ -2269,7 +2287,7 @@ export function LabPerformanceAnalysisPanel({
         event.preventDefault();
         suppressAnalysisSurfaceLayoutShifts();
         userSizedPanelRef.current = true;
-        setPanelHeight(LAB_PERFORMANCE_PANEL_MIN_HEIGHT);
+        setPanelHeight(LAB_PERFORMANCE_PANEL_COLLAPSED_HEIGHT);
         return;
       }
 
@@ -2328,7 +2346,7 @@ export function LabPerformanceAnalysisPanel({
         metricsTable?.scrollHeight ?? 0,
         timelineShell?.scrollHeight ?? 0,
       );
-      const nextHeight = clampPerformancePanelHeight(
+      const nextHeight = clampPerformancePanelOpenHeight(
         contentHeight + LAB_PERFORMANCE_PANEL_VERTICAL_PADDING,
       );
 
@@ -2400,18 +2418,26 @@ export function LabPerformanceAnalysisPanel({
     };
   }, [isResizingPanel]);
 
+  const collapseProgress = getPerformancePanelCollapseProgress(panelHeight);
+  const isPanelCollapsed =
+    panelHeight <= LAB_PERFORMANCE_PANEL_COLLAPSED_HEIGHT;
   const panelStyle: LabPerformancePanelStyle = {
     '--lab-performance-panel-content-max-height': `${Math.max(
       0,
       panelHeight - LAB_PERFORMANCE_PANEL_VERTICAL_PADDING,
     )}px`,
     '--lab-performance-panel-height': `${panelHeight}px`,
+    '--lab-performance-panel-opacity': collapseProgress.toFixed(3),
+    '--lab-performance-panel-translate-y': `${Math.round(
+      (1 - collapseProgress) * 12,
+    )}px`,
   };
 
   return (
     <section
       aria-label={`Performance analysis for ${analysis.label}`}
-      className="relative mx-3 min-h-[128px] overflow-hidden rounded-[24px] border border-white/8 bg-[#151515] px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] lg:max-h-[var(--lab-performance-panel-height)] lg:px-6"
+      className="relative mx-3 shrink-0 overflow-visible lg:h-[var(--lab-performance-panel-height)]"
+      data-lab-performance-panel-collapsed={isPanelCollapsed ? 'true' : 'false'}
       data-lab-performance-panel
       style={panelStyle}
     >
@@ -2419,9 +2445,10 @@ export function LabPerformanceAnalysisPanel({
         aria-label="Resize performance analysis panel"
         aria-orientation="horizontal"
         aria-valuemax={LAB_PERFORMANCE_PANEL_MAX_HEIGHT}
-        aria-valuemin={LAB_PERFORMANCE_PANEL_MIN_HEIGHT}
+        aria-valuemin={LAB_PERFORMANCE_PANEL_COLLAPSED_HEIGHT}
         aria-valuenow={panelHeight}
-        className="group absolute inset-x-0 top-0 z-20 hidden h-4 cursor-ns-resize touch-none items-start justify-center rounded-t-[24px] outline-none focus-visible:ring-2 focus-visible:ring-[#5288db]/80 lg:flex"
+        aria-valuetext={isPanelCollapsed ? 'Collapsed' : `${panelHeight}px`}
+        className="group absolute inset-x-0 top-0 z-30 hidden h-4 cursor-ns-resize touch-none items-start justify-center rounded-t-[24px] outline-none focus-visible:ring-2 focus-visible:ring-[#5288db]/80 lg:flex"
         data-lab-performance-resize-handle
         onKeyDown={resizePanelWithKeyboard}
         onPointerDown={startPanelResize}
@@ -2437,29 +2464,42 @@ export function LabPerformanceAnalysisPanel({
         />
       </div>
       <div
-        className="grid min-h-0 min-w-0 gap-4 lg:max-h-[var(--lab-performance-panel-content-max-height)] lg:grid-cols-[minmax(0,1fr)_clamp(320px,25vw,480px)] lg:items-start"
-        ref={contentRef}
+        aria-hidden={isPanelCollapsed ? true : undefined}
+        inert={isPanelCollapsed ? true : undefined}
+        className="min-h-[128px] overflow-hidden rounded-[24px] border border-white/8 bg-[#151515] px-4 py-4 opacity-[var(--lab-performance-panel-opacity)] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-[opacity,transform,border-color,background-color] duration-150 ease-out lg:h-full lg:min-h-0 lg:px-6 lg:translate-y-[var(--lab-performance-panel-translate-y)]"
+        data-lab-performance-panel-surface
+        style={{
+          transform: 'translateY(var(--lab-performance-panel-translate-y))',
+        }}
       >
         <div
-          className={[
-            'ck-lab-performance-metrics-scroll min-h-0 min-w-0 overflow-y-auto overscroll-contain pr-1 lg:max-h-[var(--lab-performance-panel-content-max-height)]',
-            isMetricsScrollbarActive
-              ? 'ck-lab-performance-metrics-scroll-active'
-              : null,
-          ]
-            .filter(Boolean)
-            .join(' ')}
-          data-testid="lab-performance-metrics-shell"
-          onPointerDown={showMetricsScrollbar}
-          onScroll={showMetricsScrollbar}
-          onWheel={showMetricsScrollbar}
+          className="grid min-h-0 min-w-0 gap-4 lg:max-h-[var(--lab-performance-panel-content-max-height)] lg:grid-cols-[minmax(0,1fr)_clamp(320px,25vw,480px)] lg:items-start"
+          ref={contentRef}
+          style={{
+            pointerEvents: panelHeight <= 24 ? 'none' : undefined,
+          }}
         >
-          <LabMetricTable vitals={vitals} />
+          <div
+            className={[
+              'ck-lab-performance-metrics-scroll min-h-0 min-w-0 overflow-y-auto overscroll-contain pr-1 lg:max-h-[var(--lab-performance-panel-content-max-height)]',
+              isMetricsScrollbarActive
+                ? 'ck-lab-performance-metrics-scroll-active'
+                : null,
+            ]
+              .filter(Boolean)
+              .join(' ')}
+            data-testid="lab-performance-metrics-shell"
+            onPointerDown={showMetricsScrollbar}
+            onScroll={showMetricsScrollbar}
+            onWheel={showMetricsScrollbar}
+          >
+            <LabMetricTable vitals={vitals} />
+          </div>
+          <LabPerformanceTimeline
+            events={timeline}
+            currentTimeMs={timelineTimeMs}
+          />
         </div>
-        <LabPerformanceTimeline
-          events={timeline}
-          currentTimeMs={timelineTimeMs}
-        />
       </div>
     </section>
   );

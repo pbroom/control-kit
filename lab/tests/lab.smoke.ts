@@ -17,6 +17,7 @@ const DEFAULT_METRIC_ROW_ORDER = [
 ];
 const DESKTOP_VIEWPORT = { height: 1000, width: 1440 };
 const COMPACT_DESKTOP_VIEWPORT = { height: 998, width: 1182 };
+const LAB_COLLAPSED_PANEL_RESTORE_MIN_HEIGHT = 128;
 
 const LAB_PAGE_PANEL_TEXT = {
   plane: 'Drive the current sample color.',
@@ -476,6 +477,9 @@ test('mirrors the color-kit lab pages and properties panel', async ({
       const metricsShell = performancePanel.getByTestId(
         'lab-performance-metrics-shell',
       );
+      const performancePanelSurface = performancePanel.locator(
+        '[data-lab-performance-panel-surface]',
+      );
       const [performancePanelBox, propertiesPanelBox] = await Promise.all([
         performancePanel.boundingBox(),
         page.locator('aside').boundingBox(),
@@ -488,8 +492,9 @@ test('mirrors the color-kit lab pages and properties panel', async ({
       ).toBe('auto');
       expect(performancePanelBox).not.toBeNull();
       expect(propertiesPanelBox).not.toBeNull();
+      await expect(performancePanelSurface).toBeVisible();
       expect(
-        await performancePanel.evaluate(
+        await performancePanelSurface.evaluate(
           (node) => getComputedStyle(node).borderRadius,
         ),
       ).toBe('24px');
@@ -578,6 +583,10 @@ test('mirrors the color-kit lab pages and properties panel', async ({
         );
         const shrunkenHandleBox = await resizeHandle.boundingBox();
         expect(shrunkenHandleBox).not.toBeNull();
+        const minimumDragDistance = Math.max(
+          0,
+          smallDragPanelBox!.height - 136,
+        );
 
         await page.mouse.move(
           shrunkenHandleBox!.x + shrunkenHandleBox!.width / 2,
@@ -586,7 +595,7 @@ test('mirrors the color-kit lab pages and properties panel', async ({
         await page.mouse.down();
         await page.mouse.move(
           shrunkenHandleBox!.x + shrunkenHandleBox!.width / 2,
-          shrunkenHandleBox!.y + 260,
+          shrunkenHandleBox!.y + minimumDragDistance,
         );
         await page.mouse.up();
 
@@ -634,6 +643,66 @@ test('mirrors the color-kit lab pages and properties panel', async ({
         );
         await expect(performancePanel).not.toContainText(
           'Layout shift source: slider',
+        );
+
+        const minimumHandleBox = await resizeHandle.boundingBox();
+        expect(minimumHandleBox).not.toBeNull();
+
+        await page.mouse.move(
+          minimumHandleBox!.x + minimumHandleBox!.width / 2,
+          minimumHandleBox!.y + 2,
+        );
+        await page.mouse.down();
+        await page.mouse.move(
+          minimumHandleBox!.x + minimumHandleBox!.width / 2,
+          minimumHandleBox!.y + 180,
+        );
+        await page.mouse.up();
+
+        await expect(performancePanel).toHaveAttribute(
+          'data-lab-performance-panel-collapsed',
+          'true',
+        );
+        const collapsedPanelBox = await performancePanel.boundingBox();
+        expect(collapsedPanelBox).not.toBeNull();
+        expect(collapsedPanelBox!.height).toBeLessThanOrEqual(1);
+        await expect(resizeHandle).toBeVisible();
+        const collapsedSurfaceState = await performancePanel
+          .locator('[data-lab-performance-panel-surface]')
+          .evaluate((node) => ({
+            ariaHidden: node.getAttribute('aria-hidden'),
+          }));
+        expect(collapsedSurfaceState.ariaHidden).toBe('true');
+        await expect
+          .poll(() =>
+            performancePanel
+              .locator('[data-lab-performance-panel-surface]')
+              .evaluate((node) => Number(getComputedStyle(node).opacity)),
+          )
+          .toBeLessThanOrEqual(0.05);
+
+        const collapsedHandleBox = await resizeHandle.boundingBox();
+        expect(collapsedHandleBox).not.toBeNull();
+
+        await page.mouse.move(
+          collapsedHandleBox!.x + collapsedHandleBox!.width / 2,
+          collapsedHandleBox!.y + 2,
+        );
+        await page.mouse.down();
+        await page.mouse.move(
+          collapsedHandleBox!.x + collapsedHandleBox!.width / 2,
+          collapsedHandleBox!.y - 170,
+        );
+        await page.mouse.up();
+
+        await expect(performancePanel).toHaveAttribute(
+          'data-lab-performance-panel-collapsed',
+          'false',
+        );
+        const restoredPanelBox = await performancePanel.boundingBox();
+        expect(restoredPanelBox).not.toBeNull();
+        expect(restoredPanelBox!.height).toBeGreaterThan(
+          LAB_COLLAPSED_PANEL_RESTORE_MIN_HEIGHT,
         );
       }
     }
