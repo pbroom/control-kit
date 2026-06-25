@@ -52,12 +52,17 @@ type LabPerformanceMetricKey =
 
 type LabPerformanceAttributions = Record<LabPerformanceMetricKey, string>;
 
-type LabMetricCurveDirection = 'higher' | 'lower';
+type LabMetricRangeDirection = 'higher' | 'lower';
 
-type LabMetricCurveConfig = {
-  direction: LabMetricCurveDirection;
+type LabMetricRangeUnit = 'fps' | 'milliseconds' | 'score';
+
+type LabMetricRangeConfig = {
+  direction: LabMetricRangeDirection;
+  goodThreshold: number;
   max: number;
   min: number;
+  okayThreshold: number;
+  unit: LabMetricRangeUnit;
 };
 
 type LabPerformanceVitals = {
@@ -1017,7 +1022,7 @@ type LabMetricRow = {
   label: string;
   shortLabel: string;
   attribution: string;
-  curve?: LabMetricCurveConfig;
+  range?: LabMetricRangeConfig;
   rawValue?: number | null;
   value: string;
   tone: LabPerformanceTone;
@@ -1096,122 +1101,215 @@ function getMetricToneColor(tone: LabPerformanceTone) {
   return toneColors[tone];
 }
 
-const LAB_METRIC_CURVES = {
+const LAB_METRIC_RANGES = {
   fcp: {
     direction: 'lower',
+    goodThreshold: 1800,
     min: 0,
     max: 5000,
+    okayThreshold: 3000,
+    unit: 'milliseconds',
   },
   lcp: {
     direction: 'lower',
+    goodThreshold: 2500,
     min: 0,
     max: 6000,
+    okayThreshold: 4000,
+    unit: 'milliseconds',
   },
   cls: {
     direction: 'lower',
+    goodThreshold: 0.1,
     min: 0,
     max: 0.4,
+    okayThreshold: 0.25,
+    unit: 'score',
   },
   inp: {
     direction: 'lower',
+    goodThreshold: 200,
     min: 0,
     max: 800,
+    okayThreshold: 500,
+    unit: 'milliseconds',
   },
   fps: {
     direction: 'higher',
+    goodThreshold: 55,
     min: 30,
     max: 75,
+    okayThreshold: 45,
+    unit: 'fps',
   },
   loading: {
     direction: 'lower',
+    goodThreshold: 100,
     min: 0,
     max: 600,
+    okayThreshold: 300,
+    unit: 'milliseconds',
   },
-} satisfies Record<LabPerformanceMetricKey, LabMetricCurveConfig>;
+} satisfies Record<LabPerformanceMetricKey, LabMetricRangeConfig>;
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
 }
 
-const LAB_METRIC_CURVE_START_X = 8;
-const LAB_METRIC_CURVE_END_X = 72;
-const LAB_METRIC_CURVE_BASELINE_Y = 17;
-const LAB_METRIC_CURVE_PEAK_Y = 4;
+const LAB_METRIC_RANGE_START_X = 6;
+const LAB_METRIC_RANGE_END_X = 74;
+const LAB_METRIC_RANGE_Y = 8;
+const LAB_METRIC_RANGE_HEIGHT = 4;
+const LAB_METRIC_RANGE_MARKER_Y1 = 4;
+const LAB_METRIC_RANGE_MARKER_Y2 = 16;
 
 function formatSvgNumber(value: number) {
   return value.toFixed(2).replace(/\.?0+$/, '');
 }
 
-function getMetricCurveY(rank: number) {
-  const normalizedRank = clamp(rank, 0, 1);
-  const amplitude = LAB_METRIC_CURVE_BASELINE_Y - LAB_METRIC_CURVE_PEAK_Y;
-
-  return (
-    LAB_METRIC_CURVE_BASELINE_Y - Math.sin(normalizedRank * Math.PI) * amplitude
-  );
-}
-
-function createMetricCurvePath() {
-  const samples = 32;
-
-  return Array.from({ length: samples + 1 }, (_, index) => {
-    const rank = index / samples;
-    const x =
-      LAB_METRIC_CURVE_START_X +
-      rank * (LAB_METRIC_CURVE_END_X - LAB_METRIC_CURVE_START_X);
-    const y = getMetricCurveY(rank);
-
-    return `${index === 0 ? 'M' : 'L'}${formatSvgNumber(x)} ${formatSvgNumber(y)}`;
-  }).join(' ');
-}
-
-const LAB_METRIC_CURVE_PATH = createMetricCurvePath();
-
-function getMetricCurveRank(
+function getMetricRangePosition(
   value: number | null,
-  config: LabMetricCurveConfig,
+  config: LabMetricRangeConfig,
 ) {
   if (value === null) {
-    return 0.5;
+    return null;
   }
 
   const range = config.max - config.min;
   const normalized = range === 0 ? 0.5 : (value - config.min) / range;
-  const rawRank = config.direction === 'higher' ? normalized : 1 - normalized;
 
-  return clamp(rawRank, 0, 1);
+  return clamp(normalized, 0, 1);
 }
 
-function formatMetricCurveLabel(
+function getMetricRangeX(value: number, config: LabMetricRangeConfig) {
+  const position = getMetricRangePosition(value, config) ?? 0;
+
+  return (
+    LAB_METRIC_RANGE_START_X +
+    position * (LAB_METRIC_RANGE_END_X - LAB_METRIC_RANGE_START_X)
+  );
+}
+
+function formatMetricRangeValue(value: number, config: LabMetricRangeConfig) {
+  switch (config.unit) {
+    case 'fps':
+      return `${Math.round(value)}fps`;
+    case 'milliseconds':
+      return `${Math.round(value)}ms`;
+    case 'score':
+      return value.toFixed(value < 0.1 ? 3 : 2).replace(/\.?0+$/, '');
+  }
+}
+
+function getMetricRangeSegments(config: LabMetricRangeConfig) {
+  const goodRange =
+    config.direction === 'higher'
+      ? {
+          end: config.max,
+          start: config.goodThreshold,
+          tone: 'good' as const,
+        }
+      : {
+          end: config.goodThreshold,
+          start: config.min,
+          tone: 'good' as const,
+        };
+  const okayRange =
+    config.direction === 'higher'
+      ? {
+          end: config.goodThreshold,
+          start: config.okayThreshold,
+          tone: 'okay' as const,
+        }
+      : {
+          end: config.okayThreshold,
+          start: config.goodThreshold,
+          tone: 'okay' as const,
+        };
+  const poorRange =
+    config.direction === 'higher'
+      ? {
+          end: config.okayThreshold,
+          start: config.min,
+          tone: 'poor' as const,
+        }
+      : {
+          end: config.max,
+          start: config.okayThreshold,
+          tone: 'poor' as const,
+        };
+
+  return [poorRange, okayRange, goodRange].sort(
+    (first, second) => first.start - second.start,
+  );
+}
+
+function getMetricRangeToneLabel(tone: LabPerformanceTone) {
+  switch (tone) {
+    case 'good':
+      return 'good';
+    case 'okay':
+      return 'needs improvement';
+    case 'poor':
+      return 'poor';
+    case 'neutral':
+      return 'not reported';
+  }
+}
+
+function formatMetricRangeLabel(
   label: string,
-  rank: number,
+  range: LabMetricRangeConfig,
+  valueLabel: string,
   tone: LabPerformanceTone,
 ) {
   if (tone === 'neutral') {
-    return `${label} has not reported yet`;
+    return `${label} has not reported yet; ranges shown for good, needs improvement, and poor`;
   }
 
-  return `${label} ranks ${Math.round(rank * 100)}% across the quality curve`;
+  const segments = getMetricRangeSegments(range)
+    .filter((segment) => segment.tone !== 'poor')
+    .map(
+      (segment) =>
+        `${getMetricRangeToneLabel(segment.tone)} ${formatMetricRangeValue(
+          segment.start,
+          range,
+        )} to ${formatMetricRangeValue(segment.end, range)}`,
+    )
+    .join(', ');
+
+  return `${label} is ${valueLabel} in the ${getMetricRangeToneLabel(
+    tone,
+  )} range; ${segments}`;
 }
 
-function LabMetricCurve({
-  curve,
+function LabMetricRangeChart({
   label,
+  range,
   rawValue,
   tone,
+  valueLabel,
 }: {
-  curve: LabMetricCurveConfig;
   label: string;
+  range: LabMetricRangeConfig;
   rawValue: number | null;
   tone: LabPerformanceTone;
+  valueLabel: string;
 }) {
-  const rank = getMetricCurveRank(rawValue, curve);
+  const segments = getMetricRangeSegments(range);
+  const markerPosition = getMetricRangePosition(rawValue, range);
   const markerX =
-    LAB_METRIC_CURVE_START_X +
-    rank * (LAB_METRIC_CURVE_END_X - LAB_METRIC_CURVE_START_X);
-  const markerY = getMetricCurveY(rank);
+    markerPosition === null
+      ? null
+      : LAB_METRIC_RANGE_START_X +
+        markerPosition * (LAB_METRIC_RANGE_END_X - LAB_METRIC_RANGE_START_X);
   const markerColor = getMetricToneColor(tone);
-  const accessibleLabel = formatMetricCurveLabel(label, rank, tone);
+  const accessibleLabel = formatMetricRangeLabel(
+    label,
+    range,
+    valueLabel,
+    tone,
+  );
 
   return (
     <svg
@@ -1220,35 +1318,52 @@ function LabMetricCurve({
       role="img"
       viewBox="0 0 80 20"
     >
-      <path
-        d={LAB_METRIC_CURVE_PATH}
-        data-testid="lab-performance-metric-curve-line"
-        fill="none"
-        stroke="rgba(255,255,255,0.2)"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="1.25"
-      />
-      <line
-        stroke={markerColor}
-        strokeLinecap="round"
-        strokeWidth="1.5"
-        data-testid="lab-performance-metric-marker-line"
-        x1={markerX}
-        x2={markerX}
-        y1="3"
-        y2="18"
-      />
-      <circle
-        cx={markerX}
-        cy={markerY}
-        data-rank={rank}
-        data-testid="lab-performance-metric-marker-dot"
-        fill={markerColor}
-        r="2.5"
-        stroke="rgba(15,15,15,0.9)"
-        strokeWidth="1"
-      />
+      {segments.map((segment) => {
+        const segmentX = getMetricRangeX(segment.start, range);
+        const segmentEndX = getMetricRangeX(segment.end, range);
+
+        return (
+          <rect
+            data-range-end={segment.end}
+            data-range-start={segment.start}
+            data-range-tone={segment.tone}
+            data-testid="lab-performance-metric-range-segment"
+            fill={getMetricToneColor(segment.tone)}
+            height={LAB_METRIC_RANGE_HEIGHT}
+            key={segment.tone}
+            opacity={segment.tone === 'poor' ? 0.62 : 0.76}
+            rx="1"
+            width={formatSvgNumber(Math.max(1, segmentEndX - segmentX))}
+            x={formatSvgNumber(segmentX)}
+            y={LAB_METRIC_RANGE_Y}
+          />
+        );
+      })}
+      {markerX === null ? null : (
+        <>
+          <line
+            data-position={markerPosition}
+            data-testid="lab-performance-metric-marker-line"
+            data-value={rawValue ?? undefined}
+            stroke={markerColor}
+            strokeLinecap="round"
+            strokeWidth="1.5"
+            x1={formatSvgNumber(markerX)}
+            x2={formatSvgNumber(markerX)}
+            y1={LAB_METRIC_RANGE_MARKER_Y1}
+            y2={LAB_METRIC_RANGE_MARKER_Y2}
+          />
+          <circle
+            cx={formatSvgNumber(markerX)}
+            cy={LAB_METRIC_RANGE_Y + LAB_METRIC_RANGE_HEIGHT / 2}
+            data-testid="lab-performance-metric-marker-dot"
+            fill={markerColor}
+            r="2.25"
+            stroke="rgba(15,15,15,0.9)"
+            strokeWidth="1"
+          />
+        </>
+      )}
     </svg>
   );
 }
@@ -1319,12 +1434,13 @@ function LabSortableMetricRow({
         <span className="block truncate">{row.attribution}</span>
       </td>
       <td className="px-1.5 py-1.5 align-middle">
-        {row.curve ? (
-          <LabMetricCurve
-            curve={row.curve}
+        {row.range ? (
+          <LabMetricRangeChart
             label={row.label}
+            range={row.range}
             rawValue={row.rawValue ?? null}
             tone={row.tone}
+            valueLabel={row.value}
           />
         ) : null}
       </td>
@@ -1368,7 +1484,7 @@ function LabMetricTable({ vitals }: { vitals: LabPerformanceVitals }) {
       label: 'First contentful paint (FCP)',
       shortLabel: 'FCP',
       attribution: vitals.attributions.fcp,
-      curve: LAB_METRIC_CURVES.fcp,
+      range: LAB_METRIC_RANGES.fcp,
       rawValue: vitals.fcpMs,
       value: formatMilliseconds(vitals.fcpMs),
       tone: getMetricTone('fcp', vitals.fcpMs),
@@ -1378,7 +1494,7 @@ function LabMetricTable({ vitals }: { vitals: LabPerformanceVitals }) {
       label: 'Largest contentful paint (LCP)',
       shortLabel: 'LCP',
       attribution: vitals.attributions.lcp,
-      curve: LAB_METRIC_CURVES.lcp,
+      range: LAB_METRIC_RANGES.lcp,
       rawValue: vitals.lcpMs,
       value: formatLcpMilliseconds(vitals.lcpMs, vitals.attributions.lcp),
       tone: getMetricTone('lcp', vitals.lcpMs),
@@ -1388,7 +1504,7 @@ function LabMetricTable({ vitals }: { vitals: LabPerformanceVitals }) {
       label: 'Cumulative layout shift (CLS)',
       shortLabel: 'CLS',
       attribution: vitals.attributions.cls,
-      curve: LAB_METRIC_CURVES.cls,
+      range: LAB_METRIC_RANGES.cls,
       rawValue: vitals.cls,
       value: formatScore(vitals.cls),
       tone: getMetricTone('cls', vitals.cls),
@@ -1398,7 +1514,7 @@ function LabMetricTable({ vitals }: { vitals: LabPerformanceVitals }) {
       label: 'Interaction to next paint (INP)',
       shortLabel: 'INP',
       attribution: vitals.attributions.inp,
-      curve: LAB_METRIC_CURVES.inp,
+      range: LAB_METRIC_RANGES.inp,
       rawValue: vitals.inpMs,
       value: formatMilliseconds(vitals.inpMs),
       tone: getMetricTone('inp', vitals.inpMs),
@@ -1408,7 +1524,7 @@ function LabMetricTable({ vitals }: { vitals: LabPerformanceVitals }) {
       label: 'Frame rate (FPS)',
       shortLabel: 'FPS',
       attribution: vitals.attributions.fps,
-      curve: LAB_METRIC_CURVES.fps,
+      range: LAB_METRIC_RANGES.fps,
       rawValue: vitals.fps,
       value: formatFps(vitals.fps),
       tone: getMetricTone('fps', vitals.fps),
@@ -1418,7 +1534,7 @@ function LabMetricTable({ vitals }: { vitals: LabPerformanceVitals }) {
       label: 'Loading state',
       shortLabel: 'Loading',
       attribution: vitals.attributions.loading,
-      curve: LAB_METRIC_CURVES.loading,
+      range: LAB_METRIC_RANGES.loading,
       rawValue: vitals.loadingMs,
       value: formatMilliseconds(vitals.loadingMs),
       tone: getMetricTone('loading', vitals.loadingMs),

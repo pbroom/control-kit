@@ -180,47 +180,87 @@ test('mirrors the color-kit lab pages and properties panel', async ({
           (svg) => svg.querySelectorAll('path').length,
         ),
       ),
-    ).toEqual([1, 1, 1, 1, 1, 1]);
-    const metricCurves = await metricsTable.evaluate((table) =>
+    ).toEqual([0, 0, 0, 0, 0, 0]);
+    const metricRangeCharts = await metricsTable.evaluate((table) =>
       Array.from(table.querySelectorAll('svg[role="img"]')).map((svg) => {
-        const curveLine = svg.querySelector(
-          '[data-testid="lab-performance-metric-curve-line"]',
-        );
         const markerLine = svg.querySelector(
           '[data-testid="lab-performance-metric-marker-line"]',
         );
         const markerDot = svg.querySelector(
           '[data-testid="lab-performance-metric-marker-dot"]',
         );
-        const rank = Number(markerDot?.getAttribute('data-rank'));
-        const expectedMarkerY = 17 - Math.sin(rank * Math.PI) * 13;
+        const segments = Array.from(
+          svg.querySelectorAll(
+            '[data-testid="lab-performance-metric-range-segment"]',
+          ),
+        );
 
         return {
-          curveLineCount: curveLine ? 1 : 0,
-          groundLineCount: Array.from(svg.querySelectorAll('line')).filter(
-            (line) =>
-              line.getAttribute('data-testid') !==
-              'lab-performance-metric-marker-line',
-          ).length,
+          ariaLabel: svg.getAttribute('aria-label') ?? '',
           markerDotX: Number(markerDot?.getAttribute('cx')),
           markerDotY: Number(markerDot?.getAttribute('cy')),
           markerLineCount: markerLine ? 1 : 0,
           markerLineX: Number(markerLine?.getAttribute('x1')),
-          rank,
-          expectedMarkerY,
+          segmentCount: segments.length,
+          segmentTones: segments.map((segment) =>
+            segment.getAttribute('data-range-tone'),
+          ),
         };
       }),
     );
     expect(
-      metricCurves.every(
-        (curve) =>
-          curve.curveLineCount === 1 &&
-          curve.groundLineCount === 0 &&
-          curve.markerLineCount === 1 &&
-          Math.abs(curve.markerDotX - curve.markerLineX) <= 0.01 &&
-          Math.abs(curve.markerDotY - curve.expectedMarkerY) <= 0.01,
+      metricRangeCharts.every(
+        (chart) =>
+          chart.segmentCount === 3 &&
+          chart.segmentTones.includes('good') &&
+          chart.segmentTones.includes('okay') &&
+          chart.segmentTones.includes('poor') &&
+          !chart.ariaLabel.includes('quality curve'),
       ),
     ).toBe(true);
+    const fcpRangeChart = metricsTable.locator(
+      '[data-metric-row-id="fcp"] svg[role="img"]',
+    );
+    await expect(fcpRangeChart).toHaveAttribute(
+      'aria-label',
+      /good .*needs improvement/,
+    );
+    const fcpRangeDetails = await fcpRangeChart.evaluate((svg) => {
+      const markerLine = svg.querySelector(
+        '[data-testid="lab-performance-metric-marker-line"]',
+      );
+      const markerDot = svg.querySelector(
+        '[data-testid="lab-performance-metric-marker-dot"]',
+      );
+      const segments = Array.from(
+        svg.querySelectorAll(
+          '[data-testid="lab-performance-metric-range-segment"]',
+        ),
+      );
+
+      return {
+        markerDotX: Number(markerDot?.getAttribute('cx')),
+        markerDotY: Number(markerDot?.getAttribute('cy')),
+        markerLineX: Number(markerLine?.getAttribute('x1')),
+        markerPosition: Number(markerLine?.getAttribute('data-position')),
+        segments: segments.map((segment) => ({
+          end: Number(segment.getAttribute('data-range-end')),
+          start: Number(segment.getAttribute('data-range-start')),
+          tone: segment.getAttribute('data-range-tone'),
+        })),
+      };
+    });
+    expect(fcpRangeDetails.segments).toEqual([
+      { end: 1800, start: 0, tone: 'good' },
+      { end: 3000, start: 1800, tone: 'okay' },
+      { end: 5000, start: 3000, tone: 'poor' },
+    ]);
+    expect(fcpRangeDetails.markerPosition).toBeGreaterThanOrEqual(0);
+    expect(fcpRangeDetails.markerPosition).toBeLessThanOrEqual(1);
+    expect(
+      Math.abs(fcpRangeDetails.markerDotX - fcpRangeDetails.markerLineX),
+    ).toBeLessThanOrEqual(0.01);
+    expect(fcpRangeDetails.markerDotY).toBe(10);
     await expect(
       metricsTable.locator('tbody tr').first().locator('th, td'),
     ).toHaveCount(4);
