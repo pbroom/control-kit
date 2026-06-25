@@ -1772,7 +1772,7 @@ function LabSortableMetricRow({
   return (
     <tr
       className={[
-        'cursor-grab touch-none select-none border-b border-white/6 outline-none last:border-b-0 active:cursor-grabbing focus-visible:bg-white/[0.035] focus-visible:ring-1 focus-visible:ring-[#5288db]/70',
+        'border-b border-white/6 outline-none last:border-b-0 focus-visible:bg-white/[0.035] focus-visible:ring-1 focus-visible:ring-[#5288db]/70',
         isDragging
           ? 'relative z-10 bg-white/[0.045] shadow-[0_6px_18px_rgba(0,0,0,0.24)]'
           : null,

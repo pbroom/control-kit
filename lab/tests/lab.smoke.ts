@@ -776,6 +776,32 @@ test('mirrors the color-kit lab pages and properties panel', async ({
       expect(await getMetricRowOrder(metricsTable)).toEqual(
         DEFAULT_METRIC_ROW_ORDER,
       );
+      const fcpLabel = metricLabel(metricsTable, 'fcp');
+      const fcpRow = metricsTable.locator('[data-metric-row-id="fcp"]');
+      await expect(fcpRow).toHaveCSS('cursor', 'auto');
+      await expect(fcpRow).toHaveCSS('user-select', 'auto');
+      await expect(fcpRow).not.toHaveCSS('touch-action', 'none');
+      const fcpLabelBox = await fcpLabel.boundingBox();
+      expect(fcpLabelBox).not.toBeNull();
+      await page.evaluate(() => window.getSelection()?.removeAllRanges());
+      await page.mouse.move(fcpLabelBox!.x + 2, fcpLabelBox!.y + 8);
+      await page.mouse.down();
+      await page.mouse.move(
+        fcpLabelBox!.x + fcpLabelBox!.width - 4,
+        fcpLabelBox!.y + 9,
+        {
+          steps: 8,
+        },
+      );
+      await page.mouse.up();
+      await expect
+        .poll(() => getMetricRowOrder(metricsTable))
+        .toEqual(DEFAULT_METRIC_ROW_ORDER);
+      const selectedMetricText = await page.evaluate(() =>
+        window.getSelection()?.toString(),
+      );
+      expect(selectedMetricText).toContain('contentful');
+      await page.evaluate(() => window.getSelection()?.removeAllRanges());
 
       const [firstMetricRowBox, secondMetricRowBox] = await Promise.all([
         metricRows.nth(0).boundingBox(),
