@@ -17,7 +17,13 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import type {
   CSSProperties,
   KeyboardEvent as ReactKeyboardEvent,
@@ -118,6 +124,8 @@ const LAB_PERFORMANCE_PANEL_RESIZE_STEP = 16;
 const LAB_PERFORMANCE_PANEL_VERTICAL_PADDING = 32;
 const LAB_PERFORMANCE_PANEL_LAYOUT_SHIFT_SUPPRESSION_MS = 700;
 const LAB_PERFORMANCE_SCROLLBAR_ACTIVE_MS = 700;
+const LAB_METRIC_LABEL_TRUNCATION_TOLERANCE_PX = 1;
+const LAB_METRIC_LABEL_TRUNCATION_TRIGGER_COUNT = 2;
 const LAB_METRIC_ROW_DRAG_ACTIVATION_Y_PX = 8;
 const LAB_METRIC_ROW_ORDER_STORAGE_KEY =
   'control-kit:lab:performance-metric-row-order:v1';
@@ -1007,6 +1015,7 @@ function useLabPerformanceTelemetry(
 type LabMetricRow = {
   id: LabMetricRowId;
   label: string;
+  shortLabel: string;
   attribution: string;
   curve?: LabMetricCurveConfig;
   rawValue?: number | null;
@@ -1244,7 +1253,13 @@ function LabMetricCurve({
   );
 }
 
-function LabSortableMetricRow({ row }: { row: LabMetricRow }) {
+function LabSortableMetricRow({
+  abbreviateLabel,
+  row,
+}: {
+  abbreviateLabel: boolean;
+  row: LabMetricRow;
+}) {
   const {
     attributes,
     isDragging,
@@ -1266,6 +1281,7 @@ function LabSortableMetricRow({ row }: { row: LabMetricRow }) {
     ),
     transition,
   };
+  const label = abbreviateLabel ? row.shortLabel : row.label;
 
   return (
     <tr
@@ -1285,11 +1301,15 @@ function LabSortableMetricRow({ row }: { row: LabMetricRow }) {
       {...listeners}
     >
       <th
+        aria-label={abbreviateLabel ? row.label : undefined}
         className="px-1.5 py-1.5 align-middle text-[11px] font-medium leading-4"
         scope="row"
         style={{ color: 'rgba(255,255,255,0.58)' }}
+        title={abbreviateLabel ? row.label : undefined}
       >
-        <span className="block truncate">{row.label}</span>
+        <span className="block truncate" data-lab-performance-metric-label>
+          {label}
+        </span>
       </th>
       <td
         className="px-1.5 py-1.5 align-middle text-[11px] leading-4"
@@ -1320,6 +1340,9 @@ function LabSortableMetricRow({ row }: { row: LabMetricRow }) {
 
 function LabMetricTable({ vitals }: { vitals: LabPerformanceVitals }) {
   const [rowOrder, setRowOrder] = useState(readStoredMetricRowOrder);
+  const [abbreviateMetricLabels, setAbbreviateMetricLabels] = useState(false);
+  const labelMeasureRef = useRef<HTMLDivElement>(null);
+  const tableRef = useRef<HTMLTableElement>(null);
   const sensors = useSensors(
     useSensor(PointerSensor, LAB_METRIC_ROW_SENSOR_OPTIONS),
   );
@@ -1327,6 +1350,7 @@ function LabMetricTable({ vitals }: { vitals: LabPerformanceVitals }) {
     {
       id: 'resources',
       label: 'Matched resources',
+      shortLabel: 'Resources',
       attribution: `Route module fetches - ${vitals.resources.moduleDurationMs}ms total`,
       value: String(vitals.resources.moduleRequests),
       tone: vitals.resources.moduleRequests > 0 ? 'okay' : 'neutral',
@@ -1334,6 +1358,7 @@ function LabMetricTable({ vitals }: { vitals: LabPerformanceVitals }) {
     {
       id: 'long-tasks',
       label: 'Long tasks',
+      shortLabel: 'Tasks',
       attribution: 'Main-thread blocks observed',
       value: String(vitals.longTasks),
       tone: vitals.longTasks > 0 ? 'poor' : 'good',
@@ -1341,6 +1366,7 @@ function LabMetricTable({ vitals }: { vitals: LabPerformanceVitals }) {
     {
       id: 'fcp',
       label: 'First contentful paint (FCP)',
+      shortLabel: 'FCP',
       attribution: vitals.attributions.fcp,
       curve: LAB_METRIC_CURVES.fcp,
       rawValue: vitals.fcpMs,
@@ -1350,6 +1376,7 @@ function LabMetricTable({ vitals }: { vitals: LabPerformanceVitals }) {
     {
       id: 'lcp',
       label: 'Largest contentful paint (LCP)',
+      shortLabel: 'LCP',
       attribution: vitals.attributions.lcp,
       curve: LAB_METRIC_CURVES.lcp,
       rawValue: vitals.lcpMs,
@@ -1359,6 +1386,7 @@ function LabMetricTable({ vitals }: { vitals: LabPerformanceVitals }) {
     {
       id: 'cls',
       label: 'Cumulative layout shift (CLS)',
+      shortLabel: 'CLS',
       attribution: vitals.attributions.cls,
       curve: LAB_METRIC_CURVES.cls,
       rawValue: vitals.cls,
@@ -1368,6 +1396,7 @@ function LabMetricTable({ vitals }: { vitals: LabPerformanceVitals }) {
     {
       id: 'inp',
       label: 'Interaction to next paint (INP)',
+      shortLabel: 'INP',
       attribution: vitals.attributions.inp,
       curve: LAB_METRIC_CURVES.inp,
       rawValue: vitals.inpMs,
@@ -1377,6 +1406,7 @@ function LabMetricTable({ vitals }: { vitals: LabPerformanceVitals }) {
     {
       id: 'fps',
       label: 'Frame rate (FPS)',
+      shortLabel: 'FPS',
       attribution: vitals.attributions.fps,
       curve: LAB_METRIC_CURVES.fps,
       rawValue: vitals.fps,
@@ -1386,6 +1416,7 @@ function LabMetricTable({ vitals }: { vitals: LabPerformanceVitals }) {
     {
       id: 'loading',
       label: 'Loading state',
+      shortLabel: 'Loading',
       attribution: vitals.attributions.loading,
       curve: LAB_METRIC_CURVES.loading,
       rawValue: vitals.loadingMs,
@@ -1400,6 +1431,88 @@ function LabMetricTable({ vitals }: { vitals: LabPerformanceVitals }) {
     .map((rowId) => rowsById.get(rowId))
     .filter((row): row is LabMetricRow => Boolean(row));
   const orderedRowIds = orderedRows.map((row) => row.id);
+  const orderedRowKey = orderedRowIds.join('|');
+  const updateMetricLabelMode = useCallback(() => {
+    const measureRoot = labelMeasureRef.current;
+    const table = tableRef.current;
+
+    if (!measureRoot || !table) {
+      return;
+    }
+
+    const labelNodes = Array.from(
+      table.querySelectorAll<HTMLElement>(
+        '[data-lab-performance-metric-label]',
+      ),
+    );
+    const measureNodes = Array.from(
+      measureRoot.querySelectorAll<HTMLElement>(
+        '[data-lab-performance-metric-measure-label]',
+      ),
+    );
+
+    if (!labelNodes.length || !measureNodes.length) {
+      return;
+    }
+
+    const truncatedCount = measureNodes.reduce((count, measureNode, index) => {
+      const labelNode = labelNodes[index];
+      const availableWidth = labelNode?.clientWidth ?? 0;
+
+      if (availableWidth <= 0) {
+        return count;
+      }
+
+      const fullLabelWidth = measureNode.getBoundingClientRect().width;
+
+      return fullLabelWidth >
+        availableWidth + LAB_METRIC_LABEL_TRUNCATION_TOLERANCE_PX
+        ? count + 1
+        : count;
+    }, 0);
+    const shouldAbbreviate =
+      truncatedCount >= LAB_METRIC_LABEL_TRUNCATION_TRIGGER_COUNT;
+
+    setAbbreviateMetricLabels((current) =>
+      current === shouldAbbreviate ? current : shouldAbbreviate,
+    );
+  }, []);
+  useLayoutEffect(() => {
+    const table = tableRef.current;
+    let animationFrame = 0;
+    const scheduleUpdate = () => {
+      if (animationFrame) {
+        window.cancelAnimationFrame(animationFrame);
+      }
+
+      animationFrame = window.requestAnimationFrame(updateMetricLabelMode);
+    };
+    const resizeObserver =
+      typeof ResizeObserver === 'undefined'
+        ? null
+        : new ResizeObserver(scheduleUpdate);
+
+    scheduleUpdate();
+
+    if (table) {
+      resizeObserver?.observe(table);
+
+      if (table.parentElement) {
+        resizeObserver?.observe(table.parentElement);
+      }
+    }
+
+    window.addEventListener('resize', scheduleUpdate);
+
+    return () => {
+      if (animationFrame) {
+        window.cancelAnimationFrame(animationFrame);
+      }
+
+      resizeObserver?.disconnect();
+      window.removeEventListener('resize', scheduleUpdate);
+    };
+  }, [orderedRowKey, updateMetricLabelMode]);
   const reorderRows = useCallback(({ active, over }: DragEndEvent) => {
     if (!over || active.id === over.id) {
       return;
@@ -1438,6 +1551,10 @@ function LabMetricTable({ vitals }: { vitals: LabPerformanceVitals }) {
       <table
         aria-label="Performance metrics"
         className="w-full table-fixed border-collapse text-left"
+        data-lab-performance-label-mode={
+          abbreviateMetricLabels ? 'abbreviated' : 'full'
+        }
+        ref={tableRef}
       >
         <colgroup>
           <col className="w-[34%]" />
@@ -1451,11 +1568,30 @@ function LabMetricTable({ vitals }: { vitals: LabPerformanceVitals }) {
         >
           <tbody>
             {orderedRows.map((row) => (
-              <LabSortableMetricRow key={row.id} row={row} />
+              <LabSortableMetricRow
+                abbreviateLabel={abbreviateMetricLabels}
+                key={row.id}
+                row={row}
+              />
             ))}
           </tbody>
         </SortableContext>
       </table>
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed -left-[10000px] top-0 whitespace-nowrap opacity-0"
+        ref={labelMeasureRef}
+      >
+        {orderedRows.map((row) => (
+          <span
+            className="inline-block text-[11px] font-medium leading-4"
+            data-lab-performance-metric-measure-label
+            key={row.id}
+          >
+            {row.label}
+          </span>
+        ))}
+      </div>
     </DndContext>
   );
 }

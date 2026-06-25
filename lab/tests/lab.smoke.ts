@@ -15,6 +15,8 @@ const DEFAULT_METRIC_ROW_ORDER = [
   'fps',
   'loading',
 ];
+const DESKTOP_VIEWPORT = { height: 1000, width: 1440 };
+const COMPACT_DESKTOP_VIEWPORT = { height: 998, width: 1182 };
 
 const LAB_PAGE_PANEL_TEXT = {
   plane: 'Drive the current sample color.',
@@ -56,6 +58,12 @@ async function getMetricRowOrder(metricsTable: Locator) {
     Array.from(table.querySelectorAll('[data-lab-performance-metric-row]')).map(
       (row) => row.getAttribute('data-metric-row-id'),
     ),
+  );
+}
+
+function metricLabel(metricsTable: Locator, metricRowId: string) {
+  return metricsTable.locator(
+    `[data-metric-row-id="${metricRowId}"] [data-lab-performance-metric-label]`,
   );
 }
 
@@ -148,11 +156,21 @@ test('mirrors the color-kit lab pages and properties panel', async ({
       exact: true,
     });
     await expect(metricsTable).toBeVisible();
-    await expect(metricsTable).toContainText('Matched resources');
+    await expect(metricLabel(metricsTable, 'resources')).toHaveText(
+      /^(Matched resources|Resources)$/,
+    );
     await expect(metricsTable).toContainText('Route module fetches');
-    await expect(metricsTable).toContainText('Long tasks');
+    await expect(metricLabel(metricsTable, 'long-tasks')).toHaveText(
+      /^(Long tasks|Tasks)$/,
+    );
     await expect(metricsTable).toContainText('Main-thread blocks observed');
+    await expect(metricLabel(metricsTable, 'fcp')).toHaveText(
+      /^(First contentful paint \(FCP\)|FCP)$/,
+    );
     await expect(metricsTable).toContainText('Initial document paint');
+    await expect(metricLabel(metricsTable, 'fps')).toHaveText(
+      /^(Frame rate \(FPS\)|FPS)$/,
+    );
     await expect(metricsTable).toContainText('requestAnimationFrame sampler');
     await expect(metricsTable.locator('tbody tr')).toHaveCount(8);
     await expect(metricsTable.locator('svg[role="img"]')).toHaveCount(6);
@@ -206,9 +224,7 @@ test('mirrors the color-kit lab pages and properties panel', async ({
     await expect(
       metricsTable.locator('tbody tr').first().locator('th, td'),
     ).toHaveCount(4);
-    const lcpRow = metricsTable.locator('tbody tr', {
-      hasText: 'Largest contentful paint (LCP)',
-    });
+    const lcpRow = metricsTable.locator('[data-metric-row-id="lcp"]');
     await expect(lcpRow).toContainText('LCP');
     const lcpText = await lcpRow.textContent();
     expect(lcpText).toMatch(/Largest preview element|No preview LCP candidate/);
@@ -570,6 +586,47 @@ test('mirrors the color-kit lab pages and properties panel', async ({
         (storageKey) => window.localStorage.removeItem(storageKey),
         LAB_METRIC_ROW_ORDER_STORAGE_KEY,
       );
+      await page.reload();
+      await expect(page).toHaveURL(new RegExp(`/lab/${labPage.slug}$`));
+
+      await page.setViewportSize(COMPACT_DESKTOP_VIEWPORT);
+      await page.reload();
+      await expect(page).toHaveURL(new RegExp(`/lab/${labPage.slug}$`));
+      const compactMetricsTable = page
+        .getByRole('region', {
+          name: `Performance analysis for ${labPage.label}`,
+          exact: true,
+        })
+        .getByRole('table', {
+          name: 'Performance metrics',
+          exact: true,
+        });
+      await expect(compactMetricsTable).toHaveAttribute(
+        'data-lab-performance-label-mode',
+        'abbreviated',
+      );
+      const compactMetricLabels = [
+        ['resources', 'Resources'],
+        ['long-tasks', 'Tasks'],
+        ['fcp', 'FCP'],
+        ['lcp', 'LCP'],
+        ['cls', 'CLS'],
+        ['inp', 'INP'],
+        ['fps', 'FPS'],
+        ['loading', 'Loading'],
+      ];
+
+      for (const [metricRowId, compactLabel] of compactMetricLabels) {
+        const label = metricLabel(compactMetricsTable, metricRowId);
+        await expect(label).toHaveCount(1);
+        await expect(label).toHaveText(compactLabel);
+      }
+
+      await expect(
+        compactMetricsTable.locator('[data-metric-row-id="fcp"] th'),
+      ).toHaveAttribute('title', 'First contentful paint (FCP)');
+
+      await page.setViewportSize(DESKTOP_VIEWPORT);
       await page.reload();
       await expect(page).toHaveURL(new RegExp(`/lab/${labPage.slug}$`));
     }
