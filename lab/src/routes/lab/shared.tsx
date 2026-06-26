@@ -3029,7 +3029,7 @@ function LabPageFrameContent({
     useState(false);
   const [isPerformancePanelCollapsed, setIsPerformancePanelCollapsed] =
     useState(false);
-  const isLabPageLoading = preview === null;
+  const isLabPageLoading = preview === null || properties === null;
   const togglePropertiesPanel = useCallback(() => {
     setIsPropertiesPanelCollapsed((isCollapsed) => !isCollapsed);
   }, []);

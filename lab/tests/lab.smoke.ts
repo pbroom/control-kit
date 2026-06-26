@@ -221,6 +221,11 @@ test('mirrors the color-kit lab pages and properties panel', async ({
       /^(Long tasks|Tasks)$/,
     );
     await expect(metricsTable).toContainText('Main-thread blocks observed');
+    const loadingRow = metricsTable.locator('[data-metric-row-id="loading"]');
+    await expect(loadingRow).toContainText(
+      /(?:Component preview slot|No loading state observed)/,
+    );
+    await expect(loadingRow).toContainText(/\d+ms/);
     await expect(metricLabel(metricsTable, 'fcp')).toHaveText(
       /^(First contentful paint \(FCP\)|FCP)$/,
     );
