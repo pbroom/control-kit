@@ -2729,16 +2729,45 @@ type LabPageFrameProps = {
 
 function LabPagePreviewFallback() {
   return (
-    <div className="size-full min-h-[320px] animate-pulse rounded-[24px] bg-white/[0.04]" />
+    <div
+      role="status"
+      aria-label="Loading preview"
+      className="pointer-events-none flex h-[220px] w-[320px] max-w-[min(320px,calc(100vw-3rem))] items-center justify-center rounded-[18px] border border-white/8 bg-[#101010] shadow-[0_18px_45px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.04)]"
+    >
+      <div className="flex w-[72%] flex-col items-center gap-3">
+        <div className="h-16 w-16 animate-pulse rounded-2xl bg-white/[0.08]" />
+        <div className="h-2.5 w-full animate-pulse rounded-full bg-white/[0.08]" />
+        <div className="h-2.5 w-2/3 animate-pulse rounded-full bg-white/[0.05]" />
+      </div>
+    </div>
   );
 }
 
 function LabPagePropertiesFallback() {
   return (
-    <div className="space-y-4">
-      <div className="h-5 w-32 animate-pulse rounded bg-white/10" />
-      <div className="h-24 animate-pulse rounded-xl bg-white/[0.04]" />
-      <div className="h-24 animate-pulse rounded-xl bg-white/[0.04]" />
+    <div role="status" aria-label="Loading properties" className="space-y-6">
+      <section className="space-y-3">
+        <div className="h-4 w-28 animate-pulse rounded-full bg-white/[0.12]" />
+        <div className="space-y-2">
+          <div className="h-2.5 w-full animate-pulse rounded-full bg-white/[0.07]" />
+          <div className="h-2.5 w-4/5 animate-pulse rounded-full bg-white/[0.05]" />
+        </div>
+      </section>
+      <section className="space-y-3">
+        <div className="h-3 w-20 animate-pulse rounded-full bg-white/[0.08]" />
+        <div className="grid grid-cols-2 gap-2">
+          <div className="h-7 animate-pulse rounded-lg bg-white/[0.06]" />
+          <div className="h-7 animate-pulse rounded-lg bg-white/[0.06]" />
+        </div>
+        <div className="h-8 animate-pulse rounded-lg bg-white/[0.06]" />
+      </section>
+      <section className="space-y-3 border-t border-white/8 pt-6">
+        <div className="h-3 w-24 animate-pulse rounded-full bg-white/[0.08]" />
+        <div className="space-y-2.5">
+          <div className="h-4 w-3/4 animate-pulse rounded-full bg-white/[0.05]" />
+          <div className="h-4 w-2/3 animate-pulse rounded-full bg-white/[0.05]" />
+        </div>
+      </section>
     </div>
   );
 }
