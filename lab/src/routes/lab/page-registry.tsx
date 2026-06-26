@@ -67,8 +67,21 @@ const LAB_PAGE_MODULE_PROMISES: Partial<
 > = {};
 
 export function preloadLabPage(activePage: LabPageKey) {
-  return (LAB_PAGE_MODULE_PROMISES[activePage] ??=
-    LAB_PAGE_LOADERS[activePage]());
+  const cachedModulePromise = LAB_PAGE_MODULE_PROMISES[activePage];
+
+  if (cachedModulePromise) {
+    return cachedModulePromise;
+  }
+
+  const modulePromise = LAB_PAGE_LOADERS[activePage]().catch(
+    (error: unknown) => {
+      delete LAB_PAGE_MODULE_PROMISES[activePage];
+      throw error;
+    },
+  );
+
+  LAB_PAGE_MODULE_PROMISES[activePage] = modulePromise;
+  return modulePromise;
 }
 
 export function preloadLabPages(activePages: readonly LabPageKey[]) {

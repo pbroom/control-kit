@@ -22,6 +22,10 @@ function appendVisitedPage(
   return pages.includes(page) ? pages : [...pages, page];
 }
 
+function ignorePreloadFailure(preloadPromise: Promise<unknown>) {
+  void preloadPromise.catch(() => undefined);
+}
+
 export function LabPage() {
   const [activePage, setActivePage] = useState<LabPageKey>('plane');
   const [visitedPages, setVisitedPages] = useState<readonly LabPageKey[]>([
@@ -30,11 +34,11 @@ export function LabPage() {
 
   useEffect(() => {
     const preloadPages = () => {
-      void preloadLabPages(
-        LAB_PAGE_NAVIGATION.map((page) => page.value).filter(
-          (page) => page !== activePage,
-        ),
-      );
+      const inactivePages = LAB_PAGE_NAVIGATION.map(
+        (page) => page.value,
+      ).filter((page) => page !== activePage);
+
+      ignorePreloadFailure(preloadLabPages(inactivePages));
     };
     const preloadWindow = window as PreloadWindow;
 
@@ -50,13 +54,13 @@ export function LabPage() {
   }, [activePage]);
 
   const handlePageChange = useCallback((page: LabPageKey) => {
-    void preloadLabPage(page);
+    ignorePreloadFailure(preloadLabPage(page));
     setActivePage(page);
     setVisitedPages((pages) => appendVisitedPage(pages, page));
   }, []);
 
   const handlePagePreload = useCallback((page: LabPageKey) => {
-    void preloadLabPage(page);
+    ignorePreloadFailure(preloadLabPage(page));
   }, []);
 
   return (
