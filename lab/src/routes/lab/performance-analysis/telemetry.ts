@@ -66,7 +66,11 @@ export function suppressAnalysisSurfaceLayoutShifts() {
     getPerformanceTime() + LAB_PERFORMANCE_PANEL_LAYOUT_SHIFT_SUPPRESSION_MS;
 }
 
-function isAnalysisSurfaceTelemetrySuppressedAt(time: number) {
+function clearAnalysisSurfaceLayoutShiftSuppression() {
+  analysisSurfaceLayoutShiftSuppressionUntil = 0;
+}
+
+function isAnalysisSurfaceLayoutShiftSuppressedAt(time: number) {
   return time <= analysisSurfaceLayoutShiftSuppressionUntil;
 }
 
@@ -499,6 +503,7 @@ export function useLabPerformanceTelemetry(
 
   useEffect(() => {
     const routeStart = getPerformanceTime();
+    clearAnalysisSurfaceLayoutShiftSuppression();
     routeStartRef.current = routeStart;
     loadingStartRef.current = isLoading ? routeStart : null;
     setTimelineTimeMs(0);
@@ -778,7 +783,7 @@ export function useLabPerformanceTelemetry(
           .filter(
             (entry) =>
               entry.startTime >= routeStartRef.current &&
-              !isAnalysisSurfaceTelemetrySuppressedAt(entry.startTime),
+              !isAnalysisSurfaceLayoutShiftSuppressedAt(entry.startTime),
           )
           .filter(isComponentLayoutShiftEntry);
         for (const entry of shiftEntries) {
@@ -815,25 +820,30 @@ export function useLabPerformanceTelemetry(
       'event',
       (entries) => {
         const interaction = (entries as InteractionPerformanceEntry[])
-          .filter(
-            (entry) => !isAnalysisSurfaceTelemetrySuppressedAt(entry.startTime),
-          )
+          .filter((entry) => entry.startTime >= routeStartRef.current)
           .filter(isInteractionEntryRelevant)
           .sort((first, second) => second.duration - first.duration)[0];
         if (!interaction) {
           return;
         }
         const inpMs = Math.round(interaction.duration);
-        setVitals((current) => ({
-          ...current,
-          inpMs: Math.max(current.inpMs ?? 0, inpMs),
-          attributions: {
-            ...current.attributions,
-            inp: `${interaction.name || 'interaction'} on ${describeAttributionTarget(
-              interaction.target,
-            )}`,
-          },
-        }));
+        setVitals((current) => {
+          const currentInpMs = current.inpMs ?? 0;
+          const isWorstInteraction = inpMs >= currentInpMs;
+
+          return {
+            ...current,
+            inpMs: Math.max(currentInpMs, inpMs),
+            attributions: {
+              ...current.attributions,
+              inp: isWorstInteraction
+                ? `${interaction.name || 'interaction'} on ${describeAttributionTarget(
+                    interaction.target,
+                  )}`
+                : current.attributions.inp,
+            },
+          };
+        });
         addTimelineEvent(
           'interaction',
           'Interaction',
@@ -853,9 +863,7 @@ export function useLabPerformanceTelemetry(
       'longtask',
       (entries) => {
         const longTaskEntries = entries.filter(
-          (entry) =>
-            entry.startTime >= routeStartRef.current &&
-            !isAnalysisSurfaceTelemetrySuppressedAt(entry.startTime),
+          (entry) => entry.startTime >= routeStartRef.current,
         );
         if (longTaskEntries.length === 0) {
           return;
