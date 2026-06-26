@@ -111,7 +111,6 @@ import {
   useState,
   type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
-  type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react';
@@ -119,7 +118,6 @@ import {
   DynamicLucideIcon,
   LucideIconPicker,
 } from '@/components/lucide-icon-picker';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import {
   DropdownMenu,
@@ -140,11 +138,7 @@ import {
   SelectList,
   SelectListItem,
 } from './lab-menu.js';
-import { ThemeSwitcher } from '../../components/theme-switcher.js';
-import {
-  LabPageSlotProvider,
-  useLabPageSlotContent,
-} from './lab-page-slots.js';
+import { LabPageFrame } from './lab-page-frame.js';
 
 type OutputGamut = 'display-p3' | 'srgb';
 type LabPageKey =
@@ -1026,9 +1020,6 @@ function LabMenuOptionRows({
 const PANEL_TWO_COLUMN_GRID_CLASS =
   'grid w-full min-w-0 max-w-full grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3';
 
-const LAB_PANEL_SCROLL_AREA_CLASS =
-  'h-full w-full min-w-0 max-w-full overflow-hidden [&>[data-radix-scroll-area-viewport]]:w-full [&>[data-radix-scroll-area-viewport]]:min-w-0 [&>[data-radix-scroll-area-viewport]]:max-w-full [&>[data-radix-scroll-area-viewport]]:overflow-x-hidden [&>[data-radix-scroll-area-viewport]>div]:!block [&>[data-radix-scroll-area-viewport]>div]:!w-full [&>[data-radix-scroll-area-viewport]>div]:!min-w-0 [&>[data-radix-scroll-area-viewport]>div]:!max-w-full';
-
 function getSegmentedFieldItemStateClass(isSelected: boolean): string {
   return isSelected
     ? `border-[#4C4C4C] ${SEGMENTED_FIELD_ITEM_ACTIVE_BG_CLASS} text-white/90 shadow-none`
@@ -1374,74 +1365,6 @@ function ToggleField({
     <Checkbox checked={checked} onCheckedChange={onChange}>
       {label}
     </Checkbox>
-  );
-}
-
-function PagesPanel({
-  activePage,
-  getPageHref,
-  onPageChange,
-  onPagePreload,
-  pages,
-}: {
-  activePage: LabPageKey;
-  getPageHref: (page: LabPageKey) => string;
-  onPageChange: (page: LabPageKey) => void;
-  onPagePreload?: (page: LabPageKey) => void;
-  pages: readonly LabPageNavigationItem[];
-}) {
-  return (
-    <div className="absolute left-4 top-4 z-20 w-[190px]">
-      <div className="flex items-center gap-2">
-        <div className="flex min-w-0 items-center rounded-lg px-1 py-1 font-[var(--font-brand)] text-[15px] font-bold text-white outline-none focus-visible:ring-2 focus-visible:ring-[#5288db]">
-          <span className="truncate">control-kit</span>
-        </div>
-        <div className="ml-auto [&_[data-slot=button]]:size-8 [&_[data-slot=button]]:min-h-8 [&_[data-slot=button]]:rounded-xl [&_[data-slot=button]]:text-white/65 [&_[data-slot=button]]:hover:bg-white/8 [&_[data-slot=button]]:hover:text-white">
-          <ThemeSwitcher />
-        </div>
-      </div>
-      <div className="mt-3 space-y-0.5">
-        {pages.map((page) => {
-          const isActive = activePage === page.value;
-          return (
-            <a
-              key={page.value}
-              href={getPageHref(page.value)}
-              className="ck-lab-page-link flex w-full items-center rounded-lg px-1 py-1.5 text-left text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[#5288db]"
-              aria-current={isActive ? 'page' : undefined}
-              onClick={(event) => {
-                if (!shouldHandlePageLinkInApp(event)) {
-                  return;
-                }
-
-                event.preventDefault();
-                onPageChange(page.value);
-              }}
-              onFocus={() => onPagePreload?.(page.value)}
-              onPointerEnter={() => onPagePreload?.(page.value)}
-            >
-              {page.label}
-            </a>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function LabHeaderExit() {
-  return (
-    <div
-      aria-hidden="true"
-      className="ck-lab-header-exit pointer-events-none fixed inset-x-0 top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-xl [animation:ck-lab-header-slide-up_320ms_ease-out_forwards]"
-    >
-      <div className="mx-auto flex h-14 w-full max-w-[1560px] items-center justify-between gap-4 px-4">
-        <div className="docs-brand">
-          <span className="docs-brand-dot" />
-          control-kit
-        </div>
-      </div>
-    </div>
   );
 }
 
@@ -2715,139 +2638,6 @@ function SliderPlaygroundStage({
   );
 }
 
-type LabPageNavigationItem = {
-  value: LabPageKey;
-  label: string;
-};
-
-function shouldHandlePageLinkInApp(event: ReactMouseEvent<HTMLAnchorElement>) {
-  return (
-    event.button === 0 &&
-    !event.metaKey &&
-    !event.altKey &&
-    !event.ctrlKey &&
-    !event.shiftKey
-  );
-}
-
-type LabPanelTooltipProviderProps = {
-  delayDuration: number;
-  skipDelayDuration: number;
-};
-
-type LabPageFrameProps = {
-  activePage: LabPageKey;
-  getPageHref: (page: LabPageKey) => string;
-  onPageChange: (page: LabPageKey) => void;
-  onPagePreload?: (page: LabPageKey) => void;
-  pages: readonly LabPageNavigationItem[];
-  children: ReactNode;
-};
-
-function LabPagePreviewFallback() {
-  return (
-    <div
-      role="status"
-      aria-label="Loading preview"
-      className="pointer-events-none flex h-[220px] w-[320px] max-w-[min(320px,calc(100vw-3rem))] items-center justify-center rounded-[18px] border border-white/8 bg-[#101010] shadow-[0_18px_45px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.04)]"
-    >
-      <div className="flex w-[72%] flex-col items-center gap-3">
-        <div className="h-16 w-16 animate-pulse rounded-2xl bg-white/[0.08]" />
-        <div className="h-2.5 w-full animate-pulse rounded-full bg-white/[0.08]" />
-        <div className="h-2.5 w-2/3 animate-pulse rounded-full bg-white/[0.05]" />
-      </div>
-    </div>
-  );
-}
-
-function LabPagePropertiesFallback() {
-  return (
-    <div role="status" aria-label="Loading properties" className="space-y-6">
-      <section className="space-y-3">
-        <div className="h-4 w-28 animate-pulse rounded-full bg-white/[0.12]" />
-        <div className="space-y-2">
-          <div className="h-2.5 w-full animate-pulse rounded-full bg-white/[0.07]" />
-          <div className="h-2.5 w-4/5 animate-pulse rounded-full bg-white/[0.05]" />
-        </div>
-      </section>
-      <section className="space-y-3">
-        <div className="h-3 w-20 animate-pulse rounded-full bg-white/[0.08]" />
-        <div className="grid grid-cols-2 gap-2">
-          <div className="h-7 animate-pulse rounded-lg bg-white/[0.06]" />
-          <div className="h-7 animate-pulse rounded-lg bg-white/[0.06]" />
-        </div>
-        <div className="h-8 animate-pulse rounded-lg bg-white/[0.06]" />
-      </section>
-      <section className="space-y-3 border-t border-white/8 pt-6">
-        <div className="h-3 w-24 animate-pulse rounded-full bg-white/[0.08]" />
-        <div className="space-y-2.5">
-          <div className="h-4 w-3/4 animate-pulse rounded-full bg-white/[0.05]" />
-          <div className="h-4 w-2/3 animate-pulse rounded-full bg-white/[0.05]" />
-        </div>
-      </section>
-    </div>
-  );
-}
-
-function LabPageFrameContent({
-  activePage,
-  getPageHref,
-  onPageChange,
-  onPagePreload,
-  pages,
-  children,
-}: LabPageFrameProps) {
-  const { panelTooltipProviderProps, preview, properties } =
-    useLabPageSlotContent();
-
-  return (
-    <div className="min-h-screen overflow-hidden bg-[#171717]">
-      <LabHeaderExit />
-
-      <main className="h-screen min-h-screen min-w-0 bg-[#171717] [--ck-lab-segmented-active-bg:#171717] text-white lg:overflow-hidden">
-        <div className="grid min-h-screen min-w-0 grid-cols-1 lg:h-full lg:grid-cols-[minmax(0,1fr)_300px]">
-          <section className="relative flex min-h-[420px] min-w-0 items-center justify-center overflow-hidden px-6 py-10 lg:min-h-0 lg:py-14">
-            <PagesPanel
-              activePage={activePage}
-              getPageHref={getPageHref}
-              onPageChange={onPageChange}
-              onPagePreload={onPagePreload}
-              pages={pages}
-            />
-            {preview ?? <LabPagePreviewFallback />}
-          </section>
-
-          <aside className="min-w-0 max-w-full overflow-hidden border-t border-white/8 p-3 lg:min-h-0 lg:border-t-0 lg:p-4">
-            <div className="h-full w-full min-w-0 max-w-full overflow-hidden rounded-[24px] border border-white/8 bg-white/[0.03] [--ck-lab-segmented-active-bg:color-mix(in_srgb,#171717_97%,white_3%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] backdrop-blur lg:min-h-0">
-              <ScrollArea className={LAB_PANEL_SCROLL_AREA_CLASS}>
-                <TooltipProvider
-                  delayDuration={panelTooltipProviderProps.delayDuration}
-                  skipDelayDuration={
-                    panelTooltipProviderProps.skipDelayDuration
-                  }
-                >
-                  <div className="w-full min-w-0 max-w-full space-y-6 overflow-x-hidden p-4">
-                    {properties ?? <LabPagePropertiesFallback />}
-                  </div>
-                </TooltipProvider>
-              </ScrollArea>
-            </div>
-          </aside>
-        </div>
-      </main>
-      {children}
-    </div>
-  );
-}
-
-function LabPageFrame(props: LabPageFrameProps) {
-  return (
-    <LabPageSlotProvider>
-      <LabPageFrameContent {...props} />
-    </LabPageSlotProvider>
-  );
-}
-
 export {
   Background,
   BoundsConfigInput,
@@ -2871,7 +2661,6 @@ export {
   GamutBoundaryLayer,
   InlineConfigurableMenuContent,
   InlineLabMenuContent,
-  LAB_PANEL_SCROLL_AREA_CLASS,
   LabMenuContent,
   LabPageFrame,
   LucideIconPicker,
@@ -2912,6 +2701,12 @@ export {
 };
 
 export type {
+  LabPageFrameProps,
+  LabPageNavigationItem,
+  LabPanelTooltipProviderProps,
+} from './lab-page-frame.js';
+
+export type {
   ConfigurableMenuItemConfig,
   ConfigurableMenuItemId,
   ConfigurableMenuItemLeading,
@@ -2921,10 +2716,7 @@ export type {
   ColorAreaPerformanceProfile,
   ColorSliderChannel,
   LabMultiInputField,
-  LabPageFrameProps,
   LabPageKey,
-  LabPageNavigationItem,
-  LabPanelTooltipProviderProps,
   MultiInputConfig,
   MultiInputFieldId,
   OutputGamut,
