@@ -2982,7 +2982,7 @@ function LabPanelToggleControls({
     <TooltipProvider delayDuration={350} skipDelayDuration={120}>
       <div
         aria-label="Panel visibility controls"
-        className="pointer-events-auto absolute top-4 right-[calc(var(--lab-properties-panel-width)+0.75rem)] z-40 hidden gap-2 lg:flex"
+        className="pointer-events-auto absolute top-4 right-4 z-40 flex gap-2 lg:right-[calc(var(--lab-properties-panel-width)+0.75rem)]"
         data-testid="lab-panel-toggle-controls"
         role="toolbar"
       >
@@ -2998,18 +2998,20 @@ function LabPanelToggleControls({
           onClick={onTogglePerformancePanel}
           testId="lab-toggle-performance-panel"
         />
-        <LabPanelToggleButton
-          aria-controls="lab-properties-panel"
-          icon={PropertiesIcon}
-          isPressed={!isPropertiesPanelCollapsed}
-          label={
-            isPropertiesPanelCollapsed
-              ? 'Show properties panel'
-              : 'Hide properties panel'
-          }
-          onClick={onTogglePropertiesPanel}
-          testId="lab-toggle-properties-panel"
-        />
+        <div className="hidden lg:block">
+          <LabPanelToggleButton
+            aria-controls="lab-properties-panel"
+            icon={PropertiesIcon}
+            isPressed={!isPropertiesPanelCollapsed}
+            label={
+              isPropertiesPanelCollapsed
+                ? 'Show properties panel'
+                : 'Hide properties panel'
+            }
+            onClick={onTogglePropertiesPanel}
+            testId="lab-toggle-properties-panel"
+          />
+        </div>
       </div>
     </TooltipProvider>
   );

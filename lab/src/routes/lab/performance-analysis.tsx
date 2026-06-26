@@ -130,6 +130,7 @@ type InteractionPerformanceEntry = PerformanceEntry & {
 const MAX_TIMELINE_EVENTS = 12;
 const TIMELINE_STORY_MIN_EVENT_MS = 24;
 const LAB_COMPONENT_PREVIEW_SELECTOR = '[data-lab-component-preview]';
+const LAB_CROSSFADE_EXIT_SELECTOR = '[data-lab-crossfade-phase="exit"]';
 const LAB_PREVIEW_LCP_IGNORED_TAGS = new Set([
   'clippath',
   'defs',
@@ -451,7 +452,10 @@ function isPerformancePanelEventTarget(target: EventTarget | null | undefined) {
 function isComponentPreviewLcpCandidate(
   entry: LargestContentfulPaintPerformanceEntry,
 ) {
-  return Boolean(entry.element?.closest(LAB_COMPONENT_PREVIEW_SELECTOR));
+  return Boolean(
+    entry.element?.closest(LAB_COMPONENT_PREVIEW_SELECTOR) &&
+    !entry.element.closest(LAB_CROSSFADE_EXIT_SELECTOR),
+  );
 }
 
 function getVisibleElementArea(element: Element) {
@@ -521,6 +525,7 @@ function findLargestComponentPreviewCandidate(): LabPreviewLcpCandidate | null {
   for (const element of Array.from(previewRoot.querySelectorAll('*'))) {
     if (
       LAB_PREVIEW_LCP_IGNORED_TAGS.has(element.tagName.toLowerCase()) ||
+      element.closest(LAB_CROSSFADE_EXIT_SELECTOR) ||
       element.closest('aside') ||
       element.closest('[data-lab-performance-panel]')
     ) {
@@ -1077,7 +1082,11 @@ function useLabPerformanceTelemetry(
       'largest-contentful-paint',
       (entries) => {
         const candidate = (entries as LargestContentfulPaintPerformanceEntry[])
-          .filter(isComponentPreviewLcpCandidate)
+          .filter(
+            (entry) =>
+              entry.startTime >= routeStartRef.current &&
+              isComponentPreviewLcpCandidate(entry),
+          )
           .at(-1);
         if (!candidate) {
           return;
@@ -2298,27 +2307,26 @@ export function LabPerformanceAnalysisPanel({
     panelMaxHeightRef.current = panelMaxHeight;
   }, [panelMaxHeight]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (isCollapsed === undefined) {
       return;
     }
 
-    const currentHeight = panelHeightRef.current;
-    const isCurrentlyCollapsed =
-      currentHeight <= LAB_PERFORMANCE_PANEL_COLLAPSED_HEIGHT;
+    if (isCollapsed) {
+      suppressAnalysisSurfaceLayoutShifts();
+      userSizedPanelRef.current = true;
+      setPanelHeight(LAB_PERFORMANCE_PANEL_COLLAPSED_HEIGHT);
+      return;
+    }
 
-    if (isCollapsed === isCurrentlyCollapsed) {
+    if (panelHeightRef.current > LAB_PERFORMANCE_PANEL_COLLAPSED_HEIGHT) {
       return;
     }
 
     suppressAnalysisSurfaceLayoutShifts();
     userSizedPanelRef.current = true;
-    setPanelHeight(
-      isCollapsed
-        ? LAB_PERFORMANCE_PANEL_COLLAPSED_HEIGHT
-        : panelMaxHeightRef.current,
-    );
-  }, [isCollapsed]);
+    setPanelHeight(panelMaxHeightRef.current);
+  }, [activePage, isCollapsed]);
 
   const startPanelResize = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
