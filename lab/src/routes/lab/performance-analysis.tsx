@@ -238,10 +238,14 @@ export function LabPerformanceAnalysisPanel({
         event.preventDefault();
         suppressAnalysisSurfaceLayoutShifts();
         userSizedPanelRef.current = true;
-        const nextHeight = clampPerformancePanelHeight(
+        const clampedHeight = clampPerformancePanelHeight(
           panelHeightRef.current - step,
           panelMaxHeight,
         );
+        const nextHeight =
+          clampedHeight < LAB_PERFORMANCE_PANEL_MIN_HEIGHT
+            ? LAB_PERFORMANCE_PANEL_COLLAPSED_HEIGHT
+            : clampedHeight;
         onCollapsedChange?.(
           nextHeight <= LAB_PERFORMANCE_PANEL_COLLAPSED_HEIGHT,
         );
