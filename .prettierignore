@@ -1,4 +1,5 @@
 vendor/sandpack/**
+lab/src/vendor/color-kit/core-wasm/generated/**
 pnpm-lock.yaml
 .gitignore
 .prettierignore

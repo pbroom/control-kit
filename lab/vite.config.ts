@@ -10,13 +10,34 @@ export default defineConfig({
   resolve: {
     alias: [
       { find: '@', replacement: fromLab('./src') },
-      { find: '@color-kit/control-kit', replacement: fromLab('../src/index.ts') },
-      { find: '@color-kit/core-wasm', replacement: fromLab('./src/vendor/color-kit/core-wasm/index.ts') },
-      { find: '@color-kit/core', replacement: fromLab('./src/vendor/color-kit/core/index.ts') },
-      { find: 'color-kit/react', replacement: fromLab('./src/vendor/color-kit/react/index.ts') },
-      { find: '@color-kit/react', replacement: fromLab('./src/vendor/color-kit/react/index.ts') },
-      { find: 'color-kit/core', replacement: fromLab('./src/vendor/color-kit/core/index.ts') },
-      { find: 'color-kit', replacement: fromLab('./src/vendor/color-kit/core/index.ts') },
+      {
+        find: '@color-kit/control-kit',
+        replacement: fromLab('../src/index.ts'),
+      },
+      {
+        find: '@color-kit/core-wasm',
+        replacement: fromLab('./src/vendor/color-kit/core-wasm/index.ts'),
+      },
+      {
+        find: '@color-kit/core',
+        replacement: fromLab('./src/vendor/color-kit/core/index.ts'),
+      },
+      {
+        find: 'color-kit/react',
+        replacement: fromLab('./src/vendor/color-kit/react/index.ts'),
+      },
+      {
+        find: '@color-kit/react',
+        replacement: fromLab('./src/vendor/color-kit/react/index.ts'),
+      },
+      {
+        find: 'color-kit/core',
+        replacement: fromLab('./src/vendor/color-kit/core/index.ts'),
+      },
+      {
+        find: 'color-kit',
+        replacement: fromLab('./src/vendor/color-kit/core/index.ts'),
+      },
     ],
   },
   server: {
