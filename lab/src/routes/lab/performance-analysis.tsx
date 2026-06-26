@@ -1202,14 +1202,19 @@ function useLabPerformanceTelemetry(
     observe(
       'longtask',
       (entries) => {
-        if (entries.length === 0) {
+        const longTaskEntries = entries.filter(
+          (entry) =>
+            entry.startTime >= routeStartRef.current &&
+            !isAnalysisSurfaceTelemetrySuppressedAt(entry.startTime),
+        );
+        if (longTaskEntries.length === 0) {
           return;
         }
         setVitals((current) => ({
           ...current,
-          longTasks: current.longTasks + entries.length,
+          longTasks: current.longTasks + longTaskEntries.length,
         }));
-        for (const entry of entries) {
+        for (const entry of longTaskEntries) {
           addTimelineEvent(
             'long-task',
             'Long task',
