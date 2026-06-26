@@ -77,7 +77,8 @@ function isAnalysisSurfaceLayoutShiftSuppressedAt(time: number) {
 function isPerformancePanelEventTarget(target: EventTarget | null | undefined) {
   return (
     target instanceof Element &&
-    target.closest('[data-lab-performance-panel]') !== null
+    (target.closest('[data-lab-performance-panel]') !== null ||
+      target.closest('aside') !== null)
   );
 }
 
@@ -274,10 +275,7 @@ function truncateAttribution(value: string, maxLength = 42) {
 function getReadableElementName(element: Element) {
   if (element instanceof HTMLInputElement) {
     return (
-      element.getAttribute('aria-label') ||
-      element.placeholder ||
-      element.value ||
-      element.name
+      element.getAttribute('aria-label') || element.placeholder || element.name
     );
   }
 
@@ -448,9 +446,21 @@ export function useLabPerformanceTelemetry(
   isLoading: boolean,
 ) {
   const routeStartRef = useRef(getPerformanceTime());
+  const activePageRef = useRef(activePage);
   const loadingStartRef = useRef<number | null>(
     isLoading ? routeStartRef.current : null,
   );
+  const lcpMeasuredRef = useRef(false);
+
+  if (activePageRef.current !== activePage) {
+    const routeStart = getPerformanceTime();
+    activePageRef.current = activePage;
+    routeStartRef.current = routeStart;
+    loadingStartRef.current = isLoading ? routeStart : null;
+    lcpMeasuredRef.current = false;
+    clearAnalysisSurfaceLayoutShiftSuppression();
+  }
+
   const [timelineTimeMs, setTimelineTimeMs] = useState(0);
   const [vitals, setVitals] = useState(() =>
     getInitialVitals(activePage, isLoading, routeStartRef.current),
@@ -502,10 +512,10 @@ export function useLabPerformanceTelemetry(
   );
 
   useEffect(() => {
-    const routeStart = getPerformanceTime();
-    clearAnalysisSurfaceLayoutShiftSuppression();
-    routeStartRef.current = routeStart;
+    const routeStart = routeStartRef.current;
     loadingStartRef.current = isLoading ? routeStart : null;
+    lcpMeasuredRef.current = false;
+    clearAnalysisSurfaceLayoutShiftSuppression();
     setTimelineTimeMs(0);
     setVitals((current) => {
       const initialVitals = getInitialVitals(activePage, isLoading, routeStart);
@@ -651,14 +661,24 @@ export function useLabPerformanceTelemetry(
         const candidate = findLargestComponentPreviewCandidate();
 
         if (!candidate) {
-          setVitals((current) => ({
-            ...current,
-            lcpMs: null,
-            attributions: {
-              ...current.attributions,
-              lcp: LAB_LCP_NO_PREVIEW_CANDIDATE_ATTRIBUTION,
-            },
-          }));
+          setVitals((current) => {
+            if (current.lcpMs !== null) {
+              return current;
+            }
+
+            return {
+              ...current,
+              lcpMs: null,
+              attributions: {
+                ...current.attributions,
+                lcp: LAB_LCP_NO_PREVIEW_CANDIDATE_ATTRIBUTION,
+              },
+            };
+          });
+          return;
+        }
+
+        if (lcpMeasuredRef.current) {
           return;
         }
 
@@ -667,6 +687,7 @@ export function useLabPerformanceTelemetry(
           0,
           Math.round(measuredAt - routeStartRef.current),
         );
+        lcpMeasuredRef.current = true;
 
         setVitals((current) => ({
           ...current,
@@ -756,6 +777,7 @@ export function useLabPerformanceTelemetry(
           0,
           Math.round(candidateTime - routeStartRef.current),
         );
+        lcpMeasuredRef.current = true;
         setVitals((current) => ({
           ...current,
           lcpMs,

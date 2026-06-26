@@ -408,10 +408,6 @@ export function LabPerformanceAnalysisPanel({
   const isPanelCollapsed =
     panelHeight <= LAB_PERFORMANCE_PANEL_COLLAPSED_HEIGHT;
 
-  useEffect(() => {
-    onCollapsedChange?.(isPanelCollapsed);
-  }, [isPanelCollapsed, onCollapsedChange]);
-
   const panelFrameHeight = Math.max(
     panelHeight,
     LAB_PERFORMANCE_PANEL_HANDLE_HIT_AREA,
