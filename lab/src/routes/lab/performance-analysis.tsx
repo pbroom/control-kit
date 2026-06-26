@@ -1282,6 +1282,20 @@ type LabMetricRow = {
   tone: LabPerformanceTone;
 };
 
+const LAB_METRIC_TABLE_COLUMNS = {
+  full: {
+    attribution: '31%',
+    label: '34%',
+  },
+  abbreviated: {
+    attribution: '41%',
+    label: '24%',
+  },
+} satisfies Record<
+  'abbreviated' | 'full',
+  { attribution: string; label: string }
+>;
+
 function isLabMetricRowId(value: unknown): value is LabMetricRowId {
   return typeof value === 'string' && LAB_METRIC_ROW_ID_SET.has(value);
 }
@@ -1964,6 +1978,9 @@ function LabMetricTable({ vitals }: { vitals: LabPerformanceVitals }) {
     .filter((row): row is LabMetricRow => Boolean(row));
   const orderedRowIds = orderedRows.map((row) => row.id);
   const orderedRowKey = orderedRowIds.join('|');
+  const tableColumns = abbreviateMetricLabels
+    ? LAB_METRIC_TABLE_COLUMNS.abbreviated
+    : LAB_METRIC_TABLE_COLUMNS.full;
   const updateMetricLabelMode = useCallback(() => {
     const measureRoot = labelMeasureRef.current;
     const table = tableRef.current;
@@ -2089,8 +2106,8 @@ function LabMetricTable({ vitals }: { vitals: LabPerformanceVitals }) {
         ref={tableRef}
       >
         <colgroup>
-          <col className="w-[34%]" />
-          <col className="w-[31%]" />
+          <col style={{ width: tableColumns.label }} />
+          <col style={{ width: tableColumns.attribution }} />
           <col className="w-[92px]" />
           <col className="w-[86px]" />
         </colgroup>

@@ -1199,6 +1199,30 @@ test('mirrors the color-kit lab pages and properties panel', async ({
       await expect(
         compactMetricsTable.locator('[data-metric-row-id="fcp"] th'),
       ).toHaveAttribute('title', 'First contentful paint (FCP)');
+      const compactColumnWidths = await compactMetricsTable
+        .locator('tbody tr')
+        .first()
+        .evaluate((row) => {
+          const [labelCell, attributionCell] = Array.from(row.children).map(
+            (cell) => cell.getBoundingClientRect().width,
+          );
+          const tableWidth = row
+            .closest('table')
+            ?.getBoundingClientRect().width;
+
+          return {
+            attribution: attributionCell ?? 0,
+            label: labelCell ?? 0,
+            table: tableWidth ?? 0,
+          };
+        });
+
+      expect(compactColumnWidths.label).toBeLessThan(
+        compactColumnWidths.table * 0.3,
+      );
+      expect(compactColumnWidths.attribution).toBeGreaterThan(
+        compactColumnWidths.label,
+      );
 
       await page.setViewportSize(DESKTOP_VIEWPORT);
       await page.reload();
