@@ -111,6 +111,7 @@ import {
   useState,
   type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react';
@@ -1378,11 +1379,13 @@ function ToggleField({
 
 function PagesPanel({
   activePage,
+  getPageHref,
   onPageChange,
   onPagePreload,
   pages,
 }: {
   activePage: LabPageKey;
+  getPageHref: (page: LabPageKey) => string;
   onPageChange: (page: LabPageKey) => void;
   onPagePreload?: (page: LabPageKey) => void;
   pages: readonly LabPageNavigationItem[];
@@ -1401,21 +1404,24 @@ function PagesPanel({
         {pages.map((page) => {
           const isActive = activePage === page.value;
           return (
-            <button
+            <a
               key={page.value}
-              type="button"
-              className={`flex w-full items-center rounded-lg px-1 py-1.5 text-left text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[#5288db] ${
-                isActive
-                  ? 'font-semibold text-white'
-                  : 'font-medium text-white/55 hover:text-white/80'
-              }`}
-              aria-pressed={isActive}
-              onClick={() => onPageChange(page.value)}
+              href={getPageHref(page.value)}
+              className="ck-lab-page-link flex w-full items-center rounded-lg px-1 py-1.5 text-left text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[#5288db]"
+              aria-current={isActive ? 'page' : undefined}
+              onClick={(event) => {
+                if (!shouldHandlePageLinkInApp(event)) {
+                  return;
+                }
+
+                event.preventDefault();
+                onPageChange(page.value);
+              }}
               onFocus={() => onPagePreload?.(page.value)}
               onPointerEnter={() => onPagePreload?.(page.value)}
             >
               {page.label}
-            </button>
+            </a>
           );
         })}
       </div>
@@ -2714,6 +2720,16 @@ type LabPageNavigationItem = {
   label: string;
 };
 
+function shouldHandlePageLinkInApp(event: ReactMouseEvent<HTMLAnchorElement>) {
+  return (
+    event.button === 0 &&
+    !event.metaKey &&
+    !event.altKey &&
+    !event.ctrlKey &&
+    !event.shiftKey
+  );
+}
+
 type LabPanelTooltipProviderProps = {
   delayDuration: number;
   skipDelayDuration: number;
@@ -2721,6 +2737,7 @@ type LabPanelTooltipProviderProps = {
 
 type LabPageFrameProps = {
   activePage: LabPageKey;
+  getPageHref: (page: LabPageKey) => string;
   onPageChange: (page: LabPageKey) => void;
   onPagePreload?: (page: LabPageKey) => void;
   pages: readonly LabPageNavigationItem[];
@@ -2774,6 +2791,7 @@ function LabPagePropertiesFallback() {
 
 function LabPageFrameContent({
   activePage,
+  getPageHref,
   onPageChange,
   onPagePreload,
   pages,
@@ -2791,6 +2809,7 @@ function LabPageFrameContent({
           <section className="relative flex min-h-[420px] min-w-0 items-center justify-center overflow-hidden px-6 py-10 lg:min-h-0 lg:py-14">
             <PagesPanel
               activePage={activePage}
+              getPageHref={getPageHref}
               onPageChange={onPageChange}
               onPagePreload={onPagePreload}
               pages={pages}
