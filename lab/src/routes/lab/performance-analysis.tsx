@@ -1126,7 +1126,9 @@ function useLabPerformanceTelemetry(
         let addedShift = 0;
         const shiftEntries = (entries as LayoutShiftPerformanceEntry[])
           .filter(
-            (entry) => !isAnalysisSurfaceTelemetrySuppressedAt(entry.startTime),
+            (entry) =>
+              entry.startTime >= routeStartRef.current &&
+              !isAnalysisSurfaceTelemetrySuppressedAt(entry.startTime),
           )
           .filter(isComponentLayoutShiftEntry);
         for (const entry of shiftEntries) {
