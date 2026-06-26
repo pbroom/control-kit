@@ -36,6 +36,7 @@ export function LabPage({ activePage, onPageChange }: LabPageProps) {
   const [visitedPages, setVisitedPages] = useState<readonly LabPageKey[]>(
     () => [activePage],
   );
+  const renderedPages = appendVisitedPage(visitedPages, activePage);
 
   useEffect(() => {
     const preloadPages = () => {
@@ -64,6 +65,7 @@ export function LabPage({ activePage, onPageChange }: LabPageProps) {
 
   const handlePageChange = useCallback(
     (page: LabPageKey) => {
+      setVisitedPages((pages) => appendVisitedPage(pages, page));
       ignorePreloadFailure(preloadLabPage(page));
       onPageChange(page);
     },
@@ -82,7 +84,7 @@ export function LabPage({ activePage, onPageChange }: LabPageProps) {
       onPagePreload={handlePagePreload}
       pages={LAB_PAGE_NAVIGATION}
     >
-      {visitedPages.map((page) => (
+      {renderedPages.map((page) => (
         <LazyActiveLabPage
           key={page}
           activePage={page}
