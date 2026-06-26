@@ -697,6 +697,10 @@ test('mirrors the color-kit lab pages and properties panel', async ({
           { exact: true },
         );
         await expect(resizeHandle).toBeVisible();
+        await expect(resizeHandle).toHaveAttribute(
+          'aria-orientation',
+          'vertical',
+        );
         const targetOpenPanelHeight = Number(
           await resizeHandle.getAttribute('aria-valuemax'),
         );
@@ -718,6 +722,14 @@ test('mirrors the color-kit lab pages and properties panel', async ({
           handleBox!.x + handleBox!.width / 2,
           handleBox!.y + 2,
         );
+        await page.mouse.down();
+        await page.mouse.up();
+        await expect
+          .poll(() => page.evaluate(() => document.body.style.cursor))
+          .toBe('');
+        await expect
+          .poll(() => page.evaluate(() => document.body.style.userSelect))
+          .toBe('');
         await page.mouse.down();
         await expect
           .poll(() =>
@@ -949,6 +961,23 @@ test('mirrors the color-kit lab pages and properties panel', async ({
         await expect
           .poll(async () => (await performancePanel.boundingBox())?.height ?? 0)
           .toBeLessThanOrEqual(LAB_COLLAPSED_PANEL_HANDLE_HEIGHT);
+
+        await page
+          .getByRole('link', { name: 'Input Multi', exact: true })
+          .click();
+        await expect(performancePanel).toHaveAttribute(
+          'data-lab-performance-panel-collapsed',
+          'true',
+        );
+        await expect
+          .poll(async () => (await performancePanel.boundingBox())?.height ?? 0)
+          .toBeLessThanOrEqual(LAB_COLLAPSED_PANEL_HANDLE_HEIGHT);
+        await page.getByRole('link', { name: 'Slider', exact: true }).click();
+        await expect(performancePanel).toHaveAttribute(
+          'data-lab-performance-panel-collapsed',
+          'true',
+        );
+        await expect(resizeHandle).toHaveAttribute('aria-valuenow', '0');
 
         await resizeHandle.dblclick();
         await expect(performancePanel).toHaveAttribute(

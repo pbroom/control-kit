@@ -3038,11 +3038,11 @@ function LabPageFrameContent({
   }, []);
 
   return (
-    <div className="min-h-screen overflow-hidden bg-[#171717]">
+    <div className="min-h-screen bg-[#171717] lg:overflow-hidden">
       <LabHeaderExit />
 
       <main
-        className="h-screen min-h-screen min-w-0 bg-[#171717] [--ck-lab-segmented-active-bg:#171717] text-white lg:overflow-hidden"
+        className="min-h-screen min-w-0 bg-[#171717] [--ck-lab-segmented-active-bg:#171717] text-white lg:h-screen lg:overflow-hidden"
         style={
           {
             '--lab-properties-panel-width': isPropertiesPanelCollapsed
@@ -3059,7 +3059,7 @@ function LabPageFrameContent({
             onTogglePropertiesPanel={togglePropertiesPanel}
           />
           <div
-            className="flex min-h-screen min-w-0 flex-col lg:h-full lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:pb-3"
+            className="flex min-h-[420px] min-w-0 flex-col lg:h-full lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:pb-3"
             data-lab-page-scroll
           >
             <section className="relative flex min-h-[420px] min-w-0 flex-1 items-center justify-center overflow-hidden px-6 py-10 lg:py-10">
