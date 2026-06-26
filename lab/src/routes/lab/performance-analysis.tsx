@@ -131,6 +131,8 @@ const MAX_TIMELINE_EVENTS = 12;
 const TIMELINE_STORY_MIN_EVENT_MS = 24;
 const LAB_COMPONENT_PREVIEW_SELECTOR = '[data-lab-component-preview]';
 const LAB_CROSSFADE_EXIT_SELECTOR = '[data-lab-crossfade-phase="exit"]';
+const LAB_CROSSFADE_STRUCTURAL_SELECTOR =
+  '[data-lab-crossfade-slot], [data-lab-crossfade-phase]';
 const LAB_PREVIEW_LCP_IGNORED_TAGS = new Set([
   'clippath',
   'defs',
@@ -454,6 +456,7 @@ function isComponentPreviewLcpCandidate(
 ) {
   return Boolean(
     entry.element?.closest(LAB_COMPONENT_PREVIEW_SELECTOR) &&
+    !entry.element.matches(LAB_CROSSFADE_STRUCTURAL_SELECTOR) &&
     !entry.element.closest(LAB_CROSSFADE_EXIT_SELECTOR),
   );
 }
@@ -525,6 +528,7 @@ function findLargestComponentPreviewCandidate(): LabPreviewLcpCandidate | null {
   for (const element of Array.from(previewRoot.querySelectorAll('*'))) {
     if (
       LAB_PREVIEW_LCP_IGNORED_TAGS.has(element.tagName.toLowerCase()) ||
+      element.matches(LAB_CROSSFADE_STRUCTURAL_SELECTOR) ||
       element.closest(LAB_CROSSFADE_EXIT_SELECTOR) ||
       element.closest('aside') ||
       element.closest('[data-lab-performance-panel]')
@@ -1091,8 +1095,11 @@ function useLabPerformanceTelemetry(
         if (!candidate) {
           return;
         }
-        const lcpMs = Math.round(
-          candidate.renderTime || candidate.loadTime || candidate.startTime,
+        const candidateTime =
+          candidate.renderTime || candidate.loadTime || candidate.startTime;
+        const lcpMs = Math.max(
+          0,
+          Math.round(candidateTime - routeStartRef.current),
         );
         setVitals((current) => ({
           ...current,
@@ -1106,7 +1113,7 @@ function useLabPerformanceTelemetry(
           'vital',
           'LCP candidate',
           `${lcpMs}ms / ${Math.round(candidate.size ?? 0)}px`,
-          candidate.startTime,
+          candidateTime,
           lcpMs,
         );
       },

@@ -2998,20 +2998,18 @@ function LabPanelToggleControls({
           onClick={onTogglePerformancePanel}
           testId="lab-toggle-performance-panel"
         />
-        <div className="hidden lg:block">
-          <LabPanelToggleButton
-            aria-controls="lab-properties-panel"
-            icon={PropertiesIcon}
-            isPressed={!isPropertiesPanelCollapsed}
-            label={
-              isPropertiesPanelCollapsed
-                ? 'Show properties panel'
-                : 'Hide properties panel'
-            }
-            onClick={onTogglePropertiesPanel}
-            testId="lab-toggle-properties-panel"
-          />
-        </div>
+        <LabPanelToggleButton
+          aria-controls="lab-properties-panel"
+          icon={PropertiesIcon}
+          isPressed={!isPropertiesPanelCollapsed}
+          label={
+            isPropertiesPanelCollapsed
+              ? 'Show properties panel'
+              : 'Hide properties panel'
+          }
+          onClick={onTogglePropertiesPanel}
+          testId="lab-toggle-properties-panel"
+        />
       </div>
     </TooltipProvider>
   );
@@ -3099,10 +3097,10 @@ function LabPageFrameContent({
           <aside
             aria-hidden={isPropertiesPanelCollapsed ? true : undefined}
             className={[
-              'min-w-0 max-w-full overflow-hidden border-t border-white/8 p-3 transition-[opacity,padding,border-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] lg:h-full lg:min-h-0 lg:border-t-0 lg:py-4 lg:pr-4 lg:pl-0',
+              'min-w-0 max-w-full overflow-hidden border-t border-white/8 p-3 transition-[max-height,opacity,padding,border-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] lg:h-full lg:min-h-0 lg:border-t-0 lg:py-4 lg:pr-4 lg:pl-0',
               isPropertiesPanelCollapsed
-                ? 'lg:pointer-events-none lg:border-transparent lg:pr-0 lg:opacity-0'
-                : 'lg:opacity-100',
+                ? 'max-h-0 border-transparent p-0 opacity-0 lg:max-h-none lg:pr-0'
+                : 'max-h-none opacity-100',
             ]
               .filter(Boolean)
               .join(' ')}
