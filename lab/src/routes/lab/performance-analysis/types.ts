@@ -27,6 +27,11 @@ export type LabPrimitiveStructure = {
   title: string;
 };
 
+export type LabHtmlInCanvasSupportState =
+  | 'checking'
+  | 'supported'
+  | 'unsupported';
+
 export type LabPerformanceResourceStats = {
   moduleRequests: number;
   moduleDurationMs: number;

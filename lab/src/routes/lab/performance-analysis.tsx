@@ -33,7 +33,10 @@ import {
   suppressAnalysisSurfaceLayoutShifts,
   useLabPerformanceTelemetry,
 } from './performance-analysis/telemetry.js';
-import type { LabPerformancePanelStyle } from './performance-analysis/types.js';
+import type {
+  LabHtmlInCanvasSupportState,
+  LabPerformancePanelStyle,
+} from './performance-analysis/types.js';
 
 const LAB_PERFORMANCE_SCROLLBAR_ACTIVE_MS = 700;
 const LAB_PERFORMANCE_SCROLLBAR_REVEAL_ZONE_PX = 24;
@@ -47,6 +50,33 @@ const LAB_PERFORMANCE_PANEL_VIEWS: Array<{
   { value: 'metrics', label: 'Metrics' },
   { value: 'structure', label: 'Structure' },
 ];
+
+type HtmlInCanvasElement = HTMLCanvasElement & {
+  requestPaint?: () => void;
+};
+
+type HtmlInCanvasContext = CanvasRenderingContext2D & {
+  drawElementImage?: (element: Element, x: number, y: number) => unknown;
+};
+
+function useHtmlInCanvasSupportState(): LabHtmlInCanvasSupportState {
+  const [supportState, setSupportState] =
+    useState<LabHtmlInCanvasSupportState>('checking');
+
+  useEffect(() => {
+    const canvas = document.createElement('canvas') as HtmlInCanvasElement;
+    const context = canvas.getContext('2d') as HtmlInCanvasContext | null;
+
+    setSupportState(
+      typeof canvas.requestPaint === 'function' &&
+        typeof context?.drawElementImage === 'function'
+        ? 'supported'
+        : 'unsupported',
+    );
+  }, []);
+
+  return supportState;
+}
 
 export function LabPerformanceAnalysisPanel({
   activePage,
@@ -73,6 +103,9 @@ export function LabPerformanceAnalysisPanel({
     useState(false);
   const [activePanelView, setActivePanelView] =
     useState<LabPerformancePanelView>('structure');
+  const [areHtmlCanvasLabelsEnabled, setAreHtmlCanvasLabelsEnabled] =
+    useState(false);
+  const htmlInCanvasSupportState = useHtmlInCanvasSupportState();
   const contentRef = useRef<HTMLDivElement | null>(null);
   const panelHeightRef = useRef(panelHeight);
   const panelMaxHeightRef = useRef(panelMaxHeight);
@@ -357,7 +390,9 @@ export function LabPerformanceAnalysisPanel({
       return;
     }
 
-    const panelViewTabs = contentNode.querySelector('[role="tablist"]');
+    const panelViewControls = contentNode.querySelector(
+      '[data-lab-performance-panel-view-controls]',
+    );
     const metricsTable = contentNode.querySelector('table');
     const timelineShell = contentNode.querySelector(
       '[data-testid="lab-performance-timeline-shell"]',
@@ -365,18 +400,18 @@ export function LabPerformanceAnalysisPanel({
     const primitiveStructureShell = contentNode.querySelector(
       '[data-testid="lab-primitive-structure-shell"]',
     );
-    const panelViewTabsHeight = panelViewTabs?.scrollHeight ?? 0;
-    const panelViewGap = panelViewTabsHeight > 0 ? 12 : 0;
+    const panelViewControlsHeight = panelViewControls?.scrollHeight ?? 0;
+    const panelViewGap = panelViewControlsHeight > 0 ? 12 : 0;
     const metricsContentHeight =
       Math.max(
         metricsTable?.scrollHeight ?? 0,
         timelineShell?.scrollHeight ?? 0,
       ) +
-      panelViewTabsHeight +
+      panelViewControlsHeight +
       panelViewGap;
     const structureContentHeight =
       (primitiveStructureShell?.scrollHeight ?? 0) +
-      panelViewTabsHeight +
+      panelViewControlsHeight +
       panelViewGap;
     const contentHeight = Math.max(
       contentNode.scrollHeight,
@@ -537,39 +572,72 @@ export function LabPerformanceAnalysisPanel({
           }}
         >
           <div
-            aria-label="Performance panel views"
-            className="inline-flex h-7 w-fit max-w-full shrink-0 overflow-hidden rounded-[7px] bg-white/[0.06] p-0.5"
-            role="tablist"
+            className="flex min-h-7 max-w-full shrink-0 flex-wrap items-center gap-2"
+            data-lab-performance-panel-view-controls
           >
-            {LAB_PERFORMANCE_PANEL_VIEWS.map((view) => {
-              const isSelected = activePanelView === view.value;
+            <div
+              aria-label="Performance panel views"
+              className="inline-flex h-7 w-fit max-w-full shrink-0 overflow-hidden rounded-[7px] bg-white/[0.06] p-0.5"
+              role="tablist"
+            >
+              {LAB_PERFORMANCE_PANEL_VIEWS.map((view) => {
+                const isSelected = activePanelView === view.value;
 
-              return (
-                <button
-                  aria-controls={`lab-performance-${view.value}-panel`}
-                  aria-selected={isSelected}
-                  className={[
-                    'h-6 rounded-[5px] px-3 text-[11px] font-medium leading-4 text-white/48 outline-none transition-[background-color,color,box-shadow]',
-                    'hover:text-white/76 focus-visible:ring-2 focus-visible:ring-[#0d99ff]/80',
-                    isSelected ? 'bg-[#222] text-white/90 shadow-sm' : null,
-                  ]
-                    .filter(Boolean)
-                    .join(' ')}
-                  data-testid={`lab-performance-${view.value}-tab`}
-                  id={`lab-performance-${view.value}-tab`}
-                  key={view.value}
-                  onClick={() => {
-                    suppressAnalysisSurfaceLayoutShifts();
-                    setActivePanelView(view.value);
-                  }}
-                  role="tab"
-                  tabIndex={isSelected ? 0 : -1}
-                  type="button"
-                >
-                  {view.label}
-                </button>
-              );
-            })}
+                return (
+                  <button
+                    aria-controls={`lab-performance-${view.value}-panel`}
+                    aria-selected={isSelected}
+                    className={[
+                      'h-6 rounded-[5px] px-3 text-[11px] font-medium leading-4 text-white/48 outline-none transition-[background-color,color,box-shadow]',
+                      'hover:text-white/76 focus-visible:ring-2 focus-visible:ring-[#0d99ff]/80',
+                      isSelected ? 'bg-[#222] text-white/90 shadow-sm' : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
+                    data-testid={`lab-performance-${view.value}-tab`}
+                    id={`lab-performance-${view.value}-tab`}
+                    key={view.value}
+                    onClick={() => {
+                      suppressAnalysisSurfaceLayoutShifts();
+                      setActivePanelView(view.value);
+                    }}
+                    role="tab"
+                    tabIndex={isSelected ? 0 : -1}
+                    type="button"
+                  >
+                    {view.label}
+                  </button>
+                );
+              })}
+            </div>
+            {activePanelView === 'structure' ? (
+              <button
+                aria-checked={areHtmlCanvasLabelsEnabled}
+                aria-label="Use HTML-in-canvas structure labels"
+                className={[
+                  'h-7 rounded-[7px] border px-2.5 text-[11px] font-medium leading-4 outline-none transition-[background-color,border-color,color]',
+                  'focus-visible:ring-2 focus-visible:ring-[#0d99ff]/80',
+                  areHtmlCanvasLabelsEnabled
+                    ? 'border-[#0d99ff]/50 bg-[#0d99ff]/18 text-white/90'
+                    : 'border-white/10 bg-white/[0.03] text-white/48 hover:border-white/18 hover:text-white/74',
+                ].join(' ')}
+                data-html-in-canvas-support={htmlInCanvasSupportState}
+                data-testid="lab-performance-html-canvas-labels-toggle"
+                onClick={() => {
+                  suppressAnalysisSurfaceLayoutShifts();
+                  setAreHtmlCanvasLabelsEnabled((enabled) => !enabled);
+                }}
+                role="switch"
+                title={
+                  htmlInCanvasSupportState === 'supported'
+                    ? 'Use HTML-in-canvas for structure callout labels'
+                    : 'Requires a browser with Canvas drawElementImage support'
+                }
+                type="button"
+              >
+                HTML labels
+              </button>
+            ) : null}
           </div>
           <div
             aria-labelledby="lab-performance-metrics-tab"
@@ -608,6 +676,8 @@ export function LabPerformanceAnalysisPanel({
             role="tabpanel"
           >
             <LabPrimitiveStructureView
+              htmlCanvasLabelsEnabled={areHtmlCanvasLabelsEnabled}
+              htmlInCanvasSupportState={htmlInCanvasSupportState}
               structure={analysis.primitiveStructure}
             />
           </div>

@@ -73,11 +73,21 @@ test('renders the primitive structure tab as a nonblank orthographic view', asyn
     name: 'Structure',
     exact: true,
   });
+  const htmlCanvasLabelsToggle = colorPlanePanel.getByTestId(
+    'lab-performance-html-canvas-labels-toggle',
+  );
 
   await expect(metricsTab).toBeVisible();
   await expect(metricsTab).toHaveAttribute('aria-selected', 'false');
   await expect(structureTab).toBeVisible();
   await expect(structureTab).toHaveAttribute('aria-selected', 'true');
+  await expect(htmlCanvasLabelsToggle).toBeVisible();
+  await expect(htmlCanvasLabelsToggle).toHaveAttribute('role', 'switch');
+  await expect(htmlCanvasLabelsToggle).toHaveAttribute('aria-checked', 'false');
+  await expect(htmlCanvasLabelsToggle).toHaveAttribute(
+    'data-html-in-canvas-support',
+    /^(supported|unsupported)$/,
+  );
   await expect(
     colorPlanePanel.getByRole('tabpanel', { name: 'Structure', exact: true }),
   ).toBeVisible();
@@ -124,6 +134,51 @@ test('renders the primitive structure tab as a nonblank orthographic view', asyn
   await expect(
     colorPlanePanel.locator('[data-primitive-layer] [aria-hidden="true"]'),
   ).toHaveCount(0);
+  const structureShell = colorPlanePanel.getByTestId(
+    'lab-primitive-structure-shell',
+  );
+  await expect(structureShell).toHaveAttribute(
+    'data-primitive-structure-html-canvas-gate',
+    'disabled',
+  );
+  await expect(structureShell).toHaveAttribute(
+    'data-primitive-structure-label-renderer',
+    'dom-overlay',
+  );
+
+  const htmlInCanvasSupport = await htmlCanvasLabelsToggle.getAttribute(
+    'data-html-in-canvas-support',
+  );
+  await htmlCanvasLabelsToggle.click();
+  await expect(htmlCanvasLabelsToggle).toHaveAttribute('aria-checked', 'true');
+  await expect(structureShell).toHaveAttribute(
+    'data-primitive-structure-html-canvas-gate',
+    'enabled',
+  );
+
+  if (htmlInCanvasSupport === 'supported') {
+    await expect(structureShell).toHaveAttribute(
+      'data-primitive-structure-label-renderer',
+      'html-in-canvas',
+    );
+    await expect(
+      colorPlanePanel.getByTestId('lab-primitive-structure-html-canvas-layer'),
+    ).toBeVisible();
+    await expect(
+      colorPlanePanel.locator('[data-primitive-html-canvas-label]'),
+    ).toHaveCount(4);
+  } else {
+    await expect(structureShell).toHaveAttribute(
+      'data-primitive-structure-label-renderer',
+      'dom-overlay',
+    );
+    await expect(
+      colorPlanePanel.getByTestId('lab-primitive-structure-html-canvas-layer'),
+    ).toHaveCount(0);
+    await expect(
+      colorPlanePanel.getByTestId('lab-primitive-structure-callouts'),
+    ).toBeVisible();
+  }
 
   const canvas = colorPlanePanel.getByTestId('lab-primitive-structure-canvas');
   await expect(canvas).toBeVisible();

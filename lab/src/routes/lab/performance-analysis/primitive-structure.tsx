@@ -1,9 +1,23 @@
-import { useEffect, useRef } from 'react';
-import type { LabPrimitiveStructure } from './types.js';
+import { useEffect, useMemo, useRef } from 'react';
+import type {
+  LabHtmlInCanvasSupportState,
+  LabPrimitiveStructure,
+} from './types.js';
 
 type ThreeModule = typeof import('three');
 type ThreeObject3D = InstanceType<ThreeModule['Object3D']>;
 type ThreeOrthographicCamera = InstanceType<ThreeModule['OrthographicCamera']>;
+type StructureCalloutEntry = {
+  callout: (typeof STRUCTURE_LAYER_CALLOUTS)[number];
+  layer: LabPrimitiveStructure['layers'][number];
+  layerIndex: number;
+};
+type HtmlInCanvasElement = HTMLCanvasElement & {
+  requestPaint?: () => void;
+};
+type HtmlInCanvasContext = CanvasRenderingContext2D & {
+  drawElementImage?: (element: Element, x: number, y: number) => unknown;
+};
 
 const STRUCTURE_CAMERA_DISTANCE = 8.2;
 const STRUCTURE_FRUSTUM_SIZE = 7.35;
@@ -248,24 +262,153 @@ function usePrimitiveStructureScene(
   }, [containerRef, structure]);
 }
 
+function useHtmlCanvasCalloutLayer({
+  calloutEntries,
+  enabled,
+  htmlCanvasRef,
+}: {
+  calloutEntries: readonly StructureCalloutEntry[];
+  enabled: boolean;
+  htmlCanvasRef: React.RefObject<HTMLCanvasElement | null>;
+}) {
+  useEffect(() => {
+    const canvas = htmlCanvasRef.current as HtmlInCanvasElement | null;
+
+    if (!enabled || !canvas) {
+      return;
+    }
+
+    const context = canvas.getContext('2d') as HtmlInCanvasContext | null;
+
+    if (
+      !context ||
+      typeof context.drawElementImage !== 'function' ||
+      typeof canvas.requestPaint !== 'function'
+    ) {
+      return;
+    }
+
+    const drawElementImage = context.drawElementImage.bind(context);
+
+    const drawCallouts = () => {
+      const rect = canvas.getBoundingClientRect();
+      const cssWidth = Math.max(1, rect.width);
+      const cssHeight = Math.max(1, rect.height);
+      const pixelRatio = canvas.width / cssWidth || 1;
+
+      context.reset?.();
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+      context.lineCap = 'round';
+      context.lineJoin = 'round';
+      context.lineWidth = 1;
+      context.strokeStyle = 'rgba(255, 255, 255, 0.42)';
+      context.fillStyle = 'rgba(255, 255, 255, 0.6)';
+
+      calloutEntries.forEach(({ callout, layer }) => {
+        const labelElement = canvas.querySelector<HTMLElement>(
+          `[data-primitive-html-canvas-label="${layer.id}"]`,
+        );
+
+        if (!labelElement) {
+          return;
+        }
+
+        const targetX = (callout.targetX / 100) * cssWidth;
+        const targetY = (callout.targetY / 100) * cssHeight;
+        const labelX = (callout.labelX / 100) * cssWidth;
+        const labelHeight = Math.max(1, labelElement.offsetHeight);
+        const labelY = (callout.labelY / 100) * cssHeight - labelHeight / 2;
+        const elbowX = labelX - 18;
+
+        context.beginPath();
+        context.moveTo(targetX, targetY);
+        context.lineTo(elbowX, targetY);
+        context.lineTo(labelX - 8, labelY + labelHeight / 2);
+        context.stroke();
+        context.beginPath();
+        context.arc(targetX, targetY, 1.4, 0, Math.PI * 2);
+        context.fill();
+
+        const transform = drawElementImage(labelElement, labelX, labelY);
+
+        if (transform instanceof DOMMatrix) {
+          labelElement.style.transform = transform.toString();
+        } else if (typeof transform === 'string') {
+          labelElement.style.transform = transform;
+        }
+      });
+    };
+
+    const syncCanvasSize = () => {
+      const rect = canvas.getBoundingClientRect();
+      const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+      const nextWidth = Math.max(1, Math.round(rect.width * pixelRatio));
+      const nextHeight = Math.max(1, Math.round(rect.height * pixelRatio));
+
+      if (canvas.width !== nextWidth || canvas.height !== nextHeight) {
+        canvas.width = nextWidth;
+        canvas.height = nextHeight;
+      }
+
+      canvas.requestPaint?.();
+    };
+
+    const handlePaint = () => drawCallouts();
+    const resizeObserver = new ResizeObserver(syncCanvasSize);
+
+    canvas.addEventListener('paint', handlePaint);
+    resizeObserver.observe(canvas);
+    syncCanvasSize();
+
+    return () => {
+      canvas.removeEventListener('paint', handlePaint);
+      resizeObserver.disconnect();
+    };
+  }, [calloutEntries, enabled, htmlCanvasRef]);
+}
+
 export function LabPrimitiveStructureView({
+  htmlCanvasLabelsEnabled,
+  htmlInCanvasSupportState,
   structure,
 }: {
+  htmlCanvasLabelsEnabled: boolean;
+  htmlInCanvasSupportState: LabHtmlInCanvasSupportState;
   structure: LabPrimitiveStructure;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const htmlCanvasRef = useRef<HTMLCanvasElement | null>(null);
   usePrimitiveStructureScene(structure, containerRef);
-  const calloutEntries = structure.layers
-    .map((layer, layerIndex) => ({
-      callout: structureLayerCallout(layerIndex),
-      layer,
-      layerIndex,
-    }))
-    .reverse();
+  const calloutEntries = useMemo(
+    () =>
+      structure.layers
+        .map((layer, layerIndex) => ({
+          callout: structureLayerCallout(layerIndex),
+          layer,
+          layerIndex,
+        }))
+        .reverse(),
+    [structure.layers],
+  );
+  const areHtmlCanvasCalloutsActive =
+    htmlCanvasLabelsEnabled && htmlInCanvasSupportState === 'supported';
+  useHtmlCanvasCalloutLayer({
+    calloutEntries,
+    enabled: areHtmlCanvasCalloutsActive,
+    htmlCanvasRef,
+  });
 
   return (
     <div
       className="relative grid min-h-0 min-w-0 gap-4 lg:grid-cols-[minmax(320px,1fr)_minmax(260px,0.62fr)] lg:items-stretch"
+      data-primitive-structure-html-canvas-gate={
+        htmlCanvasLabelsEnabled ? 'enabled' : 'disabled'
+      }
+      data-primitive-structure-html-canvas-support={htmlInCanvasSupportState}
+      data-primitive-structure-label-renderer={
+        areHtmlCanvasCalloutsActive ? 'html-in-canvas' : 'dom-overlay'
+      }
       data-testid="lab-primitive-structure-shell"
     >
       <div
@@ -275,9 +418,49 @@ export function LabPrimitiveStructureView({
         data-testid="lab-primitive-structure-render"
         ref={containerRef}
       />
+      {areHtmlCanvasCalloutsActive ? (
+        <canvas
+          {...{ layoutsubtree: '' }}
+          aria-label={`${structure.title} HTML-in-canvas callouts`}
+          className="pointer-events-none absolute inset-0 z-[1] hidden h-full w-full lg:block"
+          data-testid="lab-primitive-structure-html-canvas-layer"
+          ref={htmlCanvasRef}
+        >
+          {calloutEntries.map(({ layer, layerIndex }) => (
+            <div
+              className="absolute left-0 top-0 w-[min(280px,32vw)] min-w-0 border-t border-white/8 pt-2"
+              data-primitive-html-canvas-label={layer.id}
+              data-primitive-layer={layer.id}
+              key={layer.id}
+            >
+              <span className="grid min-w-0 grid-cols-[1.6rem_minmax(0,1fr)] gap-2">
+                <span className="pt-px font-mono text-[10px] leading-4 text-white/34">
+                  {String(structure.layers.length - layerIndex).padStart(
+                    2,
+                    '0',
+                  )}
+                </span>
+                <span className="min-w-0">
+                  <span className="block truncate text-xs font-semibold text-white/86">
+                    {layer.label}
+                  </span>
+                  <span className="block text-[11px] leading-4 text-white/46">
+                    {layer.detail}
+                  </span>
+                </span>
+              </span>
+            </div>
+          ))}
+        </canvas>
+      ) : null}
       <svg
         aria-hidden
-        className="pointer-events-none absolute inset-0 z-[1] hidden h-full w-full lg:block"
+        className={[
+          'pointer-events-none absolute inset-0 z-[1] hidden h-full w-full lg:block',
+          areHtmlCanvasCalloutsActive ? 'lg:hidden' : null,
+        ]
+          .filter(Boolean)
+          .join(' ')}
         data-testid="lab-primitive-structure-callouts"
         preserveAspectRatio="none"
         viewBox="0 0 100 100"
@@ -317,7 +500,15 @@ export function LabPrimitiveStructureView({
           </p>
         </div>
         <ol
-          className="relative grid min-w-0 gap-2 lg:absolute lg:inset-0 lg:block"
+          aria-hidden={areHtmlCanvasCalloutsActive ? true : undefined}
+          className={[
+            'relative grid min-w-0 gap-2 lg:absolute lg:inset-0 lg:block',
+            areHtmlCanvasCalloutsActive
+              ? 'pointer-events-none opacity-0'
+              : null,
+          ]
+            .filter(Boolean)
+            .join(' ')}
           data-testid="lab-primitive-structure-callout-labels"
         >
           {calloutEntries.map(({ callout, layer, layerIndex }) => (
