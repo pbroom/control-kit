@@ -4,6 +4,27 @@ export type LabPerformanceTone = 'good' | 'okay' | 'poor' | 'neutral';
 
 export type LabPerformanceAnalysis = {
   label: string;
+  primitiveStructure: LabPrimitiveStructure;
+};
+
+export type LabPrimitiveStructureLayer = {
+  color: string;
+  depth?: number;
+  detail: string;
+  height: number;
+  id: string;
+  label: string;
+  offsetX?: number;
+  offsetY?: number;
+  offsetZ?: number;
+  opacity?: number;
+  width: number;
+};
+
+export type LabPrimitiveStructure = {
+  layers: readonly LabPrimitiveStructureLayer[];
+  summary: string;
+  title: string;
 };
 
 export type LabPerformanceResourceStats = {

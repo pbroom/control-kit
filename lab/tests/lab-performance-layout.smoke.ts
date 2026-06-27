@@ -30,6 +30,10 @@ test('keeps desktop performance panel layout, scrollbars, and resize behavior st
     const timelineShell = performancePanel.getByTestId(
       'lab-performance-timeline-shell',
     );
+    const panelViewTabs = performancePanel.getByRole('tablist', {
+      name: 'Performance panel views',
+      exact: true,
+    });
     const labScrollColumn = page.locator('[data-lab-page-scroll]');
     const metricsShell = performancePanel.getByTestId(
       'lab-performance-metrics-shell',
@@ -62,9 +66,12 @@ test('keeps desktop performance panel layout, scrollbars, and resize behavior st
     const metricsTableBox = await metricsTable.boundingBox();
     const metricsShellBox = await metricsShell.boundingBox();
     const timelineFitBox = await timelineShell.boundingBox();
+    const panelViewTabsBox = await panelViewTabs.boundingBox();
     expect(metricsTableBox).not.toBeNull();
     expect(metricsShellBox).not.toBeNull();
     expect(timelineFitBox).not.toBeNull();
+    expect(panelViewTabsBox).not.toBeNull();
+    expect(panelViewTabsBox!.height).toBeGreaterThanOrEqual(28);
     await expect(metricsShell).toHaveClass(/ck-lab-performance-metrics-scroll/);
     await page.mouse.move(0, 0);
     await page.waitForTimeout(800);
@@ -119,7 +126,9 @@ test('keeps desktop performance panel layout, scrollbars, and resize behavior st
     }
     expect(performancePanelBox!.height).toBeGreaterThanOrEqual(128);
     expect(performancePanelBox!.height).toBeLessThanOrEqual(
-      Math.max(metricsTableBox!.height, timelineFitBox!.height) + 64,
+      Math.max(metricsTableBox!.height, timelineFitBox!.height) +
+        panelViewTabsBox!.height +
+        72,
     );
     expect(metricsShellBox!.height).toBeGreaterThanOrEqual(
       metricsTableBox!.height - 4,

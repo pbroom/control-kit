@@ -27,6 +27,7 @@ import {
   LAB_PERFORMANCE_PANEL_SURFACE_PADDING_TOP,
   LAB_PERFORMANCE_PANEL_VERTICAL_PADDING,
 } from './performance-analysis/panel-sizing.js';
+import { LabPrimitiveStructureView } from './performance-analysis/primitive-structure.js';
 import { LabPerformanceTimeline } from './performance-analysis/timeline.js';
 import {
   suppressAnalysisSurfaceLayoutShifts,
@@ -36,6 +37,16 @@ import type { LabPerformancePanelStyle } from './performance-analysis/types.js';
 
 const LAB_PERFORMANCE_SCROLLBAR_ACTIVE_MS = 700;
 const LAB_PERFORMANCE_SCROLLBAR_REVEAL_ZONE_PX = 24;
+
+type LabPerformancePanelView = 'metrics' | 'structure';
+
+const LAB_PERFORMANCE_PANEL_VIEWS: Array<{
+  label: string;
+  value: LabPerformancePanelView;
+}> = [
+  { value: 'metrics', label: 'Metrics' },
+  { value: 'structure', label: 'Structure' },
+];
 
 export function LabPerformanceAnalysisPanel({
   activePage,
@@ -60,6 +71,8 @@ export function LabPerformanceAnalysisPanel({
     useState(false);
   const [isMetricsScrollbarRailHovered, setIsMetricsScrollbarRailHovered] =
     useState(false);
+  const [activePanelView, setActivePanelView] =
+    useState<LabPerformancePanelView>('metrics');
   const contentRef = useRef<HTMLDivElement | null>(null);
   const panelHeightRef = useRef(panelHeight);
   const panelMaxHeightRef = useRef(panelMaxHeight);
@@ -344,14 +357,31 @@ export function LabPerformanceAnalysisPanel({
       return;
     }
 
+    const panelViewTabs = contentNode.querySelector('[role="tablist"]');
     const metricsTable = contentNode.querySelector('table');
     const timelineShell = contentNode.querySelector(
       '[data-testid="lab-performance-timeline-shell"]',
     );
+    const primitiveStructureShell = contentNode.querySelector(
+      '[data-testid="lab-primitive-structure-shell"]',
+    );
+    const panelViewTabsHeight = panelViewTabs?.scrollHeight ?? 0;
+    const panelViewGap = panelViewTabsHeight > 0 ? 12 : 0;
+    const metricsContentHeight =
+      Math.max(
+        metricsTable?.scrollHeight ?? 0,
+        timelineShell?.scrollHeight ?? 0,
+      ) +
+      panelViewTabsHeight +
+      panelViewGap;
+    const structureContentHeight =
+      (primitiveStructureShell?.scrollHeight ?? 0) +
+      panelViewTabsHeight +
+      panelViewGap;
     const contentHeight = Math.max(
       contentNode.scrollHeight,
-      metricsTable?.scrollHeight ?? 0,
-      timelineShell?.scrollHeight ?? 0,
+      metricsContentHeight,
+      structureContentHeight,
     );
     const nextHeight = clampPerformancePanelOpenHeight(
       contentHeight + LAB_PERFORMANCE_PANEL_VERTICAL_PADDING,
@@ -385,7 +415,7 @@ export function LabPerformanceAnalysisPanel({
 
   useLayoutEffect(() => {
     fitPanelToContent();
-  }, [activePage, fitPanelToContent, timeline, vitals]);
+  }, [activePage, activePanelView, fitPanelToContent, timeline, vitals]);
 
   useEffect(() => {
     const contentNode = contentRef.current;
@@ -500,33 +530,87 @@ export function LabPerformanceAnalysisPanel({
         }}
       >
         <div
-          className="grid max-h-[var(--lab-performance-panel-content-max-height)] min-h-0 min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_clamp(320px,25vw,480px)] lg:items-start"
+          className="flex max-h-[var(--lab-performance-panel-content-max-height)] min-h-0 min-w-0 flex-col gap-3"
           ref={contentRef}
           style={{
             pointerEvents: panelHeight <= 24 ? 'none' : undefined,
           }}
         >
           <div
-            className={[
-              'ck-lab-performance-metrics-scroll max-h-[var(--lab-performance-panel-content-max-height)] min-h-0 min-w-0 overflow-y-auto overscroll-contain pr-1',
-              isMetricsScrollbarActive || isMetricsScrollbarRailHovered
-                ? 'ck-lab-performance-metrics-scroll-active'
-                : null,
-            ]
-              .filter(Boolean)
-              .join(' ')}
-            data-testid="lab-performance-metrics-shell"
-            onPointerLeave={hideMetricsScrollbarRailHover}
-            onPointerMove={syncMetricsScrollbarRailHover}
-            onScroll={showMetricsScrollbar}
-            onWheel={showMetricsScrollbar}
+            aria-label="Performance panel views"
+            className="inline-flex h-7 w-fit max-w-full shrink-0 overflow-hidden rounded-[7px] bg-white/[0.06] p-0.5"
+            role="tablist"
           >
-            <LabMetricTable vitals={vitals} />
+            {LAB_PERFORMANCE_PANEL_VIEWS.map((view) => {
+              const isSelected = activePanelView === view.value;
+
+              return (
+                <button
+                  aria-controls={`lab-performance-${view.value}-panel`}
+                  aria-selected={isSelected}
+                  className={[
+                    'h-6 rounded-[5px] px-3 text-[11px] font-medium leading-4 text-white/48 outline-none transition-[background-color,color,box-shadow]',
+                    'hover:text-white/76 focus-visible:ring-2 focus-visible:ring-[#0d99ff]/80',
+                    isSelected ? 'bg-[#222] text-white/90 shadow-sm' : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                  data-testid={`lab-performance-${view.value}-tab`}
+                  id={`lab-performance-${view.value}-tab`}
+                  key={view.value}
+                  onClick={() => {
+                    suppressAnalysisSurfaceLayoutShifts();
+                    setActivePanelView(view.value);
+                  }}
+                  role="tab"
+                  tabIndex={isSelected ? 0 : -1}
+                  type="button"
+                >
+                  {view.label}
+                </button>
+              );
+            })}
           </div>
-          <LabPerformanceTimeline
-            events={timeline}
-            currentTimeMs={timelineTimeMs}
-          />
+          <div
+            aria-labelledby="lab-performance-metrics-tab"
+            className="grid min-h-0 min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_clamp(320px,25vw,480px)] lg:items-start"
+            hidden={activePanelView !== 'metrics'}
+            id="lab-performance-metrics-panel"
+            role="tabpanel"
+          >
+            <div
+              className={[
+                'ck-lab-performance-metrics-scroll max-h-[calc(var(--lab-performance-panel-content-max-height)-2.5rem)] min-h-0 min-w-0 overflow-y-auto overscroll-contain pr-1',
+                isMetricsScrollbarActive || isMetricsScrollbarRailHovered
+                  ? 'ck-lab-performance-metrics-scroll-active'
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(' ')}
+              data-testid="lab-performance-metrics-shell"
+              onPointerLeave={hideMetricsScrollbarRailHover}
+              onPointerMove={syncMetricsScrollbarRailHover}
+              onScroll={showMetricsScrollbar}
+              onWheel={showMetricsScrollbar}
+            >
+              <LabMetricTable vitals={vitals} />
+            </div>
+            <LabPerformanceTimeline
+              events={timeline}
+              currentTimeMs={timelineTimeMs}
+            />
+          </div>
+          <div
+            aria-labelledby="lab-performance-structure-tab"
+            className="min-h-0 min-w-0 overflow-y-auto overscroll-contain pr-1"
+            hidden={activePanelView !== 'structure'}
+            id="lab-performance-structure-panel"
+            role="tabpanel"
+          >
+            <LabPrimitiveStructureView
+              structure={analysis.primitiveStructure}
+            />
+          </div>
         </div>
       </div>
     </section>
