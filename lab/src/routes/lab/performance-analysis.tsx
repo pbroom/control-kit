@@ -106,6 +106,20 @@ export function LabPerformanceAnalysisPanel({
   const [areHtmlCanvasLabelsEnabled, setAreHtmlCanvasLabelsEnabled] =
     useState(false);
   const htmlInCanvasSupportState = useHtmlInCanvasSupportState();
+  const isHtmlCanvasLabelGateAvailable =
+    htmlInCanvasSupportState === 'supported';
+  const htmlCanvasLabelsToggleLabel =
+    htmlInCanvasSupportState === 'unsupported'
+      ? 'Unsupported in this browser'
+      : htmlInCanvasSupportState === 'checking'
+        ? 'Checking html-in-canvas'
+        : 'Use html-in-canvas';
+  const htmlCanvasLabelsToggleTitle =
+    htmlInCanvasSupportState === 'supported'
+      ? 'Use HTML-in-canvas for structure callout labels'
+      : htmlInCanvasSupportState === 'checking'
+        ? 'Checking browser support for HTML-in-canvas'
+        : 'HTML-in-canvas requires Canvas drawElementImage support';
   const contentRef = useRef<HTMLDivElement | null>(null);
   const panelHeightRef = useRef(panelHeight);
   const panelMaxHeightRef = useRef(panelMaxHeight);
@@ -613,21 +627,18 @@ export function LabPerformanceAnalysisPanel({
             {activePanelView === 'structure' ? (
               <Checkbox
                 checked={areHtmlCanvasLabelsEnabled}
-                className="h-7 min-h-7 py-0 text-white/58 transition-colors hover:text-white/82 focus-visible:ring-0"
+                className="h-7 min-h-7 py-0 text-white/58 transition-colors hover:text-white/82 focus-visible:ring-0 data-[disabled]:cursor-default data-[disabled]:text-white/35 data-[disabled]:hover:text-white/35"
                 data-html-in-canvas-support={htmlInCanvasSupportState}
                 data-testid="lab-performance-html-canvas-labels-toggle"
+                disabled={!isHtmlCanvasLabelGateAvailable}
                 labelClassName="whitespace-nowrap"
                 onCheckedChange={(checked) => {
                   suppressAnalysisSurfaceLayoutShifts();
                   setAreHtmlCanvasLabelsEnabled(checked);
                 }}
-                title={
-                  htmlInCanvasSupportState === 'supported'
-                    ? 'Use HTML-in-canvas for structure callout labels'
-                    : 'Requires a browser with Canvas drawElementImage support'
-                }
+                title={htmlCanvasLabelsToggleTitle}
               >
-                Use html-in-canvas
+                {htmlCanvasLabelsToggleLabel}
               </Checkbox>
             ) : null}
           </div>

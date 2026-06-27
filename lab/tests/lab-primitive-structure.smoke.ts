@@ -73,18 +73,40 @@ test('renders the primitive structure tab as a nonblank orthographic view', asyn
     name: 'Structure',
     exact: true,
   });
-  const htmlCanvasLabelsToggle = colorPlanePanel.getByRole('checkbox', {
-    name: 'Use html-in-canvas',
-    exact: true,
-  });
+  const htmlCanvasLabelsToggle = colorPlanePanel.getByTestId(
+    'lab-performance-html-canvas-labels-toggle',
+  );
 
   await expect(metricsTab).toBeVisible();
   await expect(metricsTab).toHaveAttribute('aria-selected', 'false');
   await expect(structureTab).toBeVisible();
   await expect(structureTab).toHaveAttribute('aria-selected', 'true');
   await expect(htmlCanvasLabelsToggle).toBeVisible();
+  await expect(htmlCanvasLabelsToggle).toHaveAttribute('role', 'checkbox');
   await expect(htmlCanvasLabelsToggle).toHaveAttribute('aria-checked', 'false');
-  await expect(htmlCanvasLabelsToggle).toHaveText('Use html-in-canvas');
+  await expect(htmlCanvasLabelsToggle).toHaveAttribute(
+    'data-html-in-canvas-support',
+    /^(supported|unsupported)$/,
+  );
+  const htmlInCanvasSupport = await htmlCanvasLabelsToggle.getAttribute(
+    'data-html-in-canvas-support',
+  );
+  await expect(htmlCanvasLabelsToggle).toHaveText(
+    htmlInCanvasSupport === 'supported'
+      ? 'Use html-in-canvas'
+      : 'Unsupported in this browser',
+  );
+  if (htmlInCanvasSupport === 'supported') {
+    await expect(htmlCanvasLabelsToggle).not.toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+  } else {
+    await expect(htmlCanvasLabelsToggle).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+  }
   const htmlCanvasLabelsToggleStyle = await htmlCanvasLabelsToggle.evaluate(
     (element) => {
       const style = window.getComputedStyle(element);
@@ -107,10 +129,6 @@ test('renders the primitive structure tab as a nonblank orthographic view', asyn
     borderTopWidth: '0px',
     cursor: 'default',
   });
-  await expect(htmlCanvasLabelsToggle).toHaveAttribute(
-    'data-html-in-canvas-support',
-    /^(supported|unsupported)$/,
-  );
   await expect(
     colorPlanePanel.getByRole('tabpanel', { name: 'Structure', exact: true }),
   ).toBeVisible();
@@ -169,17 +187,16 @@ test('renders the primitive structure tab as a nonblank orthographic view', asyn
     'dom-overlay',
   );
 
-  const htmlInCanvasSupport = await htmlCanvasLabelsToggle.getAttribute(
-    'data-html-in-canvas-support',
-  );
-  await htmlCanvasLabelsToggle.click();
-  await expect(htmlCanvasLabelsToggle).toHaveAttribute('aria-checked', 'true');
-  await expect(structureShell).toHaveAttribute(
-    'data-primitive-structure-html-canvas-gate',
-    'enabled',
-  );
-
   if (htmlInCanvasSupport === 'supported') {
+    await htmlCanvasLabelsToggle.click();
+    await expect(htmlCanvasLabelsToggle).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+    await expect(structureShell).toHaveAttribute(
+      'data-primitive-structure-html-canvas-gate',
+      'enabled',
+    );
     await expect(structureShell).toHaveAttribute(
       'data-primitive-structure-label-renderer',
       'html-in-canvas',
