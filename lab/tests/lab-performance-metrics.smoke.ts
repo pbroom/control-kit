@@ -6,6 +6,7 @@ import {
   openLabRoot,
   performanceMetricsTable,
   performancePanelFor,
+  selectPerformancePanelView,
 } from './lab-smoke-utils.js';
 
 test('renders performance metrics, ranges, lcp attribution, and timeline', async ({
@@ -23,6 +24,7 @@ test('renders performance metrics, ranges, lcp attribution, and timeline', async
     }
 
     const performancePanel = performancePanelFor(page, labPage.label);
+    await selectPerformancePanelView(performancePanel, 'Metrics');
     await expect(performancePanel).toContainText(
       'First contentful paint (FCP)',
     );

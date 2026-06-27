@@ -106,7 +106,7 @@ function LabPageCrossfadeSlot({
       data-lab-crossfade-slot={testId}
       data-testid={testId}
     >
-      {exitingItems.map((item) => (
+      {exitingItems.map((item, index) => (
         <div
           aria-hidden
           className={[
@@ -117,7 +117,7 @@ function LabPageCrossfadeSlot({
             .join(' ')}
           data-lab-crossfade-key={item.key}
           data-lab-crossfade-phase="exit"
-          key={item.id}
+          key={`${testId}-${item.key}-${item.id}-${index}`}
           style={
             {
               '--ck-lab-page-crossfade-duration': `${LAB_PAGE_CONTENT_CROSSFADE_MS}ms`,

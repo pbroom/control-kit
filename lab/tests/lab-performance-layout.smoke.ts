@@ -6,6 +6,7 @@ import {
   openLabRoot,
   performanceMetricsTable,
   performancePanelFor,
+  selectPerformancePanelView,
 } from './lab-smoke-utils.js';
 
 test.setTimeout(60_000);
@@ -26,6 +27,7 @@ test('keeps desktop performance panel layout, scrollbars, and resize behavior st
     }
 
     const performancePanel = performancePanelFor(page, labPage.label);
+    await selectPerformancePanelView(performancePanel, 'Metrics');
     const metricsTable = performanceMetricsTable(performancePanel);
     const timelineShell = performancePanel.getByTestId(
       'lab-performance-timeline-shell',

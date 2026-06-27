@@ -105,6 +105,55 @@ export function performanceMetricsTable(performancePanel: Locator) {
   });
 }
 
+export async function selectPerformancePanelView(
+  performancePanel: Locator,
+  viewLabel: 'Metrics' | 'Structure',
+) {
+  const viewTab = performancePanel.getByRole('tab', {
+    name: viewLabel,
+    exact: true,
+  });
+
+  await expect(viewTab).toBeVisible();
+  await viewTab.click();
+  await expect(viewTab).toHaveAttribute('aria-selected', 'true');
+  await expect(
+    performancePanel.getByRole('tabpanel', {
+      name: viewLabel,
+      exact: true,
+    }),
+  ).toBeVisible();
+  await performancePanel.evaluate(
+    (node) =>
+      new Promise<void>((resolve) => {
+        let lastHeight = Number.NaN;
+        let stableFrames = 0;
+        const startTime = window.performance.now();
+
+        const checkHeight = () => {
+          const height = node.getBoundingClientRect().height;
+          const isStable =
+            Number.isFinite(lastHeight) && Math.abs(height - lastHeight) < 0.5;
+
+          stableFrames = isStable ? stableFrames + 1 : 0;
+          lastHeight = height;
+
+          if (
+            stableFrames >= 3 ||
+            window.performance.now() - startTime > 1000
+          ) {
+            resolve();
+            return;
+          }
+
+          window.requestAnimationFrame(checkHeight);
+        };
+
+        window.requestAnimationFrame(checkHeight);
+      }),
+  );
+}
+
 export async function openLabRoot(page: Page) {
   await page.goto('/');
   await expect(page).toHaveURL(/\/lab\/color-plane$/);

@@ -65,13 +65,18 @@ test('renders the primitive structure tab as a nonblank orthographic view', asyn
   await openLabRoot(page);
 
   const colorPlanePanel = performancePanelFor(page, 'ColorPlane');
+  const metricsTab = colorPlanePanel.getByRole('tab', {
+    name: 'Metrics',
+    exact: true,
+  });
   const structureTab = colorPlanePanel.getByRole('tab', {
     name: 'Structure',
     exact: true,
   });
 
+  await expect(metricsTab).toBeVisible();
+  await expect(metricsTab).toHaveAttribute('aria-selected', 'false');
   await expect(structureTab).toBeVisible();
-  await structureTab.click();
   await expect(structureTab).toHaveAttribute('aria-selected', 'true');
   await expect(
     colorPlanePanel.getByRole('tabpanel', { name: 'Structure', exact: true }),

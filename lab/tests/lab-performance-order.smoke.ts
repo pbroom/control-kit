@@ -10,6 +10,7 @@ import {
   openLabRoot,
   performanceMetricsTable,
   performancePanelFor,
+  selectPerformancePanelView,
 } from './lab-smoke-utils.js';
 
 test('persists metric row ordering and abbreviates labels on compact desktop', async ({
@@ -20,9 +21,9 @@ test('persists metric row ordering and abbreviates labels on compact desktop', a
 
   await openLabRoot(page);
   await page.getByRole('link', { name: 'Tooltip', exact: true }).click();
-  const metricsTable = performanceMetricsTable(
-    performancePanelFor(page, 'Tooltip'),
-  );
+  const performancePanel = performancePanelFor(page, 'Tooltip');
+  await selectPerformancePanelView(performancePanel, 'Metrics');
+  const metricsTable = performanceMetricsTable(performancePanel);
   const metricRows = metricsTable.locator('[data-lab-performance-metric-row]');
   await expect(metricRows).toHaveCount(DEFAULT_METRIC_ROW_ORDER.length);
   expect(await getMetricRowOrder(metricsTable)).toEqual(
@@ -82,8 +83,10 @@ test('persists metric row ordering and abbreviates labels on compact desktop', a
 
   await page.reload();
   await expect(page).toHaveURL(/\/lab\/tooltip$/);
+  const reloadedPerformancePanel = performancePanelFor(page, 'Tooltip');
+  await selectPerformancePanelView(reloadedPerformancePanel, 'Metrics');
   const reloadedMetricsTable = performanceMetricsTable(
-    performancePanelFor(page, 'Tooltip'),
+    reloadedPerformancePanel,
   );
   await expect
     .poll(() => getMetricRowOrder(reloadedMetricsTable))
@@ -98,9 +101,9 @@ test('persists metric row ordering and abbreviates labels on compact desktop', a
   await page.setViewportSize(COMPACT_DESKTOP_VIEWPORT);
   await page.reload();
   await expect(page).toHaveURL(/\/lab\/tooltip$/);
-  const compactMetricsTable = performanceMetricsTable(
-    performancePanelFor(page, 'Tooltip'),
-  );
+  const compactPerformancePanel = performancePanelFor(page, 'Tooltip');
+  await selectPerformancePanelView(compactPerformancePanel, 'Metrics');
+  const compactMetricsTable = performanceMetricsTable(compactPerformancePanel);
   await expect(compactMetricsTable).toHaveAttribute(
     'data-lab-performance-label-mode',
     'abbreviated',

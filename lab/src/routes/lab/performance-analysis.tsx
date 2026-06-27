@@ -72,7 +72,7 @@ export function LabPerformanceAnalysisPanel({
   const [isMetricsScrollbarRailHovered, setIsMetricsScrollbarRailHovered] =
     useState(false);
   const [activePanelView, setActivePanelView] =
-    useState<LabPerformancePanelView>('metrics');
+    useState<LabPerformancePanelView>('structure');
   const contentRef = useRef<HTMLDivElement | null>(null);
   const panelHeightRef = useRef(panelHeight);
   const panelMaxHeightRef = useRef(panelMaxHeight);
