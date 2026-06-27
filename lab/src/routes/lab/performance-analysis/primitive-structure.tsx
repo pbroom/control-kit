@@ -15,31 +15,60 @@ const STRUCTURE_LAYER_PALETTE = [
     fill: '#687383',
     line: '#cfd6dc',
     opacity: 0.18,
-    swatch: '#687383',
   },
   {
     fill: '#c1c8ce',
     line: '#f0f3f5',
     opacity: 0.22,
-    swatch: '#b8c0c6',
   },
   {
     fill: '#9db7c7',
     line: '#d9edf4',
     opacity: 0.2,
-    swatch: '#9db7c7',
   },
   {
     fill: '#f2f4f5',
     line: '#ffffff',
     opacity: 0.36,
-    swatch: '#eef1f2',
+  },
+] as const;
+
+const STRUCTURE_LAYER_CALLOUTS = [
+  {
+    labelX: 64,
+    labelY: 72,
+    targetX: 31,
+    targetY: 72,
+  },
+  {
+    labelX: 64,
+    labelY: 60,
+    targetX: 36,
+    targetY: 62,
+  },
+  {
+    labelX: 64,
+    labelY: 48,
+    targetX: 40,
+    targetY: 51,
+  },
+  {
+    labelX: 64,
+    labelY: 36,
+    targetX: 29,
+    targetY: 36,
   },
 ] as const;
 
 function structureLayerTone(layerIndex: number) {
   return STRUCTURE_LAYER_PALETTE[
     Math.min(layerIndex, STRUCTURE_LAYER_PALETTE.length - 1)
+  ];
+}
+
+function structureLayerCallout(layerIndex: number) {
+  return STRUCTURE_LAYER_CALLOUTS[
+    Math.min(layerIndex, STRUCTURE_LAYER_CALLOUTS.length - 1)
   ];
 }
 
@@ -158,7 +187,7 @@ function usePrimitiveStructureScene(
       );
       renderer.domElement.setAttribute(
         'data-primitive-structure-guides',
-        'none',
+        'callouts',
       );
       renderer.domElement.setAttribute(
         'data-primitive-structure-motion',
@@ -226,10 +255,17 @@ export function LabPrimitiveStructureView({
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   usePrimitiveStructureScene(structure, containerRef);
+  const calloutEntries = structure.layers
+    .map((layer, layerIndex) => ({
+      callout: structureLayerCallout(layerIndex),
+      layer,
+      layerIndex,
+    }))
+    .reverse();
 
   return (
     <div
-      className="grid min-h-0 min-w-0 gap-4 lg:grid-cols-[minmax(320px,1fr)_minmax(260px,0.62fr)] lg:items-stretch"
+      className="relative grid min-h-0 min-w-0 gap-4 lg:grid-cols-[minmax(320px,1fr)_minmax(260px,0.62fr)] lg:items-stretch"
       data-testid="lab-primitive-structure-shell"
     >
       <div
@@ -239,7 +275,39 @@ export function LabPrimitiveStructureView({
         data-testid="lab-primitive-structure-render"
         ref={containerRef}
       />
-      <div className="min-h-0 min-w-0 space-y-3">
+      <svg
+        aria-hidden
+        className="pointer-events-none absolute inset-0 z-[1] hidden h-full w-full lg:block"
+        data-testid="lab-primitive-structure-callouts"
+        preserveAspectRatio="none"
+        viewBox="0 0 100 100"
+      >
+        {calloutEntries.map(({ callout, layer }) => {
+          const elbowX = callout.labelX - 5.5;
+
+          return (
+            <g data-primitive-callout={layer.id} key={layer.id}>
+              <path
+                className="stroke-white/42"
+                d={`M ${callout.targetX} ${callout.targetY} L ${elbowX} ${callout.targetY} L ${callout.labelX} ${callout.labelY}`}
+                data-primitive-callout-line={layer.id}
+                fill="none"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="1"
+                vectorEffect="non-scaling-stroke"
+              />
+              <circle
+                className="fill-white/60"
+                cx={callout.targetX}
+                cy={callout.targetY}
+                r="0.34"
+              />
+            </g>
+          );
+        })}
+      </svg>
+      <div className="relative z-[2] min-h-0 min-w-0 space-y-3">
         <div className="space-y-1">
           <h2 className="text-sm font-semibold leading-5 text-white/92">
             {structure.title}
@@ -248,26 +316,32 @@ export function LabPrimitiveStructureView({
             {structure.summary}
           </p>
         </div>
-        <ol className="grid min-w-0 gap-2">
-          {structure.layers.map((layer, layerIndex) => (
+        <ol
+          className="relative grid min-w-0 gap-2 lg:absolute lg:inset-0 lg:block"
+          data-testid="lab-primitive-structure-callout-labels"
+        >
+          {calloutEntries.map(({ callout, layer, layerIndex }) => (
             <li
-              className="grid min-w-0 grid-cols-[0.75rem_minmax(0,1fr)] gap-2 border-t border-white/8 pt-2"
+              className="min-w-0 border-t border-white/8 pt-2 lg:absolute lg:left-0 lg:right-0 lg:-translate-y-1/2"
+              data-primitive-callout-layer="true"
               data-primitive-layer={layer.id}
               key={layer.id}
+              style={{ top: `${callout.labelY}%` }}
             >
-              <span
-                aria-hidden
-                className="mt-1 size-3 rounded-[3px] border border-white/16"
-                style={{
-                  backgroundColor: structureLayerTone(layerIndex).swatch,
-                }}
-              />
-              <span className="min-w-0">
-                <span className="block truncate text-xs font-semibold text-white/84">
-                  {layer.label}
+              <span className="grid min-w-0 grid-cols-[1.6rem_minmax(0,1fr)] gap-2">
+                <span className="pt-px font-mono text-[10px] leading-4 text-white/34">
+                  {String(structure.layers.length - layerIndex).padStart(
+                    2,
+                    '0',
+                  )}
                 </span>
-                <span className="block text-[11px] leading-4 text-white/45">
-                  {layer.detail}
+                <span className="min-w-0">
+                  <span className="block truncate text-xs font-semibold text-white/86">
+                    {layer.label}
+                  </span>
+                  <span className="block text-[11px] leading-4 text-white/46">
+                    {layer.detail}
+                  </span>
                 </span>
               </span>
             </li>

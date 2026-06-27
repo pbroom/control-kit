@@ -107,6 +107,18 @@ test('renders the primitive structure tab as a nonblank orthographic view', asyn
   await expect(
     colorPlanePanel.getByText('Y Axis Exploded', { exact: true }),
   ).toHaveCount(0);
+  await expect(
+    colorPlanePanel.getByTestId('lab-primitive-structure-callouts'),
+  ).toBeVisible();
+  await expect(
+    colorPlanePanel.locator('[data-primitive-callout-line]'),
+  ).toHaveCount(4);
+  await expect(
+    colorPlanePanel.locator('[data-primitive-callout-layer="true"]'),
+  ).toHaveCount(4);
+  await expect(
+    colorPlanePanel.locator('[data-primitive-layer] [aria-hidden="true"]'),
+  ).toHaveCount(0);
 
   const canvas = colorPlanePanel.getByTestId('lab-primitive-structure-canvas');
   await expect(canvas).toBeVisible();
@@ -118,7 +130,7 @@ test('renders the primitive structure tab as a nonblank orthographic view', asyn
   );
   await expect(canvas).toHaveAttribute(
     'data-primitive-structure-guides',
-    'none',
+    'callouts',
   );
   await expect(canvas).toHaveAttribute(
     'data-primitive-structure-motion',
