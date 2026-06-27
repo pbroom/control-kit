@@ -83,13 +83,43 @@ test('renders the primitive structure tab as a nonblank orthographic view', asyn
     colorPlanePanel.locator('[data-primitive-layer="gamut-raster"]'),
   ).toBeVisible();
 
+  const renderSurface = colorPlanePanel.getByTestId(
+    'lab-primitive-structure-render',
+  );
+  await expect(renderSurface).toHaveAttribute(
+    'data-primitive-structure-surface',
+    'transparent',
+  );
+  const renderSurfaceStyle = await renderSurface.evaluate((element) => {
+    const style = window.getComputedStyle(element);
+
+    return {
+      backgroundColor: style.backgroundColor,
+      backgroundImage: style.backgroundImage,
+      borderTopWidth: style.borderTopWidth,
+    };
+  });
+  expect(renderSurfaceStyle).toEqual({
+    backgroundColor: 'rgba(0, 0, 0, 0)',
+    backgroundImage: 'none',
+    borderTopWidth: '0px',
+  });
+
   const canvas = colorPlanePanel.getByTestId('lab-primitive-structure-canvas');
   await expect(canvas).toBeVisible();
   await expect(canvas).toHaveAttribute('role', 'img');
   await expect(canvas).toHaveAttribute('data-primitive-structure-axis', 'y');
   await expect(canvas).toHaveAttribute(
+    'data-primitive-structure-geometry',
+    'plane',
+  );
+  await expect(canvas).toHaveAttribute(
     'data-primitive-structure-motion',
     'static',
+  );
+  await expect(canvas).toHaveAttribute(
+    'data-primitive-structure-palette',
+    'flat',
   );
   const canvasBox = await canvas.boundingBox();
   expect(canvasBox).not.toBeNull();

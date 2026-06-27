@@ -8,17 +8,54 @@ type ThreeOrthographicCamera = InstanceType<ThreeModule['OrthographicCamera']>;
 const STRUCTURE_CAMERA_DISTANCE = 8.2;
 const STRUCTURE_FRUSTUM_SIZE = 7.35;
 const STRUCTURE_LAYER_GAP_Y = 0.64;
-const STRUCTURE_LAYER_THICKNESS = 0.035;
+const STRUCTURE_LAYER_FACE_OFFSET_Y = 0.006;
 const STRUCTURE_MAX_PIXEL_RATIO = 2;
+
+const STRUCTURE_LAYER_PALETTE = [
+  {
+    fill: '#687383',
+    grid: '#a7b0ba',
+    line: '#cfd6dc',
+    opacity: 0.18,
+    swatch: '#687383',
+  },
+  {
+    fill: '#c1c8ce',
+    grid: '#d9dee2',
+    line: '#f0f3f5',
+    opacity: 0.22,
+    swatch: '#b8c0c6',
+  },
+  {
+    fill: '#9db7c7',
+    grid: '#c7dbe4',
+    line: '#d9edf4',
+    opacity: 0.2,
+    swatch: '#9db7c7',
+  },
+  {
+    fill: '#f2f4f5',
+    grid: '#e8ebed',
+    line: '#ffffff',
+    opacity: 0.36,
+    swatch: '#eef1f2',
+  },
+] as const;
+
+function structureLayerTone(layerIndex: number) {
+  return STRUCTURE_LAYER_PALETTE[
+    Math.min(layerIndex, STRUCTURE_LAYER_PALETTE.length - 1)
+  ];
+}
 
 function createStructureMaterial(
   THREE: ThreeModule,
-  layerColor: string,
-  opacity = 0.2,
+  tone: (typeof STRUCTURE_LAYER_PALETTE)[number],
 ) {
   return new THREE.MeshBasicMaterial({
-    color: new THREE.Color(layerColor),
-    opacity,
+    color: new THREE.Color(tone.fill),
+    depthWrite: false,
+    opacity: tone.opacity,
     side: THREE.DoubleSide,
     transparent: true,
   });
@@ -27,11 +64,12 @@ function createStructureMaterial(
 function createLayerGrid(
   THREE: ThreeModule,
   layer: LabPrimitiveStructure['layers'][number],
+  tone: (typeof STRUCTURE_LAYER_PALETTE)[number],
 ) {
   const points = [];
   const lineCount = Math.max(2, Math.min(8, Math.round(layer.width)));
   const columnCount = Math.max(2, Math.min(8, Math.round(layer.height)));
-  const y = STRUCTURE_LAYER_THICKNESS / 2 + 0.006;
+  const y = STRUCTURE_LAYER_FACE_OFFSET_Y;
 
   for (let index = 1; index < lineCount; index += 1) {
     const x = -layer.width / 2 + (layer.width * index) / lineCount;
@@ -52,8 +90,9 @@ function createLayerGrid(
   return new THREE.LineSegments(
     new THREE.BufferGeometry().setFromPoints(points),
     new THREE.LineBasicMaterial({
-      color: 0xd9f7ff,
-      opacity: 0.14,
+      color: tone.grid,
+      depthWrite: false,
+      opacity: 0.16,
       transparent: true,
     }),
   );
@@ -67,35 +106,31 @@ function createLayerGroup(
   const group = new THREE.Group();
   const layerY =
     layerIndex * STRUCTURE_LAYER_GAP_Y + (layer.offsetZ ?? 0) * 0.1;
-  const geometry = new THREE.BoxGeometry(
-    layer.width,
-    STRUCTURE_LAYER_THICKNESS,
-    layer.height,
-    1,
-    1,
-    1,
-  );
-  const material = createStructureMaterial(
-    THREE,
-    layer.color,
-    Math.min(layer.opacity ?? 0.24, 0.38),
-  );
+  const tone = structureLayerTone(layerIndex);
+  const geometry = new THREE.PlaneGeometry(layer.width, layer.height, 1, 1);
+  geometry.rotateX(-Math.PI / 2);
+  const material = createStructureMaterial(THREE, tone);
   const mesh = new THREE.Mesh(geometry, material);
   mesh.name = layer.id;
+  mesh.renderOrder = layerIndex * 3;
 
   const edges = new THREE.LineSegments(
     new THREE.EdgesGeometry(geometry),
     new THREE.LineBasicMaterial({
-      color: layerIndex === 0 ? 0xffffff : 0xbfeaff,
-      opacity: layerIndex === 0 ? 0.64 : 0.78,
+      color: tone.line,
+      depthWrite: false,
+      opacity: layerIndex === 0 ? 0.46 : 0.68,
       transparent: true,
     }),
   );
   edges.name = `${layer.id}-edges`;
+  edges.renderOrder = mesh.renderOrder + 1;
+  const grid = createLayerGrid(THREE, layer, tone);
+  grid.renderOrder = mesh.renderOrder + 2;
 
   group.name = `${layer.id}-assembly-layer`;
   group.position.set(layer.offsetX ?? 0, layerY, -(layer.offsetY ?? 0));
-  group.add(mesh, edges, createLayerGrid(THREE, layer));
+  group.add(mesh, edges, grid);
 
   return group;
 }
@@ -105,8 +140,8 @@ function createDropLines(THREE: ThreeModule, structure: LabPrimitiveStructure) {
   const maxHeight = Math.max(...structure.layers.map((layer) => layer.height));
   const topY =
     (structure.layers.length - 1) * STRUCTURE_LAYER_GAP_Y +
-    STRUCTURE_LAYER_THICKNESS;
-  const bottomY = -STRUCTURE_LAYER_THICKNESS;
+    STRUCTURE_LAYER_FACE_OFFSET_Y;
+  const bottomY = -0.08;
   const anchorInset = 0.36;
   const anchors = [
     [-maxWidth / 2 + anchorInset, -maxHeight / 2 + anchorInset],
@@ -121,10 +156,11 @@ function createDropLines(THREE: ThreeModule, structure: LabPrimitiveStructure) {
   const dropLines = new THREE.LineSegments(
     new THREE.BufferGeometry().setFromPoints(points),
     new THREE.LineDashedMaterial({
-      color: 0xdff6ff,
+      color: 0xb7c4ce,
       dashSize: 0.08,
       gapSize: 0.08,
-      opacity: 0.36,
+      depthWrite: false,
+      opacity: 0.28,
       transparent: true,
     }),
   );
@@ -140,12 +176,12 @@ function createYAxisMarker(
   const maxWidth = Math.max(...structure.layers.map((layer) => layer.width));
   const topY =
     (structure.layers.length - 1) * STRUCTURE_LAYER_GAP_Y +
-    STRUCTURE_LAYER_THICKNESS;
+    STRUCTURE_LAYER_FACE_OFFSET_Y;
   const arrow = new THREE.ArrowHelper(
     new THREE.Vector3(0, 1, 0),
     new THREE.Vector3(maxWidth / 2 + 0.52, -0.04, 0),
     topY + 0.32,
-    0xbfeaff,
+    0xc7d8e2,
     0.18,
     0.11,
   );
@@ -220,8 +256,16 @@ function usePrimitiveStructureScene(
       );
       renderer.domElement.setAttribute('data-primitive-structure-axis', 'y');
       renderer.domElement.setAttribute(
+        'data-primitive-structure-geometry',
+        'plane',
+      );
+      renderer.domElement.setAttribute(
         'data-primitive-structure-motion',
         'static',
+      );
+      renderer.domElement.setAttribute(
+        'data-primitive-structure-palette',
+        'flat',
       );
       renderer.domElement.setAttribute('role', 'img');
       renderer.domElement.className = 'h-full w-full';
@@ -241,9 +285,9 @@ function usePrimitiveStructureScene(
       root.rotation.y = -0.12;
       scene.add(root);
 
-      const ground = new THREE.GridHelper(6.4, 12, 0x4b5b66, 0x26313a);
+      const ground = new THREE.GridHelper(6.4, 12, 0x5c6872, 0x37424b);
       ground.position.y = -0.1;
-      ground.material.opacity = 0.22;
+      ground.material.opacity = 0.12;
       ground.material.transparent = true;
       root.add(ground, createDropLines(THREE, structure));
       root.add(createYAxisMarker(THREE, structure));
@@ -269,8 +313,6 @@ function usePrimitiveStructureScene(
       cleanupScene = () => {
         resizeObserver.disconnect();
         disposeObject(THREE, root);
-        ground.geometry.dispose();
-        ground.material.dispose();
         renderer.dispose();
         renderer.domElement.remove();
       };
@@ -298,11 +340,12 @@ export function LabPrimitiveStructureView({
     >
       <div
         aria-label={`${structure.title} orthographic render`}
-        className="relative min-h-[228px] overflow-hidden rounded-[16px] border border-white/8 bg-[radial-gradient(circle_at_50%_28%,rgba(255,255,255,0.08),rgba(255,255,255,0)_46%),linear-gradient(135deg,rgba(32,41,58,0.72),rgba(12,15,19,0.96))]"
+        className="relative min-h-[228px] overflow-hidden"
+        data-primitive-structure-surface="transparent"
         data-testid="lab-primitive-structure-render"
         ref={containerRef}
       >
-        <div className="pointer-events-none absolute left-3 top-3 rounded-md border border-white/8 bg-black/18 px-2 py-1 text-[10px] font-medium uppercase tracking-[0.16em] text-white/52">
+        <div className="pointer-events-none absolute left-0 top-0 text-[10px] font-medium uppercase tracking-[0.16em] text-white/38">
           Y Axis Exploded
         </div>
       </div>
@@ -316,7 +359,7 @@ export function LabPrimitiveStructureView({
           </p>
         </div>
         <ol className="grid min-w-0 gap-2">
-          {structure.layers.map((layer) => (
+          {structure.layers.map((layer, layerIndex) => (
             <li
               className="grid min-w-0 grid-cols-[0.75rem_minmax(0,1fr)] gap-2 border-t border-white/8 pt-2"
               data-primitive-layer={layer.id}
@@ -325,7 +368,9 @@ export function LabPrimitiveStructureView({
               <span
                 aria-hidden
                 className="mt-1 size-3 rounded-[3px] border border-white/16"
-                style={{ backgroundColor: layer.color }}
+                style={{
+                  backgroundColor: structureLayerTone(layerIndex).swatch,
+                }}
               />
               <span className="min-w-0">
                 <span className="block truncate text-xs font-semibold text-white/84">
