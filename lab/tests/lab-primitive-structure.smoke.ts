@@ -85,6 +85,28 @@ test('renders the primitive structure tab as a nonblank orthographic view', asyn
   await expect(htmlCanvasLabelsToggle).toBeVisible();
   await expect(htmlCanvasLabelsToggle).toHaveAttribute('aria-checked', 'false');
   await expect(htmlCanvasLabelsToggle).toHaveText('Use html-in-canvas');
+  const htmlCanvasLabelsToggleStyle = await htmlCanvasLabelsToggle.evaluate(
+    (element) => {
+      const style = window.getComputedStyle(element);
+
+      return {
+        backgroundColor: style.backgroundColor,
+        borderBottomWidth: style.borderBottomWidth,
+        borderLeftWidth: style.borderLeftWidth,
+        borderRightWidth: style.borderRightWidth,
+        borderTopWidth: style.borderTopWidth,
+        cursor: style.cursor,
+      };
+    },
+  );
+  expect(htmlCanvasLabelsToggleStyle).toEqual({
+    backgroundColor: 'rgba(0, 0, 0, 0)',
+    borderBottomWidth: '0px',
+    borderLeftWidth: '0px',
+    borderRightWidth: '0px',
+    borderTopWidth: '0px',
+    cursor: 'default',
+  });
   await expect(htmlCanvasLabelsToggle).toHaveAttribute(
     'data-html-in-canvas-support',
     /^(supported|unsupported)$/,

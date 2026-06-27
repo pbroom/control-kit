@@ -71,6 +71,28 @@ test('mirrors lab pages, routes, loading slots, and panel toggles', async ({
     const performancePanel = performancePanelFor(page, labPage.label);
     await expect(performancePanel).toBeVisible();
 
+    if (labPage.value === 'checkbox') {
+      const previewCheckbox = page
+        .locator('[data-lab-component-preview]')
+        .getByRole('checkbox', {
+          name: 'Checkbox',
+          exact: true,
+        });
+      await expect(previewCheckbox).toBeVisible();
+      const checkboxCursor = await previewCheckbox.evaluate((element) => {
+        const label = element.querySelector('[data-slot="checkbox-label"]');
+
+        return {
+          label: label ? window.getComputedStyle(label).cursor : null,
+          root: window.getComputedStyle(element).cursor,
+        };
+      });
+      expect(checkboxCursor).toEqual({
+        label: 'default',
+        root: 'default',
+      });
+    }
+
     if (index === 0) {
       const panelToggleControls = page.getByTestId('lab-panel-toggle-controls');
       const propertiesToggle = page.getByTestId('lab-toggle-properties-panel');

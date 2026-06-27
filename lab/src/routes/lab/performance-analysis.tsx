@@ -613,7 +613,7 @@ export function LabPerformanceAnalysisPanel({
             {activePanelView === 'structure' ? (
               <Checkbox
                 checked={areHtmlCanvasLabelsEnabled}
-                className="h-7 min-h-7 rounded-[7px] border border-white/10 bg-white/[0.03] px-2.5 py-0 text-white/58 transition-[background-color,border-color,color] hover:border-white/18 hover:text-white/82"
+                className="h-7 min-h-7 py-0 text-white/58 transition-colors hover:text-white/82 focus-visible:ring-0"
                 data-html-in-canvas-support={htmlInCanvasSupportState}
                 data-testid="lab-performance-html-canvas-labels-toggle"
                 labelClassName="whitespace-nowrap"
