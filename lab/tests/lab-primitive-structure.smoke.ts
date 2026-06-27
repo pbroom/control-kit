@@ -73,17 +73,18 @@ test('renders the primitive structure tab as a nonblank orthographic view', asyn
     name: 'Structure',
     exact: true,
   });
-  const htmlCanvasLabelsToggle = colorPlanePanel.getByTestId(
-    'lab-performance-html-canvas-labels-toggle',
-  );
+  const htmlCanvasLabelsToggle = colorPlanePanel.getByRole('checkbox', {
+    name: 'Use html-in-canvas',
+    exact: true,
+  });
 
   await expect(metricsTab).toBeVisible();
   await expect(metricsTab).toHaveAttribute('aria-selected', 'false');
   await expect(structureTab).toBeVisible();
   await expect(structureTab).toHaveAttribute('aria-selected', 'true');
   await expect(htmlCanvasLabelsToggle).toBeVisible();
-  await expect(htmlCanvasLabelsToggle).toHaveAttribute('role', 'switch');
   await expect(htmlCanvasLabelsToggle).toHaveAttribute('aria-checked', 'false');
+  await expect(htmlCanvasLabelsToggle).toHaveText('Use html-in-canvas');
   await expect(htmlCanvasLabelsToggle).toHaveAttribute(
     'data-html-in-canvas-support',
     /^(supported|unsupported)$/,

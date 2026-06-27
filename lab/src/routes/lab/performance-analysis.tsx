@@ -10,7 +10,7 @@ import type {
   MouseEvent as ReactMouseEvent,
   PointerEvent as ReactPointerEvent,
 } from 'react';
-import type { LabPageKey } from './shared.js';
+import { Checkbox, type LabPageKey } from './shared.js';
 import { LAB_PERFORMANCE_ANALYSIS } from './performance-analysis/config.js';
 import { LabMetricTable } from './performance-analysis/metrics-table.js';
 import {
@@ -611,32 +611,24 @@ export function LabPerformanceAnalysisPanel({
               })}
             </div>
             {activePanelView === 'structure' ? (
-              <button
-                aria-checked={areHtmlCanvasLabelsEnabled}
-                aria-label="Use HTML-in-canvas structure labels"
-                className={[
-                  'h-7 rounded-[7px] border px-2.5 text-[11px] font-medium leading-4 outline-none transition-[background-color,border-color,color]',
-                  'focus-visible:ring-2 focus-visible:ring-[#0d99ff]/80',
-                  areHtmlCanvasLabelsEnabled
-                    ? 'border-[#0d99ff]/50 bg-[#0d99ff]/18 text-white/90'
-                    : 'border-white/10 bg-white/[0.03] text-white/48 hover:border-white/18 hover:text-white/74',
-                ].join(' ')}
+              <Checkbox
+                checked={areHtmlCanvasLabelsEnabled}
+                className="h-7 min-h-7 rounded-[7px] border border-white/10 bg-white/[0.03] px-2.5 py-0 text-white/58 transition-[background-color,border-color,color] hover:border-white/18 hover:text-white/82"
                 data-html-in-canvas-support={htmlInCanvasSupportState}
                 data-testid="lab-performance-html-canvas-labels-toggle"
-                onClick={() => {
+                labelClassName="whitespace-nowrap"
+                onCheckedChange={(checked) => {
                   suppressAnalysisSurfaceLayoutShifts();
-                  setAreHtmlCanvasLabelsEnabled((enabled) => !enabled);
+                  setAreHtmlCanvasLabelsEnabled(checked);
                 }}
-                role="switch"
                 title={
                   htmlInCanvasSupportState === 'supported'
                     ? 'Use HTML-in-canvas for structure callout labels'
                     : 'Requires a browser with Canvas drawElementImage support'
                 }
-                type="button"
               >
-                HTML labels
-              </button>
+                Use html-in-canvas
+              </Checkbox>
             ) : null}
           </div>
           <div
