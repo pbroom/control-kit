@@ -14,6 +14,7 @@ test('mirrors lab pages, routes, loading slots, and panel toggles', async ({
   const snapshotDir = await createSnapshotDir(testInfo);
 
   await openLabRoot(page);
+  await expect(page.locator('.ck-lab-header-exit')).toHaveCount(0);
 
   const themeTrigger = page.getByLabel('Toggle theme', { exact: true });
   await themeTrigger.click();
@@ -91,6 +92,27 @@ test('mirrors lab pages, routes, loading slots, and panel toggles', async ({
         label: 'default',
         root: 'default',
       });
+    }
+
+    if (labPage.value === 'tabs') {
+      const tabsStage = page.getByTestId('tabs-playground-stage');
+      await expect(
+        tabsStage.getByRole('tablist', { name: 'UI3 tabs', exact: true }),
+      ).toBeVisible();
+      await expect(
+        tabsStage.getByRole('tab', { name: 'Layers', exact: true }),
+      ).toHaveAttribute('aria-selected', 'true');
+      await tabsStage.getByRole('tab', { name: 'Assets', exact: true }).click();
+      await expect(
+        tabsStage.getByRole('tab', { name: 'Assets', exact: true }),
+      ).toHaveAttribute('aria-selected', 'true');
+      await expect(page.getByLabel('Tab label', { exact: true })).toBeVisible();
+      await expect(
+        page.getByRole('checkbox', { name: 'Leading icon', exact: true }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole('checkbox', { name: 'Trailing icon', exact: true }),
+      ).toBeVisible();
     }
 
     if (index === 0) {

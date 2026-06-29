@@ -2,19 +2,98 @@ import type { LabPageKey } from '../shared.js';
 import type {
   LabPerformanceAnalysis,
   LabPrimitiveStructure,
-  LabPrimitiveStructureLayer,
+  LabPrimitiveStructureNode,
+  LabPrimitiveStructureNodeRelation,
+  LabPrimitiveStructureNodeSlot,
+  LabPrimitiveStructureNodeState,
+  LabPrimitiveStructureNodeView,
 } from './types.js';
+
+type PrimitiveStructureLayerInput = LabPrimitiveStructureNodeView & {
+  children?: readonly PrimitiveStructureLayerInput[];
+  component?: string;
+  detail: string;
+  id: string;
+  label: string;
+  relation?: LabPrimitiveStructureNodeRelation;
+  slot?: LabPrimitiveStructureNodeSlot;
+  state?: LabPrimitiveStructureNodeState;
+};
+
+function structureNode(
+  node: Omit<LabPrimitiveStructureNode, 'children'> & {
+    children?: readonly LabPrimitiveStructureNode[];
+  },
+): LabPrimitiveStructureNode {
+  return node;
+}
+
+function definePrimitiveStructure(
+  title: string,
+  summary: string,
+  root: LabPrimitiveStructureNode,
+  options: Pick<LabPrimitiveStructure, 'defaultLayerGap' | 'visibleDepth'> = {},
+): LabPrimitiveStructure {
+  return {
+    ...options,
+    root,
+    summary,
+    title,
+  };
+}
+
+function layerNode(
+  layer: PrimitiveStructureLayerInput,
+  relation: LabPrimitiveStructureNodeRelation = 'child',
+): LabPrimitiveStructureNode {
+  const {
+    children,
+    component,
+    detail,
+    id,
+    label,
+    relation: nodeRelation,
+    slot,
+    state,
+    ...view
+  } = layer;
+
+  return structureNode({
+    children: children?.map((child) => layerNode(child)),
+    component: component ?? label,
+    detail,
+    id,
+    label,
+    relation: nodeRelation ?? relation,
+    slot,
+    state: state ?? 'default',
+    view,
+  });
+}
 
 function primitiveStructure(
   title: string,
   summary: string,
-  layers: readonly LabPrimitiveStructureLayer[],
+  layers: readonly PrimitiveStructureLayerInput[],
+  options: Pick<LabPrimitiveStructure, 'defaultLayerGap' | 'visibleDepth'> = {},
 ): LabPrimitiveStructure {
-  return {
+  return definePrimitiveStructure(
     title,
     summary,
-    layers,
-  };
+    structureNode({
+      children: layers.map((layer) => layerNode(layer)),
+      component: 'Primitive',
+      detail: 'Composition wrapper for the primitive structure outline.',
+      id: `${title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '')}-root`,
+      label: 'Composition root',
+      relation: 'root',
+      state: 'default',
+    }),
+    options,
+  );
 }
 
 export const LAB_PERFORMANCE_ANALYSIS: Record<
@@ -23,14 +102,115 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
 > = {
   plane: {
     label: 'ColorPlane',
-    primitiveStructure: primitiveStructure(
+    primitiveStructure: definePrimitiveStructure(
       'ColorPlane primitive',
       'A bounded interactive plane composed from a base surface, gamut raster, overlay helpers, and an input thumb anchored above the render layer.',
-      [
-        {
-          id: 'plane-frame',
-          label: 'Frame',
-          detail: 'Rounded pointer target that clips the color field.',
+      structureNode({
+        children: [
+          structureNode({
+            component: 'Background',
+            detail:
+              'Optional checkerboard fill rendered in the ColorArea children slot.',
+            id: 'checkerboard-background',
+            label: 'Background',
+            relation: 'slot',
+            slot: 'children',
+            state: 'optional',
+          }),
+          structureNode({
+            component: 'ColorPlane',
+            detail: 'Canvas/WebGL color field for the selected axes.',
+            id: 'gamut-raster',
+            label: 'Gamut raster',
+            relation: 'child',
+            slot: 'children',
+            state: 'default',
+            view: {
+              color: '#ef4444',
+              width: 4.38,
+              height: 2.88,
+              depth: 0.08,
+              offsetZ: 0.02,
+              opacity: 0.9,
+            },
+          }),
+          structureNode({
+            children: [
+              structureNode({
+                component: 'GamutBoundaryLayer',
+                detail:
+                  'Optional Display P3 boundary path inside the overlay slot.',
+                id: 'p3-boundary',
+                label: 'P3 boundary',
+                relation: 'child',
+                slot: 'overlay',
+                state: 'optional',
+              }),
+              structureNode({
+                component: 'GamutBoundaryLayer',
+                detail: 'Optional sRGB boundary path inside the overlay slot.',
+                id: 'srgb-boundary',
+                label: 'sRGB boundary',
+                relation: 'child',
+                slot: 'overlay',
+                state: 'optional',
+              }),
+              structureNode({
+                component: 'FallbackPointsLayer',
+                detail:
+                  'Optional point samples that annotate fallback geometry.',
+                id: 'fallback-points',
+                label: 'Fallback points',
+                relation: 'child',
+                slot: 'overlay',
+                state: 'optional',
+              }),
+            ],
+            component: 'Layer',
+            detail: 'Optional sRGB/P3 boundaries and helper points.',
+            id: 'overlay-boundaries',
+            label: 'Overlay paths',
+            relation: 'slot',
+            slot: 'overlay',
+            state: 'optional',
+            view: {
+              color: '#22d3ee',
+              width: 3.74,
+              height: 2.34,
+              depth: 0.06,
+              offsetX: -0.08,
+              offsetY: 0.1,
+              offsetZ: 0.32,
+              opacity: 0.68,
+            },
+          }),
+          structureNode({
+            component: 'Thumb',
+            detail: 'Keyboard and pointer handle that commits color changes.',
+            id: 'active-thumb',
+            label: 'Thumb',
+            relation: 'implicit',
+            slot: 'thumb',
+            state: 'implicit',
+            view: {
+              color: '#f8fafc',
+              width: 0.54,
+              height: 0.54,
+              depth: 0.2,
+              offsetX: -1.06,
+              offsetY: 0.82,
+              offsetZ: 0.72,
+              opacity: 0.96,
+            },
+          }),
+        ],
+        component: 'ColorArea',
+        detail: 'Rounded pointer target that clips the color field.',
+        id: 'plane-frame',
+        label: 'Frame',
+        relation: 'root',
+        state: 'default',
+        view: {
           color: '#1f2937',
           width: 4.8,
           height: 3.4,
@@ -38,44 +218,7 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
           offsetZ: -0.24,
           opacity: 0.88,
         },
-        {
-          id: 'gamut-raster',
-          label: 'Gamut raster',
-          detail: 'Canvas/WebGL color field for the selected axes.',
-          color: '#ef4444',
-          width: 4.38,
-          height: 2.88,
-          depth: 0.08,
-          offsetZ: 0.02,
-          opacity: 0.9,
-        },
-        {
-          id: 'overlay-boundaries',
-          label: 'Overlay paths',
-          detail: 'Optional sRGB/P3 boundaries and helper points.',
-          color: '#22d3ee',
-          width: 3.74,
-          height: 2.34,
-          depth: 0.06,
-          offsetX: -0.08,
-          offsetY: 0.1,
-          offsetZ: 0.32,
-          opacity: 0.68,
-        },
-        {
-          id: 'active-thumb',
-          label: 'Thumb',
-          detail: 'Keyboard and pointer handle that commits color changes.',
-          color: '#f8fafc',
-          width: 0.54,
-          height: 0.54,
-          depth: 0.2,
-          offsetX: -1.06,
-          offsetY: 0.82,
-          offsetZ: 0.72,
-          opacity: 0.96,
-        },
-      ],
+      }),
     ),
   },
   input: {
@@ -477,6 +620,83 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
       ],
     ),
   },
+  tabs: {
+    label: 'Tabs',
+    primitiveStructure: primitiveStructure(
+      'Tabs primitive',
+      'A tablist shell containing repeated tab triggers, active-state feedback, optional icon/label content, and a roving selection model.',
+      [
+        {
+          id: 'tabs-root',
+          label: 'Root',
+          detail: 'State owner for the active tab value.',
+          color: '#1f2937',
+          layout: {
+            height: 3,
+            width: 12,
+          },
+          opacity: 0.9,
+          children: [
+            {
+              id: 'tabs-list',
+              label: 'Tablist',
+              detail: 'Shared segmented shell that groups the tab triggers.',
+              color: '#334155',
+              layout: {
+                height: 8,
+                width: 11,
+              },
+              opacity: 0.88,
+              children: [
+                {
+                  id: 'inactive-tabs',
+                  label: 'Inactive tabs',
+                  detail:
+                    'Peer trigger surfaces that participate in roving focus.',
+                  color: '#475569',
+                  layout: {
+                    column: 9,
+                    height: 7,
+                    width: 7,
+                  },
+                  opacity: 0.72,
+                },
+                {
+                  id: 'active-tab',
+                  label: 'Active tab',
+                  detail: 'Selected trigger surface with active-state styling.',
+                  color: '#64748b',
+                  layout: {
+                    column: 1,
+                    height: 8,
+                    width: 4,
+                  },
+                  opacity: 0.92,
+                  children: [
+                    {
+                      id: 'tab-content',
+                      label: 'Tab content',
+                      detail:
+                        'Optional icon and label composition inside each trigger.',
+                      color: '#f8fafc',
+                      layout: {
+                        height: 4,
+                        width: 9,
+                      },
+                      opacity: 0.94,
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      {
+        visibleDepth: 3,
+      },
+    ),
+  },
   toggleButton: {
     label: 'Toggle Button',
     primitiveStructure: primitiveStructure(
@@ -585,6 +805,7 @@ export const LAB_PAGE_RESOURCE_HINTS: Record<LabPageKey, readonly string[]> = {
   tooltip: ['tooltip'],
   menu: ['menu'],
   select: ['select'],
+  tabs: ['tabs'],
   toggleButton: ['toggle-button'],
   toggle: ['toggle-group'],
 };

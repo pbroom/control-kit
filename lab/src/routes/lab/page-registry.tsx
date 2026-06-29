@@ -48,6 +48,10 @@ const LAB_PAGE_LOADERS: Record<
     import('./pages/select.js').then((module) => ({
       default: module.SelectLabActivePage,
     })),
+  tabs: () =>
+    import('./pages/tabs.js').then((module) => ({
+      default: module.TabsLabActivePage,
+    })),
   toggleButton: () =>
     import('./pages/toggle-button.js').then((module) => ({
       default: module.ToggleButtonLabActivePage,

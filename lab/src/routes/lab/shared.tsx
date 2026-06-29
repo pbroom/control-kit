@@ -25,6 +25,9 @@ import {
   Checkbox,
   MultiInputControl,
   PrimitiveValueInput,
+  Tabs,
+  TabsList,
+  TabsTrigger,
   ToggleGroup,
   ToggleGroupItem,
   Tooltip,
@@ -150,6 +153,7 @@ type LabPageKey =
   | 'tooltip'
   | 'menu'
   | 'select'
+  | 'tabs'
   | 'toggleButton'
   | 'toggle';
 type PrimitiveHandleContent = 'none' | 'letter' | 'icon' | 'swatch';
@@ -164,6 +168,7 @@ type ToggleButtonSelectionState = 'off' | 'on';
 type ToggleButtonInteractionState = 'default' | 'hovered' | 'pressedDown';
 type ToggleButtonContent = 'iconOnly' | 'iconLabel' | 'label';
 type ToggleGroupIconMode = 'none' | 'leading' | 'trailing' | 'iconOnly';
+type TabsContentMode = 'label' | 'icon';
 type SelectTriggerContent = 'icon' | 'iconText' | 'text';
 type SelectTriggerIconTextPlacement = 'leading' | 'trailing' | 'both';
 type SelectTriggerBehavior = 'press' | 'release';
@@ -393,6 +398,24 @@ const TOGGLE_GROUP_ITEMS = [
     value: 'copy',
     label: 'Copy',
     icon: <Diff aria-hidden="true" className="size-3.5" strokeWidth={1.75} />,
+  },
+];
+
+const TABS_DEMO_ITEMS = [
+  {
+    value: 'layers',
+    label: 'Layers',
+    Icon: Layers,
+  },
+  {
+    value: 'assets',
+    label: 'Assets',
+    Icon: Image,
+  },
+  {
+    value: 'inspect',
+    label: 'Inspect',
+    Icon: MousePointer2,
   },
 ];
 
@@ -1873,6 +1896,78 @@ function ToggleGroupPlaygroundStage({
   );
 }
 
+function TabsPlaygroundStage({
+  value,
+  onValueChange,
+  contentMode,
+  label,
+  disabled,
+  leadingIcon,
+  trailingIcon,
+}: {
+  value: string;
+  onValueChange: (value: string) => void;
+  contentMode: TabsContentMode;
+  label: string;
+  disabled: boolean;
+  leadingIcon: boolean;
+  trailingIcon: boolean;
+}) {
+  const configuredLabel = label.trim() || 'Tab label';
+
+  return (
+    <div
+      className="w-[292px] min-w-0 max-w-full max-[640px]:translate-x-24"
+      data-testid="tabs-playground-stage"
+    >
+      <Tabs value={value} className="items-start" onValueChange={onValueChange}>
+        <TabsList aria-label="UI3 tabs">
+          {TABS_DEMO_ITEMS.map((item, index) => {
+            const Icon = item.Icon;
+            const isConfiguredTab = index === 0;
+            const tabLabel = isConfiguredTab ? configuredLabel : item.label;
+            const showIconOnly = contentMode === 'icon';
+            const showLeadingIcon =
+              showIconOnly || (isConfiguredTab ? leadingIcon : true);
+            const showTrailingIcon =
+              !showIconOnly && isConfiguredTab && trailingIcon;
+
+            return (
+              <TabsTrigger
+                key={item.value}
+                value={item.value}
+                aria-label={showIconOnly ? tabLabel : undefined}
+                disabled={isConfiguredTab ? disabled : undefined}
+                className={showIconOnly ? 'w-6 px-0' : undefined}
+              >
+                {showLeadingIcon ? (
+                  <Icon
+                    aria-hidden="true"
+                    className="size-3.5"
+                    strokeWidth={1.75}
+                  />
+                ) : null}
+                {showIconOnly ? (
+                  <span className="sr-only">{tabLabel}</span>
+                ) : (
+                  <span className="min-w-0 truncate">{tabLabel}</span>
+                )}
+                {showTrailingIcon ? (
+                  <ChevronDown
+                    aria-hidden="true"
+                    className="size-3.5"
+                    strokeWidth={1.75}
+                  />
+                ) : null}
+              </TabsTrigger>
+            );
+          })}
+        </TabsList>
+      </Tabs>
+    </div>
+  );
+}
+
 function ToggleButtonPlaygroundStage({
   selected,
   interactionState,
@@ -2687,6 +2782,10 @@ export {
   Separator,
   SliderPlaygroundStage,
   StepConfigInput,
+  Tabs,
+  TabsList,
+  TabsPlaygroundStage,
+  TabsTrigger,
   TextConfigField,
   ToggleButtonPlaygroundStage,
   ToggleField,
@@ -2736,6 +2835,7 @@ export type {
   SliderMarkerMode,
   SliderHueGradientMode,
   SliderOrientation,
+  TabsContentMode,
   ToggleButtonContent,
   ToggleButtonInteractionState,
   ToggleButtonSelectionState,

@@ -34,6 +34,7 @@ export const LAB_PAGE_ROUTE_REGISTRY = {
   tooltip: { slug: 'tooltip', label: 'Tooltip' },
   menu: { slug: 'menu', label: 'Menu' },
   select: { slug: 'select', label: 'Select' },
+  tabs: { slug: 'tabs', label: 'Tabs' },
   toggleButton: { slug: 'toggle-button', label: 'Toggle Button' },
   toggle: { slug: 'toggle-group', label: 'Toggle Group' },
 } as const satisfies Record<LabPageKey, LabPageRouteMetadata>;

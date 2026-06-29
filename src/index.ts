@@ -7,6 +7,13 @@ export type {
   ToggleGroupProps,
   ToggleGroupSingleProps,
 } from './toggle-group.js';
+export { Tabs, TabsContent, TabsList, TabsTrigger } from './tabs.js';
+export type {
+  TabsContentProps,
+  TabsListProps,
+  TabsProps,
+  TabsTriggerProps,
+} from './tabs.js';
 export {
   Tooltip,
   TooltipContent,

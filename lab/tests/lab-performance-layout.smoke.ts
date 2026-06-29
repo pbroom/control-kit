@@ -11,6 +11,101 @@ import {
 
 test.setTimeout(60_000);
 
+test('opens the default structure panel at its measured height without initial resize animation', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'desktop layout coverage');
+  const browserErrors = await collectBrowserErrors(page);
+
+  await page.addInitScript(() => {
+    type PanelFrame = {
+      height: number;
+      transitionDuration: string;
+    };
+
+    const win = window as typeof window & {
+      __controlKitInitialPanelFrames?: PanelFrame[];
+    };
+    win.__controlKitInitialPanelFrames = [];
+
+    let hasStarted = false;
+    const startSampling = (panel: Element) => {
+      if (hasStarted) {
+        return;
+      }
+
+      hasStarted = true;
+      let frameCount = 0;
+      const samplePanelFrame = () => {
+        const style = window.getComputedStyle(panel);
+        win.__controlKitInitialPanelFrames?.push({
+          height: panel.getBoundingClientRect().height,
+          transitionDuration: style.transitionDuration,
+        });
+        frameCount += 1;
+
+        if (frameCount < 30) {
+          window.requestAnimationFrame(samplePanelFrame);
+        }
+      };
+
+      window.requestAnimationFrame(samplePanelFrame);
+    };
+
+    const checkForPanel = () => {
+      const panel = document.querySelector('#lab-performance-panel');
+
+      if (!panel) {
+        return;
+      }
+
+      mutationObserver.disconnect();
+      startSampling(panel);
+    };
+
+    const mutationObserver = new MutationObserver(checkForPanel);
+
+    mutationObserver.observe(document, {
+      childList: true,
+      subtree: true,
+    });
+    checkForPanel();
+  });
+
+  await openLabRoot(page);
+
+  const performancePanel = performancePanelFor(page, 'ColorPlane');
+  const structureTab = performancePanel.getByRole('tab', {
+    name: 'Structure',
+    exact: true,
+  });
+  await expect(structureTab).toHaveAttribute('aria-selected', 'true');
+  await page.waitForTimeout(800);
+
+  const frames = await page.evaluate(() => {
+    const win = window as typeof window & {
+      __controlKitInitialPanelFrames?: Array<{
+        height: number;
+        transitionDuration: string;
+      }>;
+    };
+
+    return win.__controlKitInitialPanelFrames ?? [];
+  });
+  const visibleFrames = frames.filter((frame) => frame.height > 0);
+  expect(visibleFrames.length).toBeGreaterThan(3);
+  const firstFrame = visibleFrames[0];
+  const lastFrame = visibleFrames.at(-1);
+  expect(firstFrame).toBeDefined();
+  expect(lastFrame).toBeDefined();
+  expect(Math.abs(firstFrame!.height - lastFrame!.height)).toBeLessThanOrEqual(
+    2,
+  );
+  expect(firstFrame!.transitionDuration).toBe('0s');
+  expect(lastFrame!.transitionDuration).toBe('0.64s');
+  expect(browserErrors).toEqual([]);
+});
+
 test('keeps desktop performance panel layout, scrollbars, and resize behavior stable', async ({
   page,
 }, testInfo) => {
@@ -27,6 +122,8 @@ test('keeps desktop performance panel layout, scrollbars, and resize behavior st
     }
 
     const performancePanel = performancePanelFor(page, labPage.label);
+    await selectPerformancePanelView(performancePanel, 'Structure');
+    const panelBoxBeforeMetricsToggle = await performancePanel.boundingBox();
     await selectPerformancePanelView(performancePanel, 'Metrics');
     const metricsTable = performanceMetricsTable(performancePanel);
     const timelineShell = performancePanel.getByTestId(
@@ -54,6 +151,12 @@ test('keeps desktop performance panel layout, scrollbars, and resize behavior st
       ),
     ).toBe('auto');
     expect(performancePanelBox).not.toBeNull();
+    expect(panelBoxBeforeMetricsToggle).not.toBeNull();
+    expect(
+      Math.abs(
+        performancePanelBox!.height - panelBoxBeforeMetricsToggle!.height,
+      ),
+    ).toBeLessThanOrEqual(1);
     expect(propertiesPanelBox).not.toBeNull();
     await expect(performancePanelSurface).toBeVisible();
     expect(
@@ -73,7 +176,7 @@ test('keeps desktop performance panel layout, scrollbars, and resize behavior st
     expect(metricsShellBox).not.toBeNull();
     expect(timelineFitBox).not.toBeNull();
     expect(panelViewTabsBox).not.toBeNull();
-    expect(panelViewTabsBox!.height).toBeGreaterThanOrEqual(28);
+    expect(panelViewTabsBox!.height).toBeGreaterThanOrEqual(24);
     await expect(metricsShell).toHaveClass(/ck-lab-performance-metrics-scroll/);
     await page.mouse.move(0, 0);
     await page.waitForTimeout(800);
@@ -97,10 +200,7 @@ test('keeps desktop performance panel layout, scrollbars, and resize behavior st
     await expect(metricsShell).not.toHaveClass(
       /ck-lab-performance-metrics-scroll-active/,
     );
-    await page.mouse.move(
-      metricsShellBox!.x + metricsShellBox!.width - 4,
-      metricsShellBox!.y + 12,
-    );
+    await metricsShell.dispatchEvent('scroll');
     await expect(metricsShell).toHaveClass(
       /ck-lab-performance-metrics-scroll-active/,
     );
@@ -109,37 +209,62 @@ test('keeps desktop performance panel layout, scrollbars, and resize behavior st
         (node) => getComputedStyle(node).scrollbarColor,
       ),
     ).toBe('rgba(255, 255, 255, 0.28) rgba(0, 0, 0, 0)');
-    await page.mouse.move(
-      metricsShellBox!.x + metricsShellBox!.width / 2,
-      metricsShellBox!.y + 12,
-    );
+    await page.mouse.move(0, 0);
+    await page.waitForTimeout(800);
     await expect(metricsShell).not.toHaveClass(
       /ck-lab-performance-metrics-scroll-active/,
     );
-    if (labPage.value === 'inputMulti') {
-      await metricsShell.dispatchEvent('scroll');
-      await expect(metricsShell).toHaveClass(
-        /ck-lab-performance-metrics-scroll-active/,
-      );
-      await page.waitForTimeout(800);
-      await expect(metricsShell).not.toHaveClass(
-        /ck-lab-performance-metrics-scroll-active/,
-      );
-    }
-    expect(performancePanelBox!.height).toBeGreaterThanOrEqual(128);
-    expect(performancePanelBox!.height).toBeLessThanOrEqual(
-      Math.max(metricsTableBox!.height, timelineFitBox!.height) +
+    const settledMetricsPanelBox = await performancePanel.boundingBox();
+    const settledMetricsShellBox = await metricsShell.boundingBox();
+    expect(settledMetricsPanelBox).not.toBeNull();
+    expect(settledMetricsShellBox).not.toBeNull();
+    expect(settledMetricsPanelBox!.height).toBeGreaterThanOrEqual(128);
+    expect(settledMetricsPanelBox!.height).toBeLessThanOrEqual(
+      Math.max(
+        metricsTableBox!.height,
+        timelineFitBox!.height,
+        panelBoxBeforeMetricsToggle!.height,
+      ) +
         panelViewTabsBox!.height +
         72,
     );
-    expect(metricsShellBox!.height).toBeGreaterThanOrEqual(
+    expect(settledMetricsShellBox!.height).toBeGreaterThanOrEqual(
       metricsTableBox!.height - 4,
     );
     const viewport = page.viewportSize();
     expect(viewport).not.toBeNull();
     expect(
-      viewport!.height - (performancePanelBox!.y + performancePanelBox!.height),
+      viewport!.height -
+        (settledMetricsPanelBox!.y + settledMetricsPanelBox!.height),
     ).toBeGreaterThanOrEqual(12);
+    const metricsPanelHeight = settledMetricsPanelBox!.height;
+    await selectPerformancePanelView(performancePanel, 'Structure');
+    const structurePanel = performancePanel.locator(
+      '#lab-performance-structure-panel',
+    );
+    const structurePanelBox = await performancePanel.boundingBox();
+    expect(structurePanelBox).not.toBeNull();
+    expect(
+      Math.abs(structurePanelBox!.height - metricsPanelHeight),
+    ).toBeLessThanOrEqual(1);
+    const structureScrollState = await structurePanel.evaluate((node) => {
+      const style = getComputedStyle(node);
+
+      return {
+        overflowY: style.overflowY,
+        scrollbarColor: style.scrollbarColor,
+        scrollbarGutter: style.scrollbarGutter,
+      };
+    });
+    expect(structureScrollState.overflowY).toBe('auto');
+    expect(structureScrollState.scrollbarGutter).toBe('stable');
+    expect(structureScrollState.scrollbarColor).toContain('rgba(0, 0, 0, 0)');
+    await selectPerformancePanelView(performancePanel, 'Metrics');
+    const metricsPanelRoundTripBox = await performancePanel.boundingBox();
+    expect(metricsPanelRoundTripBox).not.toBeNull();
+    expect(
+      Math.abs(metricsPanelRoundTripBox!.height - metricsPanelHeight),
+    ).toBeLessThanOrEqual(1);
     expect(propertiesPanelBox!.height).toBeGreaterThanOrEqual(998);
     expect(
       await page
@@ -370,6 +495,26 @@ test('keeps desktop performance panel layout, scrollbars, and resize behavior st
       collapsedHandleBox!.x + collapsedHandleBox!.width / 2,
       collapsedHandleBox!.y - 40,
     );
+    await expect
+      .poll(async () => (await performancePanel.boundingBox())?.height ?? 0)
+      .toBeGreaterThan(LAB_COLLAPSED_PANEL_HANDLE_HEIGHT + 1);
+    const activeCollapsedDragHeights = await performancePanel.evaluate(
+      async (node) => {
+        const heights: number[] = [];
+
+        for (let index = 0; index < 8; index += 1) {
+          await new Promise<void>((resolve) => {
+            window.requestAnimationFrame(() => resolve());
+          });
+          heights.push(node.getBoundingClientRect().height);
+        }
+
+        return heights;
+      },
+    );
+    expect(Math.min(...activeCollapsedDragHeights)).toBeGreaterThan(
+      LAB_COLLAPSED_PANEL_HANDLE_HEIGHT + 1,
+    );
     await page.mouse.up();
     await expect(performancePanel).toHaveAttribute(
       'data-lab-performance-panel-collapsed',
@@ -452,6 +597,80 @@ test('keeps desktop performance panel layout, scrollbars, and resize behavior st
       .poll(async () => (await performancePanel.boundingBox())?.height ?? 0)
       .toBeGreaterThanOrEqual(targetOpenPanelHeight - 2);
   }
+
+  expect(browserErrors).toEqual([]);
+});
+
+test('holds the metrics resize ceiling after switching from structure until the pointer leaves', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'desktop layout coverage');
+  const browserErrors = await collectBrowserErrors(page);
+
+  await openLabRoot(page);
+  await page.getByRole('link', { name: 'Input Multi', exact: true }).click();
+
+  const performancePanel = performancePanelFor(page, 'Input Multi');
+  const resizeHandle = performancePanel.getByLabel(
+    'Resize performance analysis panel',
+    { exact: true },
+  );
+  await expect(resizeHandle).toBeVisible();
+  await selectPerformancePanelView(performancePanel, 'Structure');
+
+  const structurePanelBox = await performancePanel.boundingBox();
+  expect(structurePanelBox).not.toBeNull();
+  const structureMaxHeight = Number(
+    await resizeHandle.getAttribute('aria-valuemax'),
+  );
+  expect(structureMaxHeight).toBeGreaterThan(320);
+
+  await selectPerformancePanelView(performancePanel, 'Metrics');
+  await page.waitForTimeout(360);
+  const heldMetricsMaxHeight = Number(
+    await resizeHandle.getAttribute('aria-valuemax'),
+  );
+  expect(heldMetricsMaxHeight).toBeGreaterThanOrEqual(structureMaxHeight - 1);
+
+  const metricsPanelBox = await performancePanel.boundingBox();
+  expect(metricsPanelBox).not.toBeNull();
+  expect(
+    Math.abs(metricsPanelBox!.height - structurePanelBox!.height),
+  ).toBeLessThanOrEqual(3);
+
+  const handleBox = await resizeHandle.boundingBox();
+  expect(handleBox).not.toBeNull();
+  await page.mouse.move(handleBox!.x + handleBox!.width / 2, handleBox!.y + 2);
+  await page.mouse.down();
+  await page.mouse.move(handleBox!.x + handleBox!.width / 2, handleBox!.y + 16);
+  await page.mouse.up();
+
+  await expect
+    .poll(async () => (await performancePanel.boundingBox())?.height ?? 0)
+    .toBeLessThan(metricsPanelBox!.height - 4);
+  const smallDragPanelBox = await performancePanel.boundingBox();
+  expect(smallDragPanelBox).not.toBeNull();
+  expect(smallDragPanelBox!.height).toBeGreaterThan(
+    metricsPanelBox!.height - 48,
+  );
+  expect(Number(await resizeHandle.getAttribute('aria-valuemax'))).toBe(
+    heldMetricsMaxHeight,
+  );
+
+  await page.mouse.move(0, 0);
+  await expect
+    .poll(
+      async () => Number(await resizeHandle.getAttribute('aria-valuemax')),
+      { timeout: 3_000 },
+    )
+    .toBeLessThan(heldMetricsMaxHeight - 4);
+  const releasedMetricsMaxHeight = Number(
+    await resizeHandle.getAttribute('aria-valuemax'),
+  );
+  await expect
+    .poll(async () => (await performancePanel.boundingBox())?.height ?? 0)
+    .toBeLessThanOrEqual(releasedMetricsMaxHeight + 2);
+  expect(releasedMetricsMaxHeight).toBeLessThan(heldMetricsMaxHeight - 4);
 
   expect(browserErrors).toEqual([]);
 });

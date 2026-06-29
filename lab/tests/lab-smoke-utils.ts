@@ -35,6 +35,7 @@ const LAB_PAGE_PANEL_TEXT = {
   tooltip: 'Tune the Radix initial hover delay',
   menu: 'Tune the three-item menu shown above the reusable menu preview.',
   select: 'Preview the UI3 menu trigger state.',
+  tabs: 'Preview the UI3 tab group and selected tab content.',
   toggleButton: 'Preview selection separately from interaction feedback.',
   toggle: 'Preview the toggle group icon layout.',
 } satisfies Record<(typeof LAB_PAGE_NAVIGATION)[number]['value'], string>;
