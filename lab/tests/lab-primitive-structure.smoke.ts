@@ -303,7 +303,7 @@ test('renders the primitive structure tab as a nonblank orthographic view', asyn
   ).toHaveCount(4);
   await expect(
     colorPlanePanel.locator('[data-primitive-callout-layer="true"]'),
-  ).toHaveCount(4);
+  ).toHaveCount(3);
   await expect(
     colorPlanePanel.locator('[data-primitive-layer] [aria-hidden="true"]'),
   ).toHaveCount(0);
@@ -362,14 +362,6 @@ test('renders the primitive structure tab as a nonblank orthographic view', asyn
     );
   expect(colorPlaneRenderNodes).toEqual([
     {
-      component: 'ColorArea',
-      depth: '0',
-      id: 'plane-frame',
-      parent: null,
-      relation: 'root',
-      slot: null,
-    },
-    {
       component: 'ColorPlane',
       depth: '1',
       id: 'gamut-raster',
@@ -407,14 +399,6 @@ test('renders the primitive structure tab as a nonblank orthographic view', asyn
       })),
     );
   expect(colorPlaneStructureNodes).toEqual([
-    {
-      component: 'ColorArea',
-      depth: '0',
-      id: 'plane-frame',
-      parent: null,
-      relation: 'root',
-      slot: null,
-    },
     {
       component: 'Background',
       depth: '1',
@@ -530,11 +514,13 @@ test('renders the primitive structure tab as a nonblank orthographic view', asyn
       `[data-primitive-callout-layer="true"][data-primitive-layer="${mutedColorPlaneLayer}"]`,
     ),
   ).toHaveClass(/opacity-35/);
-  await expect(
-    colorPlanePanel.locator(
-      `[data-primitive-callout-layer="true"][data-primitive-layer="${hoveredColorPlaneLayer}"]`,
-    ),
-  ).toHaveClass(/opacity-100/);
+  if (hoveredColorPlaneLayer !== 'plane-frame') {
+    await expect(
+      colorPlanePanel.locator(
+        `[data-primitive-callout-layer="true"][data-primitive-layer="${hoveredColorPlaneLayer}"]`,
+      ),
+    ).toHaveClass(/opacity-100/);
+  }
   await page.mouse.move(0, 0);
   await expect(structureShell).not.toHaveAttribute(
     'data-primitive-structure-hover-layer',
@@ -672,18 +658,78 @@ test('renders the primitive structure tab as a nonblank orthographic view', asyn
   );
   await expect(
     tabsPanel.locator('[data-primitive-callout-layer="true"]'),
-  ).toHaveCount(5);
+  ).toHaveCount(4);
   for (const layerId of [
-    'tabs-root',
     'tabs-list',
     'active-tab',
     'inactive-tabs',
     'tab-content',
+    'inactive-tab-content',
   ]) {
     await expect(
       tabsPanel.locator(`[data-primitive-layer="${layerId}"]`),
     ).toBeVisible();
   }
+  const tabsStructureNodes = await tabsPanel
+    .locator('[data-primitive-node]')
+    .evaluateAll((items) =>
+      items.map((item) => ({
+        component: item.getAttribute('data-primitive-component'),
+        depth: item.getAttribute('data-primitive-depth'),
+        id: item.getAttribute('data-primitive-node'),
+        parent: item.getAttribute('data-primitive-parent'),
+        relation: item.getAttribute('data-primitive-relation'),
+        slot: item.getAttribute('data-primitive-slot'),
+        text: item.textContent?.trim() ?? '',
+      })),
+    );
+  expect(tabsStructureNodes).toEqual([
+    {
+      component: 'TabsList',
+      depth: '1',
+      id: 'tabs-list',
+      parent: 'tabs-root',
+      relation: 'child',
+      slot: 'children',
+      text: 'TabsList<tabslist>Shared segmented shell that groups the tab triggers.',
+    },
+    {
+      component: 'TabsTrigger',
+      depth: '2',
+      id: 'inactive-tabs',
+      parent: 'tabs-list',
+      relation: 'child',
+      slot: 'trigger',
+      text: 'TabsTrigger<tabstrigger>Peer trigger surface that participates in roving focus.',
+    },
+    {
+      component: 'TabsTrigger',
+      depth: '2',
+      id: 'active-tab',
+      parent: 'tabs-list',
+      relation: 'child',
+      slot: 'trigger',
+      text: 'TabsTrigger<tabstrigger>Selected trigger surface with active-state styling.',
+    },
+    {
+      component: 'TabsContent',
+      depth: '1',
+      id: 'tab-content',
+      parent: 'tabs-root',
+      relation: 'sibling',
+      slot: 'content',
+      text: 'TabsContent<tabscontent>Selected panel content associated with the active tab value.',
+    },
+    {
+      component: 'TabsContent',
+      depth: '1',
+      id: 'inactive-tab-content',
+      parent: 'tabs-root',
+      relation: 'sibling',
+      slot: 'content',
+      text: 'TabsContent<tabscontent>Inactive panel content kept as a sibling in the Tabs composition.',
+    },
+  ]);
   await expect(tabsCanvas).toHaveAttribute(
     'data-primitive-structure-geometry',
     'plane-grid',

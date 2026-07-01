@@ -939,14 +939,8 @@ function isStructureNodeMuted(
   );
 }
 
-function formatNodeMeta(node: StructureNodeEntry) {
-  return [
-    node.component,
-    node.slot,
-    node.state !== 'default' ? node.state : null,
-  ]
-    .filter(Boolean)
-    .join(' / ');
+function formatComponentTag(component: string) {
+  return `<${component.toLowerCase()}>`;
 }
 
 export function LabPrimitiveStructureView({
@@ -963,6 +957,10 @@ export function LabPrimitiveStructureView({
   const nodeEntries = useMemo(
     () => createStructureNodeEntries(structure),
     [structure],
+  );
+  const visibleNodeEntries = useMemo(
+    () => nodeEntries.filter((node) => node.parentId !== null),
+    [nodeEntries],
   );
   const layers = useMemo(
     () => createStructureRenderLayers(structure),
@@ -1135,11 +1133,11 @@ export function LabPrimitiveStructureView({
           className="relative grid min-w-0 gap-1.5"
           data-testid="lab-primitive-structure-callout-labels"
         >
-          {nodeEntries.map((node) => {
+          {visibleNodeEntries.map((node) => {
             const isMuted = isStructureNodeMuted(node, activePath);
             const isActive = activeLayerId === node.id;
             const hasRenderLayer = layers.some((layer) => layer.id === node.id);
-            const meta = formatNodeMeta(node);
+            const displayDepth = Math.max(0, node.treeDepth - 1);
 
             return (
               <li
@@ -1162,25 +1160,16 @@ export function LabPrimitiveStructureView({
                 data-primitive-slot={node.slot}
                 key={node.id}
                 style={{
-                  paddingLeft: `${Math.min(node.treeDepth, 4) * 12}px`,
+                  paddingLeft: `${Math.min(displayDepth, 4) * 12}px`,
                 }}
               >
                 <span className="min-w-0">
-                  <span className="flex min-w-0 items-center gap-1.5">
-                    <span className="block min-w-0 truncate text-xs font-semibold text-white/86">
-                      {node.label}
-                    </span>
-                    {node.relation !== 'root' ? (
-                      <span className="shrink-0 rounded-[4px] border border-white/8 px-1 py-0 text-[9px] font-medium uppercase leading-3 text-white/38">
-                        {node.relation}
-                      </span>
-                    ) : null}
+                  <span className="block min-w-0 truncate text-xs font-semibold text-white/86">
+                    {node.label}
                   </span>
-                  {meta ? (
-                    <span className="block truncate text-[9px] font-medium uppercase leading-3 text-white/34">
-                      {meta}
-                    </span>
-                  ) : null}
+                  <code className="block truncate font-mono text-[9px] font-medium leading-3 text-white/34">
+                    {formatComponentTag(node.component)}
+                  </code>
                   <span className="block text-[11px] leading-4 text-white/46">
                     {node.detail}
                   </span>

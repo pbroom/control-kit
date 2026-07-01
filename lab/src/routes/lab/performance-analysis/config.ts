@@ -622,37 +622,23 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
   },
   tabs: {
     label: 'Tabs',
-    primitiveStructure: primitiveStructure(
+    primitiveStructure: definePrimitiveStructure(
       'Tabs primitive',
       'A tablist shell containing repeated tab triggers, active-state feedback, optional icon/label content, and a roving selection model.',
-      [
-        {
-          id: 'tabs-root',
-          label: 'Root',
-          detail: 'State owner for the active tab value.',
-          color: '#1f2937',
-          layout: {
-            height: 3,
-            width: 12,
-          },
-          opacity: 0.9,
-          children: [
-            {
-              id: 'tabs-list',
-              label: 'Tablist',
-              detail: 'Shared segmented shell that groups the tab triggers.',
-              color: '#334155',
-              layout: {
-                height: 8,
-                width: 11,
-              },
-              opacity: 0.88,
-              children: [
-                {
-                  id: 'inactive-tabs',
-                  label: 'Inactive tabs',
-                  detail:
-                    'Peer trigger surfaces that participate in roving focus.',
+      structureNode({
+        children: [
+          structureNode({
+            children: [
+              structureNode({
+                component: 'TabsTrigger',
+                detail:
+                  'Peer trigger surface that participates in roving focus.',
+                id: 'inactive-tabs',
+                label: 'TabsTrigger',
+                relation: 'child',
+                slot: 'trigger',
+                state: 'default',
+                view: {
                   color: '#475569',
                   layout: {
                     column: 9,
@@ -661,10 +647,16 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
                   },
                   opacity: 0.72,
                 },
-                {
-                  id: 'active-tab',
-                  label: 'Active tab',
-                  detail: 'Selected trigger surface with active-state styling.',
+              }),
+              structureNode({
+                component: 'TabsTrigger',
+                detail: 'Selected trigger surface with active-state styling.',
+                id: 'active-tab',
+                label: 'TabsTrigger',
+                relation: 'child',
+                slot: 'trigger',
+                state: 'default',
+                view: {
                   color: '#64748b',
                   layout: {
                     column: 1,
@@ -672,26 +664,70 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
                     width: 4,
                   },
                   opacity: 0.92,
-                  children: [
-                    {
-                      id: 'tab-content',
-                      label: 'Tab content',
-                      detail:
-                        'Optional icon and label composition inside each trigger.',
-                      color: '#f8fafc',
-                      layout: {
-                        height: 4,
-                        width: 9,
-                      },
-                      opacity: 0.94,
-                    },
-                  ],
                 },
-              ],
+              }),
+            ],
+            component: 'TabsList',
+            detail: 'Shared segmented shell that groups the tab triggers.',
+            id: 'tabs-list',
+            label: 'TabsList',
+            relation: 'child',
+            slot: 'children',
+            state: 'default',
+            view: {
+              color: '#334155',
+              layout: {
+                height: 8,
+                width: 11,
+              },
+              opacity: 0.88,
             },
-          ],
+          }),
+          structureNode({
+            component: 'TabsContent',
+            detail:
+              'Selected panel content associated with the active tab value.',
+            id: 'tab-content',
+            label: 'TabsContent',
+            relation: 'sibling',
+            slot: 'content',
+            state: 'default',
+            view: {
+              color: '#f8fafc',
+              layout: {
+                height: 4,
+                row: 10,
+                width: 11,
+              },
+              opacity: 0.94,
+            },
+          }),
+          structureNode({
+            component: 'TabsContent',
+            detail:
+              'Inactive panel content kept as a sibling in the Tabs composition.',
+            id: 'inactive-tab-content',
+            label: 'TabsContent',
+            relation: 'sibling',
+            slot: 'content',
+            state: 'default',
+          }),
+        ],
+        component: 'Tabs',
+        detail: 'State owner for the active tab value.',
+        id: 'tabs-root',
+        label: 'Tabs',
+        relation: 'root',
+        state: 'default',
+        view: {
+          color: '#1f2937',
+          layout: {
+            height: 3,
+            width: 12,
+          },
+          opacity: 0.9,
         },
-      ],
+      }),
       {
         visibleDepth: 3,
       },
