@@ -244,9 +244,9 @@ test('keeps desktop performance panel layout, scrollbars, and resize behavior st
     );
     const structurePanelBox = await performancePanel.boundingBox();
     expect(structurePanelBox).not.toBeNull();
-    expect(
-      Math.abs(structurePanelBox!.height - metricsPanelHeight),
-    ).toBeLessThanOrEqual(1);
+    expect(structurePanelBox!.height).toBeGreaterThanOrEqual(
+      metricsPanelHeight - 1,
+    );
     const structureScrollState = await structurePanel.evaluate((node) => {
       const style = getComputedStyle(node);
 
@@ -263,7 +263,7 @@ test('keeps desktop performance panel layout, scrollbars, and resize behavior st
     const metricsPanelRoundTripBox = await performancePanel.boundingBox();
     expect(metricsPanelRoundTripBox).not.toBeNull();
     expect(
-      Math.abs(metricsPanelRoundTripBox!.height - metricsPanelHeight),
+      Math.abs(metricsPanelRoundTripBox!.height - structurePanelBox!.height),
     ).toBeLessThanOrEqual(1);
     expect(propertiesPanelBox!.height).toBeGreaterThanOrEqual(998);
     expect(
@@ -597,6 +597,54 @@ test('keeps desktop performance panel layout, scrollbars, and resize behavior st
       .poll(async () => (await performancePanel.boundingBox())?.height ?? 0)
       .toBeGreaterThanOrEqual(targetOpenPanelHeight - 2);
   }
+
+  expect(browserErrors).toEqual([]);
+});
+
+test('honors a controlled collapse while a panel resize drag is active', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'desktop layout coverage');
+  const browserErrors = await collectBrowserErrors(page);
+
+  await openLabRoot(page);
+
+  const performancePanel = performancePanelFor(page, 'ColorPlane');
+  const performanceToggle = page.getByTestId('lab-toggle-performance-panel');
+  const resizeHandle = performancePanel.getByLabel(
+    'Resize performance analysis panel',
+    { exact: true },
+  );
+
+  await expect(performanceToggle).toHaveAttribute('aria-pressed', 'true');
+  await expect(resizeHandle).toBeVisible();
+  const handleBox = await resizeHandle.boundingBox();
+  expect(handleBox).not.toBeNull();
+
+  await page.mouse.move(handleBox!.x + handleBox!.width / 2, handleBox!.y + 2);
+  await page.mouse.down();
+  await page.mouse.move(handleBox!.x + handleBox!.width / 2, handleBox!.y + 40);
+  await performanceToggle.evaluate((node) => {
+    (node as HTMLButtonElement).click();
+  });
+
+  await expect(performancePanel).toHaveAttribute(
+    'data-lab-performance-panel-collapsed',
+    'true',
+  );
+  await expect(performanceToggle).toHaveAttribute('aria-pressed', 'false');
+  await expect
+    .poll(async () => (await performancePanel.boundingBox())?.height ?? 0)
+    .toBeLessThanOrEqual(LAB_COLLAPSED_PANEL_HANDLE_HEIGHT);
+
+  await page.mouse.up();
+  await expect(performancePanel).toHaveAttribute(
+    'data-lab-performance-panel-collapsed',
+    'true',
+  );
+  await expect
+    .poll(async () => (await performancePanel.boundingBox())?.height ?? 0)
+    .toBeLessThanOrEqual(LAB_COLLAPSED_PANEL_HANDLE_HEIGHT);
 
   expect(browserErrors).toEqual([]);
 });

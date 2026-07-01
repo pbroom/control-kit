@@ -119,12 +119,11 @@ export function LabPerformanceAnalysisPanel({
     }
 
     if (isCollapsed) {
-      if (resizeStateRef.current) {
-        return;
-      }
-
       suppressAnalysisSurfaceLayoutShifts();
       userSizedPanelRef.current = true;
+      resizeStateRef.current = null;
+      resizeCleanupRef.current?.();
+      setIsResizingPanel(false);
       setPanelHeight(LAB_PERFORMANCE_PANEL_COLLAPSED_HEIGHT);
       return;
     }
@@ -616,6 +615,9 @@ export function LabPerformanceAnalysisPanel({
 
     panelViewFitTimerRef.current = window.setTimeout(() => {
       panelViewFitTimerRef.current = null;
+      userSizedPanelRef.current =
+        heldPanelMaxHeightRef.current !== null &&
+        isPanelPointerInsideRef.current;
       fitPanelToContent();
     }, LAB_PERFORMANCE_PANEL_TAB_FIT_SUPPRESSION_MS + 32);
   }, [activePanelView, fitPanelToContent, suppressPanelFitForTabSwitch]);
