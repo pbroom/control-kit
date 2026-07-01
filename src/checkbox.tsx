@@ -29,7 +29,7 @@ export function Checkbox({
       disabled={disabled}
       data-slot="checkbox"
       className={cn(
-        'relative flex min-h-6 min-w-0 max-w-full items-center gap-2 py-1 text-left text-[11px] font-medium leading-4 tracking-[0.005em] text-white/80 outline-none focus-visible:ring-2 focus-visible:ring-[#0d99ff]/80 data-[disabled]:cursor-not-allowed data-[disabled]:text-white/35',
+        'relative flex min-h-6 min-w-0 max-w-full cursor-default items-center gap-2 py-1 text-left text-[11px] font-medium leading-4 tracking-[0.005em] text-white/80 outline-none focus-visible:ring-2 focus-visible:ring-[#0d99ff]/80 data-[disabled]:cursor-not-allowed data-[disabled]:text-white/35',
         className,
       )}
       onCheckedChange={onCheckedChange}

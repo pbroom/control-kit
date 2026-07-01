@@ -35,6 +35,7 @@ const LAB_PAGE_PANEL_TEXT = {
   tooltip: 'Tune the Radix initial hover delay',
   menu: 'Tune the three-item menu shown above the reusable menu preview.',
   select: 'Preview the UI3 menu trigger state.',
+  tabs: 'Preview the UI3 tab group and selected tab content.',
   toggleButton: 'Preview selection separately from interaction feedback.',
   toggle: 'Preview the toggle group icon layout.',
 } satisfies Record<(typeof LAB_PAGE_NAVIGATION)[number]['value'], string>;
@@ -103,6 +104,55 @@ export function performanceMetricsTable(performancePanel: Locator) {
     name: 'Performance metrics',
     exact: true,
   });
+}
+
+export async function selectPerformancePanelView(
+  performancePanel: Locator,
+  viewLabel: 'Metrics' | 'Structure',
+) {
+  const viewTab = performancePanel.getByRole('tab', {
+    name: viewLabel,
+    exact: true,
+  });
+
+  await expect(viewTab).toBeVisible();
+  await viewTab.click();
+  await expect(viewTab).toHaveAttribute('aria-selected', 'true');
+  await expect(
+    performancePanel.getByRole('tabpanel', {
+      name: viewLabel,
+      exact: true,
+    }),
+  ).toBeVisible();
+  await performancePanel.evaluate(
+    (node) =>
+      new Promise<void>((resolve) => {
+        let lastHeight = Number.NaN;
+        let stableFrames = 0;
+        const startTime = window.performance.now();
+
+        const checkHeight = () => {
+          const height = node.getBoundingClientRect().height;
+          const isStable =
+            Number.isFinite(lastHeight) && Math.abs(height - lastHeight) < 0.5;
+
+          stableFrames = isStable ? stableFrames + 1 : 0;
+          lastHeight = height;
+
+          if (
+            stableFrames >= 3 ||
+            window.performance.now() - startTime > 1000
+          ) {
+            resolve();
+            return;
+          }
+
+          window.requestAnimationFrame(checkHeight);
+        };
+
+        window.requestAnimationFrame(checkHeight);
+      }),
+  );
 }
 
 export async function openLabRoot(page: Page) {

@@ -4,6 +4,81 @@ export type LabPerformanceTone = 'good' | 'okay' | 'poor' | 'neutral';
 
 export type LabPerformanceAnalysis = {
   label: string;
+  primitiveStructure: LabPrimitiveStructure;
+};
+
+export type LabPrimitiveStructureGridSpan =
+  | 1
+  | 2
+  | 3
+  | 4
+  | 5
+  | 6
+  | 7
+  | 8
+  | 9
+  | 10
+  | 11
+  | 12;
+
+export type LabPrimitiveStructureGridLayout = {
+  column?: number;
+  height?: LabPrimitiveStructureGridSpan;
+  row?: number;
+  width?: LabPrimitiveStructureGridSpan;
+};
+
+export type LabPrimitiveStructureNodeRelation =
+  | 'root'
+  | 'child'
+  | 'sibling'
+  | 'slot'
+  | 'implicit';
+
+export type LabPrimitiveStructureNodeSlot =
+  | 'children'
+  | 'thumb'
+  | 'trigger'
+  | 'content'
+  | 'portal'
+  | 'item'
+  | 'overlay';
+
+export type LabPrimitiveStructureNodeState =
+  | 'default'
+  | 'optional'
+  | 'implicit';
+
+export type LabPrimitiveStructureNodeView = {
+  color: string;
+  depth?: number;
+  height?: number;
+  layout?: LabPrimitiveStructureGridLayout;
+  offsetX?: number;
+  offsetY?: number;
+  offsetZ?: number;
+  opacity?: number;
+  width?: number;
+};
+
+export type LabPrimitiveStructureNode = {
+  children?: readonly LabPrimitiveStructureNode[];
+  component: string;
+  detail: string;
+  id: string;
+  label: string;
+  relation: LabPrimitiveStructureNodeRelation;
+  slot?: LabPrimitiveStructureNodeSlot;
+  state?: LabPrimitiveStructureNodeState;
+  view?: LabPrimitiveStructureNodeView;
+};
+
+export type LabPrimitiveStructure = {
+  defaultLayerGap?: number;
+  root: LabPrimitiveStructureNode;
+  summary: string;
+  title: string;
+  visibleDepth?: number;
 };
 
 export type LabPerformanceResourceStats = {
@@ -96,6 +171,7 @@ export type InteractionPerformanceEntry = PerformanceEntry & {
 };
 
 export type LabPerformancePanelStyle = CSSProperties & {
+  '--lab-performance-panel-body-max-height': string;
   '--lab-performance-panel-content-max-height': string;
   '--lab-performance-panel-frame-height': string;
   '--lab-performance-panel-height': string;

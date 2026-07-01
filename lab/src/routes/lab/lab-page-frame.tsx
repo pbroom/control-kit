@@ -106,7 +106,7 @@ function LabPageCrossfadeSlot({
       data-lab-crossfade-slot={testId}
       data-testid={testId}
     >
-      {exitingItems.map((item) => (
+      {exitingItems.map((item, index) => (
         <div
           aria-hidden
           className={[
@@ -117,7 +117,7 @@ function LabPageCrossfadeSlot({
             .join(' ')}
           data-lab-crossfade-key={item.key}
           data-lab-crossfade-phase="exit"
-          key={item.id}
+          key={`${testId}-${item.key}-${item.id}-${index}`}
           style={
             {
               '--ck-lab-page-crossfade-duration': `${LAB_PAGE_CONTENT_CROSSFADE_MS}ms`,
@@ -193,22 +193,6 @@ function PagesPanel({
             </a>
           );
         })}
-      </div>
-    </div>
-  );
-}
-
-function LabHeaderExit() {
-  return (
-    <div
-      aria-hidden="true"
-      className="ck-lab-header-exit pointer-events-none fixed inset-x-0 top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-xl [animation:ck-lab-header-slide-up_320ms_ease-out_forwards]"
-    >
-      <div className="mx-auto flex h-14 w-full max-w-[1560px] items-center justify-between gap-4 px-4">
-        <div className="docs-brand">
-          <span className="docs-brand-dot" />
-          control-kit
-        </div>
       </div>
     </div>
   );
@@ -416,8 +400,6 @@ function LabPageFrameContent({
 
   return (
     <div className="min-h-screen bg-[#171717] lg:overflow-hidden">
-      <LabHeaderExit />
-
       <main
         className="min-h-screen min-w-0 bg-[#171717] [--ck-lab-segmented-active-bg:#171717] text-white lg:h-screen lg:overflow-hidden"
         style={

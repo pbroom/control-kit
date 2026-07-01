@@ -10,7 +10,7 @@ import type {
   MouseEvent as ReactMouseEvent,
   PointerEvent as ReactPointerEvent,
 } from 'react';
-import type { LabPageKey } from './shared.js';
+import { Tabs, TabsList, TabsTrigger, type LabPageKey } from './shared.js';
 import { LAB_PERFORMANCE_ANALYSIS } from './performance-analysis/config.js';
 import { LabMetricTable } from './performance-analysis/metrics-table.js';
 import {
@@ -27,6 +27,7 @@ import {
   LAB_PERFORMANCE_PANEL_SURFACE_PADDING_TOP,
   LAB_PERFORMANCE_PANEL_VERTICAL_PADDING,
 } from './performance-analysis/panel-sizing.js';
+import { LabPrimitiveStructureView } from './performance-analysis/primitive-structure.js';
 import { LabPerformanceTimeline } from './performance-analysis/timeline.js';
 import {
   suppressAnalysisSurfaceLayoutShifts,
@@ -34,8 +35,21 @@ import {
 } from './performance-analysis/telemetry.js';
 import type { LabPerformancePanelStyle } from './performance-analysis/types.js';
 
-const LAB_PERFORMANCE_SCROLLBAR_ACTIVE_MS = 700;
-const LAB_PERFORMANCE_SCROLLBAR_REVEAL_ZONE_PX = 24;
+const LAB_PERFORMANCE_PANEL_SCROLLBAR_ACTIVE_MS = 700;
+const LAB_PERFORMANCE_PANEL_SCROLLBAR_REVEAL_ZONE_PX = 24;
+const LAB_PERFORMANCE_PANEL_TAB_FIT_SUPPRESSION_MS = 260;
+const LAB_PERFORMANCE_PANEL_HELD_MAX_RELEASE_MS = 500;
+const LAB_PERFORMANCE_PANEL_DEFAULT_VIEW_CONTROLS_HEIGHT = 40;
+
+type LabPerformancePanelView = 'metrics' | 'structure';
+
+const LAB_PERFORMANCE_PANEL_VIEWS: Array<{
+  label: string;
+  value: LabPerformancePanelView;
+}> = [
+  { value: 'structure', label: 'Structure' },
+  { value: 'metrics', label: 'Metrics' },
+];
 
 export function LabPerformanceAnalysisPanel({
   activePage,
@@ -56,15 +70,29 @@ export function LabPerformanceAnalysisPanel({
     LAB_PERFORMANCE_PANEL_DEFAULT_HEIGHT,
   );
   const [isResizingPanel, setIsResizingPanel] = useState(false);
-  const [isMetricsScrollbarActive, setIsMetricsScrollbarActive] =
+  const [isPanelScrollbarActive, setIsPanelScrollbarActive] = useState(false);
+  const [isPanelScrollbarRailHovered, setIsPanelScrollbarRailHovered] =
     useState(false);
-  const [isMetricsScrollbarRailHovered, setIsMetricsScrollbarRailHovered] =
+  const [panelViewControlsHeight, setPanelViewControlsHeight] = useState(
+    LAB_PERFORMANCE_PANEL_DEFAULT_VIEW_CONTROLS_HEIGHT,
+  );
+  const [arePanelHeightTransitionsReady, setArePanelHeightTransitionsReady] =
     useState(false);
+  const [activePanelView, setActivePanelView] =
+    useState<LabPerformancePanelView>('structure');
   const contentRef = useRef<HTMLDivElement | null>(null);
   const panelHeightRef = useRef(panelHeight);
   const panelMaxHeightRef = useRef(panelMaxHeight);
+  const intendedPanelMaxHeightRef = useRef(panelMaxHeight);
+  const heldPanelMaxHeightRef = useRef<number | null>(null);
+  const previousPanelViewRef = useRef(activePanelView);
   const userSizedPanelRef = useRef(false);
-  const metricsScrollbarIdleTimerRef = useRef<number | null>(null);
+  const isPanelPointerInsideRef = useRef(false);
+  const panelScrollbarIdleTimerRef = useRef<number | null>(null);
+  const panelTabFitSuppressionTimerRef = useRef<number | null>(null);
+  const heldPanelMaxHeightReleaseTimerRef = useRef<number | null>(null);
+  const panelViewFitTimerRef = useRef<number | null>(null);
+  const isPanelTabFitSuppressedRef = useRef(false);
   const resizeCleanupRef = useRef<(() => void) | null>(null);
   const resizeStateRef = useRef<{
     lastHeight: number;
@@ -93,6 +121,9 @@ export function LabPerformanceAnalysisPanel({
     if (isCollapsed) {
       suppressAnalysisSurfaceLayoutShifts();
       userSizedPanelRef.current = true;
+      resizeStateRef.current = null;
+      resizeCleanupRef.current?.();
+      setIsResizingPanel(false);
       setPanelHeight(LAB_PERFORMANCE_PANEL_COLLAPSED_HEIGHT);
       return;
     }
@@ -299,39 +330,177 @@ export function LabPerformanceAnalysisPanel({
     [onCollapsedChange],
   );
 
-  const showMetricsScrollbar = useCallback(() => {
-    if (metricsScrollbarIdleTimerRef.current !== null) {
-      window.clearTimeout(metricsScrollbarIdleTimerRef.current);
+  const showPanelScrollbar = useCallback(() => {
+    if (panelScrollbarIdleTimerRef.current !== null) {
+      window.clearTimeout(panelScrollbarIdleTimerRef.current);
     }
 
-    setIsMetricsScrollbarActive(true);
-    metricsScrollbarIdleTimerRef.current = window.setTimeout(() => {
-      metricsScrollbarIdleTimerRef.current = null;
-      setIsMetricsScrollbarActive(false);
-    }, LAB_PERFORMANCE_SCROLLBAR_ACTIVE_MS);
+    setIsPanelScrollbarActive(true);
+    panelScrollbarIdleTimerRef.current = window.setTimeout(() => {
+      panelScrollbarIdleTimerRef.current = null;
+      setIsPanelScrollbarActive(false);
+    }, LAB_PERFORMANCE_PANEL_SCROLLBAR_ACTIVE_MS);
   }, []);
 
-  const syncMetricsScrollbarRailHover = useCallback(
+  const syncPanelScrollbarRailHover = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
       const rect = event.currentTarget.getBoundingClientRect();
       const distanceFromRightEdge = rect.right - event.clientX;
 
-      setIsMetricsScrollbarRailHovered(
+      setIsPanelScrollbarRailHovered(
         distanceFromRightEdge >= 0 &&
-          distanceFromRightEdge <= LAB_PERFORMANCE_SCROLLBAR_REVEAL_ZONE_PX,
+          distanceFromRightEdge <=
+            LAB_PERFORMANCE_PANEL_SCROLLBAR_REVEAL_ZONE_PX,
       );
     },
     [],
   );
 
-  const hideMetricsScrollbarRailHover = useCallback(() => {
-    setIsMetricsScrollbarRailHovered(false);
+  const hidePanelScrollbarRailHover = useCallback(() => {
+    setIsPanelScrollbarRailHovered(false);
   }, []);
+
+  const suppressPanelFitForTabSwitch = useCallback(() => {
+    if (panelTabFitSuppressionTimerRef.current !== null) {
+      window.clearTimeout(panelTabFitSuppressionTimerRef.current);
+    }
+
+    isPanelTabFitSuppressedRef.current = true;
+    panelTabFitSuppressionTimerRef.current = window.setTimeout(() => {
+      panelTabFitSuppressionTimerRef.current = null;
+      isPanelTabFitSuppressedRef.current = false;
+    }, LAB_PERFORMANCE_PANEL_TAB_FIT_SUPPRESSION_MS);
+  }, []);
+
+  const clearHeldPanelMaxHeightRelease = useCallback(() => {
+    if (heldPanelMaxHeightReleaseTimerRef.current === null) {
+      return;
+    }
+
+    window.clearTimeout(heldPanelMaxHeightReleaseTimerRef.current);
+    heldPanelMaxHeightReleaseTimerRef.current = null;
+  }, []);
+
+  const applyHeldPanelMaxHeightRelease = useCallback(() => {
+    if (heldPanelMaxHeightRef.current === null) {
+      return;
+    }
+
+    const nextMaxHeight = intendedPanelMaxHeightRef.current;
+    heldPanelMaxHeightRef.current = null;
+    suppressAnalysisSurfaceLayoutShifts();
+    setPanelMaxHeight((height) =>
+      Math.abs(height - nextMaxHeight) <= 1 ? height : nextMaxHeight,
+    );
+
+    if (isCollapsed === true) {
+      return;
+    }
+
+    setPanelHeight((height) => {
+      if (
+        height <= LAB_PERFORMANCE_PANEL_COLLAPSED_HEIGHT ||
+        height <= nextMaxHeight
+      ) {
+        return height;
+      }
+
+      return clampPerformancePanelOpenHeight(height, nextMaxHeight);
+    });
+  }, [isCollapsed]);
+
+  const scheduleHeldPanelMaxHeightRelease = useCallback(() => {
+    clearHeldPanelMaxHeightRelease();
+
+    if (heldPanelMaxHeightRef.current === null) {
+      return;
+    }
+
+    heldPanelMaxHeightReleaseTimerRef.current = window.setTimeout(() => {
+      heldPanelMaxHeightReleaseTimerRef.current = null;
+
+      if (isPanelPointerInsideRef.current) {
+        return;
+      }
+
+      if (resizeStateRef.current) {
+        scheduleHeldPanelMaxHeightRelease();
+        return;
+      }
+
+      applyHeldPanelMaxHeightRelease();
+    }, LAB_PERFORMANCE_PANEL_HELD_MAX_RELEASE_MS);
+  }, [applyHeldPanelMaxHeightRelease, clearHeldPanelMaxHeightRelease]);
+
+  const holdPanelMaxHeightUntilPointerLeaves = useCallback(() => {
+    clearHeldPanelMaxHeightRelease();
+
+    const heldMaxHeight = Math.max(
+      panelHeightRef.current,
+      panelMaxHeightRef.current,
+    );
+
+    heldPanelMaxHeightRef.current = heldMaxHeight;
+    setPanelMaxHeight((height) =>
+      height >= heldMaxHeight ? height : heldMaxHeight,
+    );
+
+    if (!isPanelPointerInsideRef.current) {
+      scheduleHeldPanelMaxHeightRelease();
+    }
+  }, [clearHeldPanelMaxHeightRelease, scheduleHeldPanelMaxHeightRelease]);
+
+  const clearHeldPanelMaxHeight = useCallback(() => {
+    clearHeldPanelMaxHeightRelease();
+    heldPanelMaxHeightRef.current = null;
+  }, [clearHeldPanelMaxHeightRelease]);
+
+  const handlePanelPointerEnter = useCallback(() => {
+    isPanelPointerInsideRef.current = true;
+    clearHeldPanelMaxHeightRelease();
+  }, [clearHeldPanelMaxHeightRelease]);
+
+  const handlePanelPointerMove = useCallback(() => {
+    isPanelPointerInsideRef.current = true;
+    clearHeldPanelMaxHeightRelease();
+  }, [clearHeldPanelMaxHeightRelease]);
+
+  const handlePanelPointerLeave = useCallback(() => {
+    isPanelPointerInsideRef.current = false;
+    scheduleHeldPanelMaxHeightRelease();
+  }, [scheduleHeldPanelMaxHeightRelease]);
+
+  useEffect(() => {
+    if (arePanelHeightTransitionsReady) {
+      return;
+    }
+
+    let secondFrame = 0;
+    const firstFrame = window.requestAnimationFrame(() => {
+      secondFrame = window.requestAnimationFrame(() => {
+        setArePanelHeightTransitionsReady(true);
+      });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(firstFrame);
+      window.cancelAnimationFrame(secondFrame);
+    };
+  }, [arePanelHeightTransitionsReady]);
 
   useEffect(() => {
     return () => {
-      if (metricsScrollbarIdleTimerRef.current !== null) {
-        window.clearTimeout(metricsScrollbarIdleTimerRef.current);
+      if (panelScrollbarIdleTimerRef.current !== null) {
+        window.clearTimeout(panelScrollbarIdleTimerRef.current);
+      }
+      if (panelTabFitSuppressionTimerRef.current !== null) {
+        window.clearTimeout(panelTabFitSuppressionTimerRef.current);
+      }
+      if (heldPanelMaxHeightReleaseTimerRef.current !== null) {
+        window.clearTimeout(heldPanelMaxHeightReleaseTimerRef.current);
+      }
+      if (panelViewFitTimerRef.current !== null) {
+        window.clearTimeout(panelViewFitTimerRef.current);
       }
       resizeCleanupRef.current?.();
     };
@@ -344,24 +513,71 @@ export function LabPerformanceAnalysisPanel({
       return;
     }
 
+    if (isPanelTabFitSuppressedRef.current) {
+      return;
+    }
+
+    const panelViewControls = contentNode.querySelector(
+      '[data-lab-performance-panel-view-controls]',
+    );
     const metricsTable = contentNode.querySelector('table');
     const timelineShell = contentNode.querySelector(
       '[data-testid="lab-performance-timeline-shell"]',
     );
+    const primitiveStructureShell = contentNode.querySelector(
+      '[data-testid="lab-primitive-structure-shell"]',
+    );
+    const panelViewControlsHeight = panelViewControls?.scrollHeight ?? 0;
+    const panelViewGap = panelViewControlsHeight > 0 ? 12 : 0;
+    setPanelViewControlsHeight((height) =>
+      Math.abs(height - panelViewControlsHeight) <= 1
+        ? height
+        : panelViewControlsHeight,
+    );
+    const metricsContentHeight =
+      Math.max(
+        metricsTable?.scrollHeight ?? 0,
+        timelineShell?.scrollHeight ?? 0,
+      ) +
+      panelViewControlsHeight +
+      panelViewGap;
+    const structureContentHeight =
+      (primitiveStructureShell?.scrollHeight ?? 0) +
+      panelViewControlsHeight +
+      panelViewGap;
     const contentHeight = Math.max(
       contentNode.scrollHeight,
-      metricsTable?.scrollHeight ?? 0,
-      timelineShell?.scrollHeight ?? 0,
+      metricsContentHeight,
+      structureContentHeight,
     );
     const nextHeight = clampPerformancePanelOpenHeight(
       contentHeight + LAB_PERFORMANCE_PANEL_VERTICAL_PADDING,
       Number.MAX_SAFE_INTEGER,
     );
-    setPanelMaxHeight((height) =>
-      Math.abs(height - nextHeight) <= 1 ? height : nextHeight,
-    );
+    intendedPanelMaxHeightRef.current = nextHeight;
+
+    const heldPanelMaxHeight = heldPanelMaxHeightRef.current;
+    if (heldPanelMaxHeight !== null && heldPanelMaxHeight > nextHeight) {
+      setPanelMaxHeight((height) =>
+        Math.abs(height - heldPanelMaxHeight) <= 1
+          ? height
+          : heldPanelMaxHeight,
+      );
+    } else {
+      if (heldPanelMaxHeight !== null) {
+        heldPanelMaxHeightRef.current = null;
+      }
+
+      setPanelMaxHeight((height) =>
+        Math.abs(height - nextHeight) <= 1 ? height : nextHeight,
+      );
+    }
 
     if (isCollapsed === true) {
+      if (resizeStateRef.current) {
+        return;
+      }
+
       setPanelHeight(LAB_PERFORMANCE_PANEL_COLLAPSED_HEIGHT);
       return;
     }
@@ -375,13 +591,36 @@ export function LabPerformanceAnalysisPanel({
     );
   }, [isCollapsed]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (isCollapsed === true) {
       return;
     }
 
     userSizedPanelRef.current = false;
-  }, [activePage, isCollapsed]);
+    clearHeldPanelMaxHeight();
+  }, [activePage, clearHeldPanelMaxHeight, isCollapsed]);
+
+  useLayoutEffect(() => {
+    if (previousPanelViewRef.current === activePanelView) {
+      return;
+    }
+
+    previousPanelViewRef.current = activePanelView;
+    userSizedPanelRef.current = true;
+    suppressPanelFitForTabSwitch();
+
+    if (panelViewFitTimerRef.current !== null) {
+      window.clearTimeout(panelViewFitTimerRef.current);
+    }
+
+    panelViewFitTimerRef.current = window.setTimeout(() => {
+      panelViewFitTimerRef.current = null;
+      userSizedPanelRef.current =
+        heldPanelMaxHeightRef.current !== null &&
+        isPanelPointerInsideRef.current;
+      fitPanelToContent();
+    }, LAB_PERFORMANCE_PANEL_TAB_FIT_SUPPRESSION_MS + 32);
+  }, [activePanelView, fitPanelToContent, suppressPanelFitForTabSwitch]);
 
   useLayoutEffect(() => {
     fitPanelToContent();
@@ -425,11 +664,18 @@ export function LabPerformanceAnalysisPanel({
   const accessiblePanelHeight = Math.round(
     Math.min(panelHeight, panelMaxHeight),
   );
+  const panelContentMaxHeight = Math.max(
+    0,
+    panelHeight - LAB_PERFORMANCE_PANEL_VERTICAL_PADDING,
+  );
+  const panelViewGap = panelViewControlsHeight > 0 ? 12 : 0;
+  const panelBodyMaxHeight = Math.max(
+    0,
+    panelContentMaxHeight - panelViewControlsHeight - panelViewGap,
+  );
   const panelStyle: LabPerformancePanelStyle = {
-    '--lab-performance-panel-content-max-height': `${Math.max(
-      0,
-      panelHeight - LAB_PERFORMANCE_PANEL_VERTICAL_PADDING,
-    )}px`,
+    '--lab-performance-panel-body-max-height': `${panelBodyMaxHeight}px`,
+    '--lab-performance-panel-content-max-height': `${panelContentMaxHeight}px`,
     '--lab-performance-panel-frame-height': `${panelFrameHeight}px`,
     '--lab-performance-panel-height': `${panelHeight}px`,
     '--lab-performance-panel-opacity': collapseProgress.toFixed(3),
@@ -445,13 +691,18 @@ export function LabPerformanceAnalysisPanel({
         'relative mx-3 h-[var(--lab-performance-panel-height)] shrink-0 overflow-hidden lg:h-[var(--lab-performance-panel-frame-height)]',
         isResizingPanel
           ? null
-          : 'transition-[height] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]',
+          : !arePanelHeightTransitionsReady
+            ? null
+            : 'transition-[height] duration-[640ms] ease-[cubic-bezier(0.77,0,0.175,1)]',
       ]
         .filter(Boolean)
         .join(' ')}
       data-lab-performance-panel-collapsed={isPanelCollapsed ? 'true' : 'false'}
       data-lab-performance-panel
       id="lab-performance-panel"
+      onPointerEnter={handlePanelPointerEnter}
+      onPointerLeave={handlePanelPointerLeave}
+      onPointerMove={handlePanelPointerMove}
       style={panelStyle}
     >
       <div
@@ -487,7 +738,9 @@ export function LabPerformanceAnalysisPanel({
           'box-border h-[var(--lab-performance-panel-height)] min-h-0 overflow-hidden rounded-[24px] border border-white/8 bg-[#151515] px-4 py-0 opacity-[var(--lab-performance-panel-opacity)] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] lg:px-6 lg:translate-y-[var(--lab-performance-panel-translate-y)]',
           isResizingPanel
             ? 'transition-[opacity,transform,padding,border-color,background-color] duration-75 ease-out'
-            : 'transition-[height,opacity,transform,padding,border-color,background-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]',
+            : !arePanelHeightTransitionsReady
+              ? null
+              : 'transition-[height,opacity,transform,padding,border-color,background-color] duration-[640ms] ease-[cubic-bezier(0.77,0,0.175,1)]',
         ]
           .filter(Boolean)
           .join(' ')}
@@ -500,33 +753,107 @@ export function LabPerformanceAnalysisPanel({
         }}
       >
         <div
-          className="grid max-h-[var(--lab-performance-panel-content-max-height)] min-h-0 min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_clamp(320px,25vw,480px)] lg:items-start"
+          className="flex max-h-[var(--lab-performance-panel-content-max-height)] min-h-0 min-w-0 flex-col gap-3"
           ref={contentRef}
           style={{
             pointerEvents: panelHeight <= 24 ? 'none' : undefined,
           }}
         >
           <div
+            className="flex min-h-7 max-w-full shrink-0 flex-wrap items-center gap-2"
+            data-lab-performance-panel-view-controls
+          >
+            <Tabs
+              value={activePanelView}
+              className="shrink-0"
+              onValueChange={(nextView) => {
+                const nextPanelView = nextView as LabPerformancePanelView;
+
+                suppressAnalysisSurfaceLayoutShifts();
+                userSizedPanelRef.current = true;
+                if (
+                  activePanelView === 'structure' &&
+                  nextPanelView === 'metrics'
+                ) {
+                  holdPanelMaxHeightUntilPointerLeaves();
+                } else {
+                  clearHeldPanelMaxHeight();
+                }
+                suppressPanelFitForTabSwitch();
+                setActivePanelView(nextPanelView);
+              }}
+            >
+              <TabsList aria-label="Performance panel views">
+                {LAB_PERFORMANCE_PANEL_VIEWS.map((view) => (
+                  <TabsTrigger
+                    aria-controls={`lab-performance-${view.value}-panel`}
+                    data-testid={`lab-performance-${view.value}-tab`}
+                    id={`lab-performance-${view.value}-tab`}
+                    key={view.value}
+                    value={view.value}
+                  >
+                    {view.label}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
+          </div>
+          <div
+            aria-labelledby="lab-performance-metrics-tab"
+            className="grid min-h-0 min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_clamp(320px,25vw,480px)] lg:items-start"
+            hidden={activePanelView !== 'metrics'}
+            id="lab-performance-metrics-panel"
+            role="tabpanel"
+            tabIndex={0}
+          >
+            <div
+              className={[
+                'ck-lab-performance-panel-scroll ck-lab-performance-metrics-scroll max-h-[var(--lab-performance-panel-body-max-height)] min-h-0 min-w-0 overflow-y-auto overscroll-contain pr-1',
+                isPanelScrollbarActive || isPanelScrollbarRailHovered
+                  ? 'ck-lab-performance-panel-scroll-active ck-lab-performance-metrics-scroll-active'
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(' ')}
+              data-testid="lab-performance-metrics-shell"
+              onPointerLeave={hidePanelScrollbarRailHover}
+              onPointerMove={syncPanelScrollbarRailHover}
+              onScroll={showPanelScrollbar}
+              onWheel={showPanelScrollbar}
+            >
+              <LabMetricTable vitals={vitals} />
+            </div>
+            <LabPerformanceTimeline
+              events={timeline}
+              currentTimeMs={timelineTimeMs}
+            />
+          </div>
+          <div
+            aria-labelledby="lab-performance-structure-tab"
             className={[
-              'ck-lab-performance-metrics-scroll max-h-[var(--lab-performance-panel-content-max-height)] min-h-0 min-w-0 overflow-y-auto overscroll-contain pr-1',
-              isMetricsScrollbarActive || isMetricsScrollbarRailHovered
-                ? 'ck-lab-performance-metrics-scroll-active'
+              'ck-lab-performance-panel-scroll ck-lab-performance-structure-scroll max-h-[var(--lab-performance-panel-body-max-height)] min-h-0 min-w-0 overflow-y-auto overscroll-contain pr-1',
+              isPanelScrollbarActive || isPanelScrollbarRailHovered
+                ? 'ck-lab-performance-panel-scroll-active'
                 : null,
             ]
               .filter(Boolean)
               .join(' ')}
-            data-testid="lab-performance-metrics-shell"
-            onPointerLeave={hideMetricsScrollbarRailHover}
-            onPointerMove={syncMetricsScrollbarRailHover}
-            onScroll={showMetricsScrollbar}
-            onWheel={showMetricsScrollbar}
+            hidden={activePanelView !== 'structure'}
+            id="lab-performance-structure-panel"
+            onPointerLeave={hidePanelScrollbarRailHover}
+            onPointerMove={syncPanelScrollbarRailHover}
+            onScroll={showPanelScrollbar}
+            onWheel={showPanelScrollbar}
+            role="tabpanel"
+            tabIndex={0}
           >
-            <LabMetricTable vitals={vitals} />
+            {activePanelView === 'structure' ? (
+              <LabPrimitiveStructureView
+                isActive
+                structure={analysis.primitiveStructure}
+              />
+            ) : null}
           </div>
-          <LabPerformanceTimeline
-            events={timeline}
-            currentTimeMs={timelineTimeMs}
-          />
         </div>
       </div>
     </section>

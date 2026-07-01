@@ -1,7 +1,9 @@
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from '@playwright/test';
 
 const labPort = Number(process.env.CONTROL_KIT_LAB_PORT ?? 5185);
 const labUrl = `http://127.0.0.1:${labPort}/`;
+const repoRoot = fileURLToPath(new URL('..', import.meta.url));
 
 export default defineConfig({
   testDir: './tests',
@@ -11,7 +13,8 @@ export default defineConfig({
   reporter: [['list']],
   workers: 1,
   webServer: {
-    command: `pnpm exec vite --config vite.config.ts --host 127.0.0.1 --port ${labPort} --strictPort`,
+    command: `pnpm exec vite --config lab/vite.config.ts --host 127.0.0.1 --port ${labPort} --strictPort`,
+    cwd: repoRoot,
     url: labUrl,
     reuseExistingServer: false,
     timeout: 120_000,

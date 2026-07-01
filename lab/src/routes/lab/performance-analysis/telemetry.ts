@@ -35,6 +35,9 @@ export const LAB_LCP_PENDING_ATTRIBUTION = 'Largest preview element pending';
 export const LAB_LCP_NO_PREVIEW_CANDIDATE_ATTRIBUTION =
   'No preview LCP candidate';
 const LAB_PERFORMANCE_PANEL_LAYOUT_SHIFT_SUPPRESSION_MS = 700;
+const CODEX_BROWSER_ANNOTATION_ROOT_SELECTOR =
+  '#codex-browser-sidebar-comments-root';
+const CODEX_BROWSER_ANNOTATION_SURFACE_SELECTOR = '[data-browser-comment-root]';
 const IGNORED_INTERACTION_ENTRY_NAMES = new Set([
   'mouseenter',
   'mouseleave',
@@ -345,15 +348,77 @@ function describePreviewLcpAttribution(candidate: LabPreviewLcpCandidate) {
   )}`;
 }
 
-function isAnalysisSurfaceLayoutShiftSource(node: Node) {
+function getElementForNode(node: Node) {
+  if (node instanceof Element) {
+    return node;
+  }
+
+  return node.parentElement;
+}
+
+function getShadowRootHost(element: Element) {
+  if (typeof ShadowRoot === 'undefined') {
+    return null;
+  }
+
+  const root = element.getRootNode();
+
+  return root instanceof ShadowRoot ? root.host : null;
+}
+
+export function isCodexBrowserAnnotationNode(node: Node) {
+  let element = getElementForNode(node);
+
+  while (element) {
+    if (
+      element.matches(CODEX_BROWSER_ANNOTATION_ROOT_SELECTOR) ||
+      element.closest(CODEX_BROWSER_ANNOTATION_ROOT_SELECTOR) ||
+      element.matches(CODEX_BROWSER_ANNOTATION_SURFACE_SELECTOR) ||
+      element.closest(CODEX_BROWSER_ANNOTATION_SURFACE_SELECTOR)
+    ) {
+      return true;
+    }
+
+    element = getShadowRootHost(element);
+  }
+
+  return false;
+}
+
+export function isCodexBrowserAnnotationOverlayMounted() {
+  if (typeof document === 'undefined') {
+    return false;
+  }
+
   return (
-    node instanceof Element &&
-    (node.closest('[data-lab-performance-panel]') !== null ||
-      node.closest('aside') !== null)
+    document.querySelector(CODEX_BROWSER_ANNOTATION_ROOT_SELECTOR) !== null
   );
 }
 
-function isComponentLayoutShiftEntry(entry: LayoutShiftPerformanceEntry) {
+function isIgnoredLayoutShiftSource(node: Node) {
+  return (
+    isCodexBrowserAnnotationNode(node) ||
+    (node instanceof Element &&
+      (node.closest('[data-lab-performance-panel]') !== null ||
+        node.closest('aside') !== null))
+  );
+}
+
+function isComponentPreviewLayoutShiftSource(node: Node) {
+  const element = getElementForNode(node);
+
+  return Boolean(
+    element &&
+    !isIgnoredLayoutShiftSource(node) &&
+    element.closest(LAB_COMPONENT_PREVIEW_SELECTOR) &&
+    !element.matches(LAB_CROSSFADE_STRUCTURAL_SELECTOR) &&
+    !element.closest(LAB_CROSSFADE_EXIT_SELECTOR),
+  );
+}
+
+export function isComponentLayoutShiftEntry(
+  entry: LayoutShiftPerformanceEntry,
+) {
   if (entry.hadRecentInput) {
     return false;
   }
@@ -362,10 +427,11 @@ function isComponentLayoutShiftEntry(entry: LayoutShiftPerformanceEntry) {
     .map((source) => source.node)
     .filter((node): node is Node => Boolean(node));
 
-  return (
-    sources.length === 0 ||
-    sources.some((node) => !isAnalysisSurfaceLayoutShiftSource(node))
-  );
+  if (sources.length === 0) {
+    return false;
+  }
+
+  return sources.some(isComponentPreviewLayoutShiftSource);
 }
 
 function describeLayoutShiftAttribution(
@@ -379,7 +445,7 @@ function describeLayoutShiftAttribution(
         return false;
       }
 
-      return !isAnalysisSurfaceLayoutShiftSource(node);
+      return isComponentPreviewLayoutShiftSource(node);
     });
 
   if (sources.length === 0) {

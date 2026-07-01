@@ -127,19 +127,6 @@
   }
 }
 
-@keyframes ck-lab-header-slide-up {
-  from {
-    opacity: 1;
-    transform: translateY(0);
-  }
-
-  to {
-    opacity: 0;
-    transform: translateY(-100%);
-    visibility: hidden;
-  }
-}
-
 @keyframes ck-lab-page-crossfade-in {
   from {
     opacity: 0;
@@ -177,10 +164,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ck-lab-header-exit {
-    animation-duration: 1ms;
-  }
-
   .ck-lab-page-crossfade-enter,
   .ck-lab-page-crossfade-exit {
     animation-duration: 1ms;
@@ -219,24 +202,35 @@
   background-color: rgba(255, 255, 255, 0.22);
 }
 
+.ck-lab-performance-panel-scroll,
 .ck-lab-performance-metrics-scroll {
   scrollbar-gutter: stable;
   scrollbar-color: transparent transparent;
   scrollbar-width: thin;
 }
 
+.ck-lab-performance-panel-scroll-active,
 .ck-lab-performance-metrics-scroll-active {
   scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
 }
 
+.ck-lab-performance-panel-scroll:hover,
+.ck-lab-performance-panel-scroll:focus,
+.ck-lab-performance-panel-scroll:focus-within {
+  scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
+}
+
+.ck-lab-performance-panel-scroll::-webkit-scrollbar,
 .ck-lab-performance-metrics-scroll::-webkit-scrollbar {
   width: 8px;
 }
 
+.ck-lab-performance-panel-scroll::-webkit-scrollbar-track,
 .ck-lab-performance-metrics-scroll::-webkit-scrollbar-track {
   background: transparent;
 }
 
+.ck-lab-performance-panel-scroll::-webkit-scrollbar-thumb,
 .ck-lab-performance-metrics-scroll::-webkit-scrollbar-thumb {
   background-clip: content-box;
   background-color: transparent;
@@ -244,7 +238,11 @@
   border-radius: 999px;
 }
 
-.ck-lab-performance-metrics-scroll-active::-webkit-scrollbar-thumb {
+.ck-lab-performance-panel-scroll-active::-webkit-scrollbar-thumb,
+.ck-lab-performance-metrics-scroll-active::-webkit-scrollbar-thumb,
+.ck-lab-performance-panel-scroll:hover::-webkit-scrollbar-thumb,
+.ck-lab-performance-panel-scroll:focus::-webkit-scrollbar-thumb,
+.ck-lab-performance-panel-scroll:focus-within::-webkit-scrollbar-thumb {
   background-color: rgba(255, 255, 255, 0.32);
 }
 
