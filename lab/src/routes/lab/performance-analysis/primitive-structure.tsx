@@ -977,6 +977,9 @@ export function LabPrimitiveStructureView({
       ]
     );
   }, [activeLayerId, nodeEntries]);
+  useEffect(() => {
+    setActiveLayerId(null);
+  }, [structure]);
   usePrimitiveStructureScene(
     structure.title,
     layers,

@@ -39,7 +39,7 @@ const LAB_PERFORMANCE_PANEL_SCROLLBAR_ACTIVE_MS = 700;
 const LAB_PERFORMANCE_PANEL_SCROLLBAR_REVEAL_ZONE_PX = 24;
 const LAB_PERFORMANCE_PANEL_TAB_FIT_SUPPRESSION_MS = 260;
 const LAB_PERFORMANCE_PANEL_HELD_MAX_RELEASE_MS = 500;
-const LAB_PERFORMANCE_PANEL_VIEW_CONTROLS_HEIGHT = 40;
+const LAB_PERFORMANCE_PANEL_DEFAULT_VIEW_CONTROLS_HEIGHT = 40;
 
 type LabPerformancePanelView = 'metrics' | 'structure';
 
@@ -73,6 +73,9 @@ export function LabPerformanceAnalysisPanel({
   const [isPanelScrollbarActive, setIsPanelScrollbarActive] = useState(false);
   const [isPanelScrollbarRailHovered, setIsPanelScrollbarRailHovered] =
     useState(false);
+  const [panelViewControlsHeight, setPanelViewControlsHeight] = useState(
+    LAB_PERFORMANCE_PANEL_DEFAULT_VIEW_CONTROLS_HEIGHT,
+  );
   const [arePanelHeightTransitionsReady, setArePanelHeightTransitionsReady] =
     useState(false);
   const [activePanelView, setActivePanelView] =
@@ -442,7 +445,11 @@ export function LabPerformanceAnalysisPanel({
     setPanelMaxHeight((height) =>
       height >= heldMaxHeight ? height : heldMaxHeight,
     );
-  }, [clearHeldPanelMaxHeightRelease]);
+
+    if (!isPanelPointerInsideRef.current) {
+      scheduleHeldPanelMaxHeightRelease();
+    }
+  }, [clearHeldPanelMaxHeightRelease, scheduleHeldPanelMaxHeightRelease]);
 
   const clearHeldPanelMaxHeight = useCallback(() => {
     clearHeldPanelMaxHeightRelease();
@@ -523,6 +530,11 @@ export function LabPerformanceAnalysisPanel({
     );
     const panelViewControlsHeight = panelViewControls?.scrollHeight ?? 0;
     const panelViewGap = panelViewControlsHeight > 0 ? 12 : 0;
+    setPanelViewControlsHeight((height) =>
+      Math.abs(height - panelViewControlsHeight) <= 1
+        ? height
+        : panelViewControlsHeight,
+    );
     const metricsContentHeight =
       Math.max(
         metricsTable?.scrollHeight ?? 0,
@@ -654,11 +666,13 @@ export function LabPerformanceAnalysisPanel({
     0,
     panelHeight - LAB_PERFORMANCE_PANEL_VERTICAL_PADDING,
   );
+  const panelViewGap = panelViewControlsHeight > 0 ? 12 : 0;
+  const panelBodyMaxHeight = Math.max(
+    0,
+    panelContentMaxHeight - panelViewControlsHeight - panelViewGap,
+  );
   const panelStyle: LabPerformancePanelStyle = {
-    '--lab-performance-panel-body-max-height': `${Math.max(
-      0,
-      panelContentMaxHeight - LAB_PERFORMANCE_PANEL_VIEW_CONTROLS_HEIGHT,
-    )}px`,
+    '--lab-performance-panel-body-max-height': `${panelBodyMaxHeight}px`,
     '--lab-performance-panel-content-max-height': `${panelContentMaxHeight}px`,
     '--lab-performance-panel-frame-height': `${panelFrameHeight}px`,
     '--lab-performance-panel-height': `${panelHeight}px`,
@@ -788,6 +802,7 @@ export function LabPerformanceAnalysisPanel({
             hidden={activePanelView !== 'metrics'}
             id="lab-performance-metrics-panel"
             role="tabpanel"
+            tabIndex={0}
           >
             <div
               className={[
@@ -828,11 +843,14 @@ export function LabPerformanceAnalysisPanel({
             onScroll={showPanelScrollbar}
             onWheel={showPanelScrollbar}
             role="tabpanel"
+            tabIndex={0}
           >
-            <LabPrimitiveStructureView
-              isActive={activePanelView === 'structure'}
-              structure={analysis.primitiveStructure}
-            />
+            {activePanelView === 'structure' ? (
+              <LabPrimitiveStructureView
+                isActive
+                structure={analysis.primitiveStructure}
+              />
+            ) : null}
           </div>
         </div>
       </div>

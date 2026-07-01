@@ -239,6 +239,9 @@ test('renders the primitive structure tab as a nonblank orthographic view', asyn
     colorPlanePanel.getByRole('tabpanel', { name: 'Structure', exact: true }),
   ).toBeVisible();
   await expect(
+    colorPlanePanel.getByRole('tabpanel', { name: 'Structure', exact: true }),
+  ).toHaveAttribute('tabindex', '0');
+  await expect(
     colorPlanePanel.getByText('ColorPlane primitive', { exact: true }),
   ).toBeVisible();
   await expect(
@@ -577,6 +580,10 @@ test('renders the primitive structure tab as a nonblank orthographic view', asyn
   await expect(
     colorPlanePanel.getByRole('tabpanel', { name: 'Metrics', exact: true }),
   ).toBeVisible();
+  await expect(
+    colorPlanePanel.getByRole('tabpanel', { name: 'Metrics', exact: true }),
+  ).toHaveAttribute('tabindex', '0');
+  await expect(canvas).toHaveCount(0);
   await structureTab.click();
   await expect(structureTab).toHaveAttribute('aria-selected', 'true');
   await expect(

@@ -674,3 +674,49 @@ test('holds the metrics resize ceiling after switching from structure until the 
 
   expect(browserErrors).toEqual([]);
 });
+
+test('releases the metrics resize ceiling after keyboard tab switches when the pointer is outside', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'desktop layout coverage');
+  const browserErrors = await collectBrowserErrors(page);
+
+  await openLabRoot(page);
+  await page.getByRole('link', { name: 'Input Multi', exact: true }).click();
+
+  const performancePanel = performancePanelFor(page, 'Input Multi');
+  const resizeHandle = performancePanel.getByLabel(
+    'Resize performance analysis panel',
+    { exact: true },
+  );
+  const metricsTab = performancePanel.getByRole('tab', {
+    name: 'Metrics',
+    exact: true,
+  });
+
+  await expect(resizeHandle).toBeVisible();
+  await selectPerformancePanelView(performancePanel, 'Structure');
+  const structureMaxHeight = Number(
+    await resizeHandle.getAttribute('aria-valuemax'),
+  );
+  expect(structureMaxHeight).toBeGreaterThan(320);
+
+  await page.mouse.move(0, 0);
+  await metricsTab.focus();
+  await page.keyboard.press('Enter');
+  await expect(metricsTab).toHaveAttribute('aria-selected', 'true');
+
+  const heldMetricsMaxHeight = Number(
+    await resizeHandle.getAttribute('aria-valuemax'),
+  );
+  expect(heldMetricsMaxHeight).toBeGreaterThanOrEqual(structureMaxHeight - 1);
+
+  await expect
+    .poll(
+      async () => Number(await resizeHandle.getAttribute('aria-valuemax')),
+      { timeout: 3_000 },
+    )
+    .toBeLessThan(heldMetricsMaxHeight - 4);
+
+  expect(browserErrors).toEqual([]);
+});
