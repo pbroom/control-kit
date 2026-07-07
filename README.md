@@ -18,6 +18,21 @@ pnpm add github:pbroom/control-kit
 
 The package builds ESM, CommonJS, and TypeScript declarations into `dist/`. Git installs run the `prepare` script so consumers receive the compiled entrypoints.
 
+## Compatibility
+
+- **React 19 or newer** is required (`react` and `react-dom` are peer
+  dependencies with a `>=19.0.0` floor). This is a deliberate choice to build
+  on current React semantics rather than carry compatibility shims.
+- `@base-ui/react` and `radix-ui` are peer dependencies used for the headless
+  primitives.
+- Node 18+ is required to build the package.
+
+## Releases
+
+Changes are tracked in [CHANGELOG.md](./CHANGELOG.md). The package currently
+publishes under the `next` npm dist-tag while the API stabilizes; pin exact
+versions if you need reproducible installs.
+
 ## Tailwind
 
 The components render Tailwind utility class names. Apps that purge or source-scan dependencies should include this package in their Tailwind content graph. The published package includes `src/` as well as `dist/` so Tailwind v4 consumers can source either path.
