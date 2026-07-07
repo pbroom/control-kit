@@ -40,7 +40,7 @@ element:
   --ck-foreground: #ffffff; /* base text color */
   --ck-accent: #0d99ff; /* focus rings, checked fills */
   --ck-accent-border: #007be5; /* border paired with accent fills */
-  --ck-border: #4C4C4C; /* hover + resting borders */
+  --ck-border: #4c4c4c; /* hover + resting borders */
   --ck-border-focus: #5288db; /* value input while editing */
   --ck-border-scrub: #97c1ef; /* value input while scrubbing */
   --ck-border-invalid: #ff4e4e; /* invalid drafts */

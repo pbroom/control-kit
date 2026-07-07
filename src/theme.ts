@@ -18,7 +18,7 @@ export const controlKitColor = {
   /** Border paired with accent fills (checked checkbox border). */
   accentBorder: 'var(--ck-accent-border,#007be5)',
   /** Resting border for hovered and unchecked states. */
-  border: 'var(--ck-border,#4C4C4C)',
+  border: 'var(--ck-border,#4c4c4c)',
   /** Border while a value input is being edited. */
   borderFocus: 'var(--ck-border-focus,#5288db)',
   /** Border while a value input is being scrubbed. */

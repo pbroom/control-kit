@@ -39,7 +39,7 @@ export function Checkbox({
         keepMounted
         data-slot="checkbox-indicator"
         className={cn(
-          'flex size-4 shrink-0 items-center justify-center rounded-[5px] border text-[color:var(--ck-foreground,#ffffff)] transition-[background-color,border-color] data-[checked]:border-[color:var(--ck-accent-border,#007be5)] data-[checked]:bg-[var(--ck-accent,#0d99ff)] data-[unchecked]:border-[color:var(--ck-border,#4C4C4C)] data-[unchecked]:bg-[var(--ck-surface,#383838)] data-[checked]:data-[disabled]:border-[color:var(--ck-accent,#0d99ff)]/40 data-[checked]:data-[disabled]:bg-[var(--ck-accent,#0d99ff)]/40 data-[unchecked]:data-[disabled]:border-[color:var(--ck-foreground,#ffffff)]/15 data-[unchecked]:data-[disabled]:bg-[var(--ck-surface,#383838)]/60 [&[data-unchecked]>svg]:opacity-0',
+          'flex size-4 shrink-0 items-center justify-center rounded-[5px] border text-[color:var(--ck-foreground,#ffffff)] transition-[background-color,border-color] data-[checked]:border-[color:var(--ck-accent-border,#007be5)] data-[checked]:bg-[var(--ck-accent,#0d99ff)] data-[unchecked]:border-[color:var(--ck-border,#4c4c4c)] data-[unchecked]:bg-[var(--ck-surface,#383838)] data-[checked]:data-[disabled]:border-[color:var(--ck-accent,#0d99ff)]/40 data-[checked]:data-[disabled]:bg-[var(--ck-accent,#0d99ff)]/40 data-[unchecked]:data-[disabled]:border-[color:var(--ck-foreground,#ffffff)]/15 data-[unchecked]:data-[disabled]:bg-[var(--ck-surface,#383838)]/60 [&[data-unchecked]>svg]:opacity-0',
           indicatorClassName,
         )}
       >
