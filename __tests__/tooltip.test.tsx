@@ -9,44 +9,13 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '../src/tooltip.js';
+import './helpers/dom-polyfills.js';
 
 const mountedRoots: Root[] = [];
 
 (
   globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }
 ).IS_REACT_ACT_ENVIRONMENT = true;
-
-// Radix measures the tooltip arrow with ResizeObserver, which jsdom lacks.
-if (typeof globalThis.ResizeObserver === 'undefined') {
-  class TestResizeObserver {
-    observe() {}
-    unobserve() {}
-    disconnect() {}
-  }
-
-  Object.defineProperty(globalThis, 'ResizeObserver', {
-    value: TestResizeObserver,
-    configurable: true,
-  });
-}
-
-if (typeof globalThis.PointerEvent === 'undefined') {
-  class TestPointerEvent extends MouseEvent {
-    pointerId: number;
-    pointerType: string;
-
-    constructor(type: string, init: PointerEventInit = {}) {
-      super(type, init);
-      this.pointerId = init.pointerId ?? 0;
-      this.pointerType = init.pointerType ?? 'mouse';
-    }
-  }
-
-  Object.defineProperty(globalThis, 'PointerEvent', {
-    value: TestPointerEvent,
-    configurable: true,
-  });
-}
 
 function mountControlledTooltip(
   contentProps: Partial<Parameters<typeof TooltipContent>[0]> = {},

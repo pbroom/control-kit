@@ -65,9 +65,6 @@ describe('Tabs', () => {
     );
 
     act(() => {
-      triggers[1].dispatchEvent(
-        new MouseEvent('mousedown', { bubbles: true, button: 0 }),
-      );
       triggers[1].focus();
       triggers[1].click();
     });

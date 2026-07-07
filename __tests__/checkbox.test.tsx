@@ -4,32 +4,13 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Checkbox } from '../src/checkbox.js';
+import './helpers/dom-polyfills.js';
 
 const mountedRoots: Root[] = [];
 
 (
   globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }
 ).IS_REACT_ACT_ENVIRONMENT = true;
-
-// Base UI re-dispatches clicks as PointerEvents constructed from the
-// element's owner window, which jsdom does not implement.
-if (typeof window.PointerEvent === 'undefined') {
-  class TestPointerEvent extends MouseEvent {
-    pointerId: number;
-    pointerType: string;
-
-    constructor(type: string, init: PointerEventInit = {}) {
-      super(type, init);
-      this.pointerId = init.pointerId ?? 0;
-      this.pointerType = init.pointerType ?? 'mouse';
-    }
-  }
-
-  Object.defineProperty(window, 'PointerEvent', {
-    value: TestPointerEvent,
-    configurable: true,
-  });
-}
 
 function mountCheckbox(props: Partial<Parameters<typeof Checkbox>[0]> = {}) {
   const container = document.createElement('div');

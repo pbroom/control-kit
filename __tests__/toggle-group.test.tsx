@@ -15,7 +15,7 @@ const mountedRoots: Root[] = [];
   globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }
 ).IS_REACT_ACT_ENVIRONMENT = true;
 
-function mountToggleGroup(props: Partial<ToggleGroupProps> = {}) {
+function mountToggleGroup(props: ToggleGroupProps = {}) {
   const container = document.createElement('div');
   document.body.append(container);
   const root = createRoot(container);
@@ -23,7 +23,7 @@ function mountToggleGroup(props: Partial<ToggleGroupProps> = {}) {
 
   act(() => {
     root.render(
-      <ToggleGroup {...(props as ToggleGroupProps)}>
+      <ToggleGroup {...props}>
         <ToggleGroupItem value="a">A</ToggleGroupItem>
         <ToggleGroupItem value="b">B</ToggleGroupItem>
       </ToggleGroup>,
