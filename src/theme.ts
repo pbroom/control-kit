@@ -8,23 +8,23 @@
  */
 export const controlKitColor = {
   /** Base control background (inputs, unchecked checkbox, active tab). */
-  surface: 'var(--ck-surface, #383838)',
+  surface: 'var(--ck-surface,#383838)',
   /** Recessed panel background (tabs content). */
-  surfaceContent: 'var(--ck-surface-content, #1f1f1f)',
+  surfaceContent: 'var(--ck-surface-content,#1f1f1f)',
   /** Base text color; components apply opacity ramps on top of it. */
-  foreground: 'var(--ck-foreground, #ffffff)',
+  foreground: 'var(--ck-foreground,#ffffff)',
   /** Primary accent (focus rings, checked checkbox fill). */
-  accent: 'var(--ck-accent, #0d99ff)',
+  accent: 'var(--ck-accent,#0d99ff)',
   /** Border paired with accent fills (checked checkbox border). */
-  accentBorder: 'var(--ck-accent-border, #007be5)',
+  accentBorder: 'var(--ck-accent-border,#007be5)',
   /** Resting border for hovered and unchecked states. */
-  border: 'var(--ck-border, #4C4C4C)',
+  border: 'var(--ck-border,#4C4C4C)',
   /** Border while a value input is being edited. */
-  borderFocus: 'var(--ck-border-focus, #5288db)',
+  borderFocus: 'var(--ck-border-focus,#5288db)',
   /** Border while a value input is being scrubbed. */
-  borderScrub: 'var(--ck-border-scrub, #97c1ef)',
+  borderScrub: 'var(--ck-border-scrub,#97c1ef)',
   /** Border for invalid drafts. */
-  borderInvalid: 'var(--ck-border-invalid, #ff4e4e)',
+  borderInvalid: 'var(--ck-border-invalid,#ff4e4e)',
 } as const;
 
 export type ControlKitColorToken = keyof typeof controlKitColor;
