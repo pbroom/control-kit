@@ -26,6 +26,29 @@ The components render Tailwind utility class names. Apps that purge or source-sc
 @source '../node_modules/@color-kit/control-kit/src';
 ```
 
+## Theming
+
+Component colors resolve through `--ck-*` CSS custom properties with the
+default dark palette as fallbacks, so the components render identically with
+no configuration. To retheme, define any of the variables on a containing
+element:
+
+```css
+:root {
+  --ck-surface: #383838; /* control background */
+  --ck-surface-content: #1f1f1f; /* recessed panel background */
+  --ck-foreground: #ffffff; /* base text color */
+  --ck-accent: #0d99ff; /* focus rings, checked fills */
+  --ck-accent-border: #007be5; /* border paired with accent fills */
+  --ck-border: #4c4c4c; /* hover + resting borders */
+  --ck-border-focus: #5288db; /* value input while editing */
+  --ck-border-scrub: #97c1ef; /* value input while scrubbing */
+  --ck-border-invalid: #ff4e4e; /* invalid drafts */
+}
+```
+
+The same tokens are exported as `controlKitColor` for use in inline styles.
+
 ## Development
 
 ```sh

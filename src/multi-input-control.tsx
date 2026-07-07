@@ -11,6 +11,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from './tooltip.js';
+import { controlKitColor } from './theme.js';
 
 export type MultiInputFieldId = string;
 
@@ -234,11 +235,11 @@ export function MultiInputControl<TFieldId extends MultiInputFieldId>(
     [],
   );
   const borderColor = scrubbingField
-    ? '#97c1ef'
+    ? controlKitColor.borderScrub
     : isFocused
-      ? '#5288db'
+      ? controlKitColor.borderFocus
       : isHovered
-        ? '#4C4C4C'
+        ? controlKitColor.border
         : 'transparent';
 
   return (

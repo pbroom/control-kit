@@ -1,4 +1,6 @@
 export { cn } from './utils.js';
+export { controlKitColor } from './theme.js';
+export type { ControlKitColorToken } from './theme.js';
 export { Checkbox } from './checkbox.js';
 export type { CheckboxProps } from './checkbox.js';
 export { ToggleGroup, ToggleGroupItem } from './toggle-group.js';
