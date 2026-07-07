@@ -10,6 +10,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react';
+import { controlKitColor } from './theme.js';
 
 export type PrimitivePrecision = number;
 export type PrimitiveWrapMode = 'clamp' | 'wrap' | 'free';
@@ -1051,15 +1052,15 @@ export function PrimitiveValueInput({
   const isInvalid = showInvalidState || (isEditing && !isDraftValid);
   const borderColor =
     showInvalidBorder && isInvalid
-      ? '#ff4e4e'
+      ? controlKitColor.borderInvalid
       : isEmbeddedVisual
         ? 'transparent'
         : isScrubbing
-          ? '#97c1ef'
+          ? controlKitColor.borderScrub
           : isEditing
-            ? '#5288db'
+            ? controlKitColor.borderFocus
             : isHovered
-              ? '#4C4C4C'
+              ? controlKitColor.border
               : 'transparent';
   const hasTrailingElement =
     trailingElement !== null &&
@@ -1087,7 +1088,7 @@ export function PrimitiveValueInput({
       aria-hidden="true"
       className={
         hasHandleElement
-          ? 'flex h-full shrink-0 cursor-ew-resize touch-none select-none items-center justify-center font-medium tabular-nums text-white/55'
+          ? 'flex h-full shrink-0 cursor-ew-resize touch-none select-none items-center justify-center font-medium tabular-nums text-[color:var(--ck-foreground,#ffffff)]/55'
           : `absolute ${
               handleSide === 'leading' ? '-left-0.5' : '-right-0.5'
             } top-0 z-10 h-full w-[5px] cursor-ew-resize touch-none select-none`
@@ -1103,7 +1104,7 @@ export function PrimitiveValueInput({
     <div
       className={`relative box-border flex min-w-0 max-w-full items-center ${
         isEmbeddedVisual ? 'rounded-none' : 'rounded-[4px]'
-      } border bg-[#383838] p-0 font-sans text-white ${
+      } border bg-[var(--ck-surface,#383838)] p-0 font-sans text-[color:var(--ck-foreground,#ffffff)] ${
         PRIMITIVE_SIZE_CLASS[size]
       } ${PRIMITIVE_DENSITY_CLASS[density]} ${disabled ? 'opacity-45' : ''}`}
       style={{ borderColor }}
@@ -1123,11 +1124,11 @@ export function PrimitiveValueInput({
         aria-valuemax={wrapMode === 'free' ? undefined : max}
         aria-valuenow={ariaValueNow}
         placeholder={placeholder}
-        className="h-full min-w-0 flex-1 cursor-default bg-transparent py-0 pl-1 pr-0 font-sans tabular-nums text-white outline-none focus:cursor-text disabled:cursor-not-allowed"
+        className="h-full min-w-0 flex-1 cursor-default bg-transparent py-0 pl-1 pr-0 font-sans tabular-nums text-[color:var(--ck-foreground,#ffffff)] outline-none focus:cursor-text disabled:cursor-not-allowed"
         {...inputProps}
       />
       {hasTrailingElement && !trailingElementFeedsHandle ? (
-        <span className="flex h-full w-5 shrink-0 select-none items-center justify-center text-[11px] font-medium leading-4 text-white/50">
+        <span className="flex h-full w-5 shrink-0 select-none items-center justify-center text-[11px] font-medium leading-4 text-[color:var(--ck-foreground,#ffffff)]/50">
           {trailingElement}
         </span>
       ) : null}
