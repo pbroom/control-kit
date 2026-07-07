@@ -12,6 +12,7 @@ import {
   type MultiInputValues,
 } from '../src/multi-input-control.js';
 import { PrimitiveValueInput } from '../src/primitive-value-input.js';
+import './helpers/dom-polyfills.js';
 
 const noop = () => {};
 const mountedRoots: Root[] = [];
@@ -19,22 +20,6 @@ const mountedRoots: Root[] = [];
 (
   globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }
 ).IS_REACT_ACT_ENVIRONMENT = true;
-
-if (typeof globalThis.PointerEvent === 'undefined') {
-  class TestPointerEvent extends MouseEvent {
-    pointerId: number;
-
-    constructor(type: string, init: PointerEventInit = {}) {
-      super(type, init);
-      this.pointerId = init.pointerId ?? 0;
-    }
-  }
-
-  Object.defineProperty(globalThis, 'PointerEvent', {
-    value: TestPointerEvent,
-    configurable: true,
-  });
-}
 
 function renderPrimitive(
   props: Partial<Parameters<typeof PrimitiveValueInput>[0]> = {},
