@@ -139,7 +139,7 @@ export async function selectPerformancePanelView(
             Number.isFinite(targetHeight) &&
             Math.abs(renderedHeight - targetHeight) <= 0.5;
 
-          if (hasReachedTarget || window.performance.now() - startTime > 1000) {
+          if (hasReachedTarget || window.performance.now() - startTime > 3000) {
             resolve();
             return;
           }
