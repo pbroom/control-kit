@@ -481,6 +481,12 @@ export function LabPerformanceAnalysisPanel({
       '[data-lab-performance-panel-view-controls]',
     );
     const metricsTable = contentNode.querySelector('table');
+    const metricsPanel = contentNode.querySelector(
+      '#lab-performance-metrics-panel',
+    );
+    const metricsScrollArea = contentNode.querySelector(
+      '[data-testid="lab-performance-metrics-scroll-area"]',
+    );
     const timelineShell = contentNode.querySelector(
       '[data-testid="lab-performance-timeline-shell"]',
     );
@@ -494,13 +500,21 @@ export function LabPerformanceAnalysisPanel({
         ? height
         : panelViewControlsHeight,
     );
+    const metricsTableHeight = metricsTable?.scrollHeight ?? 0;
+    const timelineHeight = timelineShell?.scrollHeight ?? 0;
+    const metricsRowGap =
+      Number.parseFloat(
+        metricsPanel ? window.getComputedStyle(metricsPanel).rowGap : '0',
+      ) || 0;
+    const metricsAreStacked =
+      metricsScrollArea !== null &&
+      metricsPanel !== null &&
+      metricsScrollArea.clientWidth >= metricsPanel.clientWidth - 1;
+    const metricsBodyHeight = metricsAreStacked
+      ? metricsTableHeight + timelineHeight + metricsRowGap
+      : Math.max(metricsTableHeight, timelineHeight);
     const metricsContentHeight =
-      Math.max(
-        metricsTable?.scrollHeight ?? 0,
-        timelineShell?.scrollHeight ?? 0,
-      ) +
-      panelViewControlsHeight +
-      panelViewGap;
+      metricsBodyHeight + panelViewControlsHeight + panelViewGap;
     const structureContentHeight =
       (primitiveStructureShell?.scrollHeight ?? 0) +
       panelViewControlsHeight +
@@ -760,8 +774,9 @@ export function LabPerformanceAnalysisPanel({
             tabIndex={0}
           >
             <ScrollArea
-              className="h-[var(--lab-performance-panel-body-max-height)] min-h-0 min-w-0"
+              className="h-fit max-h-[var(--lab-performance-panel-body-max-height)] min-h-0 min-w-0 lg:h-[var(--lab-performance-panel-body-max-height)]"
               data-testid="lab-performance-metrics-scroll-area"
+              preventWheelPropagationWhenFit
               viewportProps={{
                 className: 'overscroll-contain pr-1',
                 id: 'lab-performance-metrics-viewport',
@@ -778,6 +793,7 @@ export function LabPerformanceAnalysisPanel({
             className="h-[var(--lab-performance-panel-body-max-height)] min-h-0 min-w-0"
             data-testid="lab-performance-structure-scroll-area"
             hidden={activePanelView !== 'structure'}
+            preventWheelPropagationWhenFit
             viewportProps={{
               'aria-labelledby': 'lab-performance-structure-tab',
               className: 'overscroll-contain pr-1',

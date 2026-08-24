@@ -141,6 +141,59 @@ test('removes phantom Structure overflow while preserving real scrolling', async
   await page.mouse.move(0, 0);
   await expect(customScrollbar).toHaveCount(0);
 
+  const resizeHandle = performancePanel.getByLabel(
+    'Resize performance analysis panel',
+    { exact: true },
+  );
+  const fittedHeight = Number(await resizeHandle.getAttribute('aria-valuemax'));
+  const resizeHandleBox = await resizeHandle.boundingBox();
+  expect(resizeHandleBox).not.toBeNull();
+  await page.mouse.move(
+    resizeHandleBox!.x + resizeHandleBox!.width / 2,
+    resizeHandleBox!.y + resizeHandleBox!.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(
+    resizeHandleBox!.x + resizeHandleBox!.width / 2,
+    resizeHandleBox!.y - 96,
+    { steps: 4 },
+  );
+  await expect
+    .poll(async () => (await performancePanel.boundingBox())?.height ?? 0)
+    .toBeGreaterThan(fittedHeight);
+  await page.mouse.up();
+  await expect
+    .poll(async () => {
+      const height = (await performancePanel.boundingBox())?.height ?? 0;
+      return Math.abs(height - fittedHeight);
+    })
+    .toBeLessThanOrEqual(1);
+
+  const labPageScroll = page.locator('[data-lab-page-scroll]');
+  await labPageScroll.evaluate((node) => {
+    node.scrollTop = Math.max(0, node.scrollHeight - node.clientHeight - 1);
+  });
+  const scrollStateBeforeFitWheel = await Promise.all([
+    structureViewport.evaluate((node) => node.scrollTop),
+    labPageScroll.evaluate((node) => node.scrollTop),
+  ]);
+  const fittedViewportBox = await structureViewport.boundingBox();
+  expect(fittedViewportBox).not.toBeNull();
+  await page.mouse.move(
+    fittedViewportBox!.x + fittedViewportBox!.width / 2,
+    fittedViewportBox!.y + Math.min(80, fittedViewportBox!.height / 2),
+  );
+  await page.mouse.wheel(0, 20);
+  await page.waitForTimeout(100);
+  await expect(structureViewport).toHaveJSProperty(
+    'scrollTop',
+    scrollStateBeforeFitWheel[0],
+  );
+  await expect(labPageScroll).toHaveJSProperty(
+    'scrollTop',
+    scrollStateBeforeFitWheel[1],
+  );
+
   await page.setViewportSize({ height: 720, width: 1281 });
   await expect
     .poll(() =>
@@ -150,10 +203,6 @@ test('removes phantom Structure overflow while preserving real scrolling', async
     )
     .toBeLessThanOrEqual(0);
 
-  const resizeHandle = performancePanel.getByLabel(
-    'Resize performance analysis panel',
-    { exact: true },
-  );
   for (let index = 0; index < 3; index += 1) {
     const previousHeight = Number(
       await resizeHandle.getAttribute('aria-valuenow'),
@@ -184,6 +233,68 @@ test('removes phantom Structure overflow while preserving real scrolling', async
   await expect
     .poll(() => structureViewport.evaluate((node) => node.scrollTop))
     .toBeGreaterThan(scrollTopBefore);
+
+  expect(browserErrors).toEqual([]);
+});
+
+test('fits the stacked mobile Metrics view without clipping its timeline', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile', 'mobile layout coverage');
+  const browserErrors = await collectBrowserErrors(page);
+
+  await openLabRoot(page);
+
+  const colorPlanePanel = performancePanelFor(page, 'ColorPlane');
+  const expectMetricsToFit = async (
+    performancePanel: typeof colorPlanePanel,
+  ) => {
+    await selectPerformancePanelView(performancePanel, 'Metrics');
+    const metricsViewport = performancePanel.locator(
+      '#lab-performance-metrics-viewport',
+    );
+    const timelineShell = performancePanel.getByTestId(
+      'lab-performance-timeline-shell',
+    );
+    const panelSurface = performancePanel.locator(
+      '[data-lab-performance-panel-surface]',
+    );
+
+    await expect
+      .poll(() =>
+        metricsViewport.evaluate(
+          (node) => node.scrollHeight - node.clientHeight,
+        ),
+      )
+      .toBeLessThanOrEqual(0);
+    await expect
+      .poll(async () => {
+        const [surfaceBox, timelineBox] = await Promise.all([
+          panelSurface.boundingBox(),
+          timelineShell.boundingBox(),
+        ]);
+
+        if (!surfaceBox || !timelineBox) {
+          return Number.POSITIVE_INFINITY;
+        }
+
+        return (
+          timelineBox.y +
+          timelineBox.height -
+          (surfaceBox.y + surfaceBox.height)
+        );
+      })
+      .toBeLessThanOrEqual(-8);
+    await expect
+      .poll(() =>
+        panelSurface.evaluate((node) => node.scrollHeight - node.clientHeight),
+      )
+      .toBeLessThanOrEqual(2);
+  };
+
+  await expectMetricsToFit(colorPlanePanel);
+  await page.getByRole('link', { name: 'Input Multi', exact: true }).click();
+  await expectMetricsToFit(performancePanelFor(page, 'Input Multi'));
 
   expect(browserErrors).toEqual([]);
 });

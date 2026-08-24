@@ -5,13 +5,57 @@ import { cn } from '@/lib/utils';
 function ScrollArea({
   className,
   children,
+  preventWheelPropagationWhenFit = false,
   viewportProps,
   ...props
 }: React.ComponentProps<typeof ScrollAreaPrimitive.Root> & {
+  preventWheelPropagationWhenFit?: boolean;
   viewportProps?: React.ComponentProps<typeof ScrollAreaPrimitive.Viewport>;
 }) {
-  const { className: viewportClassName, ...resolvedViewportProps } =
-    viewportProps ?? {};
+  const {
+    className: viewportClassName,
+    ref: viewportRef,
+    ...resolvedViewportProps
+  } = viewportProps ?? {};
+  const internalViewportRef = React.useRef<HTMLDivElement | null>(null);
+
+  const setViewportRef = React.useCallback(
+    (node: HTMLDivElement | null) => {
+      internalViewportRef.current = node;
+
+      if (typeof viewportRef === 'function') {
+        viewportRef(node);
+      } else if (viewportRef) {
+        viewportRef.current = node;
+      }
+    },
+    [viewportRef],
+  );
+
+  React.useEffect(() => {
+    const viewport = internalViewportRef.current;
+
+    if (!preventWheelPropagationWhenFit || !viewport) {
+      return;
+    }
+
+    // A zero-range overflow viewport is not a scroll-chain boundary in Chrome,
+    // so a non-passive listener is required for opt-in static fitted regions.
+    const preventFitWheelPropagation = (event: WheelEvent) => {
+      if (viewport.scrollHeight <= viewport.clientHeight) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
+
+    viewport.addEventListener('wheel', preventFitWheelPropagation, {
+      passive: false,
+    });
+
+    return () => {
+      viewport.removeEventListener('wheel', preventFitWheelPropagation);
+    };
+  }, [preventWheelPropagationWhenFit]);
 
   return (
     <ScrollAreaPrimitive.Root
@@ -23,6 +67,7 @@ function ScrollArea({
         {...resolvedViewportProps}
         data-slot="scroll-area-viewport"
         className={cn('size-full rounded-[inherit]', viewportClassName)}
+        ref={setViewportRef}
       >
         {children}
       </ScrollAreaPrimitive.Viewport>
