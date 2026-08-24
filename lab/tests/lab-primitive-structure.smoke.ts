@@ -211,6 +211,8 @@ test('renders the primitive structure tab as a nonblank orthographic view', asyn
   const browserErrors = await collectBrowserErrors(page);
 
   await openLabRoot(page);
+  await page.goto('/lab/color-plane');
+  await expect(page).toHaveURL(/\/lab\/color-plane$/);
 
   const colorPlanePanel = performancePanelFor(page, 'ColorPlane');
   const metricsTab = colorPlanePanel.getByRole('tab', {

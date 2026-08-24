@@ -26,7 +26,8 @@ type LabPageRouteMetadata = {
 };
 
 export const LAB_PAGE_ROUTE_REGISTRY = {
-  plane: { slug: 'color-plane', label: 'ColorPlane' },
+  plane: { slug: 'plane', label: 'Plane' },
+  colorPlane: { slug: 'color-plane', label: 'ColorPlane' },
   input: { slug: 'input-primitive', label: 'Input Primitive' },
   inputMulti: { slug: 'input-multi', label: 'Input Multi' },
   checkbox: { slug: 'checkbox', label: 'Checkbox' },

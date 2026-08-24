@@ -101,6 +101,52 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
   LabPerformanceAnalysis
 > = {
   plane: {
+    label: 'Plane',
+    primitiveStructure: definePrimitiveStructure(
+      'Plane primitive',
+      'A normalized two-dimensional input surface with an accessible marker.',
+      structureNode({
+        children: [
+          structureNode({
+            component: 'PlaneThumb',
+            detail:
+              'Positioned marker with two native range axes for keyboard and assistive input.',
+            id: 'plane-thumb',
+            label: 'Thumb',
+            relation: 'child',
+            slot: 'children',
+            state: 'default',
+            view: {
+              color: '#f8fafc',
+              width: 0.58,
+              height: 0.58,
+              depth: 0.18,
+              offsetX: -0.62,
+              offsetY: 0.42,
+              offsetZ: 0.5,
+              opacity: 0.96,
+            },
+          }),
+        ],
+        component: 'Plane',
+        detail:
+          'Pointer-capturing normalized XY interaction surface and composition root.',
+        id: 'plane-root',
+        label: 'Plane',
+        relation: 'root',
+        state: 'default',
+        view: {
+          color: '#18181b',
+          width: 4.8,
+          height: 3.4,
+          depth: 0.22,
+          offsetZ: -0.2,
+          opacity: 0.92,
+        },
+      }),
+    ),
+  },
+  colorPlane: {
     label: 'ColorPlane',
     primitiveStructure: definePrimitiveStructure(
       'ColorPlane primitive',
@@ -833,7 +879,8 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
 };
 
 export const LAB_PAGE_RESOURCE_HINTS: Record<LabPageKey, readonly string[]> = {
-  plane: ['color-plane'],
+  plane: ['pages/plane', '/src/plane'],
+  colorPlane: ['color-plane'],
   input: ['pages/input', 'input-'],
   inputMulti: ['input-multi'],
   checkbox: ['checkbox'],

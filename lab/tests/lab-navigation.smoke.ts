@@ -45,9 +45,7 @@ test('mirrors lab pages, routes, loading slots, and panel toggles', async ({
       exact: true,
     });
 
-    if (index > 0) {
-      await navLink.click();
-    }
+    await navLink.click();
 
     await expect(page).toHaveURL(new RegExp(`/lab/${labPage.slug}$`));
     await expect(navLink).toHaveAttribute('aria-current', 'page');
@@ -167,9 +165,9 @@ test('mirrors lab pages, routes, loading slots, and panel toggles', async ({
   );
 
   await page.goto('/lab/not-a-component');
-  await expect(page).toHaveURL(/\/lab\/color-plane$/);
+  await expect(page).toHaveURL(/\/lab\/plane$/);
   await expect(page.locator('aside')).toContainText(
-    'Drive the current sample color.',
+    'Move a normalized 2D position with pointer or keyboard input.',
   );
 
   expect(browserErrors).toEqual([]);

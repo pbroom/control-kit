@@ -24,6 +24,8 @@ import {
 import {
   Checkbox,
   MultiInputControl,
+  Plane,
+  PlaneThumb,
   PrimitiveValueInput,
   Tabs,
   TabsList,
@@ -37,6 +39,8 @@ import {
   normalizePrimitivePrecision,
   type MultiInputConfig as ControlMultiInputConfig,
   type MultiInputField,
+  type PlaneInteraction,
+  type PlaneValue,
   type PrimitiveDensity,
   type PrimitiveExpressionParser,
   type PrimitiveHandleSide,
@@ -146,6 +150,7 @@ import { LabPageFrame } from './lab-page-frame.js';
 type OutputGamut = 'display-p3' | 'srgb';
 type LabPageKey =
   | 'plane'
+  | 'colorPlane'
   | 'input'
   | 'inputMulti'
   | 'checkbox'
@@ -2764,6 +2769,8 @@ export {
   Menu,
   MenuPlaygroundStage,
   MultiInputControl,
+  Plane,
+  PlaneThumb,
   MultiInputPlaygroundStage,
   NumberConfigField,
   PANEL_TWO_COLUMN_GRID_CLASS,
@@ -2819,6 +2826,8 @@ export type {
   MultiInputConfig,
   MultiInputFieldId,
   OutputGamut,
+  PlaneInteraction,
+  PlaneValue,
   PlacementAlign,
   PlacementSide,
   PrimitiveDensity,

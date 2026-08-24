@@ -25,7 +25,8 @@ export const COMPACT_DESKTOP_VIEWPORT = { height: 998, width: 1182 };
 export const LAB_COLLAPSED_PANEL_HANDLE_HEIGHT = 32;
 
 const LAB_PAGE_PANEL_TEXT = {
-  plane: 'Drive the current sample color.',
+  plane: 'Move a normalized 2D position with pointer or keyboard input.',
+  colorPlane: 'Drive the current sample color.',
   input: 'Choose what appears inside the scrub handle.',
   inputMulti: 'Configure the selected color channel input.',
   checkbox:
@@ -154,7 +155,7 @@ export async function selectPerformancePanelView(
 
 export async function openLabRoot(page: Page) {
   await page.goto('/');
-  await expect(page).toHaveURL(/\/lab\/color-plane$/);
+  await expect(page).toHaveURL(/\/lab\/plane$/);
   await expect(
     page.locator('main').getByText('control-kit', { exact: true }),
   ).toBeVisible();

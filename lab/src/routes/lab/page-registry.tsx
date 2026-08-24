@@ -17,8 +17,12 @@ const LAB_PAGE_LOADERS: Record<
   () => Promise<{ default: ActiveLabPageComponent }>
 > = {
   plane: () =>
-    import('./pages/color-plane.js').then((module) => ({
+    import('./pages/plane.js').then((module) => ({
       default: module.PlaneLabActivePage,
+    })),
+  colorPlane: () =>
+    import('./pages/color-plane.js').then((module) => ({
+      default: module.ColorPlaneLabActivePage,
     })),
   input: () =>
     import('./pages/input.js').then((module) => ({
