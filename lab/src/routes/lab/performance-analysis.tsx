@@ -10,6 +10,7 @@ import type {
   MouseEvent as ReactMouseEvent,
   PointerEvent as ReactPointerEvent,
 } from 'react';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger, type LabPageKey } from './shared.js';
 import { LAB_PERFORMANCE_ANALYSIS } from './performance-analysis/config.js';
 import { LabMetricTable } from './performance-analysis/metrics-table.js';
@@ -35,8 +36,6 @@ import {
 } from './performance-analysis/telemetry.js';
 import type { LabPerformancePanelStyle } from './performance-analysis/types.js';
 
-const LAB_PERFORMANCE_PANEL_SCROLLBAR_ACTIVE_MS = 700;
-const LAB_PERFORMANCE_PANEL_SCROLLBAR_REVEAL_ZONE_PX = 24;
 const LAB_PERFORMANCE_PANEL_TAB_FIT_SUPPRESSION_MS = 260;
 const LAB_PERFORMANCE_PANEL_HELD_MAX_RELEASE_MS = 500;
 const LAB_PERFORMANCE_PANEL_DEFAULT_VIEW_CONTROLS_HEIGHT = 40;
@@ -70,9 +69,6 @@ export function LabPerformanceAnalysisPanel({
     LAB_PERFORMANCE_PANEL_DEFAULT_HEIGHT,
   );
   const [isResizingPanel, setIsResizingPanel] = useState(false);
-  const [isPanelScrollbarActive, setIsPanelScrollbarActive] = useState(false);
-  const [isPanelScrollbarRailHovered, setIsPanelScrollbarRailHovered] =
-    useState(false);
   const [panelViewControlsHeight, setPanelViewControlsHeight] = useState(
     LAB_PERFORMANCE_PANEL_DEFAULT_VIEW_CONTROLS_HEIGHT,
   );
@@ -88,7 +84,6 @@ export function LabPerformanceAnalysisPanel({
   const previousPanelViewRef = useRef(activePanelView);
   const userSizedPanelRef = useRef(false);
   const isPanelPointerInsideRef = useRef(false);
-  const panelScrollbarIdleTimerRef = useRef<number | null>(null);
   const panelTabFitSuppressionTimerRef = useRef<number | null>(null);
   const heldPanelMaxHeightReleaseTimerRef = useRef<number | null>(null);
   const panelViewFitTimerRef = useRef<number | null>(null);
@@ -330,36 +325,6 @@ export function LabPerformanceAnalysisPanel({
     [onCollapsedChange],
   );
 
-  const showPanelScrollbar = useCallback(() => {
-    if (panelScrollbarIdleTimerRef.current !== null) {
-      window.clearTimeout(panelScrollbarIdleTimerRef.current);
-    }
-
-    setIsPanelScrollbarActive(true);
-    panelScrollbarIdleTimerRef.current = window.setTimeout(() => {
-      panelScrollbarIdleTimerRef.current = null;
-      setIsPanelScrollbarActive(false);
-    }, LAB_PERFORMANCE_PANEL_SCROLLBAR_ACTIVE_MS);
-  }, []);
-
-  const syncPanelScrollbarRailHover = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>) => {
-      const rect = event.currentTarget.getBoundingClientRect();
-      const distanceFromRightEdge = rect.right - event.clientX;
-
-      setIsPanelScrollbarRailHovered(
-        distanceFromRightEdge >= 0 &&
-          distanceFromRightEdge <=
-            LAB_PERFORMANCE_PANEL_SCROLLBAR_REVEAL_ZONE_PX,
-      );
-    },
-    [],
-  );
-
-  const hidePanelScrollbarRailHover = useCallback(() => {
-    setIsPanelScrollbarRailHovered(false);
-  }, []);
-
   const suppressPanelFitForTabSwitch = useCallback(() => {
     if (panelTabFitSuppressionTimerRef.current !== null) {
       window.clearTimeout(panelTabFitSuppressionTimerRef.current);
@@ -389,9 +354,7 @@ export function LabPerformanceAnalysisPanel({
     const nextMaxHeight = intendedPanelMaxHeightRef.current;
     heldPanelMaxHeightRef.current = null;
     suppressAnalysisSurfaceLayoutShifts();
-    setPanelMaxHeight((height) =>
-      Math.abs(height - nextMaxHeight) <= 1 ? height : nextMaxHeight,
-    );
+    setPanelMaxHeight(nextMaxHeight);
 
     if (isCollapsed === true) {
       return;
@@ -490,9 +453,6 @@ export function LabPerformanceAnalysisPanel({
 
   useEffect(() => {
     return () => {
-      if (panelScrollbarIdleTimerRef.current !== null) {
-        window.clearTimeout(panelScrollbarIdleTimerRef.current);
-      }
       if (panelTabFitSuppressionTimerRef.current !== null) {
         window.clearTimeout(panelTabFitSuppressionTimerRef.current);
       }
@@ -521,6 +481,12 @@ export function LabPerformanceAnalysisPanel({
       '[data-lab-performance-panel-view-controls]',
     );
     const metricsTable = contentNode.querySelector('table');
+    const metricsPanel = contentNode.querySelector(
+      '#lab-performance-metrics-panel',
+    );
+    const metricsScrollArea = contentNode.querySelector(
+      '[data-testid="lab-performance-metrics-scroll-area"]',
+    );
     const timelineShell = contentNode.querySelector(
       '[data-testid="lab-performance-timeline-shell"]',
     );
@@ -534,19 +500,28 @@ export function LabPerformanceAnalysisPanel({
         ? height
         : panelViewControlsHeight,
     );
+    const metricsTableHeight = metricsTable?.scrollHeight ?? 0;
+    const timelineHeight = timelineShell?.scrollHeight ?? 0;
+    const metricsRowGap =
+      Number.parseFloat(
+        metricsPanel ? window.getComputedStyle(metricsPanel).rowGap : '0',
+      ) || 0;
+    const metricsAreStacked =
+      metricsScrollArea !== null &&
+      metricsPanel !== null &&
+      metricsScrollArea.clientWidth >= metricsPanel.clientWidth - 1;
+    const metricsBodyHeight = metricsAreStacked
+      ? metricsTableHeight + timelineHeight + metricsRowGap
+      : Math.max(metricsTableHeight, timelineHeight);
     const metricsContentHeight =
-      Math.max(
-        metricsTable?.scrollHeight ?? 0,
-        timelineShell?.scrollHeight ?? 0,
-      ) +
-      panelViewControlsHeight +
-      panelViewGap;
+      metricsBodyHeight + panelViewControlsHeight + panelViewGap;
     const structureContentHeight =
       (primitiveStructureShell?.scrollHeight ?? 0) +
       panelViewControlsHeight +
       panelViewGap;
+    // ScrollArea roots mirror the current panel height, so fit against their
+    // intrinsic view content instead of feeding that constrained height back in.
     const contentHeight = Math.max(
-      contentNode.scrollHeight,
       metricsContentHeight,
       structureContentHeight,
     );
@@ -558,19 +533,13 @@ export function LabPerformanceAnalysisPanel({
 
     const heldPanelMaxHeight = heldPanelMaxHeightRef.current;
     if (heldPanelMaxHeight !== null && heldPanelMaxHeight > nextHeight) {
-      setPanelMaxHeight((height) =>
-        Math.abs(height - heldPanelMaxHeight) <= 1
-          ? height
-          : heldPanelMaxHeight,
-      );
+      setPanelMaxHeight(heldPanelMaxHeight);
     } else {
       if (heldPanelMaxHeight !== null) {
         heldPanelMaxHeightRef.current = null;
       }
 
-      setPanelMaxHeight((height) =>
-        Math.abs(height - nextHeight) <= 1 ? height : nextHeight,
-      );
+      setPanelMaxHeight(nextHeight);
     }
 
     if (isCollapsed === true) {
@@ -586,9 +555,7 @@ export function LabPerformanceAnalysisPanel({
       return;
     }
 
-    setPanelHeight((height) =>
-      Math.abs(height - nextHeight) <= 1 ? height : nextHeight,
-    );
+    setPanelHeight(nextHeight);
   }, [isCollapsed]);
 
   useLayoutEffect(() => {
@@ -806,46 +773,34 @@ export function LabPerformanceAnalysisPanel({
             role="tabpanel"
             tabIndex={0}
           >
-            <div
-              className={[
-                'ck-lab-performance-panel-scroll ck-lab-performance-metrics-scroll max-h-[var(--lab-performance-panel-body-max-height)] min-h-0 min-w-0 overflow-y-auto overscroll-contain pr-1',
-                isPanelScrollbarActive || isPanelScrollbarRailHovered
-                  ? 'ck-lab-performance-panel-scroll-active ck-lab-performance-metrics-scroll-active'
-                  : null,
-              ]
-                .filter(Boolean)
-                .join(' ')}
-              data-testid="lab-performance-metrics-shell"
-              onPointerLeave={hidePanelScrollbarRailHover}
-              onPointerMove={syncPanelScrollbarRailHover}
-              onScroll={showPanelScrollbar}
-              onWheel={showPanelScrollbar}
+            <ScrollArea
+              className="h-fit max-h-[var(--lab-performance-panel-body-max-height)] min-h-0 min-w-0 lg:h-[var(--lab-performance-panel-body-max-height)]"
+              data-testid="lab-performance-metrics-scroll-area"
+              preventWheelPropagationWhenFit
+              viewportProps={{
+                className: 'overscroll-contain pr-1',
+                id: 'lab-performance-metrics-viewport',
+              }}
             >
               <LabMetricTable vitals={vitals} />
-            </div>
+            </ScrollArea>
             <LabPerformanceTimeline
               events={timeline}
               currentTimeMs={timelineTimeMs}
             />
           </div>
-          <div
-            aria-labelledby="lab-performance-structure-tab"
-            className={[
-              'ck-lab-performance-panel-scroll ck-lab-performance-structure-scroll max-h-[var(--lab-performance-panel-body-max-height)] min-h-0 min-w-0 overflow-y-auto overscroll-contain pr-1',
-              isPanelScrollbarActive || isPanelScrollbarRailHovered
-                ? 'ck-lab-performance-panel-scroll-active'
-                : null,
-            ]
-              .filter(Boolean)
-              .join(' ')}
+          <ScrollArea
+            className="h-[var(--lab-performance-panel-body-max-height)] min-h-0 min-w-0"
+            data-testid="lab-performance-structure-scroll-area"
             hidden={activePanelView !== 'structure'}
-            id="lab-performance-structure-panel"
-            onPointerLeave={hidePanelScrollbarRailHover}
-            onPointerMove={syncPanelScrollbarRailHover}
-            onScroll={showPanelScrollbar}
-            onWheel={showPanelScrollbar}
-            role="tabpanel"
-            tabIndex={0}
+            preventWheelPropagationWhenFit
+            viewportProps={{
+              'aria-labelledby': 'lab-performance-structure-tab',
+              className: 'overscroll-contain pr-1',
+              id: 'lab-performance-structure-panel',
+              role: 'tabpanel',
+              tabIndex: 0,
+            }}
           >
             {activePanelView === 'structure' ? (
               <LabPrimitiveStructureView
@@ -853,7 +808,7 @@ export function LabPerformanceAnalysisPanel({
                 structure={analysis.primitiveStructure}
               />
             ) : null}
-          </div>
+          </ScrollArea>
         </div>
       </div>
     </section>

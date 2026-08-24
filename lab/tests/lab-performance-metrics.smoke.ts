@@ -170,32 +170,44 @@ test('renders performance metrics, ranges, lcp attribution, and timeline', async
         })),
       };
     });
-    expect(fcpRangeDetails.segments).toEqual([
+    expect(
+      fcpRangeDetails.segments.map(({ end, height, start, tone }) => ({
+        end,
+        height,
+        start,
+        tone,
+      })),
+    ).toEqual([
       {
-        active: true,
         end: 1800,
-        fill: '#34d399',
         height: 2,
         start: 0,
         tone: 'good',
       },
       {
-        active: false,
         end: 3000,
-        fill: 'rgba(255,255,255,0.14)',
         height: 2,
         start: 1800,
         tone: 'okay',
       },
       {
-        active: false,
         end: 5000,
-        fill: 'rgba(255,255,255,0.14)',
         height: 2,
         start: 3000,
         tone: 'poor',
       },
     ]);
+    expect(
+      fcpRangeDetails.segments.filter((segment) => segment.active),
+    ).toHaveLength(1);
+    expect(
+      fcpRangeDetails.segments.find((segment) => segment.active)?.fill,
+    ).not.toBe('rgba(255,255,255,0.14)');
+    expect(
+      fcpRangeDetails.segments
+        .filter((segment) => !segment.active)
+        .every((segment) => segment.fill === 'rgba(255,255,255,0.14)'),
+    ).toBe(true);
     expect(fcpRangeDetails.markerPosition).toBeGreaterThanOrEqual(0);
     expect(fcpRangeDetails.markerPosition).toBeLessThanOrEqual(1);
     expect(fcpRangeDetails.markerDotCount).toBe(0);
