@@ -127,22 +127,19 @@ export async function selectPerformancePanelView(
   await performancePanel.evaluate(
     (node) =>
       new Promise<void>((resolve) => {
-        let lastHeight = Number.NaN;
-        let stableFrames = 0;
         const startTime = window.performance.now();
 
         const checkHeight = () => {
-          const height = node.getBoundingClientRect().height;
-          const isStable =
-            Number.isFinite(lastHeight) && Math.abs(height - lastHeight) < 0.5;
+          const style = window.getComputedStyle(node);
+          const targetHeight = Number.parseFloat(
+            style.getPropertyValue('--lab-performance-panel-frame-height'),
+          );
+          const renderedHeight = node.getBoundingClientRect().height;
+          const hasReachedTarget =
+            Number.isFinite(targetHeight) &&
+            Math.abs(renderedHeight - targetHeight) <= 0.5;
 
-          stableFrames = isStable ? stableFrames + 1 : 0;
-          lastHeight = height;
-
-          if (
-            stableFrames >= 3 ||
-            window.performance.now() - startTime > 1000
-          ) {
+          if (hasReachedTarget || window.performance.now() - startTime > 1000) {
             resolve();
             return;
           }

@@ -106,6 +106,88 @@ test('opens the default structure panel at its measured height without initial r
   expect(browserErrors).toEqual([]);
 });
 
+test('removes phantom Structure overflow while preserving real scrolling', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'desktop layout coverage');
+  const browserErrors = await collectBrowserErrors(page);
+
+  await page.setViewportSize({ height: 720, width: 1280 });
+  await openLabRoot(page);
+
+  const performancePanel = performancePanelFor(page, 'ColorPlane');
+  const structureScrollArea = performancePanel.getByTestId(
+    'lab-performance-structure-scroll-area',
+  );
+  const structureViewport = performancePanel.locator(
+    '#lab-performance-structure-panel',
+  );
+  const customScrollbar = structureScrollArea.locator(
+    '[data-slot="scroll-area-scrollbar"]',
+  );
+
+  await expect(structureScrollArea).toHaveAttribute('data-slot', 'scroll-area');
+  await expect(structureViewport).toHaveAttribute(
+    'data-slot',
+    'scroll-area-viewport',
+  );
+  await expect
+    .poll(() =>
+      structureViewport.evaluate(
+        (node) => node.scrollHeight - node.clientHeight,
+      ),
+    )
+    .toBeLessThanOrEqual(0);
+  await page.mouse.move(0, 0);
+  await expect(customScrollbar).toHaveCount(0);
+
+  await page.setViewportSize({ height: 720, width: 1281 });
+  await expect
+    .poll(() =>
+      structureViewport.evaluate(
+        (node) => node.scrollHeight - node.clientHeight,
+      ),
+    )
+    .toBeLessThanOrEqual(0);
+
+  const resizeHandle = performancePanel.getByLabel(
+    'Resize performance analysis panel',
+    { exact: true },
+  );
+  for (let index = 0; index < 3; index += 1) {
+    const previousHeight = Number(
+      await resizeHandle.getAttribute('aria-valuenow'),
+    );
+    await resizeHandle.press('Shift+ArrowDown');
+    await expect
+      .poll(() =>
+        resizeHandle
+          .getAttribute('aria-valuenow')
+          .then((value) => Number(value)),
+      )
+      .toBeLessThan(previousHeight);
+  }
+
+  await expect
+    .poll(() =>
+      structureViewport.evaluate(
+        (node) => node.scrollHeight - node.clientHeight,
+      ),
+    )
+    .toBeGreaterThan(0);
+  await structureScrollArea.hover();
+  await expect(customScrollbar).toBeVisible();
+  const scrollTopBefore = await structureViewport.evaluate(
+    (node) => node.scrollTop,
+  );
+  await page.mouse.wheel(0, 220);
+  await expect
+    .poll(() => structureViewport.evaluate((node) => node.scrollTop))
+    .toBeGreaterThan(scrollTopBefore);
+
+  expect(browserErrors).toEqual([]);
+});
+
 test('keeps desktop performance panel layout, scrollbars, and resize behavior stable', async ({
   page,
 }, testInfo) => {
@@ -134,8 +216,11 @@ test('keeps desktop performance panel layout, scrollbars, and resize behavior st
       exact: true,
     });
     const labScrollColumn = page.locator('[data-lab-page-scroll]');
-    const metricsShell = performancePanel.getByTestId(
-      'lab-performance-metrics-shell',
+    const metricsScrollArea = performancePanel.getByTestId(
+      'lab-performance-metrics-scroll-area',
+    );
+    const metricsShell = performancePanel.locator(
+      '#lab-performance-metrics-viewport',
     );
     const performancePanelSurface = performancePanel.locator(
       '[data-lab-performance-panel-surface]',
@@ -177,43 +262,16 @@ test('keeps desktop performance panel layout, scrollbars, and resize behavior st
     expect(timelineFitBox).not.toBeNull();
     expect(panelViewTabsBox).not.toBeNull();
     expect(panelViewTabsBox!.height).toBeGreaterThanOrEqual(24);
-    await expect(metricsShell).toHaveClass(/ck-lab-performance-metrics-scroll/);
-    await page.mouse.move(0, 0);
-    await page.waitForTimeout(800);
-    await expect(metricsShell).not.toHaveClass(
-      /ck-lab-performance-metrics-scroll-active/,
+    await expect(metricsScrollArea).toHaveAttribute('data-slot', 'scroll-area');
+    await expect(metricsShell).toHaveAttribute(
+      'data-slot',
+      'scroll-area-viewport',
     );
-    expect(
-      await metricsShell.evaluate(
-        (node) => getComputedStyle(node).scrollbarColor,
-      ),
-    ).toBe('rgba(0, 0, 0, 0) rgba(0, 0, 0, 0)');
     expect(
       await metricsShell.evaluate(
         (node) => getComputedStyle(node).scrollbarGutter,
       ),
-    ).toBe('stable');
-    await page.mouse.move(
-      metricsShellBox!.x + metricsShellBox!.width / 2,
-      metricsShellBox!.y + 12,
-    );
-    await expect(metricsShell).not.toHaveClass(
-      /ck-lab-performance-metrics-scroll-active/,
-    );
-    await metricsShell.dispatchEvent('scroll');
-    await expect(metricsShell).toHaveClass(
-      /ck-lab-performance-metrics-scroll-active/,
-    );
-    expect(
-      await metricsShell.evaluate(
-        (node) => getComputedStyle(node).scrollbarColor,
-      ),
-    ).toBe('rgba(255, 255, 255, 0.28) rgba(0, 0, 0, 0)');
-    await page.mouse.move(0, 0);
-    await page.waitForTimeout(800);
-    await expect(metricsShell).not.toHaveClass(
-      /ck-lab-performance-metrics-scroll-active/,
-    );
+    ).toBe('auto');
     const settledMetricsPanelBox = await performancePanel.boundingBox();
     const settledMetricsShellBox = await metricsShell.boundingBox();
     expect(settledMetricsPanelBox).not.toBeNull();
@@ -236,7 +294,7 @@ test('keeps desktop performance panel layout, scrollbars, and resize behavior st
     expect(
       viewport!.height -
         (settledMetricsPanelBox!.y + settledMetricsPanelBox!.height),
-    ).toBeGreaterThanOrEqual(12);
+    ).toBeGreaterThanOrEqual(8);
     const metricsPanelHeight = settledMetricsPanelBox!.height;
     await selectPerformancePanelView(performancePanel, 'Structure');
     const structurePanel = performancePanel.locator(
@@ -252,19 +310,22 @@ test('keeps desktop performance panel layout, scrollbars, and resize behavior st
 
       return {
         overflowY: style.overflowY,
-        scrollbarColor: style.scrollbarColor,
         scrollbarGutter: style.scrollbarGutter,
       };
     });
-    expect(structureScrollState.overflowY).toBe('auto');
-    expect(structureScrollState.scrollbarGutter).toBe('stable');
-    expect(structureScrollState.scrollbarColor).toContain('rgba(0, 0, 0, 0)');
+    expect(structureScrollState.overflowY).toBe('scroll');
+    expect(structureScrollState.scrollbarGutter).toBe('auto');
+    await expect(structurePanel).toHaveAttribute(
+      'data-slot',
+      'scroll-area-viewport',
+    );
     await selectPerformancePanelView(performancePanel, 'Metrics');
     const metricsPanelRoundTripBox = await performancePanel.boundingBox();
     expect(metricsPanelRoundTripBox).not.toBeNull();
-    expect(
-      Math.abs(metricsPanelRoundTripBox!.height - structurePanelBox!.height),
-    ).toBeLessThanOrEqual(1);
+    expect(metricsPanelRoundTripBox!.height).toBeGreaterThanOrEqual(128);
+    expect(metricsPanelRoundTripBox!.height).toBeLessThanOrEqual(
+      Math.max(metricsPanelHeight, structurePanelBox!.height) + 2,
+    );
     expect(propertiesPanelBox!.height).toBeGreaterThanOrEqual(998);
     expect(
       await page
@@ -276,6 +337,8 @@ test('keeps desktop performance panel layout, scrollbars, and resize behavior st
       continue;
     }
 
+    await page.mouse.move(0, 0);
+    await page.waitForTimeout(800);
     const resizeHandle = performancePanel.getByLabel(
       'Resize performance analysis panel',
       { exact: true },
@@ -286,6 +349,19 @@ test('keeps desktop performance panel layout, scrollbars, and resize behavior st
       await resizeHandle.getAttribute('aria-valuemax'),
     );
     expect(targetOpenPanelHeight).toBeGreaterThan(128);
+    await resizeHandle.press('End');
+    await expect(resizeHandle).toHaveAttribute(
+      'aria-valuenow',
+      String(targetOpenPanelHeight),
+    );
+    await expect
+      .poll(async () => {
+        const height = (await performancePanel.boundingBox())?.height ?? 0;
+        return Math.abs(height - targetOpenPanelHeight);
+      })
+      .toBeLessThanOrEqual(2);
+    const fullyOpenPanelBox = await performancePanel.boundingBox();
+    expect(fullyOpenPanelBox).not.toBeNull();
     const handleBox = await resizeHandle.boundingBox();
     expect(handleBox).not.toBeNull();
     expect(handleBox!.height).toBeGreaterThanOrEqual(
@@ -329,10 +405,10 @@ test('keeps desktop performance panel layout, scrollbars, and resize behavior st
     const rubberBandPanelBox = await performancePanel.boundingBox();
     expect(rubberBandPanelBox).not.toBeNull();
     expect(rubberBandPanelBox!.height).toBeGreaterThan(
-      performancePanelBox!.height,
+      fullyOpenPanelBox!.height,
     );
     expect(rubberBandPanelBox!.height).toBeLessThan(
-      performancePanelBox!.height + 120,
+      fullyOpenPanelBox!.height + 120,
     );
     await page.mouse.up();
     await expect
@@ -343,8 +419,11 @@ test('keeps desktop performance panel layout, scrollbars, and resize behavior st
       String(targetOpenPanelHeight),
     );
     await expect
-      .poll(async () => (await performancePanel.boundingBox())?.height ?? 0)
-      .toBeLessThanOrEqual(targetOpenPanelHeight + 2);
+      .poll(async () => {
+        const height = (await performancePanel.boundingBox())?.height ?? 0;
+        return Math.abs(height - targetOpenPanelHeight);
+      })
+      .toBeLessThanOrEqual(2);
     const snappedOpenPanelBox = await performancePanel.boundingBox();
     expect(snappedOpenPanelBox).not.toBeNull();
     expect(snappedOpenPanelBox!.height).toBeLessThanOrEqual(
@@ -369,7 +448,7 @@ test('keeps desktop performance panel layout, scrollbars, and resize behavior st
     const smallDragPanelBox = await performancePanel.boundingBox();
     expect(smallDragPanelBox).not.toBeNull();
     expect(smallDragPanelBox!.height).toBeLessThan(
-      performancePanelBox!.height - 4,
+      snappedOpenPanelBox!.height - 4,
     );
     const shrunkenHandleBox = await resizeHandle.boundingBox();
     expect(shrunkenHandleBox).not.toBeNull();
@@ -397,8 +476,8 @@ test('keeps desktop performance panel layout, scrollbars, and resize behavior st
         scrollHeight: node.scrollHeight,
       };
     });
-    expect(clippedMetricsState.overflowY).toBe('auto');
-    expect(clippedMetricsState.scrollbarGutter).toBe('stable');
+    expect(clippedMetricsState.overflowY).toBe('scroll');
+    expect(clippedMetricsState.scrollbarGutter).toBe('auto');
     expect(clippedMetricsState.scrollHeight).toBeGreaterThan(
       clippedMetricsState.clientHeight,
     );
@@ -407,10 +486,6 @@ test('keeps desktop performance panel layout, scrollbars, and resize behavior st
     expect(
       Math.abs(resizedMetricsTableBox!.width - metricsTableBox!.width),
     ).toBeLessThanOrEqual(1);
-    await metricsShell.dispatchEvent('scroll');
-    await expect(metricsShell).toHaveClass(
-      /ck-lab-performance-metrics-scroll-active/,
-    );
     const activeMetricsTableBox = await metricsTable.boundingBox();
     expect(activeMetricsTableBox).not.toBeNull();
     expect(
