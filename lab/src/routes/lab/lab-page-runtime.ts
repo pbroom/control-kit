@@ -7,6 +7,8 @@ export type LabPageRuntimeOutput = {
   panelTooltipProviderProps?: LabPanelTooltipProviderProps;
 };
 
+export type PrimitivePageView = 'docs' | 'lab';
+
 export const DEFAULT_LAB_PANEL_TOOLTIP_PROPS: LabPanelTooltipProviderProps = {
   delayDuration: 1000,
   skipDelayDuration: 300,
@@ -66,4 +68,15 @@ export function getLabPageFromSlug(slug: string | undefined) {
 
 export function getLabPagePath(page: LabPageKey) {
   return `/lab/${LAB_PAGE_ROUTE_REGISTRY[page].slug}`;
+}
+
+export function getDocsPagePath(page: LabPageKey) {
+  return `/docs/${LAB_PAGE_ROUTE_REGISTRY[page].slug}`;
+}
+
+export function getPrimitivePagePath(
+  page: LabPageKey,
+  view: PrimitivePageView,
+) {
+  return view === 'docs' ? getDocsPagePath(page) : getLabPagePath(page);
 }

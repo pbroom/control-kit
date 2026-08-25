@@ -2,29 +2,57 @@ import { useCallback } from 'react';
 import { Navigate, Route, Routes, useNavigate, useParams } from 'react-router';
 import {
   DEFAULT_LAB_PAGE,
+  getDocsPagePath,
   getLabPageFromSlug,
   getLabPagePath,
+  getPrimitivePagePath,
+  type PrimitivePageView,
 } from './routes/lab/lab-page-runtime.js';
+import { hasDocsPage } from './routes/docs/docs-registry.js';
 import { LabPage } from './routes/lab.js';
 import { ThemeProvider } from './components/theme-context.js';
 import type { LabPageKey } from './routes/lab/shared.js';
 
-function RoutedLabPage() {
-  const { pageSlug } = useParams();
+function RoutedPrimitivePage() {
+  const { pageSlug, pageView } = useParams();
   const navigate = useNavigate();
+  const view: PrimitivePageView | null =
+    pageView === 'docs' || pageView === 'lab' ? pageView : null;
   const activePage = getLabPageFromSlug(pageSlug);
   const handlePageChange = useCallback(
     (page: LabPageKey) => {
-      navigate(getLabPagePath(page));
+      const nextView = view === 'docs' && hasDocsPage(page) ? 'docs' : 'lab';
+      navigate(getPrimitivePagePath(page, nextView));
     },
-    [navigate],
+    [navigate, view],
+  );
+  const handleViewChange = useCallback(
+    (nextView: PrimitivePageView) => {
+      if (!activePage || (nextView === 'docs' && !hasDocsPage(activePage))) {
+        return;
+      }
+
+      navigate(getPrimitivePagePath(activePage, nextView));
+    },
+    [activePage, navigate],
   );
 
-  if (!activePage) {
+  if (!activePage || !view) {
     return <Navigate to={getLabPagePath(DEFAULT_LAB_PAGE)} replace />;
   }
 
-  return <LabPage activePage={activePage} onPageChange={handlePageChange} />;
+  if (view === 'docs' && !hasDocsPage(activePage)) {
+    return <Navigate to={getLabPagePath(activePage)} replace />;
+  }
+
+  return (
+    <LabPage
+      activePage={activePage}
+      onPageChange={handlePageChange}
+      onViewChange={handleViewChange}
+      view={view}
+    />
+  );
 }
 
 export function App() {
@@ -39,7 +67,11 @@ export function App() {
           path="/lab"
           element={<Navigate to={getLabPagePath(DEFAULT_LAB_PAGE)} replace />}
         />
-        <Route path="/lab/:pageSlug" element={<RoutedLabPage />} />
+        <Route
+          path="/docs"
+          element={<Navigate to={getDocsPagePath(DEFAULT_LAB_PAGE)} replace />}
+        />
+        <Route path="/:pageView/:pageSlug" element={<RoutedPrimitivePage />} />
         <Route
           path="*"
           element={<Navigate to={getLabPagePath(DEFAULT_LAB_PAGE)} replace />}
