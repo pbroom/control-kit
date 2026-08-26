@@ -8,9 +8,17 @@ export type PlaneValue = {
 
 export type PlaneInteraction = 'pointer' | 'keyboard';
 
+export type PlaneValueChangeReason =
+  | 'thumb-drag'
+  | 'plane-press'
+  | 'keyboard'
+  | 'input-change';
+
 export type PlaneValueChangeDetails = {
   interaction: PlaneInteraction;
+  reason: PlaneValueChangeReason;
   thumbId?: string;
+  originalEvent?: Event;
 };
 
 export type PlanePoint = {
@@ -48,7 +56,10 @@ export type PlaneThumbProps = Omit<
   disabled?: boolean;
   readOnly?: boolean;
   step?: number;
-  shiftStep?: number;
+  largeStep?: number;
+  xName?: string;
+  yName?: string;
+  form?: string;
   xAriaLabel?: string;
   yAriaLabel?: string;
   getAriaValueText?: (value: PlaneValue) => string;
@@ -60,12 +71,26 @@ export type PlaneContextValue = {
   dragging: boolean;
 };
 
+export type PlaneThumbContextValue = {
+  value: PlaneValue;
+  dragging: boolean;
+  focused: boolean;
+  focusVisible: boolean;
+  disabled: boolean;
+  readOnly: boolean;
+};
+
+type PlaneValueChangeSource = Pick<
+  PlaneValueChangeDetails,
+  'interaction' | 'reason' | 'originalEvent'
+>;
+
 type PlaneThumbRegistration = {
   key: string;
   getValue: () => PlaneValue;
   isInteractive: () => boolean;
-  publishValue: (value: PlaneValue, interaction: PlaneInteraction) => boolean;
-  commitPointerValue: () => void;
+  publishValue: (value: PlaneValue, source: PlaneValueChangeSource) => boolean;
+  commitPointerValue: (source: PlaneValueChangeSource) => void;
   focus: () => void;
 };
 
@@ -77,8 +102,11 @@ type InternalPlaneContextValue = PlaneContextValue & {
 
 const DEFAULT_VALUE: PlaneValue = { x: 0.5, y: 0.5 };
 const DEFAULT_STEP = 0.01;
-const DEFAULT_SHIFT_STEP = 0.1;
+const DEFAULT_LARGE_STEP = 0.1;
 const PlaneContext = React.createContext<InternalPlaneContextValue | null>(
+  null,
+);
+const PlaneThumbContext = React.createContext<PlaneThumbContextValue | null>(
   null,
 );
 
@@ -109,10 +137,10 @@ function planeValuesEqual(a: PlaneValue, b: PlaneValue) {
 }
 
 function getValueChangeDetails(
-  interaction: PlaneInteraction,
+  source: PlaneValueChangeSource,
   thumbId: string | undefined,
 ): PlaneValueChangeDetails {
-  return thumbId ? { interaction, thumbId } : { interaction };
+  return thumbId ? { ...source, thumbId } : source;
 }
 
 function normalizePlaneStep(value: number, fallback: number) {
@@ -140,6 +168,16 @@ function useInternalPlaneContext() {
 
 export function usePlaneContext(): PlaneContextValue {
   return useInternalPlaneContext();
+}
+
+export function usePlaneThumbContext(): PlaneThumbContextValue {
+  const context = React.useContext(PlaneThumbContext);
+
+  if (!context) {
+    throw new Error('usePlaneThumbContext must be used inside a PlaneThumb.');
+  }
+
+  return context;
 }
 
 function getNearestThumb(
@@ -192,6 +230,10 @@ export function Plane({
   const activeThumbKeyRef = React.useRef<string | null>(null);
   const activePointerIdRef = React.useRef<number | null>(null);
   const activePointerBoundsRef = React.useRef<PlaneBounds | null>(null);
+  const activePointerReasonRef = React.useRef<Extract<
+    PlaneValueChangeReason,
+    'thumb-drag' | 'plane-press'
+  > | null>(null);
   const setRootRef = React.useCallback(
     (node: HTMLDivElement | null) => {
       rootRef.current = node;
@@ -210,6 +252,7 @@ export function Plane({
 
     activePointerIdRef.current = null;
     activePointerBoundsRef.current = null;
+    activePointerReasonRef.current = null;
     activeThumbKeyRef.current = null;
     setActiveThumbKey(null);
 
@@ -297,6 +340,10 @@ export function Plane({
               ? event.target.closest<HTMLElement>('[data-plane-thumb-key]')
               : null;
           let registration: PlaneThumbRegistration | null = null;
+          let reason: Extract<
+            PlaneValueChangeReason,
+            'thumb-drag' | 'plane-press'
+          > = 'thumb-drag';
           let bounds: PlaneBounds | null = null;
           const readBounds = () => {
             bounds ??= event.currentTarget.getBoundingClientRect();
@@ -316,12 +363,14 @@ export function Plane({
               registrations[0].isInteractive()
             ) {
               registration = registrations[0];
+              reason = 'plane-press';
             }
           } else if (pressBehavior === 'nearest') {
             const registrations = Array.from(thumbsRef.current.values()).filter(
               (thumb) => thumb.isInteractive(),
             );
             registration = getNearestThumb(registrations, event, readBounds());
+            reason = 'plane-press';
           }
 
           if (!registration) return;
@@ -330,13 +379,15 @@ export function Plane({
           event.preventDefault();
           activePointerIdRef.current = event.pointerId;
           activePointerBoundsRef.current = bounds;
+          activePointerReasonRef.current = reason;
           activeThumbKeyRef.current = registration.key;
           setActiveThumbKey(registration.key);
           event.currentTarget.setPointerCapture(event.pointerId);
-          registration.publishValue(
-            getPlaneValueFromPoint(event, bounds),
-            'pointer',
-          );
+          registration.publishValue(getPlaneValueFromPoint(event, bounds), {
+            interaction: 'pointer',
+            reason,
+            originalEvent: event.nativeEvent,
+          });
           registration.focus();
         }}
         onPointerMove={(event) => {
@@ -356,10 +407,12 @@ export function Plane({
             ? thumbsRef.current.get(thumbKey)
             : undefined;
           if (bounds && registration?.isInteractive()) {
-            registration.publishValue(
-              getPlaneValueFromPoint(event, bounds),
-              'pointer',
-            );
+            const reason = activePointerReasonRef.current ?? 'thumb-drag';
+            registration.publishValue(getPlaneValueFromPoint(event, bounds), {
+              interaction: 'pointer',
+              reason,
+              originalEvent: event.nativeEvent,
+            });
           }
         }}
         onPointerUp={(event) => {
@@ -377,16 +430,22 @@ export function Plane({
             registration?.isInteractive(),
           );
           const bounds = activePointerBoundsRef.current;
+          const reason = activePointerReasonRef.current ?? 'thumb-drag';
           if (canPublish && bounds && registration) {
-            registration.publishValue(
-              getPlaneValueFromPoint(event, bounds),
-              'pointer',
-            );
+            registration.publishValue(getPlaneValueFromPoint(event, bounds), {
+              interaction: 'pointer',
+              reason,
+              originalEvent: event.nativeEvent,
+            });
           }
 
           clearActivePointer();
           if (canPublish && registration) {
-            registration.commitPointerValue();
+            registration.commitPointerValue({
+              interaction: 'pointer',
+              reason,
+              originalEvent: event.nativeEvent,
+            });
             registration.focus();
           }
         }}
@@ -404,9 +463,16 @@ export function Plane({
             !readOnly &&
             registration?.isInteractive(),
           );
+          const reason = activePointerReasonRef.current ?? 'thumb-drag';
 
           clearActivePointer();
-          if (shouldCommit && registration) registration.commitPointerValue();
+          if (shouldCommit && registration) {
+            registration.commitPointerValue({
+              interaction: 'pointer',
+              reason,
+              originalEvent: event.nativeEvent,
+            });
+          }
         }}
         onLostPointerCapture={(event) => {
           onLostPointerCapture?.(event);
@@ -422,9 +488,16 @@ export function Plane({
             !readOnly &&
             registration?.isInteractive(),
           );
+          const reason = activePointerReasonRef.current ?? 'thumb-drag';
 
           clearActivePointer();
-          if (shouldCommit && registration) registration.commitPointerValue();
+          if (shouldCommit && registration) {
+            registration.commitPointerValue({
+              interaction: 'pointer',
+              reason,
+              originalEvent: event.nativeEvent,
+            });
+          }
         }}
       >
         {children}
@@ -474,10 +547,10 @@ function getAxisKeyValue(
   key: string,
   value: PlaneValue,
   step: number,
-  shiftStep: number,
+  largeStep: number,
   shiftKey: boolean,
 ): PlaneValue | null {
-  const amount = shiftKey ? shiftStep : step;
+  const amount = shiftKey ? largeStep : step;
   const nextValue = { ...value };
 
   if (key === 'Home') nextValue[axis] = 0;
@@ -486,8 +559,8 @@ function getAxisKeyValue(
   else if (key === 'ArrowRight') nextValue.x += amount;
   else if (key === 'ArrowDown') nextValue.y -= amount;
   else if (key === 'ArrowUp') nextValue.y += amount;
-  else if (key === 'PageDown') nextValue[axis] -= shiftStep;
-  else if (key === 'PageUp') nextValue[axis] += shiftStep;
+  else if (key === 'PageDown') nextValue[axis] -= largeStep;
+  else if (key === 'PageUp') nextValue[axis] += largeStep;
   else return null;
 
   return clampPlaneValue(nextValue);
@@ -516,7 +589,10 @@ export function PlaneThumb({
   disabled = false,
   readOnly = false,
   step = DEFAULT_STEP,
-  shiftStep = DEFAULT_SHIFT_STEP,
+  largeStep = DEFAULT_LARGE_STEP,
+  xName,
+  yName,
+  form,
   xAriaLabel,
   yAriaLabel,
   getAriaValueText = getDefaultAriaValueText,
@@ -541,10 +617,13 @@ export function PlaneThumb({
   const [tabbableAxis, setTabbableAxis] = React.useState<PlaneAxis>('x');
   const thumbRef = React.useRef<HTMLDivElement | null>(null);
   const keyboardDirtyRef = React.useRef(false);
+  const keyboardOriginalEventRef = React.useRef<Event | undefined>(undefined);
   const pressedArrowKeysRef = React.useRef(new Set<PlaneArrowKey>());
   const pointerFocusRef = React.useRef(false);
   const isControlled = controlledValue !== undefined;
   const sourceValue = isControlled ? controlledValue : uncontrolledValue;
+  const defaultValueRef = React.useRef(defaultValue);
+  defaultValueRef.current = defaultValue;
   const renderedX = clampCoordinate(sourceValue.x);
   const renderedY = clampCoordinate(sourceValue.y);
   const renderedValue = React.useMemo(
@@ -557,7 +636,7 @@ export function PlaneThumb({
   const isReadOnly = context.readOnly || readOnly;
   const { cancelThumbInteraction, registerThumb } = context;
   const normalizedStep = normalizePlaneStep(step, DEFAULT_STEP);
-  const normalizedShiftStep = normalizePlaneStep(shiftStep, DEFAULT_SHIFT_STEP);
+  const normalizedLargeStep = normalizePlaneStep(largeStep, DEFAULT_LARGE_STEP);
   const arrowStepRef = React.useRef(normalizedStep);
   const arrowRepeatTimeoutRef = React.useRef<number | null>(null);
   const arrowRepeatIntervalRef = React.useRef<number | null>(null);
@@ -607,6 +686,36 @@ export function PlaneThumb({
   React.useEffect(() => cancelArrowRepeat, [cancelArrowRepeat]);
 
   React.useEffect(() => {
+    if (isControlled) return;
+
+    const input = thumbRef.current?.querySelector<HTMLInputElement>(
+      '[data-plane-axis="x"]',
+    );
+    const ownerForm = input?.form;
+    if (!ownerForm) return;
+
+    const handleReset = () => {
+      const resetValue = clampPlaneValue(defaultValueRef.current);
+      keyboardDirtyRef.current = false;
+      keyboardOriginalEventRef.current = undefined;
+      cancelArrowRepeat();
+      pressedArrowKeysRef.current.clear();
+      interactionValueRef.current = resetValue;
+      setUncontrolledValue(resetValue);
+      cancelThumbInteraction(internalKey);
+    };
+
+    ownerForm.addEventListener('reset', handleReset);
+    return () => ownerForm.removeEventListener('reset', handleReset);
+  }, [
+    cancelArrowRepeat,
+    cancelThumbInteraction,
+    form,
+    internalKey,
+    isControlled,
+  ]);
+
+  React.useEffect(() => {
     if (!isDragging && !keyboardDirtyRef.current) {
       interactionValueRef.current = renderedValue;
     }
@@ -615,6 +724,7 @@ export function PlaneThumb({
   React.useEffect(() => {
     if (!isDisabled && !isReadOnly) return;
     keyboardDirtyRef.current = false;
+    keyboardOriginalEventRef.current = undefined;
     cancelArrowRepeat();
     pressedArrowKeysRef.current.clear();
     if (isControlled) interactionValueRef.current = renderedValue;
@@ -630,7 +740,7 @@ export function PlaneThumb({
   ]);
 
   const publishValue = React.useCallback(
-    (nextValue: PlaneValue, interaction: PlaneInteraction) => {
+    (nextValue: PlaneValue, source: PlaneValueChangeSource) => {
       if (isDisabled || isReadOnly) return false;
       const normalizedValue = clampPlaneValue(nextValue);
 
@@ -640,18 +750,23 @@ export function PlaneThumb({
 
       interactionValueRef.current = normalizedValue;
       if (!isControlled) setUncontrolledValue(normalizedValue);
-      onValueChange?.(
-        normalizedValue,
-        getValueChangeDetails(interaction, thumbId),
-      );
+      onValueChange?.(normalizedValue, getValueChangeDetails(source, thumbId));
       return true;
     },
     [isControlled, isDisabled, isReadOnly, onValueChange, thumbId],
   );
 
   const setKeyboardValue = React.useCallback(
-    (nextValue: PlaneValue) => {
-      const changed = publishValue(nextValue, 'keyboard');
+    (
+      nextValue: PlaneValue,
+      reason: Extract<PlaneValueChangeReason, 'keyboard' | 'input-change'>,
+      originalEvent?: Event,
+    ) => {
+      const changed = publishValue(nextValue, {
+        interaction: 'keyboard',
+        reason,
+        originalEvent,
+      });
       keyboardDirtyRef.current ||= changed;
       return changed;
     },
@@ -666,35 +781,56 @@ export function PlaneThumb({
         pressedArrowKeysRef.current,
         arrowStepRef.current,
       ),
+      'keyboard',
+      keyboardOriginalEventRef.current,
     );
   };
 
-  const commitKeyboardValue = React.useCallback(() => {
-    if (!keyboardDirtyRef.current) return;
-    if (isDisabled || isReadOnly) {
+  const commitKeyboardValue = React.useCallback(
+    (
+      reason: Extract<
+        PlaneValueChangeReason,
+        'keyboard' | 'input-change'
+      > = 'keyboard',
+      originalEvent?: Event,
+    ) => {
+      if (!keyboardDirtyRef.current) return;
+      if (isDisabled || isReadOnly) {
+        keyboardDirtyRef.current = false;
+        return;
+      }
+      const committedValue = interactionValueRef.current;
       keyboardDirtyRef.current = false;
-      return;
-    }
-    const committedValue = interactionValueRef.current;
-    keyboardDirtyRef.current = false;
-    onValueCommit?.(committedValue, getValueChangeDetails('keyboard', thumbId));
-    if (isControlled) interactionValueRef.current = renderedValue;
-  }, [
-    isControlled,
-    isDisabled,
-    isReadOnly,
-    onValueCommit,
-    renderedValue,
-    thumbId,
-  ]);
+      onValueCommit?.(
+        committedValue,
+        getValueChangeDetails(
+          { interaction: 'keyboard', reason, originalEvent },
+          thumbId,
+        ),
+      );
+      keyboardOriginalEventRef.current = undefined;
+      if (isControlled) interactionValueRef.current = renderedValue;
+    },
+    [
+      isControlled,
+      isDisabled,
+      isReadOnly,
+      onValueCommit,
+      renderedValue,
+      thumbId,
+    ],
+  );
 
-  const commitPointerValue = React.useCallback(() => {
-    onValueCommit?.(
-      interactionValueRef.current,
-      getValueChangeDetails('pointer', thumbId),
-    );
-    if (isControlled) interactionValueRef.current = renderedValue;
-  }, [isControlled, onValueCommit, renderedValue, thumbId]);
+  const commitPointerValue = React.useCallback(
+    (source: PlaneValueChangeSource) => {
+      onValueCommit?.(
+        interactionValueRef.current,
+        getValueChangeDetails(source, thumbId),
+      );
+      if (isControlled) interactionValueRef.current = renderedValue;
+    },
+    [isControlled, onValueCommit, renderedValue, thumbId],
+  );
 
   const registrationRef = React.useRef<PlaneThumbRegistration | null>(null);
   if (!registrationRef.current) {
@@ -725,6 +861,18 @@ export function PlaneThumb({
   registration.publishValue = publishValue;
   registration.commitPointerValue = commitPointerValue;
 
+  const thumbContext = React.useMemo<PlaneThumbContextValue>(
+    () => ({
+      value: renderedValue,
+      dragging: isDragging,
+      focused,
+      focusVisible,
+      disabled: isDisabled,
+      readOnly: isReadOnly,
+    }),
+    [focusVisible, focused, isDisabled, isDragging, isReadOnly, renderedValue],
+  );
+
   React.useEffect(
     () => registerThumb(registration),
     [registerThumb, registration],
@@ -740,6 +888,8 @@ export function PlaneThumb({
       step={normalizedStep}
       tabIndex={tabbableAxis === axis ? 0 : -1}
       value={renderedValue[axis]}
+      name={axis === 'x' ? xName : yName}
+      form={form}
       disabled={isDisabled}
       aria-label={axisAriaLabel}
       aria-orientation={axis === 'x' ? 'horizontal' : 'vertical'}
@@ -748,11 +898,15 @@ export function PlaneThumb({
       aria-roledescription="2D slider axis"
       onChange={(event) => {
         if (isReadOnly) return;
-        const changed = setKeyboardValue({
-          ...renderedValue,
-          [axis]: Number(event.currentTarget.value),
-        });
-        if (changed) commitKeyboardValue();
+        const changed = setKeyboardValue(
+          {
+            ...renderedValue,
+            [axis]: Number(event.currentTarget.value),
+          },
+          'input-change',
+          event.nativeEvent,
+        );
+        if (changed) commitKeyboardValue('input-change', event.nativeEvent);
       }}
     />
   );
@@ -802,7 +956,7 @@ export function PlaneThumb({
           setFocusVisible(false);
           cancelArrowRepeat();
           pressedArrowKeysRef.current.clear();
-          commitKeyboardValue();
+          commitKeyboardValue('keyboard', event.nativeEvent);
         }
       }}
       onKeyDown={(event) => {
@@ -822,10 +976,11 @@ export function PlaneThumb({
         if (!targetAxis) return;
         let nextValue: PlaneValue | null;
         if (isPlaneArrowKey(event.key)) {
+          keyboardOriginalEventRef.current = event.nativeEvent;
           const wasIdle = pressedArrowKeysRef.current.size === 0;
           pressedArrowKeysRef.current.add(event.key);
           arrowStepRef.current = event.shiftKey
-            ? normalizedShiftStep
+            ? normalizedLargeStep
             : normalizedStep;
           if (wasIdle) startArrowRepeat();
           if (event.repeat) {
@@ -843,7 +998,7 @@ export function PlaneThumb({
             event.key,
             interactionValueRef.current,
             normalizedStep,
-            normalizedShiftStep,
+            normalizedLargeStep,
             event.shiftKey,
           );
         }
@@ -859,7 +1014,8 @@ export function PlaneThumb({
             )
             ?.focus({ preventScroll: true });
         }
-        setKeyboardValue(nextValue);
+        keyboardOriginalEventRef.current = event.nativeEvent;
+        setKeyboardValue(nextValue, 'keyboard', event.nativeEvent);
       }}
       onKeyUp={(event) => {
         onKeyUp?.(event);
@@ -879,13 +1035,15 @@ export function PlaneThumb({
           getKeyAxis(sourceAxis, event.key) &&
           (!arrowKey || pressedArrowKeysRef.current.size === 0)
         ) {
-          commitKeyboardValue();
+          commitKeyboardValue('keyboard', event.nativeEvent);
         }
       }}
     >
-      {children}
-      {renderAxisInput('x', resolvedXAriaLabel)}
-      {renderAxisInput('y', resolvedYAriaLabel)}
+      <PlaneThumbContext.Provider value={thumbContext}>
+        {children}
+        {renderAxisInput('x', resolvedXAriaLabel)}
+        {renderAxisInput('y', resolvedYAriaLabel)}
+      </PlaneThumbContext.Provider>
     </div>
   );
 }

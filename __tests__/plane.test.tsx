@@ -8,6 +8,7 @@ import {
   PlaneThumb,
   clampPlaneValue,
   getPlaneValueFromPoint,
+  usePlaneThumbContext,
   type PlaneProps,
   type PlaneThumbProps,
   type PlaneValue,
@@ -32,6 +33,8 @@ function mountPlane(
   props: MountPlaneProps = {},
   thumbProps: Partial<PlaneThumbProps> = {},
 ) {
+  const { children: thumbChildren = 'Target', ...resolvedThumbProps } =
+    thumbProps;
   const container = document.createElement('div');
   document.body.append(container);
   const root = createRoot(container);
@@ -56,9 +59,9 @@ function mountPlane(
             value={value}
             onValueChange={onValueChange}
             onValueCommit={onValueCommit}
-            {...thumbProps}
+            {...resolvedThumbProps}
           >
-            Target
+            {thumbChildren}
           </PlaneThumb>
         </Plane>,
       );
@@ -179,6 +182,33 @@ function key(
   return event;
 }
 
+function details(
+  expected: Record<string, unknown>,
+): ReturnType<typeof expect.objectContaining> {
+  return expect.objectContaining(expected);
+}
+
+function PlaneThumbStateProbe() {
+  const state = usePlaneThumbContext();
+
+  return (
+    <output data-testid="thumb-state">
+      {JSON.stringify({
+        ...state,
+        value: `${state.value.x},${state.value.y}`,
+      })}
+    </output>
+  );
+}
+
+function readThumbState(container: HTMLElement) {
+  return JSON.parse(
+    container.querySelector('[data-testid="thumb-state"]')?.textContent ?? '{}',
+  ) as Omit<ReturnType<typeof usePlaneThumbContext>, 'value'> & {
+    value: string;
+  };
+}
+
 beforeEach(() => {
   Object.defineProperties(HTMLElement.prototype, {
     setPointerCapture: {
@@ -240,7 +270,7 @@ describe('Plane', () => {
     act(() => pointer(plane, 'pointerdown', { clientX: 110, clientY: 45 }));
     expect(onValueChange).toHaveBeenLastCalledWith(
       { x: 0.5, y: 0.75 },
-      { interaction: 'pointer' },
+      details({ interaction: 'pointer', reason: 'plane-press' }),
     );
     expect(plane.hasAttribute('data-dragging')).toBe(true);
     expect(plane.setPointerCapture).toHaveBeenCalledWith(7);
@@ -248,17 +278,23 @@ describe('Plane', () => {
     act(() => pointer(plane, 'pointermove', { clientX: 300, clientY: 200 }));
     expect(onValueChange).toHaveBeenLastCalledWith(
       { x: 1, y: 0 },
-      { interaction: 'pointer' },
+      details({ interaction: 'pointer', reason: 'plane-press' }),
     );
 
     act(() => pointer(plane, 'pointerup', { clientX: 300, clientY: 200 }));
     expect(onValueCommit).toHaveBeenCalledWith(
       { x: 1, y: 0 },
-      { interaction: 'pointer' },
+      details({ interaction: 'pointer', reason: 'plane-press' }),
     );
     expect(plane.hasAttribute('data-dragging')).toBe(false);
     expect(plane.releasePointerCapture).toHaveBeenCalledWith(7);
     expect(plane.getBoundingClientRect).toHaveBeenCalledOnce();
+    expect(onValueChange.mock.lastCall?.[1].originalEvent).toBeInstanceOf(
+      PointerEvent,
+    );
+    expect(onValueCommit.mock.lastCall?.[1].originalEvent).toBeInstanceOf(
+      PointerEvent,
+    );
   });
 
   it('ignores other pointers during a drag', () => {
@@ -296,7 +332,7 @@ describe('Plane', () => {
     expect(onValueChange).toHaveBeenCalledTimes(2);
     expect(onValueChange).toHaveBeenLastCalledWith(
       { x: 0.5, y: 0.75 },
-      { interaction: 'pointer' },
+      details({ interaction: 'pointer', reason: 'plane-press' }),
     );
     expect(onValueCommit).toHaveBeenCalledTimes(1);
   });
@@ -363,7 +399,7 @@ describe('Plane', () => {
     act(() => pointer(plane, 'pointerdown', { clientX: 170, clientY: 40 }));
     expect(onValueChange).toHaveBeenCalledWith(
       { x: 0.8, y: 0.8 },
-      { interaction: 'pointer' },
+      details({ interaction: 'pointer', reason: 'plane-press' }),
     );
     expect(
       (container.querySelector('[data-slot="plane-thumb"]') as HTMLElement)
@@ -394,26 +430,32 @@ describe('Plane', () => {
     act(() => key(xInput, 'keydown', 'ArrowRight'));
     expect(onValueChange).toHaveBeenLastCalledWith(
       { x: 0.26, y: 0.75 },
-      { interaction: 'keyboard' },
+      details({ interaction: 'keyboard', reason: 'keyboard' }),
     );
     expect(onValueCommit).not.toHaveBeenCalled();
 
     act(() => key(xInput, 'keyup', 'ArrowRight'));
     expect(onValueCommit).toHaveBeenLastCalledWith(
       { x: 0.26, y: 0.75 },
-      { interaction: 'keyboard' },
+      details({ interaction: 'keyboard', reason: 'keyboard' }),
+    );
+    expect(onValueChange.mock.lastCall?.[1].originalEvent).toBeInstanceOf(
+      KeyboardEvent,
+    );
+    expect(onValueCommit.mock.lastCall?.[1].originalEvent).toBeInstanceOf(
+      KeyboardEvent,
     );
 
     act(() => key(yInput, 'keydown', 'ArrowDown', true));
     expect(onValueChange).toHaveBeenLastCalledWith(
       { x: 0.26, y: 0.65 },
-      { interaction: 'keyboard' },
+      details({ interaction: 'keyboard', reason: 'keyboard' }),
     );
 
     act(() => key(yInput, 'keydown', 'Home'));
     expect(onValueChange).toHaveBeenLastCalledWith(
       { x: 0.26, y: 0 },
-      { interaction: 'keyboard' },
+      details({ interaction: 'keyboard', reason: 'keyboard' }),
     );
   });
 
@@ -516,7 +558,7 @@ describe('Plane', () => {
     expect(onValueCommit).toHaveBeenCalledOnce();
     expect(onValueCommit).toHaveBeenCalledWith(
       { x: 0.28, y: 0.77 },
-      { interaction: 'keyboard' },
+      details({ interaction: 'keyboard', reason: 'keyboard' }),
     );
   });
 
@@ -568,9 +610,10 @@ describe('Plane', () => {
         key(document.activeElement!, 'keyup', 'ArrowDown');
       });
       expect(onValueCommit).toHaveBeenCalledOnce();
-      expect(onValueCommit).toHaveBeenCalledWith(valueAfterLeftIsReleased, {
-        interaction: 'keyboard',
-      });
+      expect(onValueCommit).toHaveBeenCalledWith(
+        valueAfterLeftIsReleased,
+        details({ interaction: 'keyboard', reason: 'keyboard' }),
+      );
     } finally {
       vi.useRealTimers();
     }
@@ -623,7 +666,7 @@ describe('Plane', () => {
     expect(onValueChange).toHaveBeenNthCalledWith(
       2,
       { x: 0.26, y: 0.75 },
-      { interaction: 'keyboard' },
+      details({ interaction: 'keyboard', reason: 'keyboard' }),
     );
   });
 
@@ -645,11 +688,14 @@ describe('Plane', () => {
 
     expect(onValueChange).toHaveBeenCalledWith(
       { x: 0.4, y: 0.75 },
-      { interaction: 'keyboard' },
+      details({ interaction: 'keyboard', reason: 'input-change' }),
     );
     expect(onValueCommit).toHaveBeenCalledWith(
       { x: 0.4, y: 0.75 },
-      { interaction: 'keyboard' },
+      details({ interaction: 'keyboard', reason: 'input-change' }),
+    );
+    expect(onValueChange.mock.lastCall?.[1].originalEvent).toBeInstanceOf(
+      Event,
     );
   });
 
@@ -685,8 +731,8 @@ describe('Plane', () => {
   );
 
   it.each([
-    { step: -1, shiftStep: Number.NaN },
-    { step: 0, shiftStep: Number.POSITIVE_INFINITY },
+    { step: -1, largeStep: Number.NaN },
+    { step: 0, largeStep: Number.POSITIVE_INFINITY },
   ])('falls back from invalid keyboard step values', (thumbProps) => {
     const onValueChange = vi.fn();
     const { container } = mountPlane({ onValueChange }, thumbProps);
@@ -707,13 +753,163 @@ describe('Plane', () => {
     expect(onValueChange).toHaveBeenNthCalledWith(
       1,
       { x: 0.26, y: 0.75 },
-      { interaction: 'keyboard' },
+      details({ interaction: 'keyboard', reason: 'keyboard' }),
     );
     expect(onValueChange).toHaveBeenNthCalledWith(
       2,
       { x: 0.36, y: 0.75 },
-      { interaction: 'keyboard' },
+      details({ interaction: 'keyboard', reason: 'keyboard' }),
     );
+  });
+
+  it('uses largeStep for modified arrows and paging keys', () => {
+    const onValueChange = vi.fn();
+    const { container } = mountPlane({ onValueChange }, { largeStep: 0.2 });
+    const xInput = container.querySelector(
+      '[data-plane-axis="x"]',
+    ) as HTMLInputElement;
+
+    act(() => {
+      key(xInput, 'keydown', 'ArrowRight', true);
+      key(xInput, 'keyup', 'ArrowRight', true);
+      key(xInput, 'keydown', 'PageUp');
+      key(xInput, 'keyup', 'PageUp');
+    });
+
+    expect(onValueChange.mock.calls.map(([value]) => value)).toEqual([
+      { x: 0.45, y: 0.75 },
+      { x: 0.65, y: 0.75 },
+    ]);
+  });
+
+  it('submits named axes and resets an uncontrolled thumb with its form', () => {
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    mountedRoots.push(root);
+    const onValueChange = vi.fn();
+    const onValueCommit = vi.fn();
+
+    act(() => {
+      root.render(
+        <form data-testid="form">
+          <Plane>
+            <PlaneThumb
+              data-testid="form-thumb"
+              defaultValue={{ x: 0.2, y: 0.3 }}
+              xName="position.x"
+              yName="position.y"
+              onValueChange={onValueChange}
+              onValueCommit={onValueCommit}
+            />
+          </Plane>
+        </form>,
+      );
+    });
+
+    const form = container.querySelector('form') as HTMLFormElement;
+    const thumb = container.querySelector(
+      '[data-testid="form-thumb"]',
+    ) as HTMLElement;
+    const xInput = thumb.querySelector(
+      '[data-plane-axis="x"]',
+    ) as HTMLInputElement;
+
+    expect(Object.fromEntries(new FormData(form))).toEqual({
+      'position.x': '0.2',
+      'position.y': '0.3',
+    });
+
+    act(() => {
+      Object.getOwnPropertyDescriptor(
+        HTMLInputElement.prototype,
+        'value',
+      )?.set?.call(xInput, '0.8');
+      xInput.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    expect(thumb.style.left).toBe('80%');
+    expect(Object.fromEntries(new FormData(form))['position.x']).toBe('0.8');
+
+    act(() => form.reset());
+
+    expect(thumb.style.left).toBe('20%');
+    expect(thumb.style.top).toBe('70%');
+    expect(Object.fromEntries(new FormData(form))).toEqual({
+      'position.x': '0.2',
+      'position.y': '0.3',
+    });
+    expect(onValueChange).toHaveBeenCalledOnce();
+    expect(onValueCommit).toHaveBeenCalledOnce();
+  });
+
+  it('associates named axes with an external form without resetting controlled state', () => {
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    mountedRoots.push(root);
+
+    act(() => {
+      root.render(
+        <>
+          <form id="position-form" />
+          <Plane>
+            <PlaneThumb
+              data-testid="controlled-form-thumb"
+              value={{ x: 0.8, y: 0.9 }}
+              defaultValue={{ x: 0.2, y: 0.3 }}
+              xName="x"
+              yName="y"
+              form="position-form"
+            />
+          </Plane>
+        </>,
+      );
+    });
+
+    const form = container.querySelector('form') as HTMLFormElement;
+    const thumb = container.querySelector(
+      '[data-testid="controlled-form-thumb"]',
+    ) as HTMLElement;
+
+    expect(Object.fromEntries(new FormData(form))).toEqual({
+      x: '0.8',
+      y: '0.9',
+    });
+    act(() => form.reset());
+    expect(thumb.style.left).toBe('80%');
+    expect(Number.parseFloat(thumb.style.top)).toBeCloseTo(10);
+  });
+
+  it('exposes thumb state to composed descendants', () => {
+    const { container, plane } = mountPlane(
+      {},
+      { children: <PlaneThumbStateProbe /> },
+    );
+    const thumb = container.querySelector(
+      '[data-slot="plane-thumb"]',
+    ) as HTMLElement;
+
+    expect(readThumbState(container)).toEqual({
+      value: '0.25,0.75',
+      dragging: false,
+      focused: false,
+      focusVisible: false,
+      disabled: false,
+      readOnly: false,
+    });
+
+    act(() => pointer(thumb, 'pointerdown', { clientX: 110, clientY: 70 }));
+    expect(readThumbState(container)).toEqual(
+      expect.objectContaining({
+        value: '0.5,0.5',
+        dragging: true,
+        focused: true,
+        focusVisible: false,
+      }),
+    );
+
+    act(() => pointer(plane, 'pointerup', { clientX: 110, clientY: 70 }));
+    expect(readThumbState(container).dragging).toBe(false);
   });
 
   it('exposes two native slider axes with a shared value description', () => {
@@ -826,7 +1022,11 @@ describe('Plane', () => {
     expect(firstChange).not.toHaveBeenCalled();
     expect(secondChange).toHaveBeenLastCalledWith(
       { x: 0.7, y: 0.75 },
-      { interaction: 'pointer', thumbId: 'second' },
+      details({
+        interaction: 'pointer',
+        reason: 'thumb-drag',
+        thumbId: 'second',
+      }),
     );
     expect(plane.hasAttribute('data-dragging')).toBe(true);
     expect(getThumb('first').hasAttribute('data-dragging')).toBe(false);
@@ -843,10 +1043,13 @@ describe('Plane', () => {
     expect(secondCommit).toHaveBeenCalledOnce();
     expect(secondCommit.mock.calls[0][0].x).toBeCloseTo(0.9);
     expect(secondCommit.mock.calls[0][0].y).toBeCloseTo(0.1);
-    expect(secondCommit.mock.calls[0][1]).toEqual({
-      interaction: 'pointer',
-      thumbId: 'second',
-    });
+    expect(secondCommit.mock.calls[0][1]).toEqual(
+      details({
+        interaction: 'pointer',
+        reason: 'thumb-drag',
+        thumbId: 'second',
+      }),
+    );
     expect(container.querySelectorAll('[data-dragging]')).toHaveLength(0);
   });
 
@@ -899,7 +1102,11 @@ describe('Plane', () => {
     expect(firstChange).not.toHaveBeenCalled();
     expect(secondChange).toHaveBeenLastCalledWith(
       { x: 0.7, y: 0.76 },
-      { interaction: 'keyboard', thumbId: 'second' },
+      details({
+        interaction: 'keyboard',
+        reason: 'keyboard',
+        thumbId: 'second',
+      }),
     );
     expect(document.activeElement).toBe(
       container.querySelector(
@@ -932,7 +1139,11 @@ describe('Plane', () => {
     expect(firstChange).not.toHaveBeenCalled();
     expect(secondChange).toHaveBeenCalledWith(
       { x: 0.4, y: 0.5 },
-      { interaction: 'pointer', thumbId: 'second' },
+      details({
+        interaction: 'pointer',
+        reason: 'plane-press',
+        thumbId: 'second',
+      }),
     );
   });
 
@@ -969,7 +1180,11 @@ describe('Plane', () => {
     expect(disabledChange).not.toHaveBeenCalled();
     expect(enabledChange).toHaveBeenCalledWith(
       { x: 0.4, y: 0.5 },
-      { interaction: 'pointer', thumbId: 'movable' },
+      details({
+        interaction: 'pointer',
+        reason: 'plane-press',
+        thumbId: 'movable',
+      }),
     );
   });
 
@@ -1002,7 +1217,11 @@ describe('Plane', () => {
     expect(firstChange).not.toHaveBeenCalled();
     expect(secondChange).toHaveBeenCalledWith(
       { x: 0.75, y: 0.76 },
-      { interaction: 'keyboard', thumbId: 'Incoming handle' },
+      details({
+        interaction: 'keyboard',
+        reason: 'keyboard',
+        thumbId: 'Incoming handle',
+      }),
     );
     expect(document.activeElement).toBe(
       secondThumb.querySelector('[data-plane-axis="y"]'),

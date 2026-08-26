@@ -62,6 +62,7 @@ export {
   clampPlaneValue,
   getPlaneValueFromPoint,
   usePlaneContext,
+  usePlaneThumbContext,
 } from './plane.js';
 export type {
   PlaneBounds,
@@ -71,8 +72,10 @@ export type {
   PlanePressBehavior,
   PlaneProps,
   PlaneThumbProps,
+  PlaneThumbContextValue,
   PlaneValue,
   PlaneValueChangeDetails,
+  PlaneValueChangeReason,
 } from './plane.js';
 export type {
   CreateMultiInputSegmentsOptions,

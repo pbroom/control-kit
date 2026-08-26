@@ -56,7 +56,7 @@ function PlanePreview({ controller }: { controller: PlaneLabPageController }) {
           onValueChange={setValue}
           onValueCommit={controller.setValue}
           step={0.01}
-          shiftStep={0.1}
+          largeStep={0.1}
           xAriaLabel="Horizontal position"
           yAriaLabel="Vertical position"
           getAriaValueText={formatPosition}
