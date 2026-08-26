@@ -85,6 +85,23 @@ const [points, setPoints] = React.useState([
 </Plane>;
 ```
 
+## Form
+
+Set `xName` and `yName` to include both coordinates in form data. Use `form` to associate the thumb with a form outside its DOM ancestry. Resetting the form restores an uncontrolled thumb to its `defaultValue`; controlled state remains owned by the application.
+
+```tsx
+<form id="position-form">
+  <Plane>
+    <PlaneThumb
+      defaultValue={{ x: 0.5, y: 0.5 }}
+      xName="position.x"
+      yName="position.y"
+    />
+  </Plane>
+  <button type="reset">Reset</button>
+</form>
+```
+
 ## API reference
 
 ### Plane
@@ -112,7 +129,7 @@ Owns a normalized position, renders its visible marker, and supplies two accessi
 
 <!-- props:plane-thumb -->
 
-`onValueChange` and `onValueCommit` receive `details.interaction`, which is either `'pointer'` or `'keyboard'`. When `thumbId` is set, callbacks also receive it as `details.thumbId`.
+`onValueChange` and `onValueCommit` receive `details.interaction`, which groups changes as `'pointer'` or `'keyboard'`. `details.reason` identifies `'thumb-drag'`, `'plane-press'`, `'keyboard'`, or `'input-change'`, and `details.originalEvent` exposes the native event when available. When `thumbId` is set, callbacks also receive it as `details.thumbId`.
 
 A pointer interaction commits on release, cancellation, or lost capture. Changing a thumb to `disabled` or `readOnly` during a drag ends the interaction without committing. Non-positive and non-finite step values fall back to their defaults.
 
@@ -143,8 +160,8 @@ For multiple thumbs, use `aria-label` on each thumb to prefix its default axis l
 | Left Arrow / Right Arrow | Decreases or increases X by `step`.                                                    |
 | Down Arrow / Up Arrow    | Decreases or increases Y by `step`.                                                    |
 | Two held arrow keys      | Moves both axes when a horizontal and vertical direction are held together.            |
-| Shift + Arrow            | Changes the corresponding axis by `shiftStep`.                                         |
-| Page Down / Page Up      | Changes the focused axis by `shiftStep`.                                               |
+| Shift + Arrow            | Changes the corresponding axis by `largeStep`.                                         |
+| Page Down / Page Up      | Changes the focused axis by `largeStep`.                                               |
 | Home / End               | Sets the focused axis to `0` or `1`.                                                   |
 | Tab / Shift + Tab        | Reveals focus after pointer use, then moves to the next or previous focusable element. |
 
@@ -156,6 +173,10 @@ Held-arrow changes commit when the final arrow is released. Other keyboard chang
 
 Returns `{ disabled, readOnly, dragging }` for a descendant visual layer. It throws when called outside `Plane`.
 
+### usePlaneThumbContext
+
+Returns `{ value, dragging, focused, focusVisible, disabled, readOnly }` for a descendant of `PlaneThumb`. It throws when called outside `PlaneThumb`.
+
 ### clampPlaneValue
 
 Clamps both coordinates to the `0` to `1` range. Non-finite coordinates become `0`.
@@ -166,17 +187,19 @@ Converts viewport coordinates and element bounds to a clamped Cartesian `PlaneVa
 
 ## Types
 
-| Type                      | Contract                                                        |
-| ------------------------- | --------------------------------------------------------------- |
-| `PlaneValue`              | `{ x: number; y: number }` normalized from `0` to `1`.          |
-| `PlaneInteraction`        | `'pointer' \| 'keyboard'`.                                      |
-| `PlaneValueChangeDetails` | `{ interaction: PlaneInteraction; thumbId?: string }`.          |
-| `PlanePoint`              | `{ clientX: number; clientY: number }`.                         |
-| `PlaneBounds`             | `{ left: number; top: number; width: number; height: number }`. |
-| `PlanePressBehavior`      | `'auto' \| 'none' \| 'nearest'`.                                |
-| `PlaneContextValue`       | The root `disabled`, `readOnly`, and `dragging` state.          |
-| `PlaneProps`              | Native `div` props plus root interaction options.               |
-| `PlaneThumbProps`         | Native `div` props plus value, interaction, and axis options.   |
+| Type                      | Contract                                                                                |
+| ------------------------- | --------------------------------------------------------------------------------------- |
+| `PlaneValue`              | `{ x: number; y: number }` normalized from `0` to `1`.                                  |
+| `PlaneInteraction`        | `'pointer' \| 'keyboard'`.                                                              |
+| `PlaneValueChangeReason`  | `'thumb-drag' \| 'plane-press' \| 'keyboard' \| 'input-change'`.                        |
+| `PlaneValueChangeDetails` | Interaction, reason, optional thumb ID, and optional original event for a value change. |
+| `PlanePoint`              | `{ clientX: number; clientY: number }`.                                                 |
+| `PlaneBounds`             | `{ left: number; top: number; width: number; height: number }`.                         |
+| `PlanePressBehavior`      | `'auto' \| 'none' \| 'nearest'`.                                                        |
+| `PlaneContextValue`       | The root `disabled`, `readOnly`, and `dragging` state.                                  |
+| `PlaneThumbContextValue`  | The thumb's value, interaction state, focus state, `disabled`, and `readOnly` values.   |
+| `PlaneProps`              | Native `div` props plus root interaction options.                                       |
+| `PlaneThumbProps`         | Native `div` props plus value, interaction, form, and axis options.                     |
 
 ## Source
 

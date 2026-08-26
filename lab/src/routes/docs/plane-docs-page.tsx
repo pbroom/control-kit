@@ -147,11 +147,29 @@ const PLANE_THUMB_PROPS = [
     description: 'The arrow-key and native range-input increment.',
   },
   {
-    name: 'shiftStep',
+    name: 'largeStep',
     type: 'number | undefined',
     shortType: 'number',
     defaultValue: '0.1',
     description: 'The Shift+Arrow and Page Up or Page Down increment.',
+  },
+  {
+    name: 'xName',
+    type: 'string | undefined',
+    shortType: 'string',
+    description: "The horizontal range input's form field name.",
+  },
+  {
+    name: 'yName',
+    type: 'string | undefined',
+    shortType: 'string',
+    description: "The vertical range input's form field name.",
+  },
+  {
+    name: 'form',
+    type: 'string | undefined',
+    shortType: 'string',
+    description: 'The ID of the form associated with both axis inputs.',
   },
 ] satisfies readonly PropReference[];
 
@@ -172,7 +190,7 @@ function PlaneDocsDemo() {
           className="size-6 border-white/30 bg-white shadow-none"
           getAriaValueText={formatPosition}
           onValueChange={setValue}
-          shiftStep={0.1}
+          largeStep={0.1}
           step={0.01}
           value={value}
           xAriaLabel="Horizontal position"

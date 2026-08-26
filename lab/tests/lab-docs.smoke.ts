@@ -72,7 +72,7 @@ test('routes between Plane docs and Lab without exposing tabs on undocumented pa
   await expect(
     page.getByRole('heading', { name: 'API reference', exact: true }),
   ).toBeVisible();
-  await expect(page.locator('pre[data-language="tsx"]')).toHaveCount(3);
+  await expect(page.locator('pre[data-language="tsx"]')).toHaveCount(4);
   await expect(
     page.getByRole('region', { name: 'Plane component props table' }),
   ).toBeVisible();
@@ -98,6 +98,13 @@ test('routes between Plane docs and Lab without exposing tabs on undocumented pa
   await expect(
     page.getByText('The controlled normalized position.', { exact: true }),
   ).toBeVisible();
+
+  const largeStepProp = page.locator('summary#planethumb-largestep');
+  await expect(largeStepProp).toContainText('largeStep');
+  await expect(largeStepProp).toContainText('0.1');
+  await expect(page.locator('summary#planethumb-xname')).toContainText('xName');
+  await expect(page.locator('summary#planethumb-yname')).toContainText('yName');
+  await expect(page.locator('summary#planethumb-form')).toContainText('form');
 
   expect(
     await page
