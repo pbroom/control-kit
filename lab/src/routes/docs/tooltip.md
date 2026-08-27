@@ -2,6 +2,8 @@
 
 A short, descriptive label that appears when a trigger receives pointer hover or keyboard focus.
 
+Built on [Radix Tooltip](https://www.radix-ui.com/primitives/docs/components/tooltip). Control Kit adds its visual treatment, pointer options, and animation handoff policy.
+
 <!-- demo:basic -->
 
 ## Anatomy
