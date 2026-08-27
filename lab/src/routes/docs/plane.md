@@ -114,6 +114,8 @@ Groups the visual layers and routes pointer interaction. `PlaneProps` includes n
 
 The root captures the primary pointer for a drag and measures its bounds once at the start. Changing the root to `disabled` or `readOnly` during a drag ends the interaction without committing. Native pointer handlers run before Plane's internal handling, so calling `preventDefault()` cancels the corresponding internal step.
 
+`onHoverValueChange` reports normalized mouse and hovering-pen coordinates without moving a thumb. It receives `null` when the pointer leaves. `details.pointerType` identifies the pointer, and `details.originalEvent` exposes the native pointer event. Touch input does not report hover values.
+
 **Data attributes**
 
 | Attribute           | When present                           |
@@ -135,15 +137,16 @@ A pointer interaction commits on release, cancellation, or lost capture. Changin
 
 **Data attributes**
 
-| Attribute                 | When present                            |
-| ------------------------- | --------------------------------------- |
-| `data-slot="plane-thumb"` | Always.                                 |
-| `data-thumb-id`           | When `thumbId` is set.                  |
-| `data-dragging`           | While this thumb is being dragged.      |
-| `data-disabled`           | When `disabled` is `true`.              |
-| `data-readonly`           | When `readOnly` is `true`.              |
-| `data-focused`            | While either axis input contains focus. |
-| `data-focus-visible`      | While keyboard focus is visible.        |
+| Attribute                 | When present                                     |
+| ------------------------- | ------------------------------------------------ |
+| `data-slot="plane-thumb"` | Always.                                          |
+| `data-thumb-id`           | When `thumbId` is set.                           |
+| `data-hovered`            | While a mouse or hovering pen is over the thumb. |
+| `data-dragging`           | While this thumb is being dragged.               |
+| `data-disabled`           | When `disabled` is `true`.                       |
+| `data-readonly`           | When `readOnly` is `true`.                       |
+| `data-focused`            | While either axis input contains focus.          |
+| `data-focus-visible`      | While keyboard focus is visible.                 |
 
 ## Accessibility
 
@@ -175,7 +178,7 @@ Returns `{ disabled, readOnly, dragging }` for a descendant visual layer. It thr
 
 ### usePlaneThumbContext
 
-Returns `{ value, dragging, focused, focusVisible, disabled, readOnly }` for a descendant of `PlaneThumb`. It throws when called outside `PlaneThumb`.
+Returns `{ value, hovered, dragging, focused, focusVisible, disabled, readOnly }` for a descendant of `PlaneThumb`. It throws when called outside `PlaneThumb`.
 
 ### clampPlaneValue
 
@@ -187,19 +190,20 @@ Converts viewport coordinates and element bounds to a clamped Cartesian `PlaneVa
 
 ## Types
 
-| Type                      | Contract                                                                                |
-| ------------------------- | --------------------------------------------------------------------------------------- |
-| `PlaneValue`              | `{ x: number; y: number }` normalized from `0` to `1`.                                  |
-| `PlaneInteraction`        | `'pointer' \| 'keyboard'`.                                                              |
-| `PlaneValueChangeReason`  | `'thumb-drag' \| 'plane-press' \| 'keyboard' \| 'input-change'`.                        |
-| `PlaneValueChangeDetails` | Interaction, reason, optional thumb ID, and optional original event for a value change. |
-| `PlanePoint`              | `{ clientX: number; clientY: number }`.                                                 |
-| `PlaneBounds`             | `{ left: number; top: number; width: number; height: number }`.                         |
-| `PlanePressBehavior`      | `'auto' \| 'none' \| 'nearest'`.                                                        |
-| `PlaneContextValue`       | The root `disabled`, `readOnly`, and `dragging` state.                                  |
-| `PlaneThumbContextValue`  | The thumb's value, interaction state, focus state, `disabled`, and `readOnly` values.   |
-| `PlaneProps`              | Native `div` props plus root interaction options.                                       |
-| `PlaneThumbProps`         | Native `div` props plus value, interaction, form, and axis options.                     |
+| Type                           | Contract                                                                                |
+| ------------------------------ | --------------------------------------------------------------------------------------- |
+| `PlaneValue`                   | `{ x: number; y: number }` normalized from `0` to `1`.                                  |
+| `PlaneInteraction`             | `'pointer' \| 'keyboard'`.                                                              |
+| `PlaneHoverValueChangeDetails` | The pointer type and native pointer event for a hover-position change.                  |
+| `PlaneValueChangeReason`       | `'thumb-drag' \| 'plane-press' \| 'keyboard' \| 'input-change'`.                        |
+| `PlaneValueChangeDetails`      | Interaction, reason, optional thumb ID, and optional original event for a value change. |
+| `PlanePoint`                   | `{ clientX: number; clientY: number }`.                                                 |
+| `PlaneBounds`                  | `{ left: number; top: number; width: number; height: number }`.                         |
+| `PlanePressBehavior`           | `'auto' \| 'none' \| 'nearest'`.                                                        |
+| `PlaneContextValue`            | The root `disabled`, `readOnly`, and `dragging` state.                                  |
+| `PlaneThumbContextValue`       | The thumb's value, interaction, hover, focus, `disabled`, and `readOnly` states.        |
+| `PlaneProps`                   | Native `div` props plus root interaction options.                                       |
+| `PlaneThumbProps`              | Native `div` props plus value, interaction, form, and axis options.                     |
 
 ## Source
 

@@ -52,12 +52,14 @@ test('drives the composed Plane with pointer, keyboard, and properties', async (
     thumbBox!.x + thumbBox!.width / 2,
     thumbBox!.y + thumbBox!.height / 2,
   );
+  await expect(thumb).toHaveAttribute('data-hovered', 'true');
   const hoveredThumbBox = await thumb.boundingBox();
   expect(hoveredThumbBox).not.toBeNull();
   expect(hoveredThumbBox!.width).toBe(thumbBox!.width);
   expect(hoveredThumbBox!.height).toBe(thumbBox!.height);
   expect(await readThumbVisualState()).toEqual(idleThumbVisualState);
   await page.mouse.down();
+  await expect(thumb).toHaveAttribute('data-hovered', 'true');
   const pressedThumbBox = await thumb.boundingBox();
   expect(pressedThumbBox).not.toBeNull();
   expect(pressedThumbBox!.width).toBe(thumbBox!.width);
@@ -68,6 +70,8 @@ test('drives the composed Plane with pointer, keyboard, and properties', async (
     planeBox!.y + planeBox!.height * 0.25,
   );
   await page.mouse.up();
+  await page.mouse.move(planeBox!.x + 2, planeBox!.y + 2);
+  await expect(thumb).not.toHaveAttribute('data-hovered');
 
   await expect(readout).toContainText('X 0.80 · Y 0.75');
   await expect(page.getByLabel('X position', { exact: true })).toHaveValue(
