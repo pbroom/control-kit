@@ -102,4 +102,48 @@ describe('HighlightedCode', () => {
       'Could not copy code.',
     );
   });
+
+  it('keeps feedback from the latest overlapping copy attempt', async () => {
+    let rejectFirst: (reason: Error) => void = () => {};
+    let resolveSecond: () => void = () => {};
+    const firstWrite = new Promise<void>((_, reject) => {
+      rejectFirst = reject;
+    });
+    const secondWrite = new Promise<void>((resolve) => {
+      resolveSecond = resolve;
+    });
+    const writeText = vi
+      .fn()
+      .mockReturnValueOnce(firstWrite)
+      .mockReturnValueOnce(secondWrite);
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    });
+
+    const container = mountHighlightedCode({
+      block: true,
+      code: 'const answer = 42;',
+    });
+    const button = container.querySelector('button');
+
+    act(() => {
+      button?.click();
+      button?.click();
+    });
+
+    await act(async () => {
+      resolveSecond();
+      await secondWrite;
+    });
+    await act(async () => {
+      rejectFirst(new Error('Older attempt failed'));
+      await firstWrite.catch(() => {});
+    });
+
+    expect(button?.getAttribute('data-copy-state')).toBe('copied');
+    expect(container.querySelector('[role="status"]')?.textContent).toBe(
+      'Code copied to clipboard.',
+    );
+  });
 });

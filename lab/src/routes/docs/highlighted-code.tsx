@@ -12,22 +12,28 @@ type CopyState = 'idle' | 'copied' | 'failed';
 
 function CopyCodeButton({ code }: { code: string }) {
   const [copyState, setCopyState] = useState<CopyState>('idle');
+  const copyAttempt = useRef(0);
   const resetTimeout = useRef<number | undefined>(undefined);
 
   useEffect(
     () => () => {
+      copyAttempt.current += 1;
       window.clearTimeout(resetTimeout.current);
     },
     [],
   );
 
   const handleCopy = async () => {
+    const attempt = copyAttempt.current + 1;
+    copyAttempt.current = attempt;
     window.clearTimeout(resetTimeout.current);
 
     try {
       await navigator.clipboard.writeText(code);
+      if (attempt !== copyAttempt.current) return;
       setCopyState('copied');
     } catch {
+      if (attempt !== copyAttempt.current) return;
       setCopyState('failed');
     }
 
