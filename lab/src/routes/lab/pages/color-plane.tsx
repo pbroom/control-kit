@@ -327,10 +327,10 @@ function renderColorPlaneProperties(controller: ColorPlaneLabPageController) {
 }
 
 export const colorPlaneLabPage: LabPageDescriptor<
-  'plane',
+  'colorPlane',
   ColorPlaneLabPageController
 > = {
-  key: 'plane',
+  key: 'colorPlane',
   label: 'ColorPlane',
   useController: useColorPlaneLabPageController,
   renderPreview: renderColorPlanePreview,
@@ -339,4 +339,4 @@ export const colorPlaneLabPage: LabPageDescriptor<
 
 export type { ColorPlaneLabPageController };
 
-export const PlaneLabActivePage = createActiveLabPage(colorPlaneLabPage);
+export const ColorPlaneLabActivePage = createActiveLabPage(colorPlaneLabPage);

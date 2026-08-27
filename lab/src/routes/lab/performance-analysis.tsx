@@ -1,4 +1,5 @@
 import {
+  memo,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -50,7 +51,7 @@ const LAB_PERFORMANCE_PANEL_VIEWS: Array<{
   { value: 'metrics', label: 'Metrics' },
 ];
 
-export function LabPerformanceAnalysisPanel({
+function LabPerformanceAnalysisPanelComponent({
   activePage,
   isCollapsed,
   isLoading,
@@ -814,3 +815,8 @@ export function LabPerformanceAnalysisPanel({
     </section>
   );
 }
+
+export const LabPerformanceAnalysisPanel = memo(
+  LabPerformanceAnalysisPanelComponent,
+);
+LabPerformanceAnalysisPanel.displayName = 'LabPerformanceAnalysisPanel';

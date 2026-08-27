@@ -56,6 +56,27 @@ export {
   MultiInputSegment,
   createMultiInputSegments,
 } from './multi-input-control.js';
+export {
+  Plane,
+  PlaneThumb,
+  clampPlaneValue,
+  getPlaneValueFromPoint,
+  usePlaneContext,
+  usePlaneThumbContext,
+} from './plane.js';
+export type {
+  PlaneBounds,
+  PlaneContextValue,
+  PlaneInteraction,
+  PlanePoint,
+  PlanePressBehavior,
+  PlaneProps,
+  PlaneThumbProps,
+  PlaneThumbContextValue,
+  PlaneValue,
+  PlaneValueChangeDetails,
+  PlaneValueChangeReason,
+} from './plane.js';
 export type {
   CreateMultiInputSegmentsOptions,
   MultiInputConfig,

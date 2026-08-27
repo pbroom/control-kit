@@ -64,6 +64,34 @@ element:
 
 The same tokens are exported as `controlKitColor` for use in inline styles.
 
+## Plane
+
+`Plane` owns normalized Cartesian XY input while its children own the visual
+surface. `PlaneThumb` supplies the positioned marker and accessible keyboard
+axes; use `onValueChange` for live updates and `onValueCommit` for completed
+pointer or keyboard interactions.
+
+```tsx
+const [point, setPoint] = useState({ x: 0.35, y: 0.65 });
+
+<Plane
+  aria-label="Curve control point"
+  className="size-72 rounded-xl border"
+  value={point}
+  onValueChange={setPoint}
+  onValueCommit={(value) => savePoint(value)}
+>
+  <svg aria-hidden="true" className="absolute inset-0 size-full">
+    {/* Consumer-owned guides, curves, canvas, or other content. */}
+  </svg>
+  <PlaneThumb xAriaLabel="Horizontal position" yAriaLabel="Vertical position" />
+</Plane>;
+```
+
+Coordinates are clamped to `0..1`, with X increasing left-to-right and Y
+increasing bottom-to-top. Arrow keys move the focused axis; Shift uses the
+coarse step.
+
 ## Development
 
 ```sh
