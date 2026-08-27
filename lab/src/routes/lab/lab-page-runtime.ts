@@ -18,28 +18,52 @@ export type LabPageNavigationItem = {
   value: LabPageKey;
   slug: string;
   label: string;
+  section: LabPageNavigationSection;
 };
+
+export type LabPageNavigationSection = 'Primitives' | 'Components';
 
 export const DEFAULT_LAB_PAGE: LabPageKey = 'plane';
 
 type LabPageRouteMetadata = {
   slug: string;
   label: string;
+  section: LabPageNavigationSection;
 };
 
 export const LAB_PAGE_ROUTE_REGISTRY = {
-  plane: { slug: 'plane', label: 'Plane' },
-  colorPlane: { slug: 'color-plane', label: 'ColorPlane' },
-  input: { slug: 'input-primitive', label: 'Input Primitive' },
-  inputMulti: { slug: 'input-multi', label: 'Input Multi' },
-  checkbox: { slug: 'checkbox', label: 'Checkbox' },
-  slider: { slug: 'slider', label: 'Slider' },
-  tooltip: { slug: 'tooltip', label: 'Tooltip' },
-  menu: { slug: 'menu', label: 'Menu' },
-  select: { slug: 'select', label: 'Select' },
-  tabs: { slug: 'tabs', label: 'Tabs' },
-  toggleButton: { slug: 'toggle-button', label: 'Toggle Button' },
-  toggle: { slug: 'toggle-group', label: 'Toggle Group' },
+  plane: { slug: 'plane', label: 'Plane', section: 'Primitives' },
+  input: {
+    slug: 'input-primitive',
+    label: 'Input Primitive',
+    section: 'Primitives',
+  },
+  inputMulti: {
+    slug: 'input-multi',
+    label: 'Input Multi',
+    section: 'Primitives',
+  },
+  checkbox: { slug: 'checkbox', label: 'Checkbox', section: 'Components' },
+  colorPlane: {
+    slug: 'color-plane',
+    label: 'ColorPlane',
+    section: 'Components',
+  },
+  menu: { slug: 'menu', label: 'Menu', section: 'Components' },
+  select: { slug: 'select', label: 'Select', section: 'Components' },
+  slider: { slug: 'slider', label: 'Slider', section: 'Components' },
+  tabs: { slug: 'tabs', label: 'Tabs', section: 'Components' },
+  toggleButton: {
+    slug: 'toggle-button',
+    label: 'Toggle Button',
+    section: 'Components',
+  },
+  toggle: {
+    slug: 'toggle-group',
+    label: 'Toggle Group',
+    section: 'Components',
+  },
+  tooltip: { slug: 'tooltip', label: 'Tooltip', section: 'Components' },
 } as const satisfies Record<LabPageKey, LabPageRouteMetadata>;
 
 type LabPageRouteRegistry = typeof LAB_PAGE_ROUTE_REGISTRY;
@@ -56,6 +80,7 @@ export const LAB_PAGE_NAVIGATION: readonly LabPageNavigationItem[] =
     value,
     slug: route.slug,
     label: route.label,
+    section: route.section,
   }));
 
 const LAB_PAGE_BY_SLUG = new Map<string, LabPageKey>(

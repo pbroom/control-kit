@@ -15,11 +15,30 @@ describe('documentation routes', () => {
       ),
     ).toEqual([
       'plane',
-      'colorPlane',
       'input',
       'inputMulti',
+      'colorPlane',
       'slider',
       'tooltip',
+    ]);
+  });
+
+  it('separates low-level primitives from assembled components', () => {
+    expect(
+      LAB_PAGE_NAVIGATION.map(({ value, section }) => [value, section]),
+    ).toEqual([
+      ['plane', 'Primitives'],
+      ['input', 'Primitives'],
+      ['inputMulti', 'Primitives'],
+      ['checkbox', 'Components'],
+      ['colorPlane', 'Components'],
+      ['menu', 'Components'],
+      ['select', 'Components'],
+      ['slider', 'Components'],
+      ['tabs', 'Components'],
+      ['toggleButton', 'Components'],
+      ['toggle', 'Components'],
+      ['tooltip', 'Components'],
     ]);
   });
 

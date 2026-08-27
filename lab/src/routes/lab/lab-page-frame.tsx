@@ -34,7 +34,10 @@ import {
 } from './lab-page-slots.js';
 import { LabPerformanceAnalysisPanel } from './performance-analysis.js';
 import type { LabPageKey } from './shared.js';
-import type { PrimitivePageView } from './lab-page-runtime.js';
+import type {
+  LabPageNavigationSection,
+  PrimitivePageView,
+} from './lab-page-runtime.js';
 
 const LAB_PANEL_SCROLL_AREA_CLASS =
   'ck-lab-properties-scroll-area h-full w-full min-w-0 max-w-full overflow-hidden [&>[data-radix-scroll-area-viewport]]:w-full [&>[data-radix-scroll-area-viewport]]:min-w-0 [&>[data-radix-scroll-area-viewport]]:max-w-full [&>[data-radix-scroll-area-viewport]]:overflow-x-hidden [&>[data-radix-scroll-area-viewport]>div]:!block [&>[data-radix-scroll-area-viewport]>div]:!w-full [&>[data-radix-scroll-area-viewport]>div]:!min-w-0 [&>[data-radix-scroll-area-viewport]>div]:!max-w-full';
@@ -166,14 +169,16 @@ function PagesPanel({
   onPagePreload?: (page: LabPageKey) => void;
   pages: readonly LabPageNavigationItem[];
 }) {
+  const sections = Array.from(new Set(pages.map((page) => page.section)));
+
   return (
     <div
       className={[
-        'absolute left-4 z-20 w-[190px]',
+        'pointer-events-none absolute bottom-4 left-4 z-20 flex w-[190px] flex-col',
         hasPageViewTabs ? 'top-16 sm:top-4' : 'top-4',
       ].join(' ')}
     >
-      <div className="flex items-center gap-2">
+      <div className="pointer-events-auto flex items-center gap-2">
         <div className="flex min-w-0 items-center rounded-lg px-1 py-1 font-[var(--font-brand)] text-[15px] font-bold text-white outline-none focus-visible:ring-2 focus-visible:ring-[#5288db]">
           <span className="truncate">control-kit</span>
         </div>
@@ -181,31 +186,47 @@ function PagesPanel({
           <ThemeSwitcher />
         </div>
       </div>
-      <div className="mt-3 space-y-0.5">
-        {pages.map((page) => {
-          const isActive = activePage === page.value;
-          return (
-            <a
-              key={page.value}
-              href={getPageHref(page.value)}
-              className="ck-lab-page-link flex w-full items-center rounded-lg px-1 py-1.5 text-left text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[#5288db]"
-              aria-current={isActive ? 'page' : undefined}
-              onClick={(event) => {
-                if (!shouldHandlePageLinkInApp(event)) {
-                  return;
-                }
+      <ScrollArea className="pointer-events-none mt-3 min-h-0 flex-1">
+        <nav
+          aria-label="Lab pages"
+          className="pointer-events-auto space-y-4 pr-3"
+        >
+          {sections.map((section) => (
+            <div key={section}>
+              <h2 className="px-1 pb-1 text-xs font-medium text-white/40">
+                {section}
+              </h2>
+              <div className="space-y-0.5">
+                {pages
+                  .filter((page) => page.section === section)
+                  .map((page) => {
+                    const isActive = activePage === page.value;
+                    return (
+                      <a
+                        key={page.value}
+                        href={getPageHref(page.value)}
+                        className="ck-lab-page-link flex w-full items-center rounded-lg px-1 py-1.5 text-left text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[#5288db]"
+                        aria-current={isActive ? 'page' : undefined}
+                        onClick={(event) => {
+                          if (!shouldHandlePageLinkInApp(event)) {
+                            return;
+                          }
 
-                event.preventDefault();
-                onPageChange(page.value);
-              }}
-              onFocus={() => onPagePreload?.(page.value)}
-              onPointerEnter={() => onPagePreload?.(page.value)}
-            >
-              {page.label}
-            </a>
-          );
-        })}
-      </div>
+                          event.preventDefault();
+                          onPageChange(page.value);
+                        }}
+                        onFocus={() => onPagePreload?.(page.value)}
+                        onPointerEnter={() => onPagePreload?.(page.value)}
+                      >
+                        {page.label}
+                      </a>
+                    );
+                  })}
+              </div>
+            </div>
+          ))}
+        </nav>
+      </ScrollArea>
     </div>
   );
 }
@@ -213,6 +234,7 @@ function PagesPanel({
 export type LabPageNavigationItem = {
   value: LabPageKey;
   label: string;
+  section: LabPageNavigationSection;
 };
 
 function shouldHandlePageLinkInApp(event: ReactMouseEvent<HTMLAnchorElement>) {
@@ -460,7 +482,7 @@ function LabPageFrameContent({
         onPagePreload={onPagePreload}
         pages={pages}
       />
-      <div className="mx-auto w-full max-w-[1180px] px-6 pt-[530px] pb-24 sm:pt-24 sm:pr-10 sm:pl-[236px] lg:pr-16 lg:pl-[252px]">
+      <div className="mx-auto w-full max-w-[1180px] px-6 pt-[540px] pb-24 sm:pt-24 sm:pr-10 sm:pl-[236px] lg:pr-16 lg:pl-[252px]">
         {docs}
       </div>
     </div>
