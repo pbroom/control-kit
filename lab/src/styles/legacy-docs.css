@@ -1241,6 +1241,10 @@ a {
   line-height: 1.75;
 }
 
+.prose p:has(+ .docs-markdown-table) {
+  margin-bottom: 0;
+}
+
 .prose ul {
   margin: 0.5rem 0;
   padding-left: 1.2rem;
@@ -1271,6 +1275,7 @@ a {
 .prose :not(pre) > code {
   font-family: var(--font-mono);
   font-size: 0.84em;
+  font-weight: 400;
   border-radius: 0.36rem;
   background: var(--color-inline-code-bg);
   padding: 0.12rem 0.38rem;
@@ -1466,6 +1471,10 @@ html:not(.dark) .prose .shiki span {
   line-height: 1.75;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
+}
+
+.docs-prop-table :not(pre) > code {
+  font-size: inherit;
 }
 
 .ck-demo-stack {

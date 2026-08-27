@@ -98,6 +98,20 @@ test('routes between Plane docs and Lab without exposing tabs on undocumented pa
   await expect(
     page.getByText('The controlled normalized position.', { exact: true }),
   ).toBeVisible();
+  const propTableCodeSizes = await page
+    .locator('section[aria-label$="component props table"] code')
+    .evaluateAll((nodes) =>
+      nodes.map((node) => getComputedStyle(node).fontSize),
+    );
+  expect(propTableCodeSizes.length).toBeGreaterThan(0);
+  expect([...new Set(propTableCodeSizes)]).toEqual(['14px']);
+  const proseInlineCodeWeights = await page
+    .locator('article.prose :not(pre) > code')
+    .evaluateAll((nodes) =>
+      nodes.map((node) => getComputedStyle(node).fontWeight),
+    );
+  expect(proseInlineCodeWeights.length).toBeGreaterThan(0);
+  expect([...new Set(proseInlineCodeWeights)]).toEqual(['400']);
 
   const largeStepProp = page.locator('summary#planethumb-largestep');
   await expect(largeStepProp).toContainText('largeStep');
@@ -115,6 +129,37 @@ test('routes between Plane docs and Lab without exposing tabs on undocumented pa
       }),
   ).toEqual(['0px', '0px']);
   await expect(page.locator('[data-docs-markdown] hr')).toHaveCount(0);
+  const dataAttributeSpacing = await page
+    .locator('article.prose strong')
+    .evaluateAll((nodes) =>
+      nodes
+        .filter((node) => node.textContent?.trim() === 'Data attributes')
+        .map((node) => {
+          const heading = node.parentElement;
+          const tableWrapper = heading?.nextElementSibling;
+          const headerCell = tableWrapper?.querySelector('th');
+          const precedingContent = heading?.previousElementSibling;
+          if (!heading || !headerCell || !precedingContent) return null;
+          const textRect = (element: Element) => {
+            const range = document.createRange();
+            range.selectNodeContents(element);
+            return range.getBoundingClientRect();
+          };
+          const headingRect = textRect(node);
+          return {
+            precedingToHeading:
+              headingRect.top - textRect(precedingContent).bottom,
+            headingToHeader: textRect(headerCell).top - headingRect.bottom,
+          };
+        }),
+    );
+  expect(dataAttributeSpacing).toHaveLength(2);
+  for (const spacing of dataAttributeSpacing) {
+    expect(spacing).not.toBeNull();
+    if (!spacing) continue;
+    expect(spacing.headingToHeader).toBeLessThan(spacing.precedingToHeading);
+    expect(spacing.headingToHeader).toBeGreaterThanOrEqual(16);
+  }
   await expect(page.locator('[data-docs-demo="basic"]')).toBeVisible();
   await expect(page.locator('[data-lab-component-preview]')).toHaveCount(0);
   await expect(page.getByTestId('lab-panel-toggle-controls')).toHaveCount(0);

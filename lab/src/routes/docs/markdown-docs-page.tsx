@@ -32,8 +32,8 @@ const MARKDOWN_COMPONENTS: Components = {
   },
   pre: ({ children }) => children,
   table: ({ children, ...props }) => (
-    <div className="my-8 w-full overflow-x-auto overscroll-x-contain">
-      <table className="my-0 min-w-[640px]" {...props}>
+    <div className="docs-markdown-table mt-4 mb-8 w-full overflow-x-auto overscroll-x-contain">
+      <table className="my-0! min-w-[640px]" {...props}>
         {children}
       </table>
     </div>
