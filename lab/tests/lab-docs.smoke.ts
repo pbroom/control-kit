@@ -475,21 +475,47 @@ test('routes between Plane docs and Lab without exposing tabs on undocumented pa
   expect(browserErrors).toEqual([]);
 });
 
-test('renders and exercises the documented primitive pages', async ({
+test('renders and exercises the documented pages', async ({
   page,
 }, testInfo) => {
   test.skip(testInfo.project.name !== 'desktop');
   const browserErrors = await collectBrowserErrors(page);
   const pages = [
-    { slug: 'color-plane', heading: 'ColorPlane', lab: '/lab/color-plane' },
+    {
+      slug: 'color-plane',
+      heading: 'ColorPlane',
+      apiHeading: 'API',
+      exampleCount: 2,
+      lab: '/lab/color-plane',
+    },
     {
       slug: 'input-primitive',
       heading: 'Input Primitive',
+      apiHeading: 'API reference',
+      exampleCount: 1,
       lab: '/lab/input-primitive',
     },
-    { slug: 'input-multi', heading: 'Input Multi', lab: '/lab/input-multi' },
-    { slug: 'slider', heading: 'Slider', lab: '/lab/slider' },
-    { slug: 'tooltip', heading: 'Tooltip', lab: '/lab/tooltip' },
+    {
+      slug: 'input-multi',
+      heading: 'Input Multi',
+      apiHeading: 'API reference',
+      exampleCount: 1,
+      lab: '/lab/input-multi',
+    },
+    {
+      slug: 'slider',
+      heading: 'Slider',
+      apiHeading: 'API',
+      exampleCount: 2,
+      lab: '/lab/slider',
+    },
+    {
+      slug: 'tooltip',
+      heading: 'Tooltip',
+      apiHeading: 'API',
+      exampleCount: 4,
+      lab: '/lab/tooltip',
+    },
   ] as const;
 
   for (const docsPage of pages) {
@@ -503,12 +529,14 @@ test('renders and exercises the documented primitive pages', async ({
       }),
     ).toBeVisible();
     await expect(
-      page.getByRole('heading', { name: 'API reference', exact: true }),
+      page.getByRole('heading', { name: docsPage.apiHeading, exact: true }),
     ).toBeVisible();
-    await expect(page.locator('[data-docs-example]')).toHaveCount(1);
+    await expect(page.locator('[data-docs-example]')).toHaveCount(
+      docsPage.exampleCount,
+    );
     await expect(
       page.getByRole('button', { name: 'Show code', exact: true }),
-    ).toBeVisible();
+    ).toHaveCount(docsPage.exampleCount);
     await expect(
       page
         .getByRole('tablist', { name: 'Page view', exact: true })
@@ -548,7 +576,10 @@ test('renders and exercises the documented primitive pages', async ({
   );
 
   await page.goto('/docs/tooltip');
-  await page.getByRole('button', { name: 'Hover or focus' }).focus();
+  await page
+    .getByLabel('Tooltip demo', { exact: true })
+    .getByRole('button', { name: 'Hover or focus' })
+    .focus();
   await expect(page.getByRole('tooltip')).toContainText('Open settings');
 
   expect(browserErrors).toEqual([]);

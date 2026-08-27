@@ -1,116 +1,92 @@
 # ColorPlane
 
-A rendered color field for selecting two color channels inside a composable `ColorArea`. `ColorArea` owns interaction and color state while `ColorPlane` supplies the canvas layer.
+A composed color-field control for editing two color channels. Color Kit owns the color state, interaction, and rendering; Control Kit uses the component in its Lab and documentation.
 
 <!-- demo:basic -->
 
-## Anatomy
+## Usage
 
-Import the parts from Color Kit and compose the render layer and thumb inside the area:
-
-```tsx
-import { ColorArea, ColorPlane, Thumb } from 'color-kit/react';
-
-<ColorArea requested={color} onChangeRequested={setColor}>
-  <ColorPlane />
-  <Thumb aria-label="Lightness and chroma" />
-</ColorArea>;
-```
-
-`ColorArea` renders a `div`, routes pointer input, and provides the resolved axes to its children. `ColorPlane` renders an absolutely positioned `canvas`. `Thumb` renders the keyboard-focusable marker above the visual layers.
-
-## Usage guidelines
-
-- Keep `ColorPlane` inside `ColorArea`; it reads axes, color state, and quality settings from the area context.
-- Use `requested` and `onChangeRequested` together for standalone controlled state, or place the area inside a Color Kit `Color` provider.
-- Choose distinct X and Y channels. Use explicit ranges when the editing domain differs from Color Kit's channel defaults.
-- Treat the canvas as visual output. The `Thumb` provides the keyboard and accessible value semantics.
-
-## Axes
-
-The default axes are lightness on X and chroma on Y. Pass `axes` to choose another pair or change either channel range.
+Import the parts from Color Kit, connect requested color state, and compose the canvas and thumb inside `ColorArea`:
 
 ```tsx
-<ColorArea
-  axes={{
-    x: { channel: 'h', range: [0, 360] },
-    y: { channel: 'c', range: [0, 0.4] },
-  }}
-  requested={color}
-  onChangeRequested={setColor}
->
-  <ColorPlane />
-  <Thumb aria-label="Hue and chroma" />
-</ColorArea>
+import { ColorArea, ColorPlane, Thumb, useColor } from 'color-kit/react';
+
+function ColorField() {
+  const color = useColor({ defaultColor: 'oklch(0.64 0.24 28)' });
+
+  return (
+    <ColorArea
+      requested={color.requested}
+      onChangeRequested={color.setRequested}
+    >
+      <ColorPlane aria-hidden="true" />
+      <Thumb aria-label="Lightness and chroma" />
+    </ColorArea>
+  );
+}
 ```
 
-## Rendering
+## Composition
 
-`renderer="auto"` selects the supported renderer. `edgeBehavior="clamp"` maps displayed out-of-gamut pixels to the nearest in-gamut edge; `"transparent"` leaves those pixels transparent. `resolutionScale` multiplies the canvas backing-store resolution beyond the device pixel ratio.
+- `ColorArea` owns the requested color, channel axes, and pointer interaction.
+- `ColorPlane` renders the color field into a canvas using the surrounding area state.
+- `Thumb` provides the focusable marker and keyboard interaction above the visual layers.
 
-## API reference
+Add guides, gamut boundaries, backgrounds, or other visual layers as children of `ColorArea`. Keep `ColorPlane` inside the area because it reads its color, axis, and quality settings from context.
 
-### ColorArea
+## Examples
 
-Groups the visual layers and owns pointer interaction. `ColorAreaProps` includes native `div` props except `onChange`.
+### Axes
 
-<!-- props:color-area -->
+The default axes are lightness on X and chroma on Y. Pass `axes` to choose another channel pair or to narrow either range.
 
-**Data attributes**
+<!-- demo:axes -->
 
-| Attribute                  | When present                           |
-| -------------------------- | -------------------------------------- |
-| `data-color-area`          | Always.                                |
-| `data-dragging`            | While pointer interaction is active.   |
-| `data-performance-profile` | Always, with the active profile.       |
-| `data-quality-level`       | Always, with the current quality tier. |
+### Rendering
 
-### ColorPlane
+`renderer="auto"` selects a supported backend. Edge behavior and resolution can be adjusted independently.
 
-Renders the color field into a canvas using the surrounding `ColorArea` context. `ColorPlaneProps` includes native `canvas` props except `onChange`.
+```tsx
+<ColorPlane edgeBehavior="transparent" renderer="auto" resolutionScale={1} />
+```
 
-<!-- props:color-plane -->
+`edgeBehavior="clamp"` maps displayed out-of-gamut pixels to the nearest in-gamut edge. `edgeBehavior="transparent"` leaves those pixels transparent.
 
-**Data attributes**
+## API
 
-| Attribute               | When present                      |
-| ----------------------- | --------------------------------- |
-| `data-color-area-plane` | Always.                           |
-| `data-source`           | Always, with the rendered source. |
-| `data-renderer`         | Always, with the active renderer. |
-| `data-edge-behavior`    | Always.                           |
+### Important `ColorArea` props
 
-### Thumb
+| Prop                              | Purpose                                                |
+| --------------------------------- | ------------------------------------------------------ |
+| `requested` / `onChangeRequested` | Controls standalone requested color state.             |
+| `axes`                            | Selects the X and Y channels and their numeric ranges. |
+| `performanceProfile`              | Chooses the runtime quality and responsiveness policy. |
+| `thumb` / `showDefaultThumb`      | Replaces or suppresses the default top-most thumb.     |
+| `maxUpdateHz` / `dragEpsilon`     | Tunes pointer-update frequency and minimum movement.   |
 
-Renders the interactive marker. `ThumbProps` includes native `div` props except `onChange`.
+### Important `ColorPlane` props
 
-<!-- props:color-area-thumb -->
+| Prop              | Purpose                                                    |
+| ----------------- | ---------------------------------------------------------- |
+| `source`          | Renders the requested or gamut-mapped displayed color.     |
+| `displayGamut`    | Selects the output gamut for displayed-source pixels.      |
+| `renderer`        | Selects automatic, GPU, or CPU rendering.                  |
+| `edgeBehavior`    | Clamps or makes displayed out-of-gamut pixels transparent. |
+| `resolutionScale` | Multiplies the canvas backing-store resolution.            |
 
-**Data attributes**
+### Important `Thumb` props
 
-| Attribute               | When present                               |
-| ----------------------- | ------------------------------------------ |
-| `data-color-area-thumb` | Always.                                    |
-| `data-gamut`            | Always, with the active output gamut.      |
-| `data-out-of-gamut`     | When the current color is out of gamut.    |
-| `data-x` / `data-y`     | Always, with normalized thumb coordinates. |
+| Prop                            | Purpose                                     |
+| ------------------------------- | ------------------------------------------- |
+| `aria-label` / `aria-valuetext` | Names and describes the two-axis value.     |
+| `stepRatio` / `shiftStepRatio`  | Sets the standard and large keyboard steps. |
+
+Each part also accepts the native props for its rendered element: `ColorArea` and `Thumb` render `div` elements, while `ColorPlane` renders a `canvas`.
 
 ## Accessibility
 
-`Thumb` has slider semantics, is keyboard focusable, and reports the active axis values through `aria-valuetext`. Arrow keys change the corresponding axis by `stepRatio`; Shift + Arrow uses `shiftStepRatio`. Provide an `aria-label` that names the color dimensions when the surrounding context does not already do so.
-
-The canvas is noninteractive and should not replace the thumb's semantic value. Additional decorative layers should remain hidden from assistive technology unless they communicate information not represented by the control.
-
-## Types
-
-| Type                          | Contract                                                  |
-| ----------------------------- | --------------------------------------------------------- |
-| `ColorAreaAxes`               | X and Y channel descriptors with optional numeric ranges. |
-| `ColorAreaPerformanceProfile` | `'auto'`, `'quality'`, `'balanced'`, or `'performance'`.  |
-| `ColorPlaneRenderer`          | `'auto'`, `'gpu'`, `'cpu'`, `'webgl'`, or `'canvas2d'`.   |
-| `ColorPlaneEdgeBehavior`      | `'transparent'` or `'clamp'`.                             |
-| `ColorPlaneSource`            | `'requested'` or `'displayed'`.                           |
+The canvas is visual output. `Thumb` supplies slider semantics, focus, keyboard interaction, and the announced value. Arrow keys move the corresponding axis; Shift + Arrow uses `shiftStepRatio`.
 
 ## Source
 
-[ColorArea implementation](https://github.com/pbroom/color-kit/blob/main/packages/react/src/color-area.tsx) · [ColorPlane implementation](https://github.com/pbroom/color-kit/blob/main/packages/react/src/color-plane.tsx) · [Issues](https://github.com/pbroom/color-kit/issues)
+[ColorArea implementation](https://github.com/pbroom/color-kit/blob/main/packages/react/src/color-area.tsx) · [ColorPlane implementation](https://github.com/pbroom/color-kit/blob/main/packages/react/src/color-plane.tsx) · [Color Kit issues](https://github.com/pbroom/color-kit/issues)

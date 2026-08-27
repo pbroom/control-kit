@@ -1,14 +1,12 @@
 # Tooltip
 
-A short, descriptive label that appears when a trigger receives pointer hover or keyboard focus.
-
-Built on [Radix Tooltip](https://www.radix-ui.com/primitives/docs/components/tooltip). Control Kit adds its visual treatment, pointer options, and animation handoff policy.
+A styled tooltip for short, descriptive labels. Built on [Radix Tooltip](https://www.radix-ui.com/primitives/docs/components/tooltip); Control Kit adds its visual treatment, pointer options, and animation handoff policy.
 
 <!-- demo:basic -->
 
-## Anatomy
+## Usage
 
-Import the parts and compose them together:
+Add one provider around a related group of triggers, then compose each tooltip from its root, trigger, and content:
 
 ```tsx
 import {
@@ -28,75 +26,69 @@ import {
 </TooltipProvider>;
 ```
 
-`TooltipProvider` coordinates delay and pointer handoff across a group. `Tooltip` owns open state. `TooltipTrigger` connects intent and description to the trigger element. `TooltipContent` portals the positioned content and optional pointer.
+## Composition
 
-## Usage guidelines
+- `TooltipProvider` coordinates delay and pointer handoff across a group.
+- `Tooltip` owns controlled or uncontrolled open state.
+- `TooltipTrigger` composes intent and accessible description onto the trigger.
+- `TooltipContent` portals the positioned surface and its optional pointer.
 
-- Keep tooltip content short and noninteractive. Use a popover when the floating content contains controls or requires persistent interaction.
-- The trigger must remain understandable without the tooltip; tooltip text supplies an accessible description and does not replace the trigger's accessible name.
-- Do not put essential instructions only in a tooltip because touch and some assistive-technology workflows may not expose hover content.
-- Place one provider around a related group of triggers so delay and pointer handoff remain consistent.
+## Examples
 
-## Delay and handoff
+### Contrast
 
-The provider defaults to a `450` ms initial delay and a `300` ms skip-delay window. Moving the pointer between tooltip triggers during that window opens the next tooltip immediately and suppresses the outgoing and incoming zoom animation.
+Content uses the solid inverse treatment by default. Use the surfaced treatment when the surrounding composition needs lower contrast.
 
-## Placement and pointer
+<!-- demo:contrast -->
 
-Use `side`, `align`, and `sideOffset` on `TooltipContent` for placement. `highContrast` switches between solid inverse and surfaced styling. Set `showPointer={false}` to remove the decorative arrow.
+### Pointer
 
-## API reference
+The decorative pointer is included by default and can be removed without changing positioning or accessible behavior.
 
-### TooltipProvider
+<!-- demo:pointer -->
 
-Forwards Radix Tooltip Provider props and coordinates animation handoff.
+### Placement
 
-<!-- props:tooltip-provider -->
+Radix positioning props pass through to `TooltipContent`.
 
-### Tooltip
+<!-- demo:placement -->
 
-Forwards Radix Tooltip Root props for controlled or uncontrolled open state.
+### Delay and handoff
 
-<!-- props:tooltip-root -->
+Control Kit defaults the provider to a `450` ms initial delay and a `300` ms skip-delay window. Moving between triggers during that window opens the next tooltip immediately and suppresses the outgoing and incoming zoom animation.
 
-### TooltipTrigger
+```tsx
+<TooltipProvider delayDuration={450} skipDelayDuration={300}>
+  {/* Related tooltips */}
+</TooltipProvider>
+```
 
-Forwards Radix Tooltip Trigger props and supports `asChild` composition.
+## API
 
-<!-- props:tooltip-trigger -->
+### Control Kit additions
 
-**Data attributes**
+| Prop           | Part             | Default | Purpose                                                 |
+| -------------- | ---------------- | ------- | ------------------------------------------------------- |
+| `highContrast` | `TooltipContent` | `true`  | Selects the solid inverse or surfaced visual treatment. |
+| `showPointer`  | `TooltipContent` | `true`  | Shows or hides the decorative pointer.                  |
 
-| Attribute                     | When present                                       |
-| ----------------------------- | -------------------------------------------------- |
-| `data-slot="tooltip-trigger"` | Always on the rendered trigger.                    |
-| `data-state`                  | `'closed'`, `'delayed-open'`, or `'instant-open'`. |
+Control Kit also changes the provider defaults to `450` ms for `delayDuration` and `300` ms for `skipDelayDuration`.
 
-### TooltipContent
+### Important forwarded props
 
-Forwards Radix Tooltip Content positioning and dismissal props and adds contrast and pointer options. `forceMount` is accepted by the current wrapper, but it only reaches Content; it does not keep the wrapper portal mounted while closed.
+| Part              | Props                                                                                    |
+| ----------------- | ---------------------------------------------------------------------------------------- |
+| `TooltipProvider` | `delayDuration`, `skipDelayDuration`, `disableHoverableContent`                          |
+| `Tooltip`         | `open`, `defaultOpen`, `onOpenChange`, `delayDuration`, `disableHoverableContent`        |
+| `TooltipTrigger`  | `asChild`                                                                                |
+| `TooltipContent`  | `side`, `align`, `sideOffset`, `avoidCollisions`, `collisionPadding`, dismissal handlers |
 
-<!-- props:tooltip-content -->
-
-**Data attributes**
-
-| Attribute                     | When present                            |
-| ----------------------------- | --------------------------------------- |
-| `data-slot="tooltip-content"` | Always on the rendered content.         |
-| `data-state`                  | With the current open state.            |
-| `data-side`                   | With the resolved collision-aware side. |
-| `data-align`                  | With the resolved alignment.            |
+The wrapper forwards the corresponding Radix props unless Control Kit documents a changed default or addition above. See the [Radix Tooltip API reference](https://www.radix-ui.com/primitives/docs/components/tooltip#api-reference) for the complete upstream contract.
 
 ## Accessibility
 
-Tooltip content is associated with its trigger as a description. It opens from pointer hover or keyboard focus and closes when the trigger activates or Escape is pressed. The decorative pointer is hidden from assistive technology.
-
-Keep interactive content out of the tooltip. If `disableHoverableContent` is false, users can move the pointer into the content without closing it, but the content should still remain descriptive.
-
-## Types
-
-`TooltipContentProps` is the named public wrapper type. Provider, root, and trigger accept their corresponding Radix Tooltip props through their component signatures.
+Tooltip content is associated with its trigger as a description. It opens from pointer hover or keyboard focus and closes when the trigger activates or Escape is pressed. Keep content short and noninteractive; use a popover when the floating surface contains controls.
 
 ## Source
 
-[Implementation](https://github.com/pbroom/control-kit/blob/main/src/tooltip.tsx) · [Tests](https://github.com/pbroom/control-kit/blob/main/__tests__/tooltip.test.tsx) · [Radix behavior](https://www.radix-ui.com/primitives/docs/components/tooltip) · [Issues](https://github.com/pbroom/control-kit/issues)
+[Implementation](https://github.com/pbroom/control-kit/blob/main/src/tooltip.tsx) · [Tests](https://github.com/pbroom/control-kit/blob/main/__tests__/tooltip.test.tsx) · [Radix Tooltip API](https://www.radix-ui.com/primitives/docs/components/tooltip#api-reference) · [Issues](https://github.com/pbroom/control-kit/issues)
