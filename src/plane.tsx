@@ -35,6 +35,11 @@ export type PlaneBounds = {
 
 export type PlanePressBehavior = 'auto' | 'none' | 'nearest';
 
+export type PlaneHoverValueChangeDetails = {
+  pointerType: string;
+  originalEvent: PointerEvent;
+};
+
 export type PlaneProps = Omit<
   React.ComponentProps<'div'>,
   'defaultValue' | 'onChange'
@@ -42,6 +47,10 @@ export type PlaneProps = Omit<
   disabled?: boolean;
   readOnly?: boolean;
   pressBehavior?: PlanePressBehavior;
+  onHoverValueChange?: (
+    value: PlaneValue | null,
+    details: PlaneHoverValueChangeDetails,
+  ) => void;
 };
 
 export type PlaneThumbProps = Omit<
@@ -73,6 +82,7 @@ export type PlaneContextValue = {
 
 export type PlaneThumbContextValue = {
   value: PlaneValue;
+  hovered: boolean;
   dragging: boolean;
   focused: boolean;
   focusVisible: boolean;
@@ -88,10 +98,25 @@ type PlaneValueChangeSource = Pick<
 type PlaneThumbRegistration = {
   key: string;
   getValue: () => PlaneValue;
+  getHoverSize: () => { width: number; height: number };
+  isControlled: () => boolean;
   isInteractive: () => boolean;
   publishValue: (value: PlaneValue, source: PlaneValueChangeSource) => boolean;
   commitPointerValue: (source: PlaneValueChangeSource) => void;
   focus: () => void;
+  syncPointerHover: (
+    pointerId: number,
+    pointerType: string,
+    hovered: boolean,
+    captured: boolean,
+  ) => void;
+  reconcilePointerHover: (
+    pointerId: number,
+    pointerType: string,
+    point: PlanePoint,
+    capturedOnly: boolean,
+  ) => void;
+  releasePointerHover: (pointerId: number, clearHover: boolean) => void;
 };
 
 type InternalPlaneContextValue = PlaneContextValue & {
@@ -203,6 +228,45 @@ function getNearestThumb(
   return nearest;
 }
 
+function planeBoundsContainPoint(point: PlanePoint, bounds: PlaneBounds) {
+  return (
+    point.clientX >= bounds.left &&
+    point.clientX <= bounds.left + bounds.width &&
+    point.clientY >= bounds.top &&
+    point.clientY <= bounds.top + bounds.height
+  );
+}
+
+function pointOverClampedThumb(
+  point: PlanePoint,
+  bounds: PlaneBounds,
+  thumbSize: { width: number; height: number },
+) {
+  const thumbCenterX = Math.min(
+    bounds.left + bounds.width,
+    Math.max(bounds.left, point.clientX),
+  );
+  const thumbCenterY = Math.min(
+    bounds.top + bounds.height,
+    Math.max(bounds.top, point.clientY),
+  );
+
+  return (
+    Math.abs(point.clientX - thumbCenterX) <= thumbSize.width / 2 &&
+    Math.abs(point.clientY - thumbCenterY) <= thumbSize.height / 2
+  );
+}
+
+function pointOverThumb(point: PlanePoint, bounds: DOMRect | null) {
+  return Boolean(
+    bounds &&
+    point.clientX >= bounds.left &&
+    point.clientX <= bounds.right &&
+    point.clientY >= bounds.top &&
+    point.clientY <= bounds.bottom,
+  );
+}
+
 export function Plane({
   disabled = false,
   readOnly = false,
@@ -215,11 +279,14 @@ export function Plane({
   'aria-roledescription': ariaRoleDescription = '2D control',
   onFocus,
   onBlur,
+  onPointerEnter,
   onPointerDown,
   onPointerMove,
+  onPointerLeave,
   onPointerUp,
   onPointerCancel,
   onLostPointerCapture,
+  onHoverValueChange,
   ...props
 }: PlaneProps) {
   const [activeThumbKey, setActiveThumbKey] = React.useState<string | null>(
@@ -230,6 +297,16 @@ export function Plane({
   const activeThumbKeyRef = React.useRef<string | null>(null);
   const activePointerIdRef = React.useRef<number | null>(null);
   const activePointerBoundsRef = React.useRef<PlaneBounds | null>(null);
+  const activePointerThumbSizeRef = React.useRef<{
+    width: number;
+    height: number;
+  } | null>(null);
+  const hoverPointerIdRef = React.useRef<number | null>(null);
+  const hoverPointerBoundsRef = React.useRef<PlaneBounds | null>(null);
+  const hoverValueRef = React.useRef<PlaneValue | null>(null);
+  const onHoverValueChangeRef = React.useRef(onHoverValueChange);
+  onHoverValueChangeRef.current = onHoverValueChange;
+  const observesHover = onHoverValueChange !== undefined;
   const activePointerReasonRef = React.useRef<Extract<
     PlaneValueChangeReason,
     'thumb-drag' | 'plane-press'
@@ -242,30 +319,41 @@ export function Plane({
     [ref],
   );
 
-  const clearActivePointer = React.useCallback((thumbKey?: string) => {
-    if (thumbKey !== undefined && activeThumbKeyRef.current !== thumbKey) {
-      return false;
-    }
+  const clearActivePointer = React.useCallback(
+    (thumbKey?: string, clearHover = false) => {
+      if (thumbKey !== undefined && activeThumbKeyRef.current !== thumbKey) {
+        return false;
+      }
 
-    const pointerId = activePointerIdRef.current;
-    if (pointerId === null) return false;
+      const pointerId = activePointerIdRef.current;
+      if (pointerId === null) return false;
 
-    activePointerIdRef.current = null;
-    activePointerBoundsRef.current = null;
-    activePointerReasonRef.current = null;
-    activeThumbKeyRef.current = null;
-    setActiveThumbKey(null);
+      const activeThumbKey = activeThumbKeyRef.current;
+      if (activeThumbKey) {
+        thumbsRef.current
+          .get(activeThumbKey)
+          ?.releasePointerHover(pointerId, clearHover);
+      }
 
-    if (rootRef.current?.hasPointerCapture(pointerId)) {
-      rootRef.current.releasePointerCapture(pointerId);
-    }
+      activePointerIdRef.current = null;
+      activePointerBoundsRef.current = null;
+      activePointerThumbSizeRef.current = null;
+      activePointerReasonRef.current = null;
+      activeThumbKeyRef.current = null;
+      setActiveThumbKey(null);
 
-    return true;
-  }, []);
+      if (rootRef.current?.hasPointerCapture(pointerId)) {
+        rootRef.current.releasePointerCapture(pointerId);
+      }
+
+      return true;
+    },
+    [],
+  );
 
   const cancelThumbInteraction = React.useCallback(
     (thumbKey: string) => {
-      clearActivePointer(thumbKey);
+      clearActivePointer(thumbKey, true);
     },
     [clearActivePointer],
   );
@@ -285,8 +373,96 @@ export function Plane({
 
   React.useEffect(() => {
     if (!disabled && !readOnly) return;
-    clearActivePointer();
+    clearActivePointer(undefined, true);
   }, [clearActivePointer, disabled, readOnly]);
+
+  React.useEffect(() => {
+    if (!observesHover) return;
+
+    const invalidateHoverBounds = () => {
+      hoverPointerBoundsRef.current = null;
+    };
+    const node = rootRef.current;
+    const resizeObserver =
+      node && typeof ResizeObserver !== 'undefined'
+        ? new ResizeObserver(invalidateHoverBounds)
+        : null;
+
+    if (node) resizeObserver?.observe(node);
+    window.addEventListener('resize', invalidateHoverBounds);
+    window.addEventListener('scroll', invalidateHoverBounds, true);
+
+    return () => {
+      resizeObserver?.disconnect();
+      window.removeEventListener('resize', invalidateHoverBounds);
+      window.removeEventListener('scroll', invalidateHoverBounds, true);
+    };
+  }, [observesHover]);
+
+  const publishHoverValue = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      const notifyHoverValueChange = onHoverValueChangeRef.current;
+      if (!notifyHoverValueChange || event.pointerType === 'touch') return;
+
+      if (hoverPointerIdRef.current !== event.pointerId) {
+        hoverPointerIdRef.current = event.pointerId;
+        hoverPointerBoundsRef.current = null;
+        hoverValueRef.current = null;
+      }
+
+      const bounds =
+        hoverPointerBoundsRef.current ??
+        (hoverPointerBoundsRef.current =
+          event.currentTarget.getBoundingClientRect());
+      const value = getPlaneValueFromPoint(event, bounds);
+      if (!planeBoundsContainPoint(event, bounds)) {
+        if (hoverValueRef.current !== null) {
+          hoverValueRef.current = null;
+          notifyHoverValueChange(null, {
+            pointerType: event.pointerType,
+            originalEvent: event.nativeEvent,
+          });
+        }
+        return;
+      }
+      if (
+        hoverValueRef.current &&
+        planeValuesEqual(hoverValueRef.current, value)
+      ) {
+        return;
+      }
+
+      hoverValueRef.current = value;
+      notifyHoverValueChange(value, {
+        pointerType: event.pointerType,
+        originalEvent: event.nativeEvent,
+      });
+    },
+    [],
+  );
+
+  const clearHoverValue = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (
+        event.pointerType === 'touch' ||
+        hoverPointerIdRef.current !== event.pointerId
+      ) {
+        return;
+      }
+
+      const hadHoverValue = hoverValueRef.current !== null;
+      hoverPointerIdRef.current = null;
+      hoverPointerBoundsRef.current = null;
+      hoverValueRef.current = null;
+      if (hadHoverValue) {
+        onHoverValueChangeRef.current?.(null, {
+          pointerType: event.pointerType,
+          originalEvent: event.nativeEvent,
+        });
+      }
+    },
+    [],
+  );
 
   const context = React.useMemo<InternalPlaneContextValue>(
     () => ({
@@ -322,6 +498,10 @@ export function Plane({
         }}
         onBlur={(event) => {
           onBlur?.(event);
+        }}
+        onPointerEnter={(event) => {
+          onPointerEnter?.(event);
+          if (!event.defaultPrevented) publishHoverValue(event);
         }}
         onPointerDown={(event) => {
           onPointerDown?.(event);
@@ -376,9 +556,11 @@ export function Plane({
           if (!registration) return;
 
           bounds = readBounds();
+          const thumbSize = registration.getHoverSize();
           event.preventDefault();
           activePointerIdRef.current = event.pointerId;
           activePointerBoundsRef.current = bounds;
+          activePointerThumbSizeRef.current = thumbSize;
           activePointerReasonRef.current = reason;
           activeThumbKeyRef.current = registration.key;
           setActiveThumbKey(registration.key);
@@ -388,10 +570,25 @@ export function Plane({
             reason,
             originalEvent: event.nativeEvent,
           });
+          registration.syncPointerHover(
+            event.pointerId,
+            event.pointerType,
+            pointOverClampedThumb(event, bounds, thumbSize),
+            true,
+          );
+          if (registration.isControlled()) {
+            registration.reconcilePointerHover(
+              event.pointerId,
+              event.pointerType,
+              event,
+              true,
+            );
+          }
           registration.focus();
         }}
         onPointerMove={(event) => {
           onPointerMove?.(event);
+          if (!event.defaultPrevented) publishHoverValue(event);
           if (
             event.defaultPrevented ||
             disabled ||
@@ -413,7 +610,28 @@ export function Plane({
               reason,
               originalEvent: event.nativeEvent,
             });
+            const thumbSize = activePointerThumbSizeRef.current;
+            if (thumbSize) {
+              registration.syncPointerHover(
+                event.pointerId,
+                event.pointerType,
+                pointOverClampedThumb(event, bounds, thumbSize),
+                true,
+              );
+              if (registration.isControlled()) {
+                registration.reconcilePointerHover(
+                  event.pointerId,
+                  event.pointerType,
+                  event,
+                  true,
+                );
+              }
+            }
           }
+        }}
+        onPointerLeave={(event) => {
+          onPointerLeave?.(event);
+          clearHoverValue(event);
         }}
         onPointerUp={(event) => {
           onPointerUp?.(event);
@@ -439,7 +657,30 @@ export function Plane({
             });
           }
 
+          const thumbSize = activePointerThumbSizeRef.current;
+          if (
+            registration &&
+            !registration.isControlled() &&
+            bounds &&
+            thumbSize
+          ) {
+            registration.syncPointerHover(
+              event.pointerId,
+              event.pointerType,
+              pointOverClampedThumb(event, bounds, thumbSize),
+              false,
+            );
+          }
+
           clearActivePointer();
+          if (registration?.isControlled()) {
+            registration.reconcilePointerHover(
+              event.pointerId,
+              event.pointerType,
+              event,
+              false,
+            );
+          }
           if (canPublish && registration) {
             registration.commitPointerValue({
               interaction: 'pointer',
@@ -451,6 +692,7 @@ export function Plane({
         }}
         onPointerCancel={(event) => {
           onPointerCancel?.(event);
+          clearHoverValue(event);
           if (activePointerIdRef.current !== event.pointerId) return;
 
           const thumbKey = activeThumbKeyRef.current;
@@ -465,7 +707,7 @@ export function Plane({
           );
           const reason = activePointerReasonRef.current ?? 'thumb-drag';
 
-          clearActivePointer();
+          clearActivePointer(undefined, true);
           if (shouldCommit && registration) {
             registration.commitPointerValue({
               interaction: 'pointer',
@@ -490,7 +732,7 @@ export function Plane({
           );
           const reason = activePointerReasonRef.current ?? 'thumb-drag';
 
-          clearActivePointer();
+          clearActivePointer(undefined, true);
           if (shouldCommit && registration) {
             registration.commitPointerValue({
               interaction: 'pointer',
@@ -603,6 +845,9 @@ export function PlaneThumb({
   'aria-label': ariaLabel,
   onFocusCapture,
   onBlurCapture,
+  onPointerEnter,
+  onPointerLeave,
+  onPointerCancel,
   onKeyDown,
   onKeyUp,
   ...props
@@ -614,12 +859,23 @@ export function PlaneThumb({
   );
   const [focused, setFocused] = React.useState(false);
   const [focusVisible, setFocusVisible] = React.useState(false);
+  const [hovered, setHovered] = React.useState(false);
   const [tabbableAxis, setTabbableAxis] = React.useState<PlaneAxis>('x');
   const thumbRef = React.useRef<HTMLDivElement | null>(null);
   const keyboardDirtyRef = React.useRef(false);
   const keyboardOriginalEventRef = React.useRef<Event | undefined>(undefined);
   const pressedArrowKeysRef = React.useRef(new Set<PlaneArrowKey>());
   const pointerFocusRef = React.useRef(false);
+  const hoveredRef = React.useRef(false);
+  const hoverPointerIdsRef = React.useRef(new Set<number>());
+  const capturedHoverPointerIdsRef = React.useRef(new Set<number>());
+  const hoverReconcileFrameRef = React.useRef<number | null>(null);
+  const pendingHoverReconcileRef = React.useRef<{
+    pointerId: number;
+    pointerType: string;
+    point: PlanePoint;
+    capturedOnly: boolean;
+  } | null>(null);
   const isControlled = controlledValue !== undefined;
   const sourceValue = isControlled ? controlledValue : uncontrolledValue;
   const defaultValueRef = React.useRef(defaultValue);
@@ -684,6 +940,53 @@ export function PlaneThumb({
   }, []);
 
   React.useEffect(() => cancelArrowRepeat, [cancelArrowRepeat]);
+
+  React.useEffect(
+    () => () => {
+      hoverPointerIdsRef.current.clear();
+      capturedHoverPointerIdsRef.current.clear();
+      if (hoverReconcileFrameRef.current !== null) {
+        cancelAnimationFrame(hoverReconcileFrameRef.current);
+      }
+    },
+    [],
+  );
+
+  const updateHovered = React.useCallback((nextHovered: boolean) => {
+    if (hoveredRef.current === nextHovered) return;
+    hoveredRef.current = nextHovered;
+    setHovered(nextHovered);
+  }, []);
+
+  const cancelPendingHoverReconcile = React.useCallback((pointerId: number) => {
+    if (pendingHoverReconcileRef.current?.pointerId !== pointerId) return;
+    pendingHoverReconcileRef.current = null;
+    if (hoverReconcileFrameRef.current !== null) {
+      cancelAnimationFrame(hoverReconcileFrameRef.current);
+      hoverReconcileFrameRef.current = null;
+    }
+  }, []);
+
+  const addHoverPointer = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (event.pointerType === 'touch') return;
+      cancelPendingHoverReconcile(event.pointerId);
+      hoverPointerIdsRef.current.add(event.pointerId);
+      updateHovered(true);
+    },
+    [cancelPendingHoverReconcile, updateHovered],
+  );
+
+  const removeHoverPointer = React.useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (event.pointerType === 'touch') return;
+      if (capturedHoverPointerIdsRef.current.has(event.pointerId)) return;
+      cancelPendingHoverReconcile(event.pointerId);
+      hoverPointerIdsRef.current.delete(event.pointerId);
+      updateHovered(hoverPointerIdsRef.current.size > 0);
+    },
+    [cancelPendingHoverReconcile, updateHovered],
+  );
 
   React.useEffect(() => {
     if (isControlled) return;
@@ -837,6 +1140,14 @@ export function PlaneThumb({
     registrationRef.current = {
       key: internalKey,
       getValue: () => renderedValue,
+      getHoverSize: () => {
+        const bounds = thumbRef.current?.getBoundingClientRect();
+        return {
+          width: bounds?.width ?? 0,
+          height: bounds?.height ?? 0,
+        };
+      },
+      isControlled: () => isControlled,
       isInteractive: () => !isDisabled && !isReadOnly,
       publishValue,
       commitPointerValue,
@@ -852,11 +1163,58 @@ export function PlaneThumb({
         pointerFocusRef.current = false;
         setFocusVisible(false);
       },
+      syncPointerHover: (pointerId, pointerType, nextHovered, captured) => {
+        if (pointerType === 'touch') return;
+        if (captured) capturedHoverPointerIdsRef.current.add(pointerId);
+        else capturedHoverPointerIdsRef.current.delete(pointerId);
+        if (nextHovered) hoverPointerIdsRef.current.add(pointerId);
+        else hoverPointerIdsRef.current.delete(pointerId);
+        updateHovered(hoverPointerIdsRef.current.size > 0);
+      },
+      reconcilePointerHover: (pointerId, pointerType, point, capturedOnly) => {
+        if (pointerType === 'touch') return;
+        pendingHoverReconcileRef.current = {
+          pointerId,
+          pointerType,
+          point: { clientX: point.clientX, clientY: point.clientY },
+          capturedOnly,
+        };
+        if (hoverReconcileFrameRef.current !== null) return;
+        hoverReconcileFrameRef.current = requestAnimationFrame(() => {
+          hoverReconcileFrameRef.current = null;
+          const pending = pendingHoverReconcileRef.current;
+          pendingHoverReconcileRef.current = null;
+          if (
+            !pending ||
+            (pending.capturedOnly &&
+              !capturedHoverPointerIdsRef.current.has(pending.pointerId))
+          ) {
+            return;
+          }
+          const nextHovered = pointOverThumb(
+            pending.point,
+            thumbRef.current?.getBoundingClientRect() ?? null,
+          );
+          if (nextHovered) hoverPointerIdsRef.current.add(pending.pointerId);
+          else hoverPointerIdsRef.current.delete(pending.pointerId);
+          updateHovered(hoverPointerIdsRef.current.size > 0);
+        });
+      },
+      releasePointerHover: (pointerId, clearHover) => {
+        capturedHoverPointerIdsRef.current.delete(pointerId);
+        if (pendingHoverReconcileRef.current?.pointerId === pointerId) {
+          cancelPendingHoverReconcile(pointerId);
+        }
+        if (!clearHover) return;
+        hoverPointerIdsRef.current.delete(pointerId);
+        updateHovered(hoverPointerIdsRef.current.size > 0);
+      },
     };
   }
 
   const registration = registrationRef.current;
   registration.getValue = () => renderedValue;
+  registration.isControlled = () => isControlled;
   registration.isInteractive = () => !isDisabled && !isReadOnly;
   registration.publishValue = publishValue;
   registration.commitPointerValue = commitPointerValue;
@@ -864,13 +1222,22 @@ export function PlaneThumb({
   const thumbContext = React.useMemo<PlaneThumbContextValue>(
     () => ({
       value: renderedValue,
+      hovered,
       dragging: isDragging,
       focused,
       focusVisible,
       disabled: isDisabled,
       readOnly: isReadOnly,
     }),
-    [focusVisible, focused, isDisabled, isDragging, isReadOnly, renderedValue],
+    [
+      focusVisible,
+      focused,
+      hovered,
+      isDisabled,
+      isDragging,
+      isReadOnly,
+      renderedValue,
+    ],
   );
 
   React.useEffect(
@@ -918,6 +1285,7 @@ export function PlaneThumb({
       data-slot="plane-thumb"
       data-plane-thumb-key={internalKey}
       data-thumb-id={thumbId}
+      data-hovered={hovered || undefined}
       data-dragging={isDragging || undefined}
       data-disabled={isDisabled || undefined}
       data-readonly={isReadOnly || undefined}
@@ -931,6 +1299,18 @@ export function PlaneThumb({
         left: `${renderedValue.x * 100}%`,
         top: `${(1 - renderedValue.y) * 100}%`,
         ...style,
+      }}
+      onPointerEnter={(event) => {
+        onPointerEnter?.(event);
+        if (!event.defaultPrevented) addHoverPointer(event);
+      }}
+      onPointerLeave={(event) => {
+        onPointerLeave?.(event);
+        removeHoverPointer(event);
+      }}
+      onPointerCancel={(event) => {
+        onPointerCancel?.(event);
+        removeHoverPointer(event);
       }}
       onFocusCapture={(event) => {
         onFocusCapture?.(event);

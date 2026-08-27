@@ -91,6 +91,17 @@ test('routes between Plane docs and Lab without exposing tabs on undocumented pa
       ),
   ).toEqual(['14px', '14px', '14px']);
 
+  const hoverValueProp = page.locator('summary#plane-onhovervaluechange');
+  await expect(hoverValueProp).toContainText('onHoverValueChange');
+  await hoverValueProp.click();
+  await expect(
+    page.getByText(
+      'Called with the normalized position while a mouse or hovering pen moves over the plane, and null when it leaves.',
+      { exact: true },
+    ),
+  ).toBeVisible();
+  await expect(page.getByText('data-hovered', { exact: true })).toBeVisible();
+
   const valueProp = page.locator('summary#planethumb-value');
   await expect(valueProp).toContainText('value');
   await expect(valueProp).toContainText('PlaneValue');

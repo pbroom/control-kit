@@ -10,6 +10,8 @@ the package adheres to [Semantic Versioning](https://semver.org/).
 
 - `Plane` and `PlaneThumb` primitives for composable normalized two-dimensional
   interaction with pointer, keyboard, and accessible axis controls.
+- Normalized mouse and pen hover reporting for `Plane`, plus `data-hovered` and
+  context state for `PlaneThumb`.
 - `--ck-*` CSS custom property theme tokens for all component colors, exported
   as `controlKitColor` for inline-style use. Defaults preserve the original
   dark palette, so existing consumers are unaffected.

@@ -25,6 +25,13 @@ const PLANE_PROPS = [
     description: 'Controls what happens when empty plane space is pressed.',
   },
   {
+    name: 'onHoverValueChange',
+    shortType: 'function',
+    type: '(value: PlaneValue | null, details: PlaneHoverValueChangeDetails) => void',
+    description:
+      'Called with the normalized position while a mouse or hovering pen moves over the plane, and null when it leaves.',
+  },
+  {
     name: 'disabled',
     type: 'boolean | undefined',
     shortType: 'boolean',

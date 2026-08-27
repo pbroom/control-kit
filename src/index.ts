@@ -67,6 +67,7 @@ export {
 export type {
   PlaneBounds,
   PlaneContextValue,
+  PlaneHoverValueChangeDetails,
   PlaneInteraction,
   PlanePoint,
   PlanePressBehavior,

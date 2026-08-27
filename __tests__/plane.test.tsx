@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act } from 'react';
+import { act, useState } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -311,6 +311,192 @@ describe('Plane', () => {
     );
 
     expect(onValueChange).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports normalized hover values without repeated layout reads', () => {
+    const onHoverValueChange = vi.fn();
+    const { plane } = mountPlane({ onHoverValueChange });
+
+    act(() =>
+      pointer(plane, 'pointerover', {
+        clientX: 60,
+        clientY: 95,
+        pointerType: 'mouse',
+      }),
+    );
+    act(() =>
+      pointer(plane, 'pointermove', {
+        clientX: 60,
+        clientY: 95,
+        pointerType: 'mouse',
+      }),
+    );
+    act(() =>
+      pointer(plane, 'pointermove', {
+        clientX: 160,
+        clientY: 95,
+        pointerType: 'mouse',
+      }),
+    );
+    act(() =>
+      pointer(plane, 'pointerout', {
+        clientX: 300,
+        clientY: 200,
+        pointerType: 'mouse',
+      }),
+    );
+
+    expect(onHoverValueChange).toHaveBeenNthCalledWith(
+      1,
+      { x: 0.25, y: 0.25 },
+      details({ pointerType: 'mouse' }),
+    );
+    expect(onHoverValueChange).toHaveBeenNthCalledWith(
+      2,
+      { x: 0.75, y: 0.25 },
+      details({ pointerType: 'mouse' }),
+    );
+    expect(onHoverValueChange).toHaveBeenNthCalledWith(
+      3,
+      null,
+      details({ pointerType: 'mouse' }),
+    );
+    expect(onHoverValueChange).toHaveBeenCalledTimes(3);
+    expect(plane.getBoundingClientRect).toHaveBeenCalledOnce();
+    expect(onHoverValueChange.mock.calls[0][1].originalEvent).toBeInstanceOf(
+      PointerEvent,
+    );
+  });
+
+  it('clears hover values instead of reporting clamped positions outside the plane', () => {
+    const onHoverValueChange = vi.fn();
+    const onValueChange = vi.fn();
+    const { plane } = mountPlane({ onHoverValueChange, onValueChange });
+
+    act(() =>
+      pointer(plane, 'pointerover', {
+        clientX: 110,
+        clientY: 70,
+        pointerType: 'mouse',
+      }),
+    );
+    act(() =>
+      pointer(plane, 'pointerdown', {
+        clientX: 110,
+        clientY: 70,
+        pointerType: 'mouse',
+      }),
+    );
+    act(() =>
+      pointer(plane, 'pointermove', {
+        clientX: 300,
+        clientY: 200,
+        pointerType: 'mouse',
+      }),
+    );
+
+    expect(onValueChange).toHaveBeenLastCalledWith(
+      { x: 1, y: 0 },
+      details({ interaction: 'pointer', reason: 'plane-press' }),
+    );
+    expect(onHoverValueChange.mock.calls.map(([value]) => value)).toEqual([
+      { x: 0.5, y: 0.5 },
+      null,
+    ]);
+
+    act(() =>
+      pointer(plane, 'pointermove', {
+        clientX: 160,
+        clientY: 45,
+        pointerType: 'mouse',
+      }),
+    );
+    expect(onHoverValueChange).toHaveBeenLastCalledWith(
+      { x: 0.75, y: 0.75 },
+      details({ pointerType: 'mouse' }),
+    );
+  });
+
+  it('ignores touch hover values and avoids geometry work without a callback', () => {
+    const onHoverValueChange = vi.fn();
+    const { plane } = mountPlane({ onHoverValueChange });
+
+    act(() =>
+      pointer(plane, 'pointerover', {
+        clientX: 60,
+        clientY: 95,
+        pointerType: 'touch',
+      }),
+    );
+    act(() =>
+      pointer(plane, 'pointermove', {
+        clientX: 110,
+        clientY: 70,
+        pointerType: 'touch',
+      }),
+    );
+    act(() =>
+      pointer(plane, 'pointerout', {
+        clientX: 110,
+        clientY: 70,
+        pointerType: 'touch',
+      }),
+    );
+
+    expect(onHoverValueChange).not.toHaveBeenCalled();
+    expect(plane.getBoundingClientRect).not.toHaveBeenCalled();
+
+    const { plane: planeWithoutCallback } = mountPlane();
+    act(() =>
+      pointer(planeWithoutCallback, 'pointerover', {
+        clientX: 60,
+        clientY: 95,
+        pointerType: 'mouse',
+      }),
+    );
+    act(() =>
+      pointer(planeWithoutCallback, 'pointermove', {
+        clientX: 110,
+        clientY: 70,
+        pointerType: 'mouse',
+      }),
+    );
+
+    expect(planeWithoutCallback.getBoundingClientRect).not.toHaveBeenCalled();
+  });
+
+  it('composes and lets native pointer handlers cancel hover reporting', () => {
+    const onHoverValueChange = vi.fn();
+    const onPointerEnter = vi.fn((event: React.PointerEvent<HTMLDivElement>) =>
+      event.preventDefault(),
+    );
+    const onPointerMove = vi.fn((event: React.PointerEvent<HTMLDivElement>) =>
+      event.preventDefault(),
+    );
+    const { plane } = mountPlane({
+      onHoverValueChange,
+      onPointerEnter,
+      onPointerMove,
+    });
+
+    act(() =>
+      pointer(plane, 'pointerover', {
+        clientX: 60,
+        clientY: 95,
+        pointerType: 'pen',
+      }),
+    );
+    act(() =>
+      pointer(plane, 'pointermove', {
+        clientX: 110,
+        clientY: 70,
+        pointerType: 'pen',
+      }),
+    );
+
+    expect(onPointerEnter).toHaveBeenCalledOnce();
+    expect(onPointerMove).toHaveBeenCalledOnce();
+    expect(onHoverValueChange).not.toHaveBeenCalled();
   });
 
   it('does not let a second pointer take over an active drag', () => {
@@ -891,6 +1077,7 @@ describe('Plane', () => {
 
     expect(readThumbState(container)).toEqual({
       value: '0.25,0.75',
+      hovered: false,
       dragging: false,
       focused: false,
       focusVisible: false,
@@ -910,6 +1097,296 @@ describe('Plane', () => {
 
     act(() => pointer(plane, 'pointerup', { clientX: 110, clientY: 70 }));
     expect(readThumbState(container).dragging).toBe(false);
+  });
+
+  it('exposes genuine thumb hover without touch-emulated state', () => {
+    const onPointerEnter = vi.fn();
+    const onPointerLeave = vi.fn();
+    const { container } = mountPlane(
+      { disabled: true },
+      {
+        children: <PlaneThumbStateProbe />,
+        onPointerEnter,
+        onPointerLeave,
+      },
+    );
+    const thumb = container.querySelector(
+      '[data-slot="plane-thumb"]',
+    ) as HTMLElement;
+
+    act(() =>
+      pointer(thumb, 'pointerover', {
+        pointerId: 1,
+        pointerType: 'mouse',
+      }),
+    );
+    expect(onPointerEnter).toHaveBeenCalledOnce();
+    expect(thumb.getAttribute('data-hovered')).toBe('true');
+    expect(readThumbState(container).hovered).toBe(true);
+
+    act(() =>
+      pointer(thumb, 'pointerover', {
+        pointerId: 2,
+        pointerType: 'touch',
+      }),
+    );
+    act(() =>
+      pointer(thumb, 'pointerout', {
+        pointerId: 2,
+        pointerType: 'touch',
+      }),
+    );
+    expect(thumb.getAttribute('data-hovered')).toBe('true');
+
+    act(() =>
+      pointer(thumb, 'pointerout', {
+        pointerId: 1,
+        pointerType: 'mouse',
+      }),
+    );
+    expect(onPointerLeave).toHaveBeenCalledTimes(2);
+    expect(thumb.hasAttribute('data-hovered')).toBe(false);
+    expect(readThumbState(container).hovered).toBe(false);
+
+    act(() =>
+      pointer(thumb, 'pointerover', {
+        pointerId: 3,
+        pointerType: 'pen',
+      }),
+    );
+    expect(thumb.getAttribute('data-hovered')).toBe('true');
+  });
+
+  it('tracks a controlled thumb hover from its rendered bounds during capture', async () => {
+    const onValueChange = vi.fn();
+    const { container, plane } = mountPlane({
+      value: { x: 0.5, y: 0.5 },
+      onValueChange,
+    });
+    const thumb = container.querySelector(
+      '[data-slot="plane-thumb"]',
+    ) as HTMLElement;
+    vi.spyOn(thumb, 'getBoundingClientRect').mockReturnValue({
+      left: 100,
+      top: 60,
+      width: 20,
+      height: 20,
+      right: 120,
+      bottom: 80,
+      x: 100,
+      y: 60,
+      toJSON: () => ({}),
+    });
+
+    act(() =>
+      pointer(thumb, 'pointerover', {
+        clientX: 110,
+        clientY: 70,
+        pointerType: 'mouse',
+      }),
+    );
+    act(() =>
+      pointer(thumb, 'pointerdown', {
+        clientX: 110,
+        clientY: 70,
+        pointerType: 'mouse',
+      }),
+    );
+    act(() =>
+      pointer(plane, 'pointermove', {
+        clientX: 190,
+        clientY: 100,
+        pointerType: 'mouse',
+      }),
+    );
+    await act(
+      () =>
+        new Promise<void>((resolve) => requestAnimationFrame(() => resolve())),
+    );
+
+    expect(onValueChange.mock.lastCall?.[0].x).toBeCloseTo(0.9);
+    expect(onValueChange.mock.lastCall?.[0].y).toBeCloseTo(0.2);
+    expect(onValueChange.mock.lastCall?.[1]).toEqual(
+      details({ interaction: 'pointer', reason: 'thumb-drag' }),
+    );
+    expect(thumb.hasAttribute('data-hovered')).toBe(false);
+  });
+
+  it('keeps responsive controlled thumb hover after its rendered position updates', async () => {
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    mountedRoots.push(root);
+
+    function ResponsiveControlledPlane() {
+      const [value, setValue] = useState({ x: 0.25, y: 0.75 });
+      return (
+        <Plane>
+          <PlaneThumb value={value} onValueChange={setValue} />
+        </Plane>
+      );
+    }
+
+    act(() => root.render(<ResponsiveControlledPlane />));
+    const plane = container.querySelector('[data-slot="plane"]') as HTMLElement;
+    const thumb = container.querySelector(
+      '[data-slot="plane-thumb"]',
+    ) as HTMLElement;
+    vi.spyOn(plane, 'getBoundingClientRect').mockReturnValue({
+      left: 10,
+      top: 20,
+      width: 200,
+      height: 100,
+      right: 210,
+      bottom: 120,
+      x: 10,
+      y: 20,
+      toJSON: () => ({}),
+    });
+    vi.spyOn(thumb, 'getBoundingClientRect').mockImplementation(() => {
+      const centerX = 10 + (Number.parseFloat(thumb.style.left) / 100) * 200;
+      const centerY = 20 + (Number.parseFloat(thumb.style.top) / 100) * 100;
+      return {
+        left: centerX - 10,
+        top: centerY - 10,
+        width: 20,
+        height: 20,
+        right: centerX + 10,
+        bottom: centerY + 10,
+        x: centerX - 10,
+        y: centerY - 10,
+        toJSON: () => ({}),
+      };
+    });
+
+    act(() =>
+      pointer(thumb, 'pointerover', {
+        clientX: 60,
+        clientY: 45,
+        pointerType: 'mouse',
+      }),
+    );
+    act(() =>
+      pointer(thumb, 'pointerdown', {
+        clientX: 60,
+        clientY: 45,
+        pointerType: 'mouse',
+      }),
+    );
+    act(() =>
+      pointer(plane, 'pointermove', {
+        clientX: 190,
+        clientY: 100,
+        pointerType: 'mouse',
+      }),
+    );
+    expect(thumb.getAttribute('data-hovered')).toBe('true');
+    act(() =>
+      pointer(plane, 'pointerup', {
+        clientX: 190,
+        clientY: 100,
+        pointerType: 'mouse',
+      }),
+    );
+
+    await act(
+      () =>
+        new Promise<void>((resolve) => requestAnimationFrame(() => resolve())),
+    );
+
+    expect(thumb.style.left).toBe('90%');
+    expect(Number.parseFloat(thumb.style.top)).toBeCloseTo(80);
+    expect(thumb.getAttribute('data-hovered')).toBe('true');
+  });
+
+  it('lets native hover transitions supersede pending release reconciliation', async () => {
+    const { container, plane } = mountPlane({
+      value: { x: 0.5, y: 0.5 },
+      onValueChange: vi.fn(),
+    });
+    const thumb = container.querySelector(
+      '[data-slot="plane-thumb"]',
+    ) as HTMLElement;
+    vi.spyOn(thumb, 'getBoundingClientRect').mockReturnValue({
+      left: 100,
+      top: 60,
+      width: 20,
+      height: 20,
+      right: 120,
+      bottom: 80,
+      x: 100,
+      y: 60,
+      toJSON: () => ({}),
+    });
+
+    act(() =>
+      pointer(thumb, 'pointerover', {
+        clientX: 110,
+        clientY: 70,
+        pointerType: 'mouse',
+      }),
+    );
+    act(() =>
+      pointer(thumb, 'pointerdown', {
+        clientX: 110,
+        clientY: 70,
+        pointerType: 'mouse',
+      }),
+    );
+    act(() =>
+      pointer(plane, 'pointerup', {
+        clientX: 110,
+        clientY: 70,
+        pointerType: 'mouse',
+      }),
+    );
+    act(() =>
+      pointer(thumb, 'pointerout', {
+        clientX: 130,
+        clientY: 90,
+        pointerType: 'mouse',
+      }),
+    );
+    await act(
+      () =>
+        new Promise<void>((resolve) => requestAnimationFrame(() => resolve())),
+    );
+
+    expect(thumb.hasAttribute('data-hovered')).toBe(false);
+  });
+
+  it('clears captured thumb hover when pointer interaction is cancelled', () => {
+    const { container, plane } = mountPlane();
+    const thumb = container.querySelector(
+      '[data-slot="plane-thumb"]',
+    ) as HTMLElement;
+
+    act(() =>
+      pointer(thumb, 'pointerover', {
+        clientX: 60,
+        clientY: 45,
+        pointerType: 'mouse',
+      }),
+    );
+    act(() =>
+      pointer(thumb, 'pointerdown', {
+        clientX: 60,
+        clientY: 45,
+        pointerType: 'mouse',
+      }),
+    );
+    expect(thumb.getAttribute('data-hovered')).toBe('true');
+
+    act(() =>
+      pointer(plane, 'pointercancel', {
+        clientX: 60,
+        clientY: 45,
+        pointerType: 'mouse',
+      }),
+    );
+
+    expect(thumb.hasAttribute('data-hovered')).toBe(false);
+    expect(plane.hasAttribute('data-dragging')).toBe(false);
   });
 
   it('exposes two native slider axes with a shared value description', () => {
