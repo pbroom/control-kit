@@ -1,65 +1,84 @@
 # Slider
 
-A one-dimensional color-channel input. `ColorSlider` maps pointer and keyboard interaction to a requested Color Kit color.
+A composed one-dimensional color-channel control. Color Kit owns its interaction and color state; Control Kit uses the component in its Lab and documentation.
 
 <!-- demo:basic -->
 
-## Anatomy
+## Usage
 
-Import `ColorSlider` from Color Kit and connect requested color state:
+Import `ColorSlider`, connect requested color state, and style the root and thumb for the application:
 
 ```tsx
-import { ColorSlider } from 'color-kit/react';
+import { ColorSlider, useColor } from 'color-kit/react';
 
-<ColorSlider channel="l" requested={color} onChangeRequested={setColor} />;
+function LightnessSlider() {
+  const color = useColor({ defaultColor: 'oklch(0.64 0.24 28)' });
+
+  return (
+    <ColorSlider
+      channel="l"
+      requested={color.requested}
+      onChangeRequested={color.setRequested}
+    />
+  );
+}
 ```
 
-The root renders a focusable `div` with slider semantics. Its first child is the positioned thumb. Visual rails, gradients, markers, and thumb styling remain consumer-owned.
+The root renders a focusable `div` with slider semantics. Its first child is the positioned thumb. Rails, gradients, markers, and thumb styling remain consumer-owned.
 
-## Usage guidelines
+## Examples
 
-- Use one slider per color channel and label it when the surrounding UI does not already identify the channel.
-- Pass `requested` and `onChangeRequested` together for standalone state, or render inside a Color Kit `Color` provider.
-- Use the default channel ranges unless the editing workflow intentionally narrows the available domain.
-- Keep the rendered gradient consistent with `channel`, `range`, and the requested color used by the interaction model.
+### Orientation
 
-## Orientation and range
+The default orientation is horizontal. Set `orientation="vertical"` and give the root an explicit height for a vertical control.
 
-The default orientation is horizontal. Channel defaults are lightness `[0, 1]`, chroma `[0, 0.4]`, hue `[0, 360]`, and alpha `[0, 1]`. A custom `range` changes both pointer mapping and accessible bounds.
+<!-- demo:vertical -->
 
-## API reference
+### Range
 
-### ColorSlider
+Channel defaults are lightness `[0, 1]`, chroma `[0, 0.4]`, hue `[0, 360]`, and alpha `[0, 1]`. A custom range changes pointer mapping, keyboard movement, and accessible bounds together.
 
-`ColorSliderProps` accepts native `div` styling and semantic props except `onChange`. The component owns its pointer and keyboard handlers.
+```tsx
+<ColorSlider
+  channel="h"
+  range={[120, 240]}
+  requested={color.requested}
+  onChangeRequested={color.setRequested}
+/>
+```
 
-<!-- props:slider -->
+### Styling
 
-**Data attributes**
+Style the root directly and target the generated thumb with `data-color-slider-thumb`.
 
-| Attribute                 | When present                               |
-| ------------------------- | ------------------------------------------ |
-| `data-color-slider`       | Always.                                    |
-| `data-channel`            | Always, with the controlled channel.       |
-| `data-orientation`        | Always.                                    |
-| `data-dragging`           | While pointer interaction is active.       |
-| `data-color-slider-thumb` | Always on the positioned thumb.            |
-| `data-value`              | Always on the thumb as a normalized value. |
+```tsx
+<ColorSlider
+  channel="l"
+  className="h-6 rounded-full bg-linear-to-r from-black to-white [&_[data-color-slider-thumb]]:size-6 [&_[data-color-slider-thumb]]:rounded-full [&_[data-color-slider-thumb]]:border-2 [&_[data-color-slider-thumb]]:border-white"
+  requested={color.requested}
+  onChangeRequested={color.setRequested}
+/>
+```
+
+## API
+
+### Important props
+
+| Prop                              | Purpose                                                  |
+| --------------------------------- | -------------------------------------------------------- |
+| `channel`                         | Selects lightness, chroma, hue, or alpha.                |
+| `requested` / `onChangeRequested` | Controls standalone requested color state.               |
+| `range`                           | Overrides the channel's numeric domain.                  |
+| `orientation`                     | Sets horizontal or vertical interaction and semantics.   |
+| `aria-label` / `aria-valuetext`   | Overrides the generated channel name or announced value. |
+| `dragEpsilon` / `maxPointerRate`  | Tunes minimum pointer movement and update frequency.     |
+
+`ColorSlider` accepts native `div` styling and semantic props except `onChange`. Its pointer and keyboard handlers remain component-owned.
 
 ## Accessibility
 
-The root has slider semantics, reports its channel range and current channel value, and is keyboard focusable. Horizontal and vertical sliders expose the matching `aria-orientation`.
-
-Arrow Right and Arrow Up increase the channel by one percent of the active range; Arrow Left and Arrow Down decrease it. Shift + Arrow moves by ten percent. Values clamp to the active range.
-
-## Types
-
-| Type                     | Contract                                            |
-| ------------------------ | --------------------------------------------------- |
-| `ColorSliderChannel`     | `'l'`, `'c'`, `'h'`, or `'alpha'`.                  |
-| `ColorSliderOrientation` | `'horizontal'` or `'vertical'`.                     |
-| `ColorSliderProps`       | Channel state, range, orientation, and drag tuning. |
+The root has slider semantics, reports the active channel range and value, and exposes the matching `aria-orientation`. Arrow keys move one percent of the range; Shift + Arrow moves ten percent. Values clamp to the active range.
 
 ## Source
 
-[Implementation](https://github.com/pbroom/color-kit/blob/main/packages/react/src/color-slider.tsx) · [Color API](https://github.com/pbroom/color-kit/blob/main/packages/driver/src/color-slider.ts) · [Issues](https://github.com/pbroom/color-kit/issues)
+[Implementation](https://github.com/pbroom/color-kit/blob/main/packages/react/src/color-slider.tsx) · [Color API](https://github.com/pbroom/color-kit/blob/main/packages/driver/src/color-slider.ts) · [Color Kit issues](https://github.com/pbroom/color-kit/issues)

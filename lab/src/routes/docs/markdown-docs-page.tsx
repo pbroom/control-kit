@@ -6,6 +6,7 @@ import { HighlightedCode } from './highlighted-code.js';
 const DOCS_SLOT_PATTERN = /<!--\s*([a-z]+:[a-z0-9-]+)\s*-->/g;
 
 type MarkdownDocsPageProps = {
+  format?: 'component' | 'primitive';
   slots?: Readonly<Record<string, ReactNode>>;
   source: string;
 };
@@ -41,6 +42,7 @@ const MARKDOWN_COMPONENTS: Components = {
 };
 
 export function MarkdownDocsPage({
+  format = 'primitive',
   slots = {},
   source,
 }: MarkdownDocsPageProps) {
@@ -48,7 +50,8 @@ export function MarkdownDocsPage({
 
   return (
     <article
-      className="ck-primitive-docs typeset typeset-docs w-full max-w-[72ch]"
+      className={`${format === 'component' ? 'ck-component-docs' : 'ck-primitive-docs'} typeset typeset-docs w-full max-w-[72ch]`}
+      data-docs-format={format}
       data-docs-markdown
     >
       {sections.map((section, index) => {
