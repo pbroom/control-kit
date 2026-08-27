@@ -17,8 +17,11 @@ describe('documentation routes', () => {
       'plane',
       'input',
       'inputMulti',
+      'checkbox',
       'colorPlane',
       'slider',
+      'tabs',
+      'toggle',
       'tooltip',
     ]);
   });
@@ -48,9 +51,12 @@ describe('documentation routes', () => {
     expect(getPrimitivePagePath('plane', 'docs')).toBe('/docs/plane');
     expect(getPrimitivePagePath('plane', 'lab')).toBe('/lab/plane');
     expect(getDocsPagePath('colorPlane')).toBe('/docs/color-plane');
+    expect(getDocsPagePath('checkbox')).toBe('/docs/checkbox');
     expect(getDocsPagePath('input')).toBe('/docs/input-primitive');
     expect(getDocsPagePath('inputMulti')).toBe('/docs/input-multi');
     expect(getDocsPagePath('slider')).toBe('/docs/slider');
+    expect(getDocsPagePath('tabs')).toBe('/docs/tabs');
+    expect(getDocsPagePath('toggle')).toBe('/docs/toggle-group');
     expect(getDocsPagePath('tooltip')).toBe('/docs/tooltip');
   });
 
