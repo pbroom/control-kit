@@ -1,11 +1,19 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  getLabPagePath,
   LAB_PAGE_NAVIGATION,
   LazyActiveLabPage,
   preloadLabPage,
   preloadLabPages,
 } from './lab/page-registry.js';
+import {
+  LazyDocsPage,
+  hasDocsPage,
+  preloadDocsPage,
+} from './docs/docs-registry.js';
+import {
+  getPrimitivePagePath,
+  type PrimitivePageView,
+} from './lab/lab-page-runtime.js';
 import { LabPageFrame, type LabPageKey } from './lab/shared.js';
 
 type PreloadWindow = Window & {
@@ -19,6 +27,8 @@ type PreloadWindow = Window & {
 type LabPageProps = {
   activePage: LabPageKey;
   onPageChange: (page: LabPageKey) => void;
+  onViewChange: (view: PrimitivePageView) => void;
+  view: PrimitivePageView;
 };
 
 function appendVisitedPage(
@@ -32,7 +42,12 @@ function ignorePreloadFailure(preloadPromise: Promise<unknown>) {
   void preloadPromise.catch(() => undefined);
 }
 
-export function LabPage({ activePage, onPageChange }: LabPageProps) {
+export function LabPage({
+  activePage,
+  onPageChange,
+  onViewChange,
+  view,
+}: LabPageProps) {
   const [visitedPages, setVisitedPages] = useState<readonly LabPageKey[]>(
     () => [activePage],
   );
@@ -74,15 +89,27 @@ export function LabPage({ activePage, onPageChange }: LabPageProps) {
 
   const handlePagePreload = useCallback((page: LabPageKey) => {
     ignorePreloadFailure(preloadLabPage(page));
+    if (hasDocsPage(page)) ignorePreloadFailure(preloadDocsPage(page));
   }, []);
+  const docsPage = hasDocsPage(activePage) ? activePage : null;
 
   return (
     <LabPageFrame
       activePage={activePage}
-      getPageHref={getLabPagePath}
+      getPageHref={(page) =>
+        getPrimitivePagePath(
+          page,
+          view === 'docs' && hasDocsPage(page) ? 'docs' : 'lab',
+        )
+      }
+      getViewHref={(nextView) => getPrimitivePagePath(activePage, nextView)}
+      hasDocs={docsPage !== null}
       onPageChange={handlePageChange}
       onPagePreload={handlePagePreload}
+      onViewChange={onViewChange}
       pages={LAB_PAGE_NAVIGATION}
+      view={view}
+      docs={docsPage ? <LazyDocsPage page={docsPage} /> : null}
     >
       {renderedPages.map((page) => (
         <LazyActiveLabPage
