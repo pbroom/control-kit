@@ -30,11 +30,15 @@ const mountedRoots: Root[] = [];
 ).IS_REACT_ACT_ENVIRONMENT = true;
 
 function mountHighlightedCode({
+  appearance,
   block,
   code,
+  showCopyButton,
 }: {
+  appearance?: 'block' | 'example';
   block: boolean;
   code: string;
+  showCopyButton?: boolean;
 }) {
   const container = document.createElement('div');
   document.body.append(container);
@@ -42,7 +46,15 @@ function mountHighlightedCode({
   mountedRoots.push(root);
 
   act(() => {
-    root.render(<HighlightedCode block={block} code={code} language="tsx" />);
+    root.render(
+      <HighlightedCode
+        appearance={appearance}
+        block={block}
+        code={code}
+        language="tsx"
+        showCopyButton={showCopyButton}
+      />,
+    );
   });
 
   return container;
@@ -95,6 +107,22 @@ describe('HighlightedCode', () => {
 
     expect(container.querySelector('button')).toBeNull();
     expect(container.querySelector('[data-docs-code-block]')).toBeNull();
+  });
+
+  it('embeds example source without a nested card or copy control', () => {
+    const container = mountHighlightedCode({
+      appearance: 'example',
+      block: true,
+      code: 'const example = true;',
+      showCopyButton: false,
+    });
+    const block = container.querySelector('[data-docs-code-block]');
+    const pre = block?.querySelector('pre');
+
+    expect(block?.classList.contains('my-7')).toBe(false);
+    expect(pre?.className).toContain('rounded-none!');
+    expect(pre?.className).toContain('border-0!');
+    expect(container.querySelector('button')).toBeNull();
   });
 
   it('shows a visible failure state when clipboard access is denied', async () => {

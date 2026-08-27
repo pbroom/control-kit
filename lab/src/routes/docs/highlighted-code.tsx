@@ -4,14 +4,22 @@ import { useEffect, useRef, useState } from 'react';
 import { Button } from '../../components/ui/button.js';
 
 type HighlightedCodeProps = {
+  appearance?: 'block' | 'example';
   block?: boolean;
   code: string;
   language?: Language;
+  showCopyButton?: boolean;
 };
 
 type CopyState = 'idle' | 'copied' | 'failed';
 
-function CopyCodeButton({ code }: { code: string }) {
+export function CopyCodeButton({
+  code,
+  placement = 'overlay',
+}: {
+  code: string;
+  placement?: 'inline' | 'overlay';
+}) {
   const [copyState, setCopyState] = useState<CopyState>('idle');
   const copyAttempt = useRef(0);
   const resetTimeout = useRef<number | undefined>(undefined);
@@ -54,7 +62,9 @@ function CopyCodeButton({ code }: { code: string }) {
     <>
       <Button
         aria-label={label}
-        className="absolute top-2 right-2 z-10"
+        className={
+          placement === 'overlay' ? 'absolute top-2 right-2 z-10' : undefined
+        }
         data-copy-state={copyState}
         onClick={handleCopy}
         size="icon"
@@ -82,9 +92,11 @@ function CopyCodeButton({ code }: { code: string }) {
 }
 
 export function HighlightedCode({
+  appearance = 'block',
   block = false,
   code,
   language = 'tsx',
+  showCopyButton = true,
 }: HighlightedCodeProps) {
   return (
     <Highlight code={code} language={language} theme={themes.vsDark}>
@@ -109,16 +121,23 @@ export function HighlightedCode({
           );
         }
 
+        const isExample = appearance === 'example';
+
         return (
-          <div className="not-typeset relative my-7" data-docs-code-block>
+          <div
+            className={
+              isExample ? 'not-typeset relative' : 'not-typeset relative my-7'
+            }
+            data-docs-code-block
+          >
             <pre
-              className={`${className} my-0! overflow-x-auto rounded-xl border border-white/10 bg-[#111112]! py-3! pr-12! pl-4! font-mono text-[13px] leading-6 shadow-none!`}
+              className={`${className} my-0! overflow-x-auto bg-[#111112]! py-3! pl-4! font-mono text-[13px] leading-6 shadow-none! ${isExample ? 'min-w-full rounded-none! border-0! pr-4!' : 'rounded-xl border border-white/10 pr-12!'}`}
               data-language={language}
               style={{ ...style, backgroundColor: '#111112' }}
             >
               <code>{highlightedLines}</code>
             </pre>
-            <CopyCodeButton code={code} />
+            {showCopyButton ? <CopyCodeButton code={code} /> : null}
           </div>
         );
       }}

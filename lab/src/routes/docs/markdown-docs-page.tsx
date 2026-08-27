@@ -66,7 +66,7 @@ export function MarkdownDocsPage({
 
           return (
             <div
-              className="not-typeset my-10 overflow-hidden rounded-[20px] border border-white/10 bg-[#111112]"
+              className="not-typeset my-10"
               data-docs-demo={section.slice('demo:'.length)}
               key={`demo-${section}`}
             >

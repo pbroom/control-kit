@@ -58,33 +58,6 @@ Set `pressBehavior="nearest"` to move the visually nearest interactive thumb to 
 
 <!-- demo:multiple -->
 
-```tsx
-const [points, setPoints] = React.useState([
-  { id: 'top-left', value: { x: 0.25, y: 0.75 } },
-  { id: 'top-right', value: { x: 0.75, y: 0.75 } },
-  { id: 'bottom-left', value: { x: 0.25, y: 0.25 } },
-  { id: 'bottom-right', value: { x: 0.75, y: 0.25 } },
-]);
-
-<Plane pressBehavior="nearest" aria-label="Mesh control points">
-  {points.map((point, index) => (
-    <PlaneThumb
-      key={point.id}
-      thumbId={point.id}
-      aria-label={`Control point ${index + 1}`}
-      value={point.value}
-      onValueChange={(value) => {
-        setPoints((current) =>
-          current.map((item) =>
-            item.id === point.id ? { ...item, value } : item,
-          ),
-        );
-      }}
-    />
-  ))}
-</Plane>;
-```
-
 ## Form
 
 Set `xName` and `yName` to include both coordinates in form data. Use `form` to associate the thumb with a form outside its DOM ancestry. Resetting the form restores an uncontrolled thumb to its `defaultValue`; controlled state remains owned by the application.
