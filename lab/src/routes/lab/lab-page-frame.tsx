@@ -189,7 +189,7 @@ function PagesPanel({
       <ScrollArea className="pointer-events-none mt-3 min-h-0 flex-1">
         <nav
           aria-label="Lab pages"
-          className="pointer-events-auto space-y-4 pr-3"
+          className="pointer-events-auto space-y-6 pr-3"
         >
           {sections.map((section) => (
             <div key={section}>
