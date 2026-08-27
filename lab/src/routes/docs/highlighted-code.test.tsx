@@ -1,9 +1,27 @@
 // @vitest-environment jsdom
 
-import { act } from 'react';
+import { act, type ButtonHTMLAttributes, type PropsWithChildren } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { HighlightedCode } from './highlighted-code.js';
+
+vi.mock('../../components/ui/button.js', () => ({
+  Button: ({
+    children,
+    size,
+    variant,
+    ...props
+  }: PropsWithChildren<
+    ButtonHTMLAttributes<HTMLButtonElement> & {
+      size?: string;
+      variant?: string;
+    }
+  >) => (
+    <button data-size={size} data-variant={variant} {...props}>
+      {children}
+    </button>
+  ),
+}));
 
 const mountedRoots: Root[] = [];
 
@@ -52,6 +70,8 @@ describe('HighlightedCode', () => {
 
     expect(button?.type).toBe('button');
     expect(button?.getAttribute('aria-label')).toBe('Copy code');
+    expect(button?.getAttribute('data-variant')).toBe('ghost');
+    expect(button?.getAttribute('data-size')).toBe('icon');
     expect(button?.closest('[data-docs-code-block]')).not.toBeNull();
     expect(button?.closest('code')).toBeNull();
 

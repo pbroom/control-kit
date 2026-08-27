@@ -1,6 +1,7 @@
 import { Check, Copy, X } from 'lucide-react';
 import { Highlight, themes, type Language } from 'prism-react-renderer';
 import { useEffect, useRef, useState } from 'react';
+import { Button } from '../../components/ui/button.js';
 
 type HighlightedCodeProps = {
   block?: boolean;
@@ -51,22 +52,24 @@ function CopyCodeButton({ code }: { code: string }) {
 
   return (
     <>
-      <button
+      <Button
         aria-label={label}
-        className="absolute top-2 right-2 z-10 inline-flex size-8 items-center justify-center rounded-md border border-white/10 bg-[#1b1b1c] text-white/60 transition-colors hover:bg-[#242426] hover:text-white/90 focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:outline-none data-[copy-state=failed]:border-red-400/30 data-[copy-state=failed]:bg-red-400/10 data-[copy-state=failed]:text-red-300"
+        className="absolute top-2 right-2 z-10"
         data-copy-state={copyState}
         onClick={handleCopy}
+        size="icon"
         title={label}
         type="button"
+        variant="ghost"
       >
         {copyState === 'copied' ? (
-          <Check aria-hidden="true" className="size-4" />
+          <Check aria-hidden="true" />
         ) : copyState === 'failed' ? (
-          <X aria-hidden="true" className="size-4" />
+          <X aria-hidden="true" />
         ) : (
-          <Copy aria-hidden="true" className="size-4" />
+          <Copy aria-hidden="true" />
         )}
-      </button>
+      </Button>
       <span aria-live="polite" className="sr-only" role="status">
         {copyState === 'copied'
           ? 'Code copied to clipboard.'
