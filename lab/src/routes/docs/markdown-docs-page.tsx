@@ -32,7 +32,7 @@ const MARKDOWN_COMPONENTS: Components = {
   },
   pre: ({ children }) => children,
   table: ({ children, ...props }) => (
-    <div className="docs-markdown-table mt-4 mb-8 w-full overflow-x-auto overscroll-x-contain">
+    <div className="docs-markdown-table typeset-scroll mt-2 mb-8 w-full overflow-x-auto overscroll-x-contain">
       <table className="my-0! min-w-[640px]" {...props}>
         {children}
       </table>
@@ -48,7 +48,7 @@ export function MarkdownDocsPage({
 
   return (
     <article
-      className="ck-primitive-docs prose prose-invert w-full max-w-[760px] prose-headings:font-[var(--font-brand)] prose-headings:tracking-[-0.02em] prose-h1:mb-3 prose-h1:text-[42px] prose-h1:leading-[1.05] prose-h2:mt-16 prose-h2:mb-5 prose-h2:text-2xl prose-h3:mt-10 prose-h3:text-lg prose-p:text-white/62 prose-p:leading-7 prose-a:text-white prose-a:underline-offset-4 prose-strong:text-white/90 prose-code:rounded prose-code:bg-white/[0.07] prose-code:px-1 prose-code:py-0.5 prose-code:text-white/82 prose-code:before:content-none prose-code:after:content-none prose-li:text-white/62 prose-th:text-white/85 prose-td:text-white/62 prose-th:border-white/10 prose-td:border-white/10"
+      className="ck-primitive-docs typeset typeset-docs w-full max-w-[72ch]"
       data-docs-markdown
     >
       {sections.map((section, index) => {
@@ -66,7 +66,7 @@ export function MarkdownDocsPage({
 
           return (
             <div
-              className="not-prose my-10 overflow-hidden rounded-[20px] border border-white/10 bg-[#111112]"
+              className="not-typeset my-10 overflow-hidden rounded-[20px] border border-white/10 bg-[#111112]"
               data-docs-demo={section.slice('demo:'.length)}
               key={`demo-${section}`}
             >

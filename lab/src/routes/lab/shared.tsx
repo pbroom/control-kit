@@ -1154,13 +1154,9 @@ function PanelSection({
 }) {
   return (
     <section className="w-full min-w-0 max-w-full space-y-3 overflow-x-hidden">
-      <div className="w-full min-w-0 max-w-full space-y-1">
-        <h2 className="text-sm font-medium tracking-tight text-white">
-          {title}
-        </h2>
-        {description ? (
-          <p className="text-xs leading-relaxed text-white/55">{description}</p>
-        ) : null}
+      <div className="typeset typeset-lab w-full min-w-0 max-w-full">
+        <h2>{title}</h2>
+        {description ? <p>{description}</p> : null}
       </div>
       {children}
     </section>

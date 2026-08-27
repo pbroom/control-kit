@@ -52,6 +52,38 @@ test('routes between Plane docs and Lab without exposing tabs on undocumented pa
   await expect(labTab).toHaveAttribute('href', '/lab/plane');
   await expect(labTab).toHaveAttribute('aria-selected', 'true');
 
+  const labPanel = page.locator('[data-lab-properties-panel]');
+  const labPanelTitle = labPanel.getByRole('heading', {
+    name: 'Plane',
+    exact: true,
+  });
+  const labPanelDescription = labPanel.getByText(
+    'Move a normalized 2D position with pointer or keyboard input.',
+    { exact: true },
+  );
+  const labPanelTypeset = labPanel.locator('.typeset-lab');
+  await expect(labPanelTypeset).toContainText('Plane');
+  await expect(labPanelTypeset).toContainText(
+    'Move a normalized 2D position with pointer or keyboard input.',
+  );
+  expect(
+    await labPanelTitle.evaluate((element) => {
+      const styles = getComputedStyle(element);
+      return [
+        styles.fontSize,
+        styles.lineHeight,
+        styles.fontWeight,
+        styles.letterSpacing,
+      ];
+    }),
+  ).toEqual(['14px', '20px', '500', '-0.35px']);
+  expect(
+    await labPanelDescription.evaluate((element) => {
+      const styles = getComputedStyle(element);
+      return [styles.fontSize, styles.lineHeight, styles.marginBlockStart];
+    }),
+  ).toEqual(['12px', '19.5px', '4px']);
+
   const labHorizontalAxis = page.getByRole('slider', {
     name: 'Horizontal position',
     exact: true,
@@ -69,6 +101,37 @@ test('routes between Plane docs and Lab without exposing tabs on undocumented pa
   await expect(
     page.getByText('A composable two-dimensional input', { exact: false }),
   ).toBeVisible();
+  const docsArticle = page.locator('article.typeset.typeset-docs');
+  await expect(docsArticle).toHaveCount(1);
+  await expect(docsArticle).not.toHaveClass(/\bprose\b/);
+  const docsTypography = await docsArticle.evaluate((article) => {
+    const h1 = article.querySelector('h1');
+    const h2 = article.querySelector('h2');
+    const paragraph = article.querySelector('p');
+    if (!h1 || !h2 || !paragraph) return null;
+
+    const articleStyles = getComputedStyle(article);
+    const headingStyles = getComputedStyle(h1);
+    const sectionStyles = getComputedStyle(h2);
+    const paragraphStyles = getComputedStyle(paragraph);
+    return {
+      articleFontSize: articleStyles.fontSize,
+      headingFontFamily: headingStyles.fontFamily,
+      headingFontSize: headingStyles.fontSize,
+      paragraphLineHeight: paragraphStyles.lineHeight,
+      sectionFontSize: sectionStyles.fontSize,
+      sectionLineHeight: sectionStyles.lineHeight,
+    };
+  });
+  expect(docsTypography).not.toBeNull();
+  expect(docsTypography?.articleFontSize).toBe('16px');
+  expect(docsTypography?.headingFontFamily).toContain('DM Sans');
+  expect(docsTypography?.headingFontSize).toBe(
+    testInfo.project.name === 'mobile' ? '32px' : '43.2px',
+  );
+  expect(docsTypography?.paragraphLineHeight).toBe('28px');
+  expect(docsTypography?.sectionFontSize).toBe('21.12px');
+  expect(docsTypography?.sectionLineHeight).toBe('25.344px');
   await expect(
     page.getByRole('heading', { name: 'API reference', exact: true }),
   ).toBeVisible();
@@ -80,6 +143,11 @@ test('routes between Plane docs and Lab without exposing tabs on undocumented pa
   });
   await expect(codeBlocks).toHaveCount(4);
   await expect(copyButtons).toHaveCount(4);
+  expect(
+    await codeBlocks.evaluateAll((blocks) =>
+      blocks.every((block) => block.classList.contains('not-typeset')),
+    ),
+  ).toBe(true);
   expect(
     await codeBlocks
       .first()
@@ -111,6 +179,13 @@ test('routes between Plane docs and Lab without exposing tabs on undocumented pa
   await expect(
     page.getByRole('region', { name: 'PlaneThumb component props table' }),
   ).toBeVisible();
+  expect(
+    await page
+      .locator('section[aria-label$="component props table"]')
+      .evaluateAll((tables) =>
+        tables.every((table) => table.classList.contains('not-typeset')),
+      ),
+  ).toBe(true);
 
   const pressBehaviorProp = page.locator('summary#plane-pressbehavior');
   await expect(pressBehaviorProp).toContainText('pressBehavior');
@@ -149,7 +224,7 @@ test('routes between Plane docs and Lab without exposing tabs on undocumented pa
   expect(propTableCodeSizes.length).toBeGreaterThan(0);
   expect([...new Set(propTableCodeSizes)]).toEqual(['14px']);
   const proseInlineCodeWeights = await page
-    .locator('article.prose :not(pre) > code')
+    .locator('article.typeset-docs :not(pre) > code')
     .evaluateAll((nodes) =>
       nodes.map((node) => getComputedStyle(node).fontWeight),
     );
@@ -176,7 +251,7 @@ test('routes between Plane docs and Lab without exposing tabs on undocumented pa
   ).toEqual(['0px', '0px']);
   await expect(page.locator('[data-docs-markdown] hr')).toHaveCount(0);
   const dataAttributeSpacing = await page
-    .locator('article.prose strong')
+    .locator('article.typeset-docs strong')
     .evaluateAll((nodes) =>
       nodes
         .filter((node) => node.textContent?.trim() === 'Data attributes')
@@ -206,7 +281,16 @@ test('routes between Plane docs and Lab without exposing tabs on undocumented pa
     expect(spacing.headingToHeader).toBeLessThan(spacing.precedingToHeading);
     expect(spacing.headingToHeader).toBeGreaterThanOrEqual(16);
   }
-  await expect(page.locator('[data-docs-demo="basic"]')).toBeVisible();
+  const basicDocsDemo = page.locator('[data-docs-demo="basic"]');
+  await expect(basicDocsDemo).toBeVisible();
+  await expect(basicDocsDemo).toHaveClass(/not-typeset/);
+  const markdownTables = page.locator('.docs-markdown-table');
+  expect(await markdownTables.count()).toBeGreaterThan(0);
+  expect(
+    await markdownTables.evaluateAll((tables) =>
+      tables.every((table) => table.classList.contains('typeset-scroll')),
+    ),
+  ).toBe(true);
   await expect(page.locator('[data-lab-component-preview]')).toHaveCount(0);
   await expect(page.getByTestId('lab-panel-toggle-controls')).toHaveCount(0);
   await expect(page.locator('[data-lab-properties-panel]')).toHaveCount(0);
