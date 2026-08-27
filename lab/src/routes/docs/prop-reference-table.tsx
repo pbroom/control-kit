@@ -22,7 +22,7 @@ export function PropReferenceTable({ name, props }: PropReferenceTableProps) {
   return (
     <section
       aria-label={`${name} component props table`}
-      className="docs-prop-table not-prose my-6 overflow-hidden rounded-xl border border-white/10 text-sm text-white/65"
+      className="docs-prop-table not-typeset my-6 overflow-hidden rounded-xl border border-white/10 text-sm text-white/65"
     >
       <div
         aria-hidden="true"

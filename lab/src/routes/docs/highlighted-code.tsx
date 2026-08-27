@@ -110,7 +110,7 @@ export function HighlightedCode({
         }
 
         return (
-          <div className="not-prose relative my-7" data-docs-code-block>
+          <div className="not-typeset relative my-7" data-docs-code-block>
             <pre
               className={`${className} my-0! overflow-x-auto rounded-xl border border-white/10 bg-[#111112]! py-3! pr-12! pl-4! font-mono text-[13px] leading-6 shadow-none!`}
               data-language={language}
