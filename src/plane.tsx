@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { getPrimitiveModifiedStep } from './primitive-value-input-helpers.js';
 import { cn } from './utils.js';
 
 export type PlaneValue = {
@@ -65,6 +66,7 @@ export type PlaneThumbProps = Omit<
   disabled?: boolean;
   readOnly?: boolean;
   step?: number;
+  smallStep?: number;
   largeStep?: number;
   xName?: string;
   yName?: string;
@@ -127,6 +129,7 @@ type InternalPlaneContextValue = PlaneContextValue & {
 };
 
 const DEFAULT_VALUE: PlaneValue = { x: 0.5, y: 0.5 };
+const DEFAULT_SMALL_STEP = 0.001;
 const DEFAULT_STEP = 0.01;
 const DEFAULT_LARGE_STEP = 0.1;
 const PlaneContext = React.createContext<InternalPlaneContextValue | null>(
@@ -798,11 +801,18 @@ function getAxisKeyValue(
   axis: PlaneAxis,
   key: string,
   value: PlaneValue,
+  smallStep: number,
   step: number,
   largeStep: number,
+  altKey: boolean,
   shiftKey: boolean,
 ): PlaneValue | null {
-  const amount = shiftKey ? largeStep : step;
+  const amount = getPrimitiveModifiedStep(shiftKey, altKey, {
+    fineStep: smallStep,
+    step,
+    coarseStep: largeStep,
+    pageStep: largeStep,
+  });
   const nextValue = { ...value };
 
   if (key === 'Home') nextValue[axis] = 0;
@@ -816,6 +826,21 @@ function getAxisKeyValue(
   else return null;
 
   return clampPlaneValue(nextValue);
+}
+
+function getArrowStep(
+  smallStep: number,
+  step: number,
+  largeStep: number,
+  altKey: boolean,
+  shiftKey: boolean,
+) {
+  return getPrimitiveModifiedStep(shiftKey, altKey, {
+    fineStep: smallStep,
+    step,
+    coarseStep: largeStep,
+    pageStep: largeStep,
+  });
 }
 
 function getKeyAxis(axis: PlaneAxis, key: string): PlaneAxis | null {
@@ -840,6 +865,7 @@ export function PlaneThumb({
   onValueCommit,
   disabled = false,
   readOnly = false,
+  smallStep = DEFAULT_SMALL_STEP,
   step = DEFAULT_STEP,
   largeStep = DEFAULT_LARGE_STEP,
   xName,
@@ -901,9 +927,16 @@ export function PlaneThumb({
   const isDisabled = context.disabled || disabled;
   const isReadOnly = context.readOnly || readOnly;
   const { cancelThumbInteraction, registerThumb } = context;
+  const normalizedSmallStep = normalizePlaneStep(smallStep, DEFAULT_SMALL_STEP);
   const normalizedStep = normalizePlaneStep(step, DEFAULT_STEP);
   const normalizedLargeStep = normalizePlaneStep(largeStep, DEFAULT_LARGE_STEP);
-  const arrowStepRef = React.useRef(normalizedStep);
+  const smallStepRef = React.useRef(normalizedSmallStep);
+  const stepRef = React.useRef(normalizedStep);
+  const largeStepRef = React.useRef(normalizedLargeStep);
+  smallStepRef.current = normalizedSmallStep;
+  stepRef.current = normalizedStep;
+  largeStepRef.current = normalizedLargeStep;
+  const modifierKeysRef = React.useRef({ alt: false, shift: false });
   const arrowRepeatTimeoutRef = React.useRef<number | null>(null);
   const arrowRepeatIntervalRef = React.useRef<number | null>(null);
   const applyArrowChordRef = React.useRef<() => void>(() => {});
@@ -1013,6 +1046,7 @@ export function PlaneThumb({
       keyboardOriginalEventRef.current = undefined;
       cancelArrowRepeat();
       pressedArrowKeysRef.current.clear();
+      modifierKeysRef.current = { alt: false, shift: false };
       interactionValueRef.current = resetValue;
       setUncontrolledValue(resetValue);
       cancelThumbInteraction(internalKey);
@@ -1040,6 +1074,7 @@ export function PlaneThumb({
     keyboardOriginalEventRef.current = undefined;
     cancelArrowRepeat();
     pressedArrowKeysRef.current.clear();
+    modifierKeysRef.current = { alt: false, shift: false };
     if (isControlled) interactionValueRef.current = renderedValue;
     cancelThumbInteraction(internalKey);
   }, [
@@ -1092,7 +1127,13 @@ export function PlaneThumb({
       getArrowChordValue(
         interactionValueRef.current,
         pressedArrowKeysRef.current,
-        arrowStepRef.current,
+        getArrowStep(
+          smallStepRef.current,
+          stepRef.current,
+          largeStepRef.current,
+          modifierKeysRef.current.alt,
+          modifierKeysRef.current.shift,
+        ),
       ),
       'keyboard',
       keyboardOriginalEventRef.current,
@@ -1167,6 +1208,7 @@ export function PlaneThumb({
         );
         cancelArrowRepeat();
         pressedArrowKeysRef.current.clear();
+        modifierKeysRef.current = { alt: false, shift: false };
         setTabbableAxis('x');
         pointerFocusRef.current = true;
         input?.focus({ preventScroll: true });
@@ -1266,7 +1308,7 @@ export function PlaneThumb({
       type="range"
       min={0}
       max={1}
-      step={normalizedStep}
+      step="any"
       tabIndex={tabbableAxis === axis ? 0 : -1}
       value={renderedValue[axis]}
       name={axis === 'x' ? xName : yName}
@@ -1350,6 +1392,7 @@ export function PlaneThumb({
           setFocusVisible(false);
           cancelArrowRepeat();
           pressedArrowKeysRef.current.clear();
+          modifierKeysRef.current = { alt: false, shift: false };
           commitKeyboardValue('keyboard', event.nativeEvent);
         }
       }}
@@ -1366,6 +1409,13 @@ export function PlaneThumb({
           setFocusVisible(true);
           return;
         }
+        if (event.key === 'Alt' || event.key === 'Shift') {
+          modifierKeysRef.current = {
+            alt: event.altKey || event.key === 'Alt',
+            shift: event.shiftKey || event.key === 'Shift',
+          };
+          return;
+        }
         const targetAxis = getKeyAxis(sourceAxis, event.key);
         if (!targetAxis) return;
         let nextValue: PlaneValue | null;
@@ -1373,9 +1423,10 @@ export function PlaneThumb({
           keyboardOriginalEventRef.current = event.nativeEvent;
           const wasIdle = pressedArrowKeysRef.current.size === 0;
           pressedArrowKeysRef.current.add(event.key);
-          arrowStepRef.current = event.shiftKey
-            ? normalizedLargeStep
-            : normalizedStep;
+          modifierKeysRef.current = {
+            alt: event.altKey,
+            shift: event.shiftKey,
+          };
           if (wasIdle) startArrowRepeat();
           if (event.repeat) {
             event.preventDefault();
@@ -1384,15 +1435,23 @@ export function PlaneThumb({
           nextValue = getArrowChordValue(
             interactionValueRef.current,
             pressedArrowKeysRef.current,
-            arrowStepRef.current,
+            getArrowStep(
+              smallStepRef.current,
+              stepRef.current,
+              largeStepRef.current,
+              modifierKeysRef.current.alt,
+              modifierKeysRef.current.shift,
+            ),
           );
         } else {
           nextValue = getAxisKeyValue(
             sourceAxis,
             event.key,
             interactionValueRef.current,
+            normalizedSmallStep,
             normalizedStep,
             normalizedLargeStep,
+            event.altKey,
             event.shiftKey,
           );
         }
@@ -1415,7 +1474,12 @@ export function PlaneThumb({
         onKeyUp?.(event);
         const arrowKey = isPlaneArrowKey(event.key) ? event.key : null;
         if (arrowKey) pressedArrowKeysRef.current.delete(arrowKey);
-        if (event.key === 'Shift') arrowStepRef.current = normalizedStep;
+        if (event.key === 'Alt' || event.key === 'Shift') {
+          modifierKeysRef.current = {
+            alt: event.key === 'Alt' ? false : event.altKey,
+            shift: event.key === 'Shift' ? false : event.shiftKey,
+          };
+        }
         if (arrowKey && pressedArrowKeysRef.current.size === 0) {
           cancelArrowRepeat();
         }

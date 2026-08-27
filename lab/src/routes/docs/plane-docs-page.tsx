@@ -151,7 +151,14 @@ const PLANE_THUMB_PROPS = [
     type: 'number | undefined',
     shortType: 'number',
     defaultValue: '0.01',
-    description: 'The arrow-key and native range-input increment.',
+    description: 'The unmodified arrow-key increment.',
+  },
+  {
+    name: 'smallStep',
+    type: 'number | undefined',
+    shortType: 'number',
+    defaultValue: '0.001',
+    description: 'The Alt/Option + Arrow increment.',
   },
   {
     name: 'largeStep',

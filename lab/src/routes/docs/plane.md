@@ -163,6 +163,7 @@ For multiple thumbs, use `aria-label` on each thumb to prefix its default axis l
 | Left Arrow / Right Arrow | Decreases or increases X by `step`.                                                    |
 | Down Arrow / Up Arrow    | Decreases or increases Y by `step`.                                                    |
 | Two held arrow keys      | Moves both axes when a horizontal and vertical direction are held together.            |
+| Alt/Option + Arrow       | Changes the corresponding axis by `smallStep`. Alt/Option takes precedence over Shift. |
 | Shift + Arrow            | Changes the corresponding axis by `largeStep`.                                         |
 | Page Down / Page Up      | Changes the focused axis by `largeStep`.                                               |
 | Home / End               | Sets the focused axis to `0` or `1`.                                                   |

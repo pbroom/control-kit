@@ -127,6 +127,9 @@ test('routes between Plane docs and Lab without exposing tabs on undocumented pa
   const largeStepProp = page.locator('summary#planethumb-largestep');
   await expect(largeStepProp).toContainText('largeStep');
   await expect(largeStepProp).toContainText('0.1');
+  const smallStepProp = page.locator('summary#planethumb-smallstep');
+  await expect(smallStepProp).toContainText('smallStep');
+  await expect(smallStepProp).toContainText('0.001');
   await expect(page.locator('summary#planethumb-xname')).toContainText('xName');
   await expect(page.locator('summary#planethumb-yname')).toContainText('yName');
   await expect(page.locator('summary#planethumb-form')).toContainText('form');
