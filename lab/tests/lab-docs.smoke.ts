@@ -73,6 +73,38 @@ test('routes between Plane docs and Lab without exposing tabs on undocumented pa
     page.getByRole('heading', { name: 'API reference', exact: true }),
   ).toBeVisible();
   await expect(page.locator('pre[data-language="tsx"]')).toHaveCount(4);
+  const codeBlocks = page.locator('[data-docs-code-block]');
+  const copyButtons = page.getByRole('button', {
+    name: 'Copy code',
+    exact: true,
+  });
+  await expect(codeBlocks).toHaveCount(4);
+  await expect(copyButtons).toHaveCount(4);
+  expect(
+    await codeBlocks
+      .first()
+      .locator('pre')
+      .evaluate((element) =>
+        parseFloat(getComputedStyle(element).paddingRight),
+      ),
+  ).toBeGreaterThanOrEqual(48);
+
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  await copyButtons.first().click();
+  await expect(
+    page.getByRole('button', { name: 'Copied code', exact: true }),
+  ).toBeVisible();
+  await expect(codeBlocks.first().getByRole('status')).toHaveText(
+    'Code copied to clipboard.',
+  );
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
+    `import { Plane, PlaneThumb } from '@color-kit/control-kit';
+
+<Plane aria-label="Position">
+  <PlaneThumb defaultValue={{ x: 0.5, y: 0.5 }} />
+</Plane>;`,
+  );
+  await expect(copyButtons.first()).toBeFocused();
   await expect(
     page.getByRole('region', { name: 'Plane component props table' }),
   ).toBeVisible();
