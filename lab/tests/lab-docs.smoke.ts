@@ -462,11 +462,94 @@ test('routes between Plane docs and Lab without exposing tabs on undocumented pa
   await expect(labTab).toHaveAttribute('aria-selected', 'true');
 
   await page.goto('/docs/color-plane');
-  await expect(page).toHaveURL(/\/lab\/color-plane$/);
-  await expect(page.getByRole('tablist', { name: 'Page view' })).toHaveCount(0);
+  await expect(page).toHaveURL(/\/docs\/color-plane$/);
+  await expect(page.getByRole('tablist', { name: 'Page view' })).toBeVisible();
   await expect(
     page.getByRole('link', { name: 'ColorPlane', exact: true }),
   ).toHaveAttribute('aria-current', 'page');
+
+  await page.goto('/docs/checkbox');
+  await expect(page).toHaveURL(/\/lab\/checkbox$/);
+  await expect(page.getByRole('tablist', { name: 'Page view' })).toHaveCount(0);
+
+  expect(browserErrors).toEqual([]);
+});
+
+test('renders and exercises the documented primitive pages', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop');
+  const browserErrors = await collectBrowserErrors(page);
+  const pages = [
+    { slug: 'color-plane', heading: 'ColorPlane', lab: '/lab/color-plane' },
+    {
+      slug: 'input-primitive',
+      heading: 'Input Primitive',
+      lab: '/lab/input-primitive',
+    },
+    { slug: 'input-multi', heading: 'Input Multi', lab: '/lab/input-multi' },
+    { slug: 'slider', heading: 'Slider', lab: '/lab/slider' },
+    { slug: 'tooltip', heading: 'Tooltip', lab: '/lab/tooltip' },
+  ] as const;
+
+  for (const docsPage of pages) {
+    await page.goto(`/docs/${docsPage.slug}`);
+    await expect(page).toHaveURL(new RegExp(`/docs/${docsPage.slug}$`));
+    await expect(
+      page.getByRole('heading', {
+        name: docsPage.heading,
+        exact: true,
+        level: 1,
+      }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'API reference', exact: true }),
+    ).toBeVisible();
+    await expect(page.locator('[data-docs-example]')).toHaveCount(1);
+    await expect(
+      page.getByRole('button', { name: 'Show code', exact: true }),
+    ).toBeVisible();
+    await expect(
+      page
+        .getByRole('tablist', { name: 'Page view', exact: true })
+        .getByRole('tab', { name: 'Lab', exact: true }),
+    ).toHaveAttribute('href', docsPage.lab);
+  }
+
+  await page.goto('/docs/color-plane');
+  const colorThumb = page.getByRole('slider', {
+    name: 'Lightness and chroma',
+  });
+  const initialColorX = await colorThumb.getAttribute('data-x');
+  await colorThumb.press('ArrowRight');
+  await expect(colorThumb).not.toHaveAttribute('data-x', initialColorX!);
+
+  await page.goto('/docs/input-primitive');
+  const primitiveInput = page.getByRole('spinbutton', { name: 'Opacity' });
+  await primitiveInput.fill('55');
+  await primitiveInput.press('Enter');
+  await expect(primitiveInput).toHaveValue('55');
+
+  await page.goto('/docs/input-multi');
+  const multiInput = page.getByRole('spinbutton', {
+    name: 'Horizontal position',
+  });
+  await multiInput.focus();
+  await multiInput.press('ArrowUp');
+  await expect(multiInput).toHaveValue('51');
+
+  await page.goto('/docs/slider');
+  const slider = page.getByRole('slider', { name: 'Lightness slider' });
+  const initialSliderValue = await slider.getAttribute('aria-valuenow');
+  await slider.press('ArrowRight');
+  await expect(slider).not.toHaveAttribute(
+    'aria-valuenow',
+    initialSliderValue!,
+  );
+
+  await page.goto('/docs/tooltip');
+  await page.getByRole('button', { name: 'Hover or focus' }).focus();
+  await expect(page.getByRole('tooltip')).toContainText('Open settings');
 
   expect(browserErrors).toEqual([]);
 });

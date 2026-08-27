@@ -4,6 +4,42 @@ import type { LabPageKey } from '../lab/shared.js';
 type DocsPageComponent = ComponentType;
 
 const DOCS_PAGE_LOADERS = {
+  colorPlane: (loadAttempt: number) => {
+    const modulePromise =
+      loadAttempt === 0
+        ? import('./color-plane-docs-page.js')
+        : // A distinct module URL bypasses the browser's rejected-import cache.
+          // @ts-expect-error Vite resolves query-suffixed local modules.
+          import('./color-plane-docs-page.js?retry=1');
+
+    return modulePromise.then((module) => ({
+      default: module.ColorPlaneDocsPage,
+    }));
+  },
+  input: (loadAttempt: number) => {
+    const modulePromise =
+      loadAttempt === 0
+        ? import('./input-docs-page.js')
+        : // A distinct module URL bypasses the browser's rejected-import cache.
+          // @ts-expect-error Vite resolves query-suffixed local modules.
+          import('./input-docs-page.js?retry=1');
+
+    return modulePromise.then((module) => ({
+      default: module.InputDocsPage,
+    }));
+  },
+  inputMulti: (loadAttempt: number) => {
+    const modulePromise =
+      loadAttempt === 0
+        ? import('./input-multi-docs-page.js')
+        : // A distinct module URL bypasses the browser's rejected-import cache.
+          // @ts-expect-error Vite resolves query-suffixed local modules.
+          import('./input-multi-docs-page.js?retry=1');
+
+    return modulePromise.then((module) => ({
+      default: module.InputMultiDocsPage,
+    }));
+  },
   plane: (loadAttempt: number) => {
     const modulePromise =
       loadAttempt === 0
@@ -14,6 +50,30 @@ const DOCS_PAGE_LOADERS = {
 
     return modulePromise.then((module) => ({
       default: module.PlaneDocsPage,
+    }));
+  },
+  slider: (loadAttempt: number) => {
+    const modulePromise =
+      loadAttempt === 0
+        ? import('./slider-docs-page.js')
+        : // A distinct module URL bypasses the browser's rejected-import cache.
+          // @ts-expect-error Vite resolves query-suffixed local modules.
+          import('./slider-docs-page.js?retry=1');
+
+    return modulePromise.then((module) => ({
+      default: module.SliderDocsPage,
+    }));
+  },
+  tooltip: (loadAttempt: number) => {
+    const modulePromise =
+      loadAttempt === 0
+        ? import('./tooltip-docs-page.js')
+        : // A distinct module URL bypasses the browser's rejected-import cache.
+          // @ts-expect-error Vite resolves query-suffixed local modules.
+          import('./tooltip-docs-page.js?retry=1');
+
+    return modulePromise.then((module) => ({
+      default: module.TooltipDocsPage,
     }));
   },
 } satisfies Partial<

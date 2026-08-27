@@ -8,12 +8,19 @@ import {
 import { createRetryablePreloader, hasDocsPage } from './docs-registry.js';
 
 describe('documentation routes', () => {
-  it('registers Plane as the only documented primitive', () => {
+  it('registers every documented primitive', () => {
     expect(
       LAB_PAGE_NAVIGATION.filter((page) => hasDocsPage(page.value)).map(
         (page) => page.value,
       ),
-    ).toEqual(['plane']);
+    ).toEqual([
+      'plane',
+      'colorPlane',
+      'input',
+      'inputMulti',
+      'slider',
+      'tooltip',
+    ]);
   });
 
   it('builds stable Docs and Lab paths from the shared page slug', () => {
@@ -21,6 +28,11 @@ describe('documentation routes', () => {
     expect(getLabPagePath('plane')).toBe('/lab/plane');
     expect(getPrimitivePagePath('plane', 'docs')).toBe('/docs/plane');
     expect(getPrimitivePagePath('plane', 'lab')).toBe('/lab/plane');
+    expect(getDocsPagePath('colorPlane')).toBe('/docs/color-plane');
+    expect(getDocsPagePath('input')).toBe('/docs/input-primitive');
+    expect(getDocsPagePath('inputMulti')).toBe('/docs/input-multi');
+    expect(getDocsPagePath('slider')).toBe('/docs/slider');
+    expect(getDocsPagePath('tooltip')).toBe('/docs/tooltip');
   });
 
   it('retries a documentation module after a transient load failure', async () => {
