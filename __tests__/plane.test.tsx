@@ -368,6 +368,51 @@ describe('Plane', () => {
     );
   });
 
+  it('restores the remaining hover value when overlapping pointers leave', () => {
+    const onHoverValueChange = vi.fn();
+    const { plane } = mountPlane({ onHoverValueChange });
+
+    act(() =>
+      pointer(plane, 'pointerover', {
+        clientX: 60,
+        clientY: 95,
+        pointerId: 1,
+        pointerType: 'mouse',
+      }),
+    );
+    act(() =>
+      pointer(plane, 'pointerover', {
+        clientX: 160,
+        clientY: 45,
+        pointerId: 2,
+        pointerType: 'pen',
+      }),
+    );
+    act(() =>
+      pointer(plane, 'pointerout', {
+        clientX: 300,
+        clientY: 200,
+        pointerId: 2,
+        pointerType: 'pen',
+      }),
+    );
+    act(() =>
+      pointer(plane, 'pointerout', {
+        clientX: 300,
+        clientY: 200,
+        pointerId: 1,
+        pointerType: 'mouse',
+      }),
+    );
+
+    expect(onHoverValueChange.mock.calls.map(([value]) => value)).toEqual([
+      { x: 0.25, y: 0.25 },
+      { x: 0.75, y: 0.75 },
+      { x: 0.25, y: 0.25 },
+      null,
+    ]);
+  });
+
   it('clears hover values instead of reporting clamped positions outside the plane', () => {
     const onHoverValueChange = vi.fn();
     const onValueChange = vi.fn();
@@ -1209,6 +1254,44 @@ describe('Plane', () => {
     expect(onValueChange.mock.lastCall?.[1]).toEqual(
       details({ interaction: 'pointer', reason: 'thumb-drag' }),
     );
+    expect(thumb.hasAttribute('data-hovered')).toBe(false);
+  });
+
+  it('does not publish predicted hover for a controlled thumb', async () => {
+    const { container, plane } = mountPlane({
+      value: { x: 0.5, y: 0.5 },
+      onValueChange: vi.fn(),
+    });
+    const thumb = container.querySelector(
+      '[data-slot="plane-thumb"]',
+    ) as HTMLElement;
+    vi.spyOn(thumb, 'getBoundingClientRect').mockReturnValue({
+      left: 100,
+      top: 60,
+      width: 20,
+      height: 20,
+      right: 120,
+      bottom: 80,
+      x: 100,
+      y: 60,
+      toJSON: () => ({}),
+    });
+
+    act(() =>
+      pointer(plane, 'pointerdown', {
+        clientX: 190,
+        clientY: 100,
+        pointerType: 'mouse',
+      }),
+    );
+
+    expect(thumb.hasAttribute('data-hovered')).toBe(false);
+
+    await act(
+      () =>
+        new Promise<void>((resolve) => requestAnimationFrame(() => resolve())),
+    );
+
     expect(thumb.hasAttribute('data-hovered')).toBe(false);
   });
 

@@ -110,6 +110,7 @@ type PlaneThumbRegistration = {
     hovered: boolean,
     captured: boolean,
   ) => void;
+  capturePointerHover: (pointerId: number, pointerType: string) => void;
   reconcilePointerHover: (
     pointerId: number,
     pointerType: string,
@@ -157,8 +158,8 @@ export function getPlaneValueFromPoint(
   });
 }
 
-function planeValuesEqual(a: PlaneValue, b: PlaneValue) {
-  return a.x === b.x && a.y === b.y;
+function planeValuesEqual(a: PlaneValue | null, b: PlaneValue | null) {
+  return a === b || (a !== null && b !== null && a.x === b.x && a.y === b.y);
 }
 
 function getValueChangeDetails(
@@ -301,7 +302,7 @@ export function Plane({
     width: number;
     height: number;
   } | null>(null);
-  const hoverPointerIdRef = React.useRef<number | null>(null);
+  const hoverPointersRef = React.useRef(new Map<number, PlaneValue>());
   const hoverPointerBoundsRef = React.useRef<PlaneBounds | null>(null);
   const hoverValueRef = React.useRef<PlaneValue | null>(null);
   const onHoverValueChangeRef = React.useRef(onHoverValueChange);
@@ -404,27 +405,28 @@ export function Plane({
       const notifyHoverValueChange = onHoverValueChangeRef.current;
       if (!notifyHoverValueChange || event.pointerType === 'touch') return;
 
-      if (hoverPointerIdRef.current !== event.pointerId) {
-        hoverPointerIdRef.current = event.pointerId;
-        hoverPointerBoundsRef.current = null;
-        hoverValueRef.current = null;
-      }
-
       const bounds =
         hoverPointerBoundsRef.current ??
         (hoverPointerBoundsRef.current =
           event.currentTarget.getBoundingClientRect());
       const value = getPlaneValueFromPoint(event, bounds);
       if (!planeBoundsContainPoint(event, bounds)) {
-        if (hoverValueRef.current !== null) {
-          hoverValueRef.current = null;
-          notifyHoverValueChange(null, {
+        hoverPointersRef.current.delete(event.pointerId);
+        const remainingValue = Array.from(hoverPointersRef.current.values()).at(
+          -1,
+        );
+        if (!planeValuesEqual(hoverValueRef.current, remainingValue ?? null)) {
+          hoverValueRef.current = remainingValue ?? null;
+          notifyHoverValueChange(remainingValue ?? null, {
             pointerType: event.pointerType,
             originalEvent: event.nativeEvent,
           });
         }
         return;
       }
+
+      hoverPointersRef.current.delete(event.pointerId);
+      hoverPointersRef.current.set(event.pointerId, value);
       if (
         hoverValueRef.current &&
         planeValuesEqual(hoverValueRef.current, value)
@@ -443,19 +445,21 @@ export function Plane({
 
   const clearHoverValue = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
-      if (
-        event.pointerType === 'touch' ||
-        hoverPointerIdRef.current !== event.pointerId
-      ) {
+      if (event.pointerType === 'touch') {
         return;
       }
 
-      const hadHoverValue = hoverValueRef.current !== null;
-      hoverPointerIdRef.current = null;
-      hoverPointerBoundsRef.current = null;
-      hoverValueRef.current = null;
-      if (hadHoverValue) {
-        onHoverValueChangeRef.current?.(null, {
+      if (!hoverPointersRef.current.delete(event.pointerId)) return;
+
+      const remainingValue = Array.from(hoverPointersRef.current.values()).at(
+        -1,
+      );
+      if (hoverPointersRef.current.size === 0) {
+        hoverPointerBoundsRef.current = null;
+      }
+      if (!planeValuesEqual(hoverValueRef.current, remainingValue ?? null)) {
+        hoverValueRef.current = remainingValue ?? null;
+        onHoverValueChangeRef.current?.(remainingValue ?? null, {
           pointerType: event.pointerType,
           originalEvent: event.nativeEvent,
         });
@@ -570,17 +574,22 @@ export function Plane({
             reason,
             originalEvent: event.nativeEvent,
           });
-          registration.syncPointerHover(
-            event.pointerId,
-            event.pointerType,
-            pointOverClampedThumb(event, bounds, thumbSize),
-            true,
-          );
           if (registration.isControlled()) {
+            registration.capturePointerHover(
+              event.pointerId,
+              event.pointerType,
+            );
             registration.reconcilePointerHover(
               event.pointerId,
               event.pointerType,
               event,
+              true,
+            );
+          } else {
+            registration.syncPointerHover(
+              event.pointerId,
+              event.pointerType,
+              pointOverClampedThumb(event, bounds, thumbSize),
               true,
             );
           }
@@ -612,17 +621,18 @@ export function Plane({
             });
             const thumbSize = activePointerThumbSizeRef.current;
             if (thumbSize) {
-              registration.syncPointerHover(
-                event.pointerId,
-                event.pointerType,
-                pointOverClampedThumb(event, bounds, thumbSize),
-                true,
-              );
               if (registration.isControlled()) {
                 registration.reconcilePointerHover(
                   event.pointerId,
                   event.pointerType,
                   event,
+                  true,
+                );
+              } else {
+                registration.syncPointerHover(
+                  event.pointerId,
+                  event.pointerType,
+                  pointOverClampedThumb(event, bounds, thumbSize),
                   true,
                 );
               }
@@ -1170,6 +1180,10 @@ export function PlaneThumb({
         if (nextHovered) hoverPointerIdsRef.current.add(pointerId);
         else hoverPointerIdsRef.current.delete(pointerId);
         updateHovered(hoverPointerIdsRef.current.size > 0);
+      },
+      capturePointerHover: (pointerId, pointerType) => {
+        if (pointerType === 'touch') return;
+        capturedHoverPointerIdsRef.current.add(pointerId);
       },
       reconcilePointerHover: (pointerId, pointerType, point, capturedOnly) => {
         if (pointerType === 'touch') return;
