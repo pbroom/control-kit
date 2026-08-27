@@ -89,8 +89,8 @@ const [point, setPoint] = useState({ x: 0.35, y: 0.65 });
 ```
 
 Coordinates are clamped to `0..1`, with X increasing left-to-right and Y
-increasing bottom-to-top. Arrow keys move the focused axis; Shift uses the
-coarse step.
+increasing bottom-to-top. Arrow keys move the focused axis; Alt/Option uses
+`smallStep`, and Shift uses `largeStep`.
 
 ## Development
 

@@ -104,6 +104,10 @@ test('drives the composed Plane with pointer, keyboard, and properties', async (
   await expect(yAxis).not.toBeFocused();
   await expect(thumb).not.toHaveAttribute('data-focused');
   await xAxis.focus();
+  await page.keyboard.press('Alt+ArrowRight');
+  await expect(xAxis).toHaveValue('0.801');
+  await page.keyboard.press('Alt+ArrowLeft');
+  await expect(xAxis).toHaveValue('0.8');
   await page.keyboard.press('Shift+ArrowLeft');
   await expect(readout).toContainText('X 0.70 · Y 0.75');
   await page.keyboard.down('ArrowRight');

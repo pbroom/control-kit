@@ -170,6 +170,7 @@ function key(
   value: string,
   shiftKey = false,
   repeat = false,
+  altKey = false,
 ) {
   const event = new KeyboardEvent(type, {
     bubbles: true,
@@ -177,6 +178,7 @@ function key(
     key: value,
     shiftKey,
     repeat,
+    altKey,
   });
   target.dispatchEvent(event);
   return event;
@@ -962,8 +964,12 @@ describe('Plane', () => {
   );
 
   it.each([
-    { step: -1, largeStep: Number.NaN },
-    { step: 0, largeStep: Number.POSITIVE_INFINITY },
+    { smallStep: -1, step: -1, largeStep: Number.NaN },
+    {
+      smallStep: 0,
+      step: 0,
+      largeStep: Number.POSITIVE_INFINITY,
+    },
   ])('falls back from invalid keyboard step values', (thumbProps) => {
     const onValueChange = vi.fn();
     const { container } = mountPlane({ onValueChange }, thumbProps);
@@ -971,7 +977,7 @@ describe('Plane', () => {
       '[data-plane-axis="x"]',
     ) as HTMLInputElement;
 
-    expect(xInput.step).toBe('0.01');
+    expect(xInput.step).toBe('any');
     act(() => {
       key(xInput, 'keydown', 'ArrowRight');
       key(xInput, 'keyup', 'ArrowRight');
@@ -979,6 +985,10 @@ describe('Plane', () => {
     act(() => {
       key(xInput, 'keydown', 'ArrowRight', true);
       key(xInput, 'keyup', 'ArrowRight', true);
+    });
+    act(() => {
+      key(xInput, 'keydown', 'ArrowRight', false, false, true);
+      key(xInput, 'keyup', 'ArrowRight', false, false, true);
     });
 
     expect(onValueChange).toHaveBeenNthCalledWith(
@@ -991,6 +1001,56 @@ describe('Plane', () => {
       { x: 0.36, y: 0.75 },
       details({ interaction: 'keyboard', reason: 'keyboard' }),
     );
+    expect(onValueChange.mock.calls[2][0].x).toBeCloseTo(0.361);
+    expect(onValueChange.mock.calls[2][0].y).toBe(0.75);
+  });
+
+  it('uses smallStep for Option or Alt modified arrows', () => {
+    const onValueChange = vi.fn();
+    const { container } = mountPlane({ onValueChange }, { smallStep: 0.002 });
+    const xInput = container.querySelector(
+      '[data-plane-axis="x"]',
+    ) as HTMLInputElement;
+
+    act(() => {
+      key(xInput, 'keydown', 'ArrowRight', false, false, true);
+      key(xInput, 'keyup', 'ArrowRight', false, false, true);
+      key(xInput, 'keydown', 'ArrowLeft', true, false, true);
+      key(xInput, 'keyup', 'ArrowLeft', true, false, true);
+    });
+
+    expect(onValueChange.mock.calls[0][0].x).toBeCloseTo(0.252);
+    expect(onValueChange.mock.calls[1][0].x).toBeCloseTo(0.25);
+    expect(xInput.step).toBe('any');
+  });
+
+  it('switches held-arrow repeat between small and regular steps', () => {
+    vi.useFakeTimers();
+    try {
+      const onValueChange = vi.fn();
+      const { container } = mountPlane(
+        { onValueChange },
+        { smallStep: 0.001, step: 0.01 },
+      );
+      const xInput = container.querySelector(
+        '[data-plane-axis="x"]',
+      ) as HTMLInputElement;
+
+      act(() => {
+        key(xInput, 'keydown', 'ArrowRight');
+        key(xInput, 'keydown', 'Alt', false, false, true);
+        vi.advanceTimersByTime(300);
+        key(xInput, 'keyup', 'Alt');
+        vi.advanceTimersByTime(50);
+        key(xInput, 'keyup', 'ArrowRight');
+      });
+
+      expect(onValueChange.mock.calls[0][0].x).toBeCloseTo(0.26);
+      expect(onValueChange.mock.calls[1][0].x).toBeCloseTo(0.261);
+      expect(onValueChange.mock.calls[2][0].x).toBeCloseTo(0.271);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('uses largeStep for modified arrows and paging keys', () => {
