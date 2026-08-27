@@ -33,7 +33,7 @@ const LAB_PAGE_PANEL_TEXT = {
     'Preview the compact checkbox row used throughout the properties panel.',
   slider:
     'Preview one ColorSlider instance and tune its slider-specific props.',
-  tooltip: 'Tune the Radix initial hover delay',
+  tooltip: 'Tune the Base UI initial hover delay',
   menu: 'Tune the three-item menu shown above the reusable menu preview.',
   select: 'Preview the UI3 menu trigger state.',
   tabs: 'Preview the UI3 tab group and selected tab content.',

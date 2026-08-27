@@ -1,6 +1,6 @@
 # Tooltip
 
-A styled tooltip for short, descriptive labels. Built on [Radix Tooltip](https://www.radix-ui.com/primitives/docs/components/tooltip); Control Kit adds its visual treatment, pointer options, and animation handoff policy.
+A styled tooltip for short, descriptive labels. Built on [Base UI Tooltip](https://base-ui.com/react/components/tooltip); Control Kit adds its visual treatment, pointer options, and animation policy.
 
 <!-- demo:basic -->
 
@@ -18,9 +18,7 @@ import {
 
 <TooltipProvider>
   <Tooltip>
-    <TooltipTrigger asChild>
-      <button type="button">Settings</button>
-    </TooltipTrigger>
+    <TooltipTrigger render={<button type="button" />}>Settings</TooltipTrigger>
     <TooltipContent>Open settings</TooltipContent>
   </Tooltip>
 </TooltipProvider>;
@@ -49,16 +47,16 @@ The decorative pointer is included by default and can be removed without changin
 
 ### Placement
 
-Radix positioning props pass through to `TooltipContent`.
+Base UI positioning props pass through to `TooltipContent`.
 
 <!-- demo:placement -->
 
 ### Delay and handoff
 
-Control Kit defaults the provider to a `450` ms initial delay and a `300` ms skip-delay window. Moving between triggers during that window opens the next tooltip immediately and suppresses the outgoing and incoming zoom animation.
+Control Kit defaults the provider to a `450` ms initial delay and a `300` ms handoff window. Base UI opens adjacent tooltips immediately during that window, and Control Kit suppresses the transition for that instant state.
 
 ```tsx
-<TooltipProvider delayDuration={450} skipDelayDuration={300}>
+<TooltipProvider delay={450} timeout={300}>
   {/* Related tooltips */}
 </TooltipProvider>
 ```
@@ -67,28 +65,30 @@ Control Kit defaults the provider to a `450` ms initial delay and a `300` ms ski
 
 ### Control Kit additions
 
-| Prop           | Part             | Default | Purpose                                                 |
-| -------------- | ---------------- | ------- | ------------------------------------------------------- |
-| `highContrast` | `TooltipContent` | `true`  | Selects the solid inverse or surfaced visual treatment. |
-| `showPointer`  | `TooltipContent` | `true`  | Shows or hides the decorative pointer.                  |
+| Prop                  | Part             | Default | Purpose                                                 |
+| --------------------- | ---------------- | ------- | ------------------------------------------------------- |
+| `highContrast`        | `TooltipContent` | `true`  | Selects the solid inverse or surfaced visual treatment. |
+| `showPointer`         | `TooltipContent` | `true`  | Shows or hides the decorative pointer.                  |
+| `keepMounted`         | `TooltipContent` | `false` | Keeps the portal contents mounted while closed.         |
+| `positionerClassName` | `TooltipContent` | —       | Styles the composed Base UI positioner.                 |
 
-Control Kit also changes the provider defaults to `450` ms for `delayDuration` and `300` ms for `skipDelayDuration`.
+Control Kit changes the provider defaults to `450` ms for `delay` and `300` ms for `timeout`. `TooltipContent` also composes Base UI's portal, positioner, popup, and arrow into one part.
 
 ### Important forwarded props
 
-| Part              | Props                                                                                    |
-| ----------------- | ---------------------------------------------------------------------------------------- |
-| `TooltipProvider` | `delayDuration`, `skipDelayDuration`, `disableHoverableContent`                          |
-| `Tooltip`         | `open`, `defaultOpen`, `onOpenChange`, `delayDuration`, `disableHoverableContent`        |
-| `TooltipTrigger`  | `asChild`                                                                                |
-| `TooltipContent`  | `side`, `align`, `sideOffset`, `avoidCollisions`, `collisionPadding`, dismissal handlers |
+| Part              | Props                                                                             |
+| ----------------- | --------------------------------------------------------------------------------- |
+| `TooltipProvider` | `delay`, `closeDelay`, `timeout`                                                  |
+| `Tooltip`         | `open`, `defaultOpen`, `onOpenChange`, `disableHoverablePopup`, `trackCursorAxis` |
+| `TooltipTrigger`  | `render`, `delay`, `closeDelay`, `closeOnClick`, `disabled`                       |
+| `TooltipContent`  | `side`, `align`, `sideOffset`, `collisionAvoidance`, `collisionPadding`, `sticky` |
 
-The wrapper forwards the corresponding Radix props unless Control Kit documents a changed default or addition above. See the [Radix Tooltip API reference](https://www.radix-ui.com/primitives/docs/components/tooltip#api-reference) for the complete upstream contract.
+The wrapper forwards the corresponding Base UI props unless Control Kit documents a changed default or addition above. See the [Base UI Tooltip API reference](https://base-ui.com/react/components/tooltip#api-reference) for the complete upstream contract.
 
 ## Accessibility
 
-Tooltip content is associated with its trigger as a description. It opens from pointer hover or keyboard focus and closes when the trigger activates or Escape is pressed. Keep content short and noninteractive; use a popover when the floating surface contains controls.
+Base UI tooltips are visual labels rather than accessible descriptions. Give the trigger an accessible name that closely matches the tooltip text; do not use a tooltip as the only label or source of important information. Tooltips open from pointer hover or keyboard focus and close when the trigger activates or Escape is pressed. Keep content short and noninteractive; use visible text or a popover when the content must be available to touch or assistive technology users.
 
 ## Source
 
-[Implementation](https://github.com/pbroom/control-kit/blob/main/src/tooltip.tsx) · [Tests](https://github.com/pbroom/control-kit/blob/main/__tests__/tooltip.test.tsx) · [Radix Tooltip API](https://www.radix-ui.com/primitives/docs/components/tooltip#api-reference) · [Issues](https://github.com/pbroom/control-kit/issues)
+[Implementation](https://github.com/pbroom/control-kit/blob/main/src/tooltip.tsx) · [Tests](https://github.com/pbroom/control-kit/blob/main/__tests__/tooltip.test.tsx) · [Base UI Tooltip API](https://base-ui.com/react/components/tooltip#api-reference) · [Issues](https://github.com/pbroom/control-kit/issues)

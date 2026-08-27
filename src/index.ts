@@ -22,7 +22,12 @@ export {
   TooltipProvider,
   TooltipTrigger,
 } from './tooltip.js';
-export type { TooltipContentProps } from './tooltip.js';
+export type {
+  TooltipContentProps,
+  TooltipProps,
+  TooltipProviderProps,
+  TooltipTriggerProps,
+} from './tooltip.js';
 export {
   PrimitiveValueInput,
   formatPrimitiveValue,

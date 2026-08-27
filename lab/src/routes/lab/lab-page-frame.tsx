@@ -356,30 +356,32 @@ function LabPanelToggleButton({
 }: LabPanelToggleButtonProps) {
   return (
     <Tooltip>
-      <TooltipTrigger asChild>
-        <button
-          type="button"
-          aria-controls={ariaControls}
-          aria-label={label}
-          aria-pressed={isPressed}
-          className={[
-            'flex h-8 w-8 items-center justify-center rounded-[10px] border border-transparent bg-transparent outline-none transition-[background-color,border-color,color,box-shadow]',
-            'hover:bg-white/[0.07] hover:text-white/88 focus-visible:ring-2 focus-visible:ring-[#5288db] active:bg-white/[0.10] active:text-white',
-            isPressed ? 'text-white/92' : 'text-white/38 hover:text-white/62',
-          ]
-            .filter(Boolean)
-            .join(' ')}
-          data-testid={testId}
-          onClick={onClick}
-        >
-          <HugeiconsIcon
-            aria-hidden
-            className="h-4 w-4"
-            icon={Icon}
-            size={16}
-            strokeWidth={1.8}
+      <TooltipTrigger
+        render={
+          <button
+            aria-controls={ariaControls}
+            aria-label={label}
+            aria-pressed={isPressed}
+            className={[
+              'flex h-8 w-8 items-center justify-center rounded-[10px] border border-transparent bg-transparent outline-none transition-[background-color,border-color,color,box-shadow]',
+              'hover:bg-white/[0.07] hover:text-white/88 focus-visible:ring-2 focus-visible:ring-[#5288db] active:bg-white/[0.10] active:text-white',
+              isPressed ? 'text-white/92' : 'text-white/38 hover:text-white/62',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+            data-testid={testId}
+            onClick={onClick}
+            type="button"
           />
-        </button>
+        }
+      >
+        <HugeiconsIcon
+          aria-hidden
+          className="h-4 w-4"
+          icon={Icon}
+          size={16}
+          strokeWidth={1.8}
+        />
       </TooltipTrigger>
       <TooltipContent side="left">{label}</TooltipContent>
     </Tooltip>
@@ -405,7 +407,7 @@ function LabPanelToggleControls({
     : LayoutBottomIcon;
 
   return (
-    <TooltipProvider delayDuration={350} skipDelayDuration={120}>
+    <TooltipProvider delay={350} timeout={120}>
       <div
         aria-label="Panel visibility controls"
         className="pointer-events-auto absolute top-4 right-4 z-40 flex gap-2 lg:right-[calc(var(--lab-properties-panel-width)+0.75rem)]"
@@ -553,8 +555,8 @@ function LabPageFrameContent({
         <div className="h-full w-full min-w-0 max-w-full overflow-hidden rounded-[24px] border border-white/8 bg-white/[0.03] [--ck-lab-segmented-active-bg:color-mix(in_srgb,#171717_97%,white_3%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] backdrop-blur lg:min-h-0">
           <ScrollArea className={LAB_PANEL_SCROLL_AREA_CLASS}>
             <TooltipProvider
-              delayDuration={panelTooltipProviderProps.delayDuration}
-              skipDelayDuration={panelTooltipProviderProps.skipDelayDuration}
+              delay={panelTooltipProviderProps.delayDuration}
+              timeout={panelTooltipProviderProps.skipDelayDuration}
             >
               <div className="w-full min-w-0 max-w-full overflow-x-hidden p-4">
                 <LabPageCrossfadeSlot

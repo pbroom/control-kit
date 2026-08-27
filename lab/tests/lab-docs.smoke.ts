@@ -578,9 +578,13 @@ test('renders and exercises the documented pages', async ({
   await page.goto('/docs/tooltip');
   await page
     .getByLabel('Tooltip demo', { exact: true })
-    .getByRole('button', { name: 'Hover or focus' })
+    .getByRole('button', { name: 'Settings', exact: true })
     .focus();
-  await expect(page.getByRole('tooltip')).toContainText('Open settings');
+  await expect(
+    page
+      .locator('[data-slot="tooltip-content"]')
+      .filter({ hasText: 'Settings' }),
+  ).toBeVisible();
 
   expect(browserErrors).toEqual([]);
 });

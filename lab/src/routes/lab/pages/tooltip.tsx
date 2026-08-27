@@ -57,7 +57,7 @@ function renderTooltipProperties(controller: TooltipLabPageController) {
     <>
       <PanelSection
         title="Timing"
-        description="Tune the Radix initial hover delay and the cooldown window that marks tooltip handoffs."
+        description="Tune the Base UI initial hover delay and the window that marks adjacent tooltip handoffs."
       >
         <div className={PANEL_TWO_COLUMN_GRID_CLASS}>
           <NumberConfigField
