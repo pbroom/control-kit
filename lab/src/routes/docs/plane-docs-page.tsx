@@ -1,20 +1,14 @@
-import { useState } from 'react';
-import { Plane, PlaneThumb, type PlaneValue } from '@color-kit/control-kit';
+import { DocsExample } from './docs-example.js';
+import { PlaneExample } from './examples/plane-basic-example.js';
+import basicExampleCode from './examples/plane-basic-example.tsx?raw';
+import { MultipleThumbsExample } from './examples/plane-multiple-thumbs-example.js';
+import multipleThumbsExampleCode from './examples/plane-multiple-thumbs-example.tsx?raw';
 import { MarkdownDocsPage } from './markdown-docs-page.js';
 import {
   PropReferenceTable,
   type PropReference,
 } from './prop-reference-table.js';
 import planeDocs from './plane.md?raw';
-
-const INITIAL_VALUE: PlaneValue = { x: 0.5, y: 0.5 };
-
-const INITIAL_POINTS = [
-  { id: 'top-left', value: { x: 0.25, y: 0.75 } },
-  { id: 'top-right', value: { x: 0.75, y: 0.75 } },
-  { id: 'bottom-left', value: { x: 0.25, y: 0.25 } },
-  { id: 'bottom-right', value: { x: 0.75, y: 0.25 } },
-] satisfies Array<{ id: string; value: PlaneValue }>;
 
 const PLANE_PROPS = [
   {
@@ -187,84 +181,20 @@ const PLANE_THUMB_PROPS = [
   },
 ] satisfies readonly PropReference[];
 
-function formatPosition(value: PlaneValue) {
-  return `${Math.round(value.x * 100)}% horizontal, ${Math.round(value.y * 100)}% vertical`;
-}
-
-function PlaneDocsDemo() {
-  const [value, setValue] = useState(INITIAL_VALUE);
-
-  return (
-    <div className="flex min-h-[440px] flex-col items-center justify-center gap-5 p-8 max-sm:min-h-[360px] max-sm:p-5">
-      <Plane
-        aria-label="Normalized position"
-        className="size-[300px] rounded-2xl border border-white/10 bg-[#171718] max-sm:size-[240px]"
-      >
-        <PlaneThumb
-          className="size-6 border-white/30 bg-white shadow-none"
-          getAriaValueText={formatPosition}
-          onValueChange={setValue}
-          largeStep={0.1}
-          step={0.01}
-          value={value}
-          xAriaLabel="Horizontal position"
-          yAriaLabel="Vertical position"
-        >
-          <span
-            aria-hidden="true"
-            className="size-3 rounded-full bg-[#171717]"
-          />
-        </PlaneThumb>
-      </Plane>
-      <output className="font-mono text-[11px] text-white/48">
-        X {value.x.toFixed(2)} · Y {value.y.toFixed(2)}
-      </output>
-    </div>
-  );
-}
-
-function PlaneMultipleThumbsDemo() {
-  const [points, setPoints] = useState(INITIAL_POINTS);
-
-  return (
-    <div className="flex min-h-[440px] flex-col items-center justify-center gap-5 p-8 max-sm:min-h-[360px] max-sm:p-5">
-      <Plane
-        pressBehavior="nearest"
-        aria-label="Mesh control points"
-        className="size-[300px] rounded-2xl border border-white/10 bg-[#171718] max-sm:size-[240px]"
-      >
-        {points.map((point, index) => (
-          <PlaneThumb
-            key={point.id}
-            thumbId={point.id}
-            aria-label={`Control point ${index + 1}`}
-            className="size-6 border-white/30 bg-white font-mono text-[10px] shadow-none"
-            value={point.value}
-            onValueChange={(value) => {
-              setPoints((current) =>
-                current.map((item) =>
-                  item.id === point.id ? { ...item, value } : item,
-                ),
-              );
-            }}
-          >
-            {index + 1}
-          </PlaneThumb>
-        ))}
-      </Plane>
-      <p className="text-sm text-white/48">
-        Press empty space to move the nearest point.
-      </p>
-    </div>
-  );
-}
-
 export function PlaneDocsPage() {
   return (
     <MarkdownDocsPage
       slots={{
-        'demo:basic': <PlaneDocsDemo />,
-        'demo:multiple': <PlaneMultipleThumbsDemo />,
+        'demo:basic': (
+          <DocsExample code={basicExampleCode} label="Normalized position">
+            <PlaneExample />
+          </DocsExample>
+        ),
+        'demo:multiple': (
+          <DocsExample code={multipleThumbsExampleCode} label="Multiple thumbs">
+            <MultipleThumbsExample />
+          </DocsExample>
+        ),
         'props:plane': <PropReferenceTable name="Plane" props={PLANE_PROPS} />,
         'props:plane-thumb': (
           <PropReferenceTable name="PlaneThumb" props={PLANE_THUMB_PROPS} />

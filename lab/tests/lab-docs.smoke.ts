@@ -135,22 +135,60 @@ test('routes between Plane docs and Lab without exposing tabs on undocumented pa
   await expect(
     page.getByRole('heading', { name: 'API reference', exact: true }),
   ).toBeVisible();
-  await expect(page.locator('pre[data-language="tsx"]')).toHaveCount(4);
+  await expect(page.locator('pre[data-language="tsx"]')).toHaveCount(5);
   const codeBlocks = page.locator('[data-docs-code-block]');
   const copyButtons = page.getByRole('button', {
     name: 'Copy code',
     exact: true,
   });
-  await expect(codeBlocks).toHaveCount(4);
-  await expect(copyButtons).toHaveCount(4);
+  await expect(codeBlocks).toHaveCount(5);
+  await expect(copyButtons).toHaveCount(5);
   expect(
     await codeBlocks.evaluateAll((blocks) =>
       blocks.every((block) => block.classList.contains('not-typeset')),
     ),
   ).toBe(true);
+  const exampleSources = page.locator('[data-docs-example-source]');
+  const exampleToggles = page.getByRole('button', {
+    name: 'Show code',
+    exact: true,
+  });
+  await expect(exampleSources).toHaveCount(2);
+  await expect(exampleToggles).toHaveCount(2);
+  const firstExampleSource = exampleSources.first();
+  const firstExampleCode = firstExampleSource.locator(
+    '[data-docs-example-code]',
+  );
+  const firstExampleToggle = firstExampleSource.locator(
+    'button[aria-controls]',
+  );
+  await expect(firstExampleCode).toHaveAttribute('aria-hidden', 'true');
   expect(
-    await codeBlocks
-      .first()
+    await firstExampleCode.evaluate((element) => {
+      const styles = getComputedStyle(element);
+      return {
+        height: element.getBoundingClientRect().height,
+        overflow: styles.overflow,
+      };
+    }),
+  ).toEqual({ height: 122, overflow: 'hidden' });
+  await firstExampleToggle.click();
+  await expect(firstExampleToggle).toHaveAttribute('aria-expanded', 'true');
+  await expect(firstExampleToggle).toHaveText('Hide code');
+  await expect(firstExampleCode).toHaveAttribute('aria-hidden', 'false');
+  expect(
+    await firstExampleCode.evaluate(
+      (element) => element.getBoundingClientRect().height,
+    ),
+  ).toBeGreaterThan(122);
+  await expect(
+    page.getByRole('button', { name: 'Hide code', exact: true }),
+  ).toBeVisible();
+
+  const anatomyCodeBlock = codeBlocks.nth(1);
+  const anatomyCopyButton = copyButtons.nth(1);
+  expect(
+    await anatomyCodeBlock
       .locator('pre')
       .evaluate((element) =>
         parseFloat(getComputedStyle(element).paddingRight),
@@ -158,11 +196,11 @@ test('routes between Plane docs and Lab without exposing tabs on undocumented pa
   ).toBeGreaterThanOrEqual(48);
 
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
-  await copyButtons.first().click();
+  await anatomyCopyButton.click();
   await expect(
     page.getByRole('button', { name: 'Copied code', exact: true }),
   ).toBeVisible();
-  await expect(codeBlocks.first().getByRole('status')).toHaveText(
+  await expect(anatomyCodeBlock.getByRole('status')).toHaveText(
     'Code copied to clipboard.',
   );
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
@@ -172,7 +210,7 @@ test('routes between Plane docs and Lab without exposing tabs on undocumented pa
   <PlaneThumb defaultValue={{ x: 0.5, y: 0.5 }} />
 </Plane>;`,
   );
-  await expect(copyButtons.first()).toBeFocused();
+  await expect(anatomyCopyButton).toBeFocused();
   await expect(
     page.getByRole('region', { name: 'Plane component props table' }),
   ).toBeVisible();
