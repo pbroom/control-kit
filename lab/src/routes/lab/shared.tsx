@@ -1172,8 +1172,8 @@ function PropertyFieldTooltip({
 }) {
   return (
     <Tooltip>
-      <TooltipTrigger asChild>
-        <div className="w-full min-w-0 max-w-full">{children}</div>
+      <TooltipTrigger render={<div className="w-full min-w-0 max-w-full" />}>
+        {children}
       </TooltipTrigger>
       <TooltipContent side="bottom">{label}</TooltipContent>
     </Tooltip>
@@ -1218,22 +1218,22 @@ function SegmentedField<T extends string>({
 
           return (
             <Tooltip key={option.value}>
-              <TooltipTrigger asChild>
-                <span className="flex h-full min-w-0 flex-1">
-                  <ToggleGroupItem
-                    value={option.value}
-                    className={`${SEGMENTED_FIELD_ITEM_CLASS} ${getSegmentedFieldItemStateClass(isSelected)}`}
-                    aria-label={`${label}: ${option.label}`}
-                  >
-                    {option.icon ? (
-                      <span className="flex size-3.5 items-center justify-center text-current">
-                        {option.icon}
-                      </span>
-                    ) : (
-                      <span className="min-w-0 truncate">{option.label}</span>
-                    )}
-                  </ToggleGroupItem>
-                </span>
+              <TooltipTrigger
+                render={<span className="flex h-full min-w-0 flex-1" />}
+              >
+                <ToggleGroupItem
+                  value={option.value}
+                  className={`${SEGMENTED_FIELD_ITEM_CLASS} ${getSegmentedFieldItemStateClass(isSelected)}`}
+                  aria-label={`${label}: ${option.label}`}
+                >
+                  {option.icon ? (
+                    <span className="flex size-3.5 items-center justify-center text-current">
+                      {option.icon}
+                    </span>
+                  ) : (
+                    <span className="min-w-0 truncate">{option.label}</span>
+                  )}
+                </ToggleGroupItem>
               </TooltipTrigger>
               <TooltipContent side="bottom" className="pointer-events-none">
                 {option.tooltip ?? `${label}: ${option.label}`}
@@ -1333,37 +1333,39 @@ function PlacementGridField({
 
           return (
             <Tooltip key={`${option.side}-${option.align}`}>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  role="radio"
-                  tabIndex={selectedIndex === index ? 0 : -1}
-                  ref={(el) => {
-                    optionRefs.current[index] = el;
-                  }}
-                  aria-checked={isSelected}
-                  aria-label={`${label}: ${option.label}`}
-                  className={`relative z-10 flex size-[22px] items-center justify-center rounded-[5px] border outline-none transition-[background-color,border-color,color,box-shadow] focus-visible:ring-2 focus-visible:ring-[#5288db]/80 ${
-                    isSelected
-                      ? 'border-[#0d99ff] bg-[#0d99ff] text-white shadow-[0_0_0_1px_rgba(13,153,255,0.25)]'
-                      : 'border-transparent bg-[#383838] text-white/45 hover:border-[#4C4C4C] hover:bg-[#444] hover:text-white/80'
-                  }`}
-                  style={{
-                    gridColumn: option.gridColumn,
-                    gridRow: option.gridRow,
-                  }}
-                  onClick={() =>
-                    onChange({ side: option.side, align: option.align })
-                  }
-                  onKeyDown={(event) => handleRadioKeyDown(event, index)}
-                >
-                  <span
-                    aria-hidden="true"
-                    className={`rounded-full ${
-                      isSelected ? 'size-1.5 bg-white' : 'size-1 bg-current'
+              <TooltipTrigger
+                render={
+                  <button
+                    type="button"
+                    role="radio"
+                    tabIndex={selectedIndex === index ? 0 : -1}
+                    ref={(el) => {
+                      optionRefs.current[index] = el;
+                    }}
+                    aria-checked={isSelected}
+                    aria-label={`${label}: ${option.label}`}
+                    className={`relative z-10 flex size-[22px] items-center justify-center rounded-[5px] border outline-none transition-[background-color,border-color,color,box-shadow] focus-visible:ring-2 focus-visible:ring-[#5288db]/80 ${
+                      isSelected
+                        ? 'border-[#0d99ff] bg-[#0d99ff] text-white shadow-[0_0_0_1px_rgba(13,153,255,0.25)]'
+                        : 'border-transparent bg-[#383838] text-white/45 hover:border-[#4C4C4C] hover:bg-[#444] hover:text-white/80'
                     }`}
+                    style={{
+                      gridColumn: option.gridColumn,
+                      gridRow: option.gridRow,
+                    }}
+                    onClick={() =>
+                      onChange({ side: option.side, align: option.align })
+                    }
+                    onKeyDown={(event) => handleRadioKeyDown(event, index)}
                   />
-                </button>
+                }
+              >
+                <span
+                  aria-hidden="true"
+                  className={`rounded-full ${
+                    isSelected ? 'size-1.5 bg-white' : 'size-1 bg-current'
+                  }`}
+                />
               </TooltipTrigger>
               <TooltipContent side="bottom" className="pointer-events-none">
                 {option.label}
@@ -1754,20 +1756,19 @@ function TooltipPlaygroundStage({
   showPointer: boolean;
 }) {
   return (
-    <TooltipProvider
-      delayDuration={delayDuration}
-      skipDelayDuration={skipDelayDuration}
-    >
+    <TooltipProvider delay={delayDuration} timeout={skipDelayDuration}>
       <div className="relative flex w-full max-w-xl flex-col items-center gap-8">
         <div className="flex justify-center">
           <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                className="h-10 rounded-xl border border-white/10 bg-white/[0.06] px-4 text-sm font-medium text-white/75 outline-none transition-[background-color,border-color,color] hover:border-white/20 hover:bg-white/[0.1] hover:text-white focus-visible:ring-2 focus-visible:ring-white/35"
-              >
-                Hover
-              </button>
+            <TooltipTrigger
+              render={
+                <button
+                  className="h-10 rounded-xl border border-white/10 bg-white/[0.06] px-4 text-sm font-medium text-white/75 outline-none transition-[background-color,border-color,color] hover:border-white/20 hover:bg-white/[0.1] hover:text-white focus-visible:ring-2 focus-visible:ring-white/35"
+                  type="button"
+                />
+              }
+            >
+              Hover
             </TooltipTrigger>
             <TooltipContent
               align={align}
@@ -1786,18 +1787,20 @@ function TooltipPlaygroundStage({
           <div className="grid grid-cols-7 gap-0">
             {TOOLTIP_RAPID_TRIGGER_ITEMS.map(({ name, Icon }) => (
               <Tooltip key={name}>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    aria-label={name}
-                    className="flex size-[37px] items-center justify-center rounded-none text-white/50 outline-none transition-[background-color,box-shadow,color,transform] hover:bg-white/[0.07] hover:text-white/90 focus-visible:bg-white/[0.06] focus-visible:text-white focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#5288db]/80 active:scale-[0.96] active:bg-white/[0.12] active:text-white"
-                  >
-                    <Icon
-                      aria-hidden="true"
-                      className="size-3.5"
-                      strokeWidth={1.75}
+                <TooltipTrigger
+                  render={
+                    <button
+                      aria-label={name}
+                      className="flex size-[37px] items-center justify-center rounded-none text-white/50 outline-none transition-[background-color,box-shadow,color,transform] hover:bg-white/[0.07] hover:text-white/90 focus-visible:bg-white/[0.06] focus-visible:text-white focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#5288db]/80 active:scale-[0.96] active:bg-white/[0.12] active:text-white"
+                      type="button"
                     />
-                  </button>
+                  }
+                >
+                  <Icon
+                    aria-hidden="true"
+                    className="size-3.5"
+                    strokeWidth={1.75}
+                  />
                 </TooltipTrigger>
                 <TooltipContent
                   align={align}
@@ -1818,13 +1821,15 @@ function TooltipPlaygroundStage({
           <div className="flex flex-wrap justify-center gap-2">
             {TOOLTIP_SIDE_DEMO_ITEMS.map((item) => (
               <Tooltip key={item.side}>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    className="h-9 rounded-xl border border-white/10 bg-white/[0.04] px-3 text-xs font-medium capitalize text-white/65 outline-none transition-[background-color,border-color,color] hover:border-white/20 hover:bg-white/[0.08] hover:text-white focus-visible:ring-2 focus-visible:ring-white/35"
-                  >
-                    {item.side}
-                  </button>
+                <TooltipTrigger
+                  render={
+                    <button
+                      className="h-9 rounded-xl border border-white/10 bg-white/[0.04] px-3 text-xs font-medium capitalize text-white/65 outline-none transition-[background-color,border-color,color] hover:border-white/20 hover:bg-white/[0.08] hover:text-white focus-visible:ring-2 focus-visible:ring-white/35"
+                      type="button"
+                    />
+                  }
+                >
+                  {item.side}
                 </TooltipTrigger>
                 <TooltipContent
                   align={align}

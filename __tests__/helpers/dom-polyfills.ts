@@ -23,7 +23,7 @@ if (typeof globalThis.PointerEvent === 'undefined') {
   });
 }
 
-// Radix measures the tooltip arrow with ResizeObserver, which jsdom lacks.
+// Floating UI measures positioned elements with ResizeObserver, which jsdom lacks.
 if (typeof globalThis.ResizeObserver === 'undefined') {
   class TestResizeObserver {
     observe() {}

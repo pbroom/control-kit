@@ -122,44 +122,40 @@ export function MultiInputSegment<TFieldId extends MultiInputFieldId>({
 
   return (
     <Tooltip>
-      <TooltipTrigger asChild>
-        <label className="block h-6 min-w-0 w-full">
-          <PrimitiveValueInput
-            value={value * displayScale}
-            onValueChange={(nextValue) =>
-              onValueChange(nextValue / displayScale)
-            }
-            ariaLabel={field.tooltip}
-            leadingElement={leadingElement}
-            handleElement={handleElement}
-            handleSide={hasTrailingUnit ? 'trailing' : 'leading'}
-            handleContentWidth={showLeadingLabel ? 18 : 16}
-            min={config.min * displayScale}
-            max={config.max * displayScale}
-            wrapMode={config.wrapMode}
-            step={config.step * displayScale}
-            fineStep={config.fineStep * displayScale}
-            coarseStep={config.coarseStep * displayScale}
-            pageStep={config.pageStep * displayScale}
-            precision={config.precision}
-            autoTrim={config.autoTrim}
-            allowExpressions
-            parseExpression={parseExpression}
-            selectAllOnFocus
-            commitOnBlur
-            scrubEnabled
-            scrubPixelsPerStep={1}
-            scrubThreshold={1}
-            pointerLockEnabled={false}
-            disabled={config.disabled}
-            readOnly={false}
-            visualState="auto"
-            visualTreatment="embedded"
-            onScrubbingChange={handleScrubbingChange}
-            size="full"
-            density="compact"
-          />
-        </label>
+      <TooltipTrigger render={<label className="block h-6 min-w-0 w-full" />}>
+        <PrimitiveValueInput
+          value={value * displayScale}
+          onValueChange={(nextValue) => onValueChange(nextValue / displayScale)}
+          ariaLabel={field.tooltip}
+          leadingElement={leadingElement}
+          handleElement={handleElement}
+          handleSide={hasTrailingUnit ? 'trailing' : 'leading'}
+          handleContentWidth={showLeadingLabel ? 18 : 16}
+          min={config.min * displayScale}
+          max={config.max * displayScale}
+          wrapMode={config.wrapMode}
+          step={config.step * displayScale}
+          fineStep={config.fineStep * displayScale}
+          coarseStep={config.coarseStep * displayScale}
+          pageStep={config.pageStep * displayScale}
+          precision={config.precision}
+          autoTrim={config.autoTrim}
+          allowExpressions
+          parseExpression={parseExpression}
+          selectAllOnFocus
+          commitOnBlur
+          scrubEnabled
+          scrubPixelsPerStep={1}
+          scrubThreshold={1}
+          pointerLockEnabled={false}
+          disabled={config.disabled}
+          readOnly={false}
+          visualState="auto"
+          visualTreatment="embedded"
+          onScrubbingChange={handleScrubbingChange}
+          size="full"
+          density="compact"
+        />
       </TooltipTrigger>
       <TooltipContent side="bottom">{field.tooltip}</TooltipContent>
     </Tooltip>
@@ -243,7 +239,7 @@ export function MultiInputControl<TFieldId extends MultiInputFieldId>(
         : 'transparent';
 
   return (
-    <TooltipProvider delayDuration={1000} skipDelayDuration={300}>
+    <TooltipProvider delay={1000} timeout={300}>
       <div
         className="relative h-6 min-h-6 w-full min-w-0 max-w-full overflow-hidden rounded-[4px]"
         data-scrubbing={Boolean(scrubbingField) || undefined}

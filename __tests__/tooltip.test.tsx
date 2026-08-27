@@ -75,11 +75,13 @@ describe('TooltipContent', () => {
     expect(content?.querySelectorAll('svg path')).toHaveLength(2);
   });
 
-  it('animates open by default when no handoff is in progress', () => {
+  it('uses a normal transition when no handoff is in progress', () => {
     mountControlledTooltip();
+    const content = getContent();
 
-    expect(getContent()?.className).toContain('animate-in');
-    expect(getContent()?.className).not.toContain('animate-none');
+    expect(content?.className).toContain('transition-[transform,opacity]');
+    expect(content?.className).toContain('data-instant:transition-none');
+    expect(content?.hasAttribute('data-instant')).toBe(false);
   });
 });
 
@@ -100,16 +102,12 @@ describe('Tooltip handoff', () => {
 
     act(() => {
       root.render(
-        <TooltipProvider
-          delayDuration={0}
-          skipDelayDuration={300}
-          disableHoverableContent
-        >
-          <Tooltip>
+        <TooltipProvider delay={0} timeout={300}>
+          <Tooltip disableHoverablePopup>
             <TooltipTrigger data-testid="trigger-a">A</TooltipTrigger>
             <TooltipContent>Tip A</TooltipContent>
           </Tooltip>
-          <Tooltip>
+          <Tooltip disableHoverablePopup>
             <TooltipTrigger data-testid="trigger-b">B</TooltipTrigger>
             <TooltipContent>Tip B</TooltipContent>
           </Tooltip>
@@ -127,21 +125,31 @@ describe('Tooltip handoff', () => {
     };
   }
 
-  // React synthesizes onPointerEnter/Leave from pointerover/pointerout, so
-  // native enter/leave events would bypass the trigger handlers. Timers only
-  // advance far enough for the zero-delay open to fire while the provider's
-  // skip-delay handoff window (300ms) stays live.
+  // Base UI records the pointer type through React's pointer-enter handler,
+  // then opens and closes hover tooltips from native mouseenter/mouseleave
+  // listeners. Exercise both halves of that contract here.
   function hoverTrigger(trigger: HTMLElement) {
     act(() => {
-      trigger.dispatchEvent(new PointerEvent('pointerover', { bubbles: true }));
-      trigger.dispatchEvent(new PointerEvent('pointermove', { bubbles: true }));
+      trigger.dispatchEvent(
+        new PointerEvent('pointerover', {
+          bubbles: true,
+          pointerType: 'mouse',
+        }),
+      );
+      trigger.dispatchEvent(new MouseEvent('mouseenter'));
       vi.advanceTimersByTime(10);
     });
   }
 
   function leaveTrigger(trigger: HTMLElement) {
     act(() => {
-      trigger.dispatchEvent(new PointerEvent('pointerout', { bubbles: true }));
+      trigger.dispatchEvent(
+        new PointerEvent('pointerout', {
+          bubbles: true,
+          pointerType: 'mouse',
+        }),
+      );
+      trigger.dispatchEvent(new MouseEvent('mouseleave'));
       vi.advanceTimersByTime(10);
     });
   }
@@ -151,12 +159,12 @@ describe('Tooltip handoff', () => {
 
     hoverTrigger(triggerA);
     expect(document.body.textContent).toContain('Tip A');
-    expect(getContent()?.className).toContain('animate-in');
+    expect(getContent()?.hasAttribute('data-instant')).toBe(false);
 
     leaveTrigger(triggerA);
     hoverTrigger(triggerB);
 
     expect(document.body.textContent).toContain('Tip B');
-    expect(getContent()?.className).toContain('animate-none');
+    expect(getContent()?.getAttribute('data-instant')).toBe('delay');
   });
 });
