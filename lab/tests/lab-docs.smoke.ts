@@ -529,6 +529,13 @@ test('renders and exercises the documented primitive and component pages', async
       exampleCount: 1,
     },
     {
+      slug: 'select',
+      heading: 'Select',
+      lab: '/lab/select',
+      apiHeading: 'API',
+      exampleCount: 3,
+    },
+    {
       slug: 'slider',
       heading: 'Slider',
       lab: '/lab/slider',
@@ -539,6 +546,13 @@ test('renders and exercises the documented primitive and component pages', async
       slug: 'tabs',
       heading: 'Tabs',
       lab: '/lab/tabs',
+      apiHeading: 'API',
+      exampleCount: 3,
+    },
+    {
+      slug: 'toggle-button',
+      heading: 'Toggle Button',
+      lab: '/lab/toggle-button',
       apiHeading: 'API',
       exampleCount: 3,
     },
@@ -629,6 +643,30 @@ test('renders and exercises the documented primitive and component pages', async
   await expect(
     page.getByRole('tabpanel', { name: 'Export', exact: true }),
   ).toContainText('output format');
+
+  await page.goto('/docs/select');
+  const selectDemo = page.getByLabel('Select demo', { exact: true });
+  const selectTrigger = selectDemo.getByRole('button', {
+    name: 'Copy',
+    exact: true,
+  });
+  await selectTrigger.click();
+  await page.getByRole('menuitemradio', { name: 'Duplicate' }).click();
+  await expect(
+    selectDemo.getByRole('button', { name: 'Duplicate', exact: true }),
+  ).toBeVisible();
+
+  await page.goto('/docs/toggle-button');
+  const toggleButtonDemo = page.getByLabel('Toggle button demo', {
+    exact: true,
+  });
+  const favoriteToggle = toggleButtonDemo.getByRole('button', {
+    name: 'Favorite',
+    exact: true,
+  });
+  await expect(favoriteToggle).toHaveAttribute('aria-pressed', 'false');
+  await favoriteToggle.click();
+  await expect(favoriteToggle).toHaveAttribute('aria-pressed', 'true');
 
   await page.goto('/docs/toggle-group');
   const listToggle = page.getByRole('button', { name: 'List', exact: true });
