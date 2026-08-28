@@ -8,7 +8,7 @@ import {
 import { createRetryablePreloader, hasDocsPage } from './docs-registry.js';
 
 describe('documentation routes', () => {
-  it('registers every documented primitive', () => {
+  it('registers every documented page', () => {
     expect(
       LAB_PAGE_NAVIGATION.filter((page) => hasDocsPage(page.value)).map(
         (page) => page.value,
@@ -17,8 +17,13 @@ describe('documentation routes', () => {
       'plane',
       'input',
       'inputMulti',
+      'checkbox',
       'colorPlane',
+      'select',
       'slider',
+      'tabs',
+      'toggleButton',
+      'toggle',
       'tooltip',
     ]);
   });
@@ -48,9 +53,14 @@ describe('documentation routes', () => {
     expect(getPrimitivePagePath('plane', 'docs')).toBe('/docs/plane');
     expect(getPrimitivePagePath('plane', 'lab')).toBe('/lab/plane');
     expect(getDocsPagePath('colorPlane')).toBe('/docs/color-plane');
+    expect(getDocsPagePath('checkbox')).toBe('/docs/checkbox');
     expect(getDocsPagePath('input')).toBe('/docs/input-primitive');
     expect(getDocsPagePath('inputMulti')).toBe('/docs/input-multi');
+    expect(getDocsPagePath('select')).toBe('/docs/select');
     expect(getDocsPagePath('slider')).toBe('/docs/slider');
+    expect(getDocsPagePath('tabs')).toBe('/docs/tabs');
+    expect(getDocsPagePath('toggleButton')).toBe('/docs/toggle-button');
+    expect(getDocsPagePath('toggle')).toBe('/docs/toggle-group');
     expect(getDocsPagePath('tooltip')).toBe('/docs/tooltip');
   });
 

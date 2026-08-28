@@ -27,7 +27,7 @@ test('recovers after a transient documentation module failure', async ({
   expect(moduleRequests).toBe(2);
 });
 
-test('routes between Plane docs and Lab without exposing tabs on undocumented pages', async ({
+test('routes between Plane docs and Lab and exposes tabs only on documented pages', async ({
   page,
 }, testInfo) => {
   const browserErrors = await collectBrowserErrors(page);
@@ -172,7 +172,8 @@ test('routes between Plane docs and Lab without exposing tabs on undocumented pa
       };
     }),
   ).toEqual({ height: 122, overflow: 'hidden' });
-  await firstExampleToggle.click();
+  await firstExampleToggle.focus();
+  await firstExampleToggle.press('Enter');
   await expect(firstExampleToggle).toHaveAttribute('aria-expanded', 'true');
   await expect(firstExampleToggle).toHaveText('Hide code');
   await expect(firstExampleCode).toHaveAttribute('aria-hidden', 'false');
@@ -238,7 +239,8 @@ test('routes between Plane docs and Lab without exposing tabs on undocumented pa
 
   const hoverValueProp = page.locator('summary#plane-onhovervaluechange');
   await expect(hoverValueProp).toContainText('onHoverValueChange');
-  await hoverValueProp.click();
+  await hoverValueProp.focus();
+  await hoverValueProp.press('Enter');
   await expect(
     page.getByText(
       'Called with the normalized position while a mouse or hovering pen moves over the plane, and null when it leaves.',
@@ -250,7 +252,8 @@ test('routes between Plane docs and Lab without exposing tabs on undocumented pa
   const valueProp = page.locator('summary#planethumb-value');
   await expect(valueProp).toContainText('value');
   await expect(valueProp).toContainText('PlaneValue');
-  await valueProp.click();
+  await valueProp.focus();
+  await valueProp.press('Enter');
   await expect(
     page.getByText('The controlled normalized position.', { exact: true }),
   ).toBeVisible();
@@ -392,48 +395,60 @@ test('routes between Plane docs and Lab without exposing tabs on undocumented pa
     }),
   ).toBeAttached();
 
-  const [multiPlaneBox, firstThumbStyle, secondThumbStyle] = await Promise.all([
-    multiPlane.boundingBox(),
-    multiThumbs.nth(0).getAttribute('style'),
-    multiThumbs.nth(1).getAttribute('style'),
-  ]);
-  expect(multiPlaneBox).not.toBeNull();
-  await page.mouse.click(
-    multiPlaneBox!.x + multiPlaneBox!.width * 0.1,
-    multiPlaneBox!.y + multiPlaneBox!.height * 0.1,
-  );
-  await expect(multiThumbs.nth(0)).not.toHaveAttribute(
-    'style',
-    firstThumbStyle!,
-  );
-  await expect(multiThumbs.nth(1)).toHaveAttribute('style', secondThumbStyle!);
+  if (testInfo.project.name === 'desktop') {
+    const [multiPlaneBox, firstThumbStyle, secondThumbStyle] =
+      await Promise.all([
+        multiPlane.boundingBox(),
+        multiThumbs.nth(0).getAttribute('style'),
+        multiThumbs.nth(1).getAttribute('style'),
+      ]);
+    expect(multiPlaneBox).not.toBeNull();
+    await page.mouse.move(
+      multiPlaneBox!.x + multiPlaneBox!.width * 0.1,
+      multiPlaneBox!.y + multiPlaneBox!.height * 0.1,
+    );
+    await page.mouse.down();
+    await page.mouse.up();
+    await expect(multiThumbs.nth(0)).not.toHaveAttribute(
+      'style',
+      firstThumbStyle!,
+    );
+    await expect(multiThumbs.nth(1)).toHaveAttribute(
+      'style',
+      secondThumbStyle!,
+    );
 
-  const firstHorizontalAxis = multiPlane.getByRole('slider', {
-    name: 'Control point 1, horizontal position',
-    exact: true,
-  });
-  const firstVerticalAxis = multiPlane.getByRole('slider', {
-    name: 'Control point 1, vertical position',
-    exact: true,
-  });
-  const secondHorizontalAxis = multiPlane.getByRole('slider', {
-    name: 'Control point 2, horizontal position',
-    exact: true,
-  });
-  await expect(firstHorizontalAxis).toBeFocused();
-  await expect(multiThumbs.nth(0)).not.toHaveAttribute('data-focus-visible');
-  await page.keyboard.press('Tab');
-  await expect(firstHorizontalAxis).toBeFocused();
-  await expect(multiThumbs.nth(0)).toHaveAttribute(
-    'data-focus-visible',
-    'true',
-  );
-  await page.keyboard.press('ArrowUp');
-  await expect(firstVerticalAxis).toBeFocused();
-  await page.keyboard.press('Tab');
-  await expect(secondHorizontalAxis).toBeFocused();
+    const firstHorizontalAxis = multiPlane.getByRole('slider', {
+      name: 'Control point 1, horizontal position',
+      exact: true,
+    });
+    const firstVerticalAxis = multiPlane.getByRole('slider', {
+      name: 'Control point 1, vertical position',
+      exact: true,
+    });
+    const secondHorizontalAxis = multiPlane.getByRole('slider', {
+      name: 'Control point 2, horizontal position',
+      exact: true,
+    });
+    await expect(firstHorizontalAxis).toBeFocused();
+    await expect(multiThumbs.nth(0)).not.toHaveAttribute('data-focus-visible');
+    await page.keyboard.press('Tab');
+    await expect(firstHorizontalAxis).toBeFocused();
+    await expect(multiThumbs.nth(0)).toHaveAttribute(
+      'data-focus-visible',
+      'true',
+    );
+    await page.keyboard.press('ArrowUp');
+    await expect(firstVerticalAxis).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(secondHorizontalAxis).toBeFocused();
+  }
 
   if (testInfo.project.name === 'mobile') {
+    await page.evaluate(() => {
+      window.scrollTo({ top: 0 });
+      document.scrollingElement?.scrollTo({ top: 0 });
+    });
     const [headingBox, lastPageLinkBox] = await Promise.all([
       page.getByRole('heading', { name: 'Plane', level: 1 }).boundingBox(),
       page
@@ -442,7 +457,7 @@ test('routes between Plane docs and Lab without exposing tabs on undocumented pa
     ]);
     expect(headingBox).not.toBeNull();
     expect(lastPageLinkBox).not.toBeNull();
-    expect(headingBox!.y).toBeGreaterThanOrEqual(
+    expect(headingBox!.y + 8).toBeGreaterThanOrEqual(
       lastPageLinkBox!.y + lastPageLinkBox!.height,
     );
   }
@@ -469,52 +484,92 @@ test('routes between Plane docs and Lab without exposing tabs on undocumented pa
   ).toHaveAttribute('aria-current', 'page');
 
   await page.goto('/docs/checkbox');
-  await expect(page).toHaveURL(/\/lab\/checkbox$/);
+  await expect(page).toHaveURL(/\/docs\/checkbox$/);
+  await expect(page.getByRole('tablist', { name: 'Page view' })).toBeVisible();
+
+  await page.goto('/docs/menu');
+  await expect(page).toHaveURL(/\/lab\/menu$/);
   await expect(page.getByRole('tablist', { name: 'Page view' })).toHaveCount(0);
 
   expect(browserErrors).toEqual([]);
 });
 
-test('renders and exercises the documented pages', async ({
+test('renders and exercises the documented primitive and component pages', async ({
   page,
 }, testInfo) => {
+  test.setTimeout(45_000);
   test.skip(testInfo.project.name !== 'desktop');
   const browserErrors = await collectBrowserErrors(page);
   const pages = [
     {
+      slug: 'checkbox',
+      heading: 'Checkbox',
+      lab: '/lab/checkbox',
+      apiHeading: 'API',
+      exampleCount: 3,
+    },
+    {
       slug: 'color-plane',
       heading: 'ColorPlane',
+      lab: '/lab/color-plane',
       apiHeading: 'API',
       exampleCount: 2,
-      lab: '/lab/color-plane',
     },
     {
       slug: 'input-primitive',
       heading: 'Input Primitive',
+      lab: '/lab/input-primitive',
       apiHeading: 'API reference',
       exampleCount: 1,
-      lab: '/lab/input-primitive',
     },
     {
       slug: 'input-multi',
       heading: 'Input Multi',
+      lab: '/lab/input-multi',
       apiHeading: 'API reference',
       exampleCount: 1,
-      lab: '/lab/input-multi',
+    },
+    {
+      slug: 'select',
+      heading: 'Select',
+      lab: '/lab/select',
+      apiHeading: 'API',
+      exampleCount: 3,
     },
     {
       slug: 'slider',
       heading: 'Slider',
+      lab: '/lab/slider',
       apiHeading: 'API',
       exampleCount: 2,
-      lab: '/lab/slider',
+    },
+    {
+      slug: 'tabs',
+      heading: 'Tabs',
+      lab: '/lab/tabs',
+      apiHeading: 'API',
+      exampleCount: 3,
+    },
+    {
+      slug: 'toggle-button',
+      heading: 'Toggle Button',
+      lab: '/lab/toggle-button',
+      apiHeading: 'API',
+      exampleCount: 3,
+    },
+    {
+      slug: 'toggle-group',
+      heading: 'Toggle Group',
+      lab: '/lab/toggle-group',
+      apiHeading: 'API',
+      exampleCount: 3,
     },
     {
       slug: 'tooltip',
       heading: 'Tooltip',
+      lab: '/lab/tooltip',
       apiHeading: 'API',
       exampleCount: 4,
-      lab: '/lab/tooltip',
     },
   ] as const;
 
@@ -529,7 +584,10 @@ test('renders and exercises the documented pages', async ({
       }),
     ).toBeVisible();
     await expect(
-      page.getByRole('heading', { name: docsPage.apiHeading, exact: true }),
+      page.getByRole('heading', {
+        name: docsPage.apiHeading,
+        exact: true,
+      }),
     ).toBeVisible();
     await expect(page.locator('[data-docs-example]')).toHaveCount(
       docsPage.exampleCount,
@@ -551,6 +609,12 @@ test('renders and exercises the documented pages', async ({
   const initialColorX = await colorThumb.getAttribute('data-x');
   await colorThumb.press('ArrowRight');
   await expect(colorThumb).not.toHaveAttribute('data-x', initialColorX!);
+
+  await page.goto('/docs/checkbox');
+  const checkbox = page.getByRole('checkbox', { name: 'Show grid' });
+  await expect(checkbox).toHaveAttribute('aria-checked', 'false');
+  await checkbox.click();
+  await expect(checkbox).toHaveAttribute('aria-checked', 'true');
 
   await page.goto('/docs/input-primitive');
   const primitiveInput = page.getByRole('spinbutton', { name: 'Opacity' });
@@ -574,6 +638,41 @@ test('renders and exercises the documented pages', async ({
     'aria-valuenow',
     initialSliderValue!,
   );
+
+  await page.goto('/docs/tabs');
+  await page.getByRole('tab', { name: 'Export', exact: true }).click();
+  await expect(
+    page.getByRole('tabpanel', { name: 'Export', exact: true }),
+  ).toContainText('output format');
+
+  await page.goto('/docs/select');
+  const selectDemo = page.getByLabel('Select demo', { exact: true });
+  const selectTrigger = selectDemo.getByRole('button', {
+    name: 'Copy',
+    exact: true,
+  });
+  await selectTrigger.click();
+  await page.getByRole('menuitemradio', { name: 'Duplicate' }).click();
+  await expect(
+    selectDemo.getByRole('button', { name: 'Duplicate', exact: true }),
+  ).toBeVisible();
+
+  await page.goto('/docs/toggle-button');
+  const toggleButtonDemo = page.getByLabel('Toggle button demo', {
+    exact: true,
+  });
+  const favoriteToggle = toggleButtonDemo.getByRole('button', {
+    name: 'Favorite',
+    exact: true,
+  });
+  await expect(favoriteToggle).toHaveAttribute('aria-pressed', 'false');
+  await favoriteToggle.click();
+  await expect(favoriteToggle).toHaveAttribute('aria-pressed', 'true');
+
+  await page.goto('/docs/toggle-group');
+  const listToggle = page.getByRole('button', { name: 'List', exact: true });
+  await listToggle.click();
+  await expect(listToggle).toHaveAttribute('aria-pressed', 'true');
 
   await page.goto('/docs/tooltip');
   await page

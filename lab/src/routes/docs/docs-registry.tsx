@@ -4,6 +4,18 @@ import type { LabPageKey } from '../lab/shared.js';
 type DocsPageComponent = ComponentType;
 
 const DOCS_PAGE_LOADERS = {
+  checkbox: (loadAttempt: number) => {
+    const modulePromise =
+      loadAttempt === 0
+        ? import('./checkbox-docs-page.js')
+        : // A distinct module URL bypasses the browser's rejected-import cache.
+          // @ts-expect-error Vite resolves query-suffixed local modules.
+          import('./checkbox-docs-page.js?retry=1');
+
+    return modulePromise.then((module) => ({
+      default: module.CheckboxDocsPage,
+    }));
+  },
   colorPlane: (loadAttempt: number) => {
     const modulePromise =
       loadAttempt === 0
@@ -52,6 +64,18 @@ const DOCS_PAGE_LOADERS = {
       default: module.PlaneDocsPage,
     }));
   },
+  select: (loadAttempt: number) => {
+    const modulePromise =
+      loadAttempt === 0
+        ? import('./select-docs-page.js')
+        : // A distinct module URL bypasses the browser's rejected-import cache.
+          // @ts-expect-error Vite resolves query-suffixed local modules.
+          import('./select-docs-page.js?retry=1');
+
+    return modulePromise.then((module) => ({
+      default: module.SelectDocsPage,
+    }));
+  },
   slider: (loadAttempt: number) => {
     const modulePromise =
       loadAttempt === 0
@@ -62,6 +86,42 @@ const DOCS_PAGE_LOADERS = {
 
     return modulePromise.then((module) => ({
       default: module.SliderDocsPage,
+    }));
+  },
+  tabs: (loadAttempt: number) => {
+    const modulePromise =
+      loadAttempt === 0
+        ? import('./tabs-docs-page.js')
+        : // A distinct module URL bypasses the browser's rejected-import cache.
+          // @ts-expect-error Vite resolves query-suffixed local modules.
+          import('./tabs-docs-page.js?retry=1');
+
+    return modulePromise.then((module) => ({
+      default: module.TabsDocsPage,
+    }));
+  },
+  toggleButton: (loadAttempt: number) => {
+    const modulePromise =
+      loadAttempt === 0
+        ? import('./toggle-button-docs-page.js')
+        : // A distinct module URL bypasses the browser's rejected-import cache.
+          // @ts-expect-error Vite resolves query-suffixed local modules.
+          import('./toggle-button-docs-page.js?retry=1');
+
+    return modulePromise.then((module) => ({
+      default: module.ToggleButtonDocsPage,
+    }));
+  },
+  toggle: (loadAttempt: number) => {
+    const modulePromise =
+      loadAttempt === 0
+        ? import('./toggle-group-docs-page.js')
+        : // A distinct module URL bypasses the browser's rejected-import cache.
+          // @ts-expect-error Vite resolves query-suffixed local modules.
+          import('./toggle-group-docs-page.js?retry=1');
+
+    return modulePromise.then((module) => ({
+      default: module.ToggleGroupDocsPage,
     }));
   },
   tooltip: (loadAttempt: number) => {
