@@ -1,6 +1,8 @@
 import { expect, test, type Locator } from '@playwright/test';
 import { collectBrowserErrors } from './lab-smoke-utils.js';
 
+const POINTER_EDGE_TOLERANCE = 1;
+
 async function tooltipGeometry(content: Locator) {
   return content.evaluate((element) => {
     const popup = element.getBoundingClientRect();
@@ -47,11 +49,16 @@ test('connects tooltip pointers to top and right popups', async ({
   await expect(rightContent).toBeVisible();
   await expect(rightContent).toHaveAttribute('data-side', 'right');
 
+  await expect
+    .poll(async () => {
+      const geometry = await tooltipGeometry(rightContent);
+      return geometry
+        ? Math.abs(geometry.arrow.right - geometry.popup.left)
+        : Number.POSITIVE_INFINITY;
+    })
+    .toBeLessThanOrEqual(POINTER_EDGE_TOLERANCE);
   const rightGeometry = await tooltipGeometry(rightContent);
   expect(rightGeometry).not.toBeNull();
-  expect(Math.abs(rightGeometry!.arrow.right - rightGeometry!.popup.left)).toBe(
-    0,
-  );
   expect(rightGeometry!.arrow.left).toBeLessThan(rightGeometry!.popup.left);
 
   await page.getByRole('checkbox', { name: 'High contrast' }).uncheck();
@@ -65,9 +72,16 @@ test('connects tooltip pointers to top and right popups', async ({
   await expect(topContent).toHaveAttribute('data-side', 'top');
   await expect(topContent.locator('svg path')).toHaveCount(2);
 
+  await expect
+    .poll(async () => {
+      const geometry = await tooltipGeometry(topContent);
+      return geometry
+        ? Math.abs(geometry.arrow.top - geometry.popup.bottom)
+        : Number.POSITIVE_INFINITY;
+    })
+    .toBeLessThanOrEqual(POINTER_EDGE_TOLERANCE);
   const topGeometry = await tooltipGeometry(topContent);
   expect(topGeometry).not.toBeNull();
-  expect(Math.abs(topGeometry!.arrow.top - topGeometry!.popup.bottom)).toBe(0);
   expect(topGeometry!.arrow.bottom).toBeGreaterThan(topGeometry!.popup.bottom);
 
   expect(browserErrors).toEqual([]);

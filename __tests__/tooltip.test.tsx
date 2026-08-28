@@ -48,6 +48,7 @@ afterEach(() => {
     act(() => root.unmount());
   }
   document.body.replaceChildren();
+  document.documentElement.removeAttribute('dir');
   vi.restoreAllMocks();
 });
 
@@ -78,6 +79,27 @@ describe('TooltipContent', () => {
       expect(pointer?.getAttribute('class')).toContain(className);
     }
   });
+
+  it.each([
+    ['ltr', 'inline-start', '-end-[9px]', 'ltr:-rotate-90'],
+    ['rtl', 'inline-start', '-end-[9px]', 'rtl:rotate-90'],
+    ['ltr', 'inline-end', '-start-[9px]', 'ltr:rotate-90'],
+    ['rtl', 'inline-end', '-start-[9px]', 'rtl:-rotate-90'],
+  ] as const)(
+    'positions the %s %s pointer on its logical side',
+    (direction, side, offsetClassName, rotationClassName) => {
+      document.documentElement.dir = direction;
+      mountControlledTooltip({
+        collisionAvoidance: { align: 'none', side: 'none' },
+        side,
+      });
+      const pointer = getContent()?.querySelector('svg');
+
+      expect(pointer?.getAttribute('data-side')).toBe(side);
+      expect(pointer?.getAttribute('class')).toContain(offsetClassName);
+      expect(pointer?.getAttribute('class')).toContain(rotationClassName);
+    },
+  );
 
   it('omits the arrow when showPointer is disabled', () => {
     mountControlledTooltip({ showPointer: false });
