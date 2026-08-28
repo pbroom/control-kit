@@ -4,7 +4,11 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from '../../../components/ui/dropdown-menu.js';
-import { SelectList, SelectListItem } from '../../lab/lab-menu.js';
+import {
+  SelectList,
+  SelectListItem,
+  SelectTrigger,
+} from '../../lab/lab-menu.js';
 
 const VALUES = Array.from({ length: 16 }, (_, index) => String(index));
 
@@ -15,12 +19,7 @@ export function SelectLongListExample() {
     <div className="flex min-h-[320px] items-center justify-center p-8">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button
-            className="h-7 min-w-12 rounded-[5px] bg-white/10 px-2 text-xs text-white outline-none hover:bg-white/15 focus-visible:ring-2 focus-visible:ring-[#0d99ff] data-[state=open]:bg-[#0d99ff]"
-            type="button"
-          >
-            {value}
-          </button>
+          <SelectTrigger className="min-w-12">{value}</SelectTrigger>
         </DropdownMenuTrigger>
         <DropdownMenuContent
           align="center"
