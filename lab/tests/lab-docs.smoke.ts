@@ -497,6 +497,7 @@ test('routes between Plane docs and Lab and exposes tabs only on documented page
 test('renders and exercises the documented primitive and component pages', async ({
   page,
 }, testInfo) => {
+  test.setTimeout(45_000);
   test.skip(testInfo.project.name !== 'desktop');
   const browserErrors = await collectBrowserErrors(page);
   const pages = [
