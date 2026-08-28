@@ -19,8 +19,8 @@ const [value, setValue] = useState('Copy');
   </DropdownMenuTrigger>
   <DropdownMenuContent>
     <SelectList value={value} onValueChange={setValue}>
-      <SelectListItem value="Copy">Copy</SelectListItem>
-      <SelectListItem value="Duplicate">Duplicate</SelectListItem>
+      <SelectListItem value="Small">Small</SelectListItem>
+      <SelectListItem value="Medium">Medium</SelectListItem>
     </SelectList>
   </DropdownMenuContent>
 </DropdownMenu>;
@@ -60,7 +60,7 @@ Positioning props pass through to the Lab's Base UI Menu wrapper.
 | `triggerIconTextPlacement` | Places the icon before, after, or on both sides of trigger text. |
 | `triggerBehavior`          | Lets the Lab compare press and release opening behavior.         |
 
-These inputs belong to the current Lab preview and are not a stable package API. Presentation switches for icons, shortcuts, submenus, and dividers configure the menu recipe around the selection list.
+These inputs belong to the current Lab preview and are not a stable package API.
 
 ### Important forwarded props
 

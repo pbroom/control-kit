@@ -19,6 +19,7 @@ describe('documentation routes', () => {
       'inputMulti',
       'checkbox',
       'colorPlane',
+      'menu',
       'select',
       'slider',
       'tabs',
@@ -56,6 +57,7 @@ describe('documentation routes', () => {
     expect(getDocsPagePath('checkbox')).toBe('/docs/checkbox');
     expect(getDocsPagePath('input')).toBe('/docs/input-primitive');
     expect(getDocsPagePath('inputMulti')).toBe('/docs/input-multi');
+    expect(getDocsPagePath('menu')).toBe('/docs/menu');
     expect(getDocsPagePath('select')).toBe('/docs/select');
     expect(getDocsPagePath('slider')).toBe('/docs/slider');
     expect(getDocsPagePath('tabs')).toBe('/docs/tabs');

@@ -7,10 +7,10 @@ import {
 } from '../../../components/ui/dropdown-menu.js';
 import { SelectList, SelectListItem } from '../../lab/lab-menu.js';
 
-const OPTIONS = ['Copy', 'Duplicate', 'Delete'] as const;
+const OPTIONS = ['Small', 'Medium', 'Large'] as const;
 
 export function SelectBasicExample() {
-  const [value, setValue] = useState('Copy');
+  const [value, setValue] = useState('Medium');
 
   return (
     <div className="flex min-h-[320px] items-center justify-center p-8">

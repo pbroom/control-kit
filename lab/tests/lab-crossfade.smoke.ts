@@ -11,7 +11,7 @@ test('suppresses properties scrollbar during crossfade transitions', async ({
   await page.goto('/lab/menu');
   await expect(page).toHaveURL(/\/lab\/menu$/);
   await expect(page.locator('aside')).toContainText(
-    'Tune the three-item menu shown above the reusable menu preview.',
+    'Configure the command menu trigger, content, and interaction.',
   );
 
   const checkboxLink = page.getByRole('link', {

@@ -488,8 +488,8 @@ test('routes between Plane docs and Lab and exposes tabs only on documented page
   await expect(page.getByRole('tablist', { name: 'Page view' })).toBeVisible();
 
   await page.goto('/docs/menu');
-  await expect(page).toHaveURL(/\/lab\/menu$/);
-  await expect(page.getByRole('tablist', { name: 'Page view' })).toHaveCount(0);
+  await expect(page).toHaveURL(/\/docs\/menu$/);
+  await expect(page.getByRole('tablist', { name: 'Page view' })).toBeVisible();
 
   expect(browserErrors).toEqual([]);
 });
@@ -497,7 +497,7 @@ test('routes between Plane docs and Lab and exposes tabs only on documented page
 test('renders and exercises the documented primitive and component pages', async ({
   page,
 }, testInfo) => {
-  test.setTimeout(45_000);
+  test.setTimeout(60_000);
   test.skip(testInfo.project.name !== 'desktop');
   const browserErrors = await collectBrowserErrors(page);
   const pages = [
@@ -528,6 +528,13 @@ test('renders and exercises the documented primitive and component pages', async
       lab: '/lab/input-multi',
       apiHeading: 'API reference',
       exampleCount: 1,
+    },
+    {
+      slug: 'menu',
+      heading: 'Menu',
+      lab: '/lab/menu',
+      apiHeading: 'API',
+      exampleCount: 3,
     },
     {
       slug: 'select',
@@ -648,14 +655,26 @@ test('renders and exercises the documented primitive and component pages', async
   await page.goto('/docs/select');
   const selectDemo = page.getByLabel('Select demo', { exact: true });
   const selectTrigger = selectDemo.getByRole('button', {
-    name: 'Copy',
+    name: 'Medium',
     exact: true,
   });
   await selectTrigger.click();
-  await page.getByRole('menuitemradio', { name: 'Duplicate' }).click();
+  await page.getByRole('menuitemradio', { name: 'Large' }).click();
   await expect(
-    selectDemo.getByRole('button', { name: 'Duplicate', exact: true }),
+    selectDemo.getByRole('button', { name: 'Large', exact: true }),
   ).toBeVisible();
+
+  await page.goto('/docs/menu');
+  const menuDemo = page.getByLabel('Menu demo', { exact: true });
+  const menuTrigger = menuDemo.getByRole('button', {
+    name: /Menu action:/,
+  });
+  await expect(menuTrigger).toHaveAccessibleName('Menu action: Copy');
+  await menuTrigger.click();
+  await page.getByRole('menuitem', { name: /Group selection/ }).click();
+  await expect(menuTrigger).toHaveAccessibleName(
+    'Menu action: Group selection',
+  );
 
   await page.goto('/docs/toggle-button');
   const toggleButtonDemo = page.getByLabel('Toggle button demo', {
