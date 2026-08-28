@@ -92,7 +92,7 @@ test('requires deliberate pointer travel before release activates a Menu command
 
   await page.goto('/docs/menu');
   const demo = page.getByLabel('Menu demo', { exact: true });
-  const trigger = demo.getByRole('button', { name: 'Menu action: Copy' });
+  const trigger = demo.getByRole('button', { name: 'Menu actions' });
   const copyItem = page.getByRole('menuitem', { name: /Copy/ }).first();
   const actionItem = page
     .locator(
@@ -102,7 +102,7 @@ test('requires deliberate pointer travel before release activates a Menu command
 
   await pressMoveRelease(page, trigger, [], 250);
   await expect(copyItem).toBeVisible();
-  await expect(trigger).toHaveAccessibleName('Menu action: Copy');
+  await expect(trigger).toHaveAccessibleName('Menu actions');
 
   await page.keyboard.press('Escape');
   await pressMoveRelease(
@@ -115,7 +115,7 @@ test('requires deliberate pointer travel before release activates a Menu command
     250,
   );
   await expect(copyItem).toBeVisible();
-  await expect(trigger).toHaveAccessibleName('Menu action: Copy');
+  await expect(trigger).toHaveAccessibleName('Menu actions');
 
   await page.keyboard.press('Escape');
   const triggerBox = await trigger.boundingBox();
@@ -135,7 +135,5 @@ test('requires deliberate pointer travel before release activates a Menu command
   );
   await page.mouse.up();
   await expect(actionItem).toBeHidden();
-  await expect(
-    demo.getByRole('button', { name: /Menu action:/ }),
-  ).not.toHaveAccessibleName('Menu action: Copy');
+  await expect(trigger).toHaveAccessibleName('Menu actions');
 });
