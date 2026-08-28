@@ -110,7 +110,19 @@ export function TooltipContent({
           {children}
           {showPointer ? (
             <TooltipPrimitive.Arrow
-              className="overflow-visible"
+              className={(state) =>
+                cn(
+                  'block overflow-visible',
+                  state.side === 'top' && '-bottom-1.5',
+                  state.side === 'bottom' && '-top-1.5 rotate-180',
+                  state.side === 'left' && '-right-[9px] -rotate-90',
+                  state.side === 'right' && '-left-[9px] rotate-90',
+                  state.side === 'inline-start' &&
+                    '-end-[9px] ltr:-rotate-90 rtl:rotate-90',
+                  state.side === 'inline-end' &&
+                    '-start-[9px] ltr:rotate-90 rtl:-rotate-90',
+                )
+              }
               render={
                 <svg
                   aria-hidden="true"

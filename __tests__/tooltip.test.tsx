@@ -61,6 +61,24 @@ describe('TooltipContent', () => {
     expect(content?.querySelector('svg')).not.toBeNull();
   });
 
+  it.each([
+    ['top', '-bottom-1.5'],
+    ['bottom', '-top-1.5 rotate-180'],
+    ['left', '-right-[9px] -rotate-90'],
+    ['right', '-left-[9px] rotate-90'],
+  ] as const)('positions the pointer for the %s side', (side, classNames) => {
+    mountControlledTooltip({
+      collisionAvoidance: { align: 'none', side: 'none' },
+      side,
+    });
+    const pointer = getContent()?.querySelector('svg');
+
+    expect(pointer?.getAttribute('data-side')).toBe(side);
+    for (const className of classNames.split(' ')) {
+      expect(pointer?.getAttribute('class')).toContain(className);
+    }
+  });
+
   it('omits the arrow when showPointer is disabled', () => {
     mountControlledTooltip({ showPointer: false });
 
