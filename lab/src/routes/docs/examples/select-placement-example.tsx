@@ -4,7 +4,11 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from '../../../components/ui/dropdown-menu.js';
-import { SelectList, SelectListItem } from '../../lab/lab-menu.js';
+import {
+  SelectList,
+  SelectListItem,
+  SelectTrigger,
+} from '../../lab/lab-menu.js';
 
 export function SelectPlacementExample() {
   const [value, setValue] = useState('Center');
@@ -13,12 +17,7 @@ export function SelectPlacementExample() {
     <div className="flex min-h-[320px] items-end justify-end p-12">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button
-            className="h-7 rounded-[5px] bg-white/10 px-2 text-xs text-white outline-none hover:bg-white/15 focus-visible:ring-2 focus-visible:ring-[#0d99ff] data-[state=open]:bg-[#0d99ff]"
-            type="button"
-          >
-            Align: {value}
-          </button>
+          <SelectTrigger>Align: {value}</SelectTrigger>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" side="top" variant="ui3">
           <SelectList value={value} onValueChange={setValue}>

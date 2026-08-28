@@ -29,6 +29,8 @@ const labMenuUi3CheckColumnClass =
   '-ml-1 flex h-6 w-4 shrink-0 items-center justify-start';
 const labMenuUi3LeadingColumnClass =
   'flex size-6 shrink-0 items-center justify-center';
+const selectTriggerClass =
+  'box-border inline-flex h-6 min-h-6 min-w-6 max-w-[180px] select-none items-center justify-center gap-1.5 rounded-[5px] border border-transparent bg-transparent px-2 py-0 text-[11px] font-medium leading-4 tracking-[0.005em] text-white outline-none shadow-none transition-[background-color,border-color,color] hover:border-transparent hover:bg-[#373737] hover:text-white active:border-transparent active:bg-[#303030] active:text-white focus:ring-0 focus-visible:ring-2 focus-visible:ring-[#0d99ff]/80 disabled:cursor-not-allowed disabled:border-transparent disabled:bg-transparent disabled:text-white/25 disabled:hover:border-transparent disabled:hover:bg-transparent data-[state=open]:border-transparent data-[state=open]:bg-[#0d99ff] data-[state=open]:text-white';
 
 const LabMenuItemLayoutContext = React.createContext({
   reserveCheckColumn: false,
@@ -176,6 +178,21 @@ function DropdownMenuItemButton({
         className,
       )}
       {...props}
+    />
+  );
+}
+
+function SelectTrigger({
+  className,
+  type = 'button',
+  ...props
+}: React.ComponentProps<'button'>) {
+  return (
+    <button
+      type={type}
+      className={cn(selectTriggerClass, className)}
+      {...props}
+      data-select-trigger=""
     />
   );
 }
@@ -413,6 +430,7 @@ export {
   DropdownMenuPanelSeparator,
   DropdownMenuItemButton,
   DropdownMenuItemContent,
+  SelectTrigger,
   SelectList,
   SelectListItem,
 };

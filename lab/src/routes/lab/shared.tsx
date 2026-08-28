@@ -142,6 +142,7 @@ import {
   DropdownMenuItemContent,
   DropdownMenuPanel,
   DropdownMenuPanelSeparator,
+  SelectTrigger,
   SelectList,
   SelectListItem,
 } from './lab-menu.js';
@@ -2585,16 +2586,11 @@ function SelectPlaygroundStage({
         }}
       >
         <DropdownMenuTrigger asChild>
-          <button
-            type="button"
+          <SelectTrigger
             aria-label={`Number: ${numberValue}`}
             disabled={disabled}
             onPointerDown={handleNumberTriggerPointerDown}
             onClick={handleNumberTriggerClick}
-            className={`box-border inline-flex min-w-6 max-w-[180px] items-center justify-center gap-1.5 rounded-[5px] border px-2 py-0 font-medium leading-4 tracking-[0.005em] outline-none shadow-none transition-[background-color,border-color,color] focus:ring-0 focus-visible:ring-2 focus-visible:ring-[#0d99ff]/80 disabled:cursor-not-allowed disabled:border-transparent disabled:bg-transparent disabled:text-white/25 disabled:hover:border-transparent disabled:hover:bg-transparent data-[state=open]:border-transparent data-[state=open]:bg-[#0d99ff] data-[state=open]:text-white ${TOGGLE_BUTTON_DENSITY_CLASS.compact} ${getToggleButtonStateClass(
-              false,
-              'default',
-            )}`}
           >
             <span className="min-w-0 truncate">{numberValue}</span>
             <ChevronsUpDown
@@ -2602,7 +2598,7 @@ function SelectPlaygroundStage({
               className="size-3.5"
               strokeWidth={1.75}
             />
-          </button>
+          </SelectTrigger>
         </DropdownMenuTrigger>
         <SelectLongMenuContent
           align={align}

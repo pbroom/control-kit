@@ -40,6 +40,7 @@ const DROPDOWN_MENU_SUPPRESS_POINTER_HOVER_ATTRIBUTE =
   'data-dropdown-menu-suppress-pointer-hover';
 const DROPDOWN_MENU_SUBMENU_CHILD_ACTIVE_ATTRIBUTE =
   'data-dropdown-menu-submenu-child-active';
+const DROPDOWN_MENU_RELEASE_ITEM_ATTRIBUTE = 'data-dropdown-menu-release-item';
 const DROPDOWN_MENU_KEYBOARD_NAVIGATION_KEYS = new Set([
   'ArrowDown',
   'ArrowUp',
@@ -48,6 +49,151 @@ const DROPDOWN_MENU_KEYBOARD_NAVIGATION_KEYS = new Set([
   'PageDown',
   'PageUp',
 ]);
+const DROPDOWN_MENU_POINTER_DRAG_THRESHOLD = 6;
+
+type DropdownMenuPointerGesture = {
+  pointerId: number;
+  startX: number;
+  startY: number;
+  crossedThreshold: boolean;
+  releasedItem: HTMLElement | null;
+};
+
+const DropdownMenuPointerGestureContext = React.createContext<{
+  begin: (event: React.PointerEvent<HTMLElement>) => void;
+} | null>(null);
+
+function useDropdownMenuPointerGesture() {
+  const gestureRef = React.useRef<DropdownMenuPointerGesture | null>(null);
+  const cleanupRef = React.useRef<(() => void) | null>(null);
+
+  const clear = React.useCallback(() => {
+    cleanupRef.current?.();
+    cleanupRef.current = null;
+    gestureRef.current = null;
+  }, []);
+
+  React.useEffect(() => clear, [clear]);
+
+  const begin = React.useCallback(
+    (event: React.PointerEvent<HTMLElement>) => {
+      if (
+        event.button !== 0 ||
+        !event.isPrimary ||
+        event.pointerType !== 'mouse'
+      ) {
+        return;
+      }
+
+      clear();
+      const ownerWindow = event.currentTarget.ownerDocument.defaultView;
+      if (!ownerWindow) return;
+
+      gestureRef.current = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        crossedThreshold: false,
+        releasedItem: null,
+      };
+
+      const handlePointerMove = (pointerEvent: PointerEvent) => {
+        const gesture = gestureRef.current;
+        if (!gesture || pointerEvent.pointerId !== gesture.pointerId) return;
+
+        if (
+          Math.hypot(
+            pointerEvent.clientX - gesture.startX,
+            pointerEvent.clientY - gesture.startY,
+          ) >= DROPDOWN_MENU_POINTER_DRAG_THRESHOLD
+        ) {
+          gesture.crossedThreshold = true;
+        }
+      };
+      let removeReleaseClickBlocker: (() => void) | null = null;
+      const removeListeners = () => {
+        ownerWindow.removeEventListener('pointermove', handlePointerMove, true);
+        ownerWindow.removeEventListener('pointerup', handlePointerUp, true);
+        ownerWindow.removeEventListener('mouseup', handleMouseUp, true);
+        ownerWindow.removeEventListener(
+          'pointercancel',
+          handlePointerCancel,
+          true,
+        );
+      };
+      const cleanup = () => {
+        removeListeners();
+        removeReleaseClickBlocker?.();
+        removeReleaseClickBlocker = null;
+      };
+      const handlePointerUp = (pointerEvent: PointerEvent) => {
+        const gesture = gestureRef.current;
+        if (!gesture || pointerEvent.pointerId !== gesture.pointerId) return;
+
+        gesture.releasedItem =
+          pointerEvent.target instanceof Element
+            ? pointerEvent.target.closest<HTMLElement>(
+                `[${DROPDOWN_MENU_RELEASE_ITEM_ATTRIBUTE}]`,
+              )
+            : null;
+      };
+      const handleMouseUp = (mouseEvent: MouseEvent) => {
+        const gesture = gestureRef.current;
+        if (!gesture) return;
+
+        const releasedItem = gesture.releasedItem;
+        const crossedThreshold = gesture.crossedThreshold;
+        if (!releasedItem) {
+          clear();
+          return;
+        }
+
+        // Base UI intentionally activates an item on mouseup after a trigger
+        // press has been held for 200ms. Intercept that release before its
+        // item handler runs so distance, rather than hold duration, decides
+        // whether the gesture activates the item.
+        mouseEvent.preventDefault();
+        mouseEvent.stopPropagation();
+
+        const handleReleaseClick = (clickEvent: MouseEvent) => {
+          clickEvent.preventDefault();
+          clickEvent.stopPropagation();
+          removeReleaseClickBlocker?.();
+          removeReleaseClickBlocker = null;
+        };
+        ownerWindow.addEventListener('click', handleReleaseClick, true);
+        removeReleaseClickBlocker = () => {
+          ownerWindow.removeEventListener('click', handleReleaseClick, true);
+        };
+
+        removeListeners();
+        cleanupRef.current = null;
+        gestureRef.current = null;
+
+        ownerWindow.setTimeout(() => {
+          // A native click normally follows mouseup synchronously. Remove the
+          // blocker as a fallback, then emit one deliberate item click only
+          // after the pointer has travelled beyond the threshold.
+          removeReleaseClickBlocker?.();
+          removeReleaseClickBlocker = null;
+          if (crossedThreshold) releasedItem.click();
+        }, 0);
+      };
+      const handlePointerCancel = (pointerEvent: PointerEvent) => {
+        if (pointerEvent.pointerId === gestureRef.current?.pointerId) clear();
+      };
+
+      cleanupRef.current = cleanup;
+      ownerWindow.addEventListener('pointermove', handlePointerMove, true);
+      ownerWindow.addEventListener('pointerup', handlePointerUp, true);
+      ownerWindow.addEventListener('mouseup', handleMouseUp, true);
+      ownerWindow.addEventListener('pointercancel', handlePointerCancel, true);
+    },
+    [clear],
+  );
+
+  return React.useMemo(() => ({ begin }), [begin]);
+}
 
 function composeRefs<T>(
   ...refs: Array<React.Ref<T> | undefined>
@@ -559,7 +705,13 @@ function getDropdownMenuItemClass({
 function DropdownMenu(
   props: React.ComponentProps<typeof DropdownMenuPrimitive.Root>,
 ) {
-  return <DropdownMenuPrimitive.Root data-slot="dropdown-menu" {...props} />;
+  const pointerGesture = useDropdownMenuPointerGesture();
+
+  return (
+    <DropdownMenuPointerGestureContext.Provider value={pointerGesture}>
+      <DropdownMenuPrimitive.Root data-slot="dropdown-menu" {...props} />
+    </DropdownMenuPointerGestureContext.Provider>
+  );
 }
 
 type DropdownMenuTriggerProps = React.ComponentProps<
@@ -567,16 +719,27 @@ type DropdownMenuTriggerProps = React.ComponentProps<
 > & {
   asChild?: boolean;
 };
+type DropdownMenuTriggerPointerEvent = Parameters<
+  NonNullable<DropdownMenuTriggerProps['onPointerDown']>
+>[0];
 
 function DropdownMenuTrigger({
   asChild,
   children,
+  onPointerDown,
   ...props
 }: DropdownMenuTriggerProps) {
+  const pointerGesture = React.useContext(DropdownMenuPointerGestureContext);
+  const handlePointerDown = (event: DropdownMenuTriggerPointerEvent) => {
+    pointerGesture?.begin(event);
+    onPointerDown?.(event);
+  };
+
   if (asChild && React.isValidElement(children)) {
     return (
       <DropdownMenuPrimitive.Trigger
         data-slot="dropdown-menu-trigger"
+        onPointerDown={handlePointerDown}
         {...props}
         render={(renderProps, state) =>
           cloneDropdownMenuRenderElement(children, {
@@ -591,6 +754,7 @@ function DropdownMenuTrigger({
   return (
     <DropdownMenuPrimitive.Trigger
       data-slot="dropdown-menu-trigger"
+      onPointerDown={handlePointerDown}
       {...props}
       render={(renderProps, state) => (
         <button {...renderProps} data-state={state.open ? 'open' : 'closed'}>
@@ -1101,6 +1265,7 @@ function DropdownMenuItem({
     <DropdownMenuPrimitive.Item
       data-slot="dropdown-menu-item"
       data-dropdown-menu-typeahead-item=""
+      data-dropdown-menu-release-item=""
       data-dropdown-menu-typeahead-label={resolvedLabel}
       label={resolvedLabel}
       onClick={(event) => {
@@ -1129,6 +1294,7 @@ function DropdownMenuCheckboxItem({
   return (
     <DropdownMenuPrimitive.CheckboxItem
       data-slot="dropdown-menu-checkbox-item"
+      data-dropdown-menu-release-item=""
       className={cn(
         'relative flex cursor-default select-none items-center rounded-sm py-1.5 pr-2 pl-8 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
         className,
@@ -1167,6 +1333,7 @@ function DropdownMenuRadioItem({
   return (
     <DropdownMenuPrimitive.RadioItem
       data-slot="dropdown-menu-radio-item"
+      data-dropdown-menu-release-item=""
       className={cn(
         'relative flex cursor-default select-none items-center rounded-sm py-1.5 pr-2 pl-8 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
         className,

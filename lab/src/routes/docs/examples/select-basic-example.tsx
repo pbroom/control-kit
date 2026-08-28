@@ -5,7 +5,11 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from '../../../components/ui/dropdown-menu.js';
-import { SelectList, SelectListItem } from '../../lab/lab-menu.js';
+import {
+  SelectList,
+  SelectListItem,
+  SelectTrigger,
+} from '../../lab/lab-menu.js';
 
 const OPTIONS = ['Small', 'Medium', 'Large'] as const;
 
@@ -16,13 +20,10 @@ export function SelectBasicExample() {
     <div className="flex min-h-[320px] items-center justify-center p-8">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button
-            className="inline-flex h-7 items-center gap-1.5 rounded-[5px] bg-white/10 px-2 text-xs text-white outline-none hover:bg-white/15 focus-visible:ring-2 focus-visible:ring-[#0d99ff] data-[state=open]:bg-[#0d99ff]"
-            type="button"
-          >
+          <SelectTrigger>
             {value}
             <ChevronDown aria-hidden="true" className="size-3.5" />
-          </button>
+          </SelectTrigger>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" variant="ui3">
           <SelectList value={value} onValueChange={setValue}>
