@@ -11,7 +11,7 @@ A menu-backed single-selection recipe used by the Control Kit Lab.
 Compose a menu trigger with `SelectList` and `SelectListItem`, then control the selected value from the application:
 
 ```tsx
-const [value, setValue] = useState('Copy');
+const [value, setValue] = useState('Medium');
 
 <DropdownMenu>
   <DropdownMenuTrigger asChild>
@@ -19,8 +19,8 @@ const [value, setValue] = useState('Copy');
   </DropdownMenuTrigger>
   <DropdownMenuContent>
     <SelectList value={value} onValueChange={setValue}>
-      <SelectListItem value="Copy">Copy</SelectListItem>
-      <SelectListItem value="Duplicate">Duplicate</SelectListItem>
+      <SelectListItem value="Small">Small</SelectListItem>
+      <SelectListItem value="Medium">Medium</SelectListItem>
     </SelectList>
   </DropdownMenuContent>
 </DropdownMenu>;
@@ -51,16 +51,12 @@ Positioning props pass through to the Lab's Base UI Menu wrapper.
 
 ### Current Lab contract
 
-| Input                      | Purpose                                                          |
-| -------------------------- | ---------------------------------------------------------------- |
-| `value` / `onValueChange`  | Controls the selected item.                                      |
-| `disabled`                 | Prevents the trigger from opening.                               |
-| `side` / `align`           | Positions the menu relative to the trigger.                      |
-| `triggerContent`           | Shows an icon, text, or both in the trigger.                     |
-| `triggerIconTextPlacement` | Places the icon before, after, or on both sides of trigger text. |
-| `triggerBehavior`          | Lets the Lab compare press and release opening behavior.         |
+| Input            | Purpose                                     |
+| ---------------- | ------------------------------------------- |
+| `disabled`       | Prevents the trigger from opening.          |
+| `side` / `align` | Positions the menu relative to the trigger. |
 
-These inputs belong to the current Lab preview and are not a stable package API. Presentation switches for icons, shortcuts, submenus, and dividers configure the menu recipe around the selection list.
+These inputs belong to the current Lab preview and are not a stable package API.
 
 ### Important forwarded props
 

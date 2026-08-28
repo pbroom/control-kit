@@ -161,7 +161,7 @@ test('mirrors lab pages, routes, loading slots, and panel toggles', async ({
   await page.goto('/lab/menu');
   await expect(page).toHaveURL(/\/lab\/menu$/);
   await expect(page.locator('aside')).toContainText(
-    'Tune the three-item menu shown above the reusable menu preview.',
+    'Configure the command menu trigger, content, and interaction.',
   );
 
   await page.goto('/lab/not-a-component');

@@ -34,8 +34,8 @@ const LAB_PAGE_PANEL_TEXT = {
   slider:
     'Preview one ColorSlider instance and tune its slider-specific props.',
   tooltip: 'Tune the Base UI initial hover delay',
-  menu: 'Tune the three-item menu shown above the reusable menu preview.',
-  select: 'Preview the UI3 menu trigger state.',
+  menu: 'Configure the command menu trigger, content, and interaction.',
+  select: 'Choose one value from a long, scrollable list.',
   tabs: 'Preview the UI3 tab group and selected tab content.',
   toggleButton: 'Preview selection separately from interaction feedback.',
   toggle: 'Preview the toggle group icon layout.',

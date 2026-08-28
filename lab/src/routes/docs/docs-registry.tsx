@@ -52,6 +52,18 @@ const DOCS_PAGE_LOADERS = {
       default: module.InputMultiDocsPage,
     }));
   },
+  menu: (loadAttempt: number) => {
+    const modulePromise =
+      loadAttempt === 0
+        ? import('./menu-docs-page.js')
+        : // A distinct module URL bypasses the browser's rejected-import cache.
+          // @ts-expect-error Vite resolves query-suffixed local modules.
+          import('./menu-docs-page.js?retry=1');
+
+    return modulePromise.then((module) => ({
+      default: module.MenuDocsPage,
+    }));
+  },
   plane: (loadAttempt: number) => {
     const modulePromise =
       loadAttempt === 0

@@ -2081,52 +2081,162 @@ function LabMenuContent({
 }
 
 function MenuPlaygroundStage({
-  onValueChange,
-  configurableItems,
+  align,
+  disabled,
+  side,
+  triggerContent,
+  triggerIconTextPlacement,
+  triggerBehavior,
   showShortcuts,
-  onShowShortcutsChange,
   showSubmenus,
-  onShowSubmenusChange,
   showDividers,
-  onShowDividersChange,
-  showDisabledOptions,
-  showOnOffItems,
-  showHeadings,
   showLeadingIcons,
   showTrailingHints,
 }: {
-  onValueChange: (value: SelectOptionId) => void;
-  configurableItems: Record<ConfigurableMenuItemId, ConfigurableMenuItemConfig>;
+  align: PlacementAlign;
+  disabled: boolean;
+  side: PlacementSide;
+  triggerContent: SelectTriggerContent;
+  triggerIconTextPlacement: SelectTriggerIconTextPlacement;
+  triggerBehavior: SelectTriggerBehavior;
   showShortcuts: boolean;
-  onShowShortcutsChange: (showShortcuts: boolean) => void;
   showSubmenus: boolean;
-  onShowSubmenusChange: (showSubmenus: boolean) => void;
   showDividers: boolean;
-  onShowDividersChange: (showDividers: boolean) => void;
-  showDisabledOptions: boolean;
-  showOnOffItems: boolean;
-  showHeadings: boolean;
   showLeadingIcons: boolean;
   showTrailingHints: boolean;
 }) {
   return (
-    <div className="flex flex-col items-center gap-5">
-      <InlineConfigurableMenuContent items={configurableItems} />
-      <InlineLabMenuContent
-        onValueChange={onValueChange}
+    <MenuCommandTrigger
+      align={align}
+      disabled={disabled}
+      onAction={() => undefined}
+      showDividers={showDividers}
+      showLeadingIcons={showLeadingIcons}
+      showShortcuts={showShortcuts}
+      showSubmenus={showSubmenus}
+      showTrailingHints={showTrailingHints}
+      side={side}
+      triggerBehavior={triggerBehavior}
+      triggerContent={triggerContent}
+      triggerIconTextPlacement={triggerIconTextPlacement}
+    />
+  );
+}
+
+function MenuCommandTrigger({
+  align,
+  disabled,
+  onAction,
+  showDividers,
+  showLeadingIcons,
+  showShortcuts,
+  showSubmenus,
+  showTrailingHints,
+  side,
+  triggerBehavior,
+  triggerContent,
+  triggerIconTextPlacement,
+}: {
+  align: PlacementAlign;
+  disabled: boolean;
+  onAction: (action: SelectOptionId) => void;
+  showDividers: boolean;
+  showLeadingIcons: boolean;
+  showShortcuts: boolean;
+  showSubmenus: boolean;
+  showTrailingHints: boolean;
+  side: PlacementSide;
+  triggerBehavior: SelectTriggerBehavior;
+  triggerContent: SelectTriggerContent;
+  triggerIconTextPlacement: SelectTriggerIconTextPlacement;
+}) {
+  const [open, setOpen] = useState(false);
+  const showTriggerText = triggerContent !== 'icon';
+  const showLeadingTriggerIcon =
+    triggerContent === 'icon' ||
+    (triggerContent === 'iconText' &&
+      (triggerIconTextPlacement === 'leading' ||
+        triggerIconTextPlacement === 'both'));
+  const showTrailingTriggerIcon =
+    triggerContent === 'iconText' &&
+    (triggerIconTextPlacement === 'trailing' ||
+      triggerIconTextPlacement === 'both');
+  const handlePointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLButtonElement>) => {
+      if (
+        triggerBehavior !== 'release' ||
+        event.button !== 0 ||
+        event.ctrlKey
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      event.currentTarget.focus();
+    },
+    [triggerBehavior],
+  );
+
+  return (
+    <DropdownMenu
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!disabled || !nextOpen) setOpen(nextOpen);
+      }}
+    >
+      <DropdownMenuTrigger
+        asChild
+        onPointerDown={handlePointerDown}
+        onClick={() => {
+          if (triggerBehavior === 'release') setOpen(true);
+        }}
+      >
+        <button
+          type="button"
+          aria-label="Menu actions"
+          disabled={disabled}
+          className={`box-border inline-flex items-center justify-center gap-1.5 rounded-[5px] border py-0 font-medium leading-4 tracking-[0.005em] outline-none shadow-none transition-[background-color,border-color,color] focus:ring-0 focus-visible:ring-2 focus-visible:ring-[#0d99ff]/80 disabled:cursor-not-allowed disabled:border-transparent disabled:bg-transparent disabled:text-white/25 disabled:hover:border-transparent disabled:hover:bg-transparent data-[state=open]:border-transparent data-[state=open]:bg-[#0d99ff] data-[state=open]:text-white ${
+            TOGGLE_BUTTON_DENSITY_CLASS.compact
+          } ${
+            triggerContent === 'icon'
+              ? 'w-6 px-0'
+              : 'w-auto min-w-6 max-w-[180px] px-2'
+          } ${getToggleButtonStateClass(false, 'default')}`}
+        >
+          {showLeadingTriggerIcon ? (
+            <span className="flex size-3.5 shrink-0 items-center justify-center text-current">
+              <Grid3X3
+                aria-hidden="true"
+                className="size-3.5"
+                strokeWidth={1.75}
+              />
+            </span>
+          ) : null}
+          {showTriggerText ? (
+            <span className="min-w-0 truncate">Menu</span>
+          ) : null}
+          {showTrailingTriggerIcon ? (
+            <span className="flex size-3.5 shrink-0 items-center justify-center text-current">
+              <ChevronDown
+                aria-hidden="true"
+                className="size-3.5"
+                strokeWidth={1.75}
+              />
+            </span>
+          ) : null}
+        </button>
+      </DropdownMenuTrigger>
+      <LabMenuContent
+        align={align}
+        onValueChange={onAction}
+        side={side}
         showShortcuts={showShortcuts}
-        onShowShortcutsChange={onShowShortcutsChange}
         showSubmenus={showSubmenus}
-        onShowSubmenusChange={onShowSubmenusChange}
         showDividers={showDividers}
-        onShowDividersChange={onShowDividersChange}
-        showDisabledOptions={showDisabledOptions}
-        showOnOffItems={showOnOffItems}
-        showHeadings={showHeadings}
         showLeadingIcons={showLeadingIcons}
         showTrailingHints={showTrailingHints}
       />
-    </div>
+    </DropdownMenu>
   );
 }
 
@@ -2433,71 +2543,16 @@ function SelectLongMenuContent({
 }
 
 function SelectPlaygroundStage({
-  value,
-  onValueChange,
   align,
   disabled,
   side,
-  triggerContent,
-  triggerIconTextPlacement,
-  triggerBehavior,
-  showShortcuts,
-  showSubmenus,
-  showDividers,
-  showLeadingIcons,
-  showTrailingHints,
 }: {
-  value: SelectOptionId;
-  onValueChange: (value: SelectOptionId) => void;
   align: PlacementAlign;
   disabled: boolean;
   side: PlacementSide;
-  triggerContent: SelectTriggerContent;
-  triggerIconTextPlacement: SelectTriggerIconTextPlacement;
-  triggerBehavior: SelectTriggerBehavior;
-  showShortcuts: boolean;
-  showSubmenus: boolean;
-  showDividers: boolean;
-  showLeadingIcons: boolean;
-  showTrailingHints: boolean;
 }) {
-  const [open, setOpen] = useState(false);
   const [numberOpen, setNumberOpen] = useState(false);
   const [numberValue, setNumberValue] = useState('0');
-  const selectedOption = SELECT_OPTION_BY_ID[value] ?? SELECT_OPTIONS[0];
-  const showTriggerText = triggerContent !== 'icon';
-  const showLeadingTriggerIcon =
-    triggerContent === 'icon' ||
-    (triggerContent === 'iconText' &&
-      (triggerIconTextPlacement === 'leading' ||
-        triggerIconTextPlacement === 'both'));
-  const showTrailingTriggerIcon =
-    triggerContent === 'iconText' &&
-    (triggerIconTextPlacement === 'trailing' ||
-      triggerIconTextPlacement === 'both');
-  const triggerLabel = 'Select';
-  const handleTriggerPointerDown = useCallback(
-    (event: ReactPointerEvent<HTMLButtonElement>) => {
-      if (
-        triggerBehavior !== 'release' ||
-        event.button !== 0 ||
-        event.ctrlKey
-      ) {
-        return;
-      }
-
-      event.preventDefault();
-      event.currentTarget.focus();
-    },
-    [triggerBehavior],
-  );
-  const handleTriggerClick = useCallback(() => {
-    if (triggerBehavior !== 'release') {
-      return;
-    }
-
-    setOpen(true);
-  }, [triggerBehavior]);
   const handleNumberTriggerPointerDown = useCallback(
     (event: ReactPointerEvent<HTMLButtonElement>) => {
       if (event.button !== 0 || event.ctrlKey) {
@@ -2518,66 +2573,7 @@ function SelectPlaygroundStage({
   }, []);
 
   return (
-    <div className="inline-flex items-center gap-1">
-      <DropdownMenu
-        open={open}
-        onOpenChange={(nextOpen) => {
-          if (disabled && nextOpen) {
-            return;
-          }
-
-          setOpen(nextOpen);
-        }}
-      >
-        <DropdownMenuTrigger asChild>
-          <button
-            type="button"
-            aria-label={`Menu action: ${selectedOption.label}`}
-            disabled={disabled}
-            onPointerDown={handleTriggerPointerDown}
-            onClick={handleTriggerClick}
-            className={`box-border inline-flex items-center justify-center gap-1.5 rounded-[5px] border py-0 font-medium leading-4 tracking-[0.005em] outline-none shadow-none transition-[background-color,border-color,color] focus:ring-0 focus-visible:ring-2 focus-visible:ring-[#0d99ff]/80 disabled:cursor-not-allowed disabled:border-transparent disabled:bg-transparent disabled:text-white/25 disabled:hover:border-transparent disabled:hover:bg-transparent data-[state=open]:border-transparent data-[state=open]:bg-[#0d99ff] data-[state=open]:text-white ${
-              TOGGLE_BUTTON_DENSITY_CLASS.compact
-            } ${
-              triggerContent === 'icon'
-                ? 'w-6 px-0'
-                : 'w-auto min-w-6 max-w-[180px] px-2'
-            } ${getToggleButtonStateClass(false, 'default')}`}
-          >
-            {showLeadingTriggerIcon ? (
-              <span className="flex size-3.5 shrink-0 items-center justify-center text-current">
-                <Grid3X3
-                  aria-hidden="true"
-                  className="size-3.5"
-                  strokeWidth={1.75}
-                />
-              </span>
-            ) : null}
-            {showTriggerText ? (
-              <span className="min-w-0 truncate">{triggerLabel}</span>
-            ) : null}
-            {showTrailingTriggerIcon ? (
-              <span className="flex size-3.5 shrink-0 items-center justify-center text-current">
-                <ChevronDown
-                  aria-hidden="true"
-                  className="size-3.5"
-                  strokeWidth={1.75}
-                />
-              </span>
-            ) : null}
-          </button>
-        </DropdownMenuTrigger>
-        <LabMenuContent
-          align={align}
-          onValueChange={onValueChange}
-          side={side}
-          showShortcuts={showShortcuts}
-          showSubmenus={showSubmenus}
-          showDividers={showDividers}
-          showLeadingIcons={showLeadingIcons}
-          showTrailingHints={showTrailingHints}
-        />
-      </DropdownMenu>
+    <div className="inline-flex items-center">
       <DropdownMenu
         open={numberOpen}
         onOpenChange={(nextOpen) => {
@@ -2768,6 +2764,7 @@ export {
   MULTI_INPUT_FIELD_BY_ID,
   MULTI_INPUT_FIELDS,
   Menu,
+  MenuCommandTrigger,
   MenuPlaygroundStage,
   MultiInputControl,
   Plane,
