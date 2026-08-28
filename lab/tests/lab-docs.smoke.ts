@@ -667,14 +667,14 @@ test('renders and exercises the documented primitive and component pages', async
   await page.goto('/docs/menu');
   const menuDemo = page.getByLabel('Menu demo', { exact: true });
   const menuTrigger = menuDemo.getByRole('button', {
-    name: /Menu action:/,
+    name: 'Menu actions',
   });
-  await expect(menuTrigger).toHaveAccessibleName('Menu action: Copy');
   await menuTrigger.click();
   await page.getByRole('menuitem', { name: /Group selection/ }).click();
-  await expect(menuTrigger).toHaveAccessibleName(
-    'Menu action: Group selection',
-  );
+  await expect(menuTrigger).toHaveAccessibleName('Menu actions');
+  await expect(
+    page.getByRole('menuitem', { name: /Group selection/ }),
+  ).toBeHidden();
 
   await page.goto('/docs/toggle-button');
   const toggleButtonDemo = page.getByLabel('Toggle button demo', {

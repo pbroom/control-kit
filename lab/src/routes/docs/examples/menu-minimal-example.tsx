@@ -1,15 +1,12 @@
-import { useState } from 'react';
-import { MenuCommandTrigger, type SelectOptionId } from '../../lab/shared.js';
+import { MenuCommandTrigger } from '../../lab/shared.js';
 
 export function MenuMinimalExample() {
-  const [value, setValue] = useState<SelectOptionId>('copy');
-
   return (
     <div className="flex min-h-[320px] items-center justify-center p-8">
       <MenuCommandTrigger
         align="start"
         disabled={false}
-        onValueChange={setValue}
+        onAction={() => undefined}
         showDividers={false}
         showLeadingIcons={false}
         showShortcuts={false}
@@ -19,7 +16,6 @@ export function MenuMinimalExample() {
         triggerBehavior="press"
         triggerContent="text"
         triggerIconTextPlacement="trailing"
-        value={value}
       />
     </div>
   );

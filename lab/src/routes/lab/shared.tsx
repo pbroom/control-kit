@@ -2081,8 +2081,6 @@ function LabMenuContent({
 }
 
 function MenuPlaygroundStage({
-  value,
-  onValueChange,
   align,
   disabled,
   side,
@@ -2095,8 +2093,6 @@ function MenuPlaygroundStage({
   showLeadingIcons,
   showTrailingHints,
 }: {
-  value: SelectOptionId;
-  onValueChange: (value: SelectOptionId) => void;
   align: PlacementAlign;
   disabled: boolean;
   side: PlacementSide;
@@ -2113,7 +2109,7 @@ function MenuPlaygroundStage({
     <MenuCommandTrigger
       align={align}
       disabled={disabled}
-      onValueChange={onValueChange}
+      onAction={() => undefined}
       showDividers={showDividers}
       showLeadingIcons={showLeadingIcons}
       showShortcuts={showShortcuts}
@@ -2123,7 +2119,6 @@ function MenuPlaygroundStage({
       triggerBehavior={triggerBehavior}
       triggerContent={triggerContent}
       triggerIconTextPlacement={triggerIconTextPlacement}
-      value={value}
     />
   );
 }
@@ -2131,7 +2126,7 @@ function MenuPlaygroundStage({
 function MenuCommandTrigger({
   align,
   disabled,
-  onValueChange,
+  onAction,
   showDividers,
   showLeadingIcons,
   showShortcuts,
@@ -2141,11 +2136,10 @@ function MenuCommandTrigger({
   triggerBehavior,
   triggerContent,
   triggerIconTextPlacement,
-  value,
 }: {
   align: PlacementAlign;
   disabled: boolean;
-  onValueChange: (value: SelectOptionId) => void;
+  onAction: (action: SelectOptionId) => void;
   showDividers: boolean;
   showLeadingIcons: boolean;
   showShortcuts: boolean;
@@ -2155,10 +2149,8 @@ function MenuCommandTrigger({
   triggerBehavior: SelectTriggerBehavior;
   triggerContent: SelectTriggerContent;
   triggerIconTextPlacement: SelectTriggerIconTextPlacement;
-  value: SelectOptionId;
 }) {
   const [open, setOpen] = useState(false);
-  const selectedOption = SELECT_OPTION_BY_ID[value] ?? SELECT_OPTIONS[0];
   const showTriggerText = triggerContent !== 'icon';
   const showLeadingTriggerIcon =
     triggerContent === 'icon' ||
@@ -2192,15 +2184,17 @@ function MenuCommandTrigger({
         if (!disabled || !nextOpen) setOpen(nextOpen);
       }}
     >
-      <DropdownMenuTrigger asChild>
+      <DropdownMenuTrigger
+        asChild
+        onPointerDown={handlePointerDown}
+        onClick={() => {
+          if (triggerBehavior === 'release') setOpen(true);
+        }}
+      >
         <button
           type="button"
-          aria-label={`Menu action: ${selectedOption.label}`}
+          aria-label="Menu actions"
           disabled={disabled}
-          onPointerDown={handlePointerDown}
-          onClick={() => {
-            if (triggerBehavior === 'release') setOpen(true);
-          }}
           className={`box-border inline-flex items-center justify-center gap-1.5 rounded-[5px] border py-0 font-medium leading-4 tracking-[0.005em] outline-none shadow-none transition-[background-color,border-color,color] focus:ring-0 focus-visible:ring-2 focus-visible:ring-[#0d99ff]/80 disabled:cursor-not-allowed disabled:border-transparent disabled:bg-transparent disabled:text-white/25 disabled:hover:border-transparent disabled:hover:bg-transparent data-[state=open]:border-transparent data-[state=open]:bg-[#0d99ff] data-[state=open]:text-white ${
             TOGGLE_BUTTON_DENSITY_CLASS.compact
           } ${
@@ -2234,7 +2228,7 @@ function MenuCommandTrigger({
       </DropdownMenuTrigger>
       <LabMenuContent
         align={align}
-        onValueChange={onValueChange}
+        onValueChange={onAction}
         side={side}
         showShortcuts={showShortcuts}
         showSubmenus={showSubmenus}

@@ -7,7 +7,6 @@ import {
   ToggleField,
   type PlacementAlign,
   type PlacementSide,
-  type SelectOptionId,
   type SelectTriggerBehavior,
   type SelectTriggerContent,
   type SelectTriggerIconTextPlacement,
@@ -16,7 +15,6 @@ import { createActiveLabPage } from '../create-active-lab-page.js';
 import type { LabPageDescriptor } from '../types.js';
 
 function useMenuLabPageController() {
-  const [value, setValue] = useState<SelectOptionId>('copy');
   const [disabled, setDisabled] = useState(false);
   const [side, setSide] = useState<PlacementSide>('bottom');
   const [align, setAlign] = useState<PlacementAlign>('start');
@@ -44,7 +42,6 @@ function useMenuLabPageController() {
     setTriggerBehavior,
     setTriggerContent,
     setTriggerIconTextPlacement,
-    setValue,
     showDividers,
     showLeadingIcons,
     showShortcuts,
@@ -53,7 +50,6 @@ function useMenuLabPageController() {
     triggerBehavior,
     triggerContent,
     triggerIconTextPlacement,
-    value,
   };
 }
 
@@ -62,8 +58,6 @@ type MenuLabPageController = ReturnType<typeof useMenuLabPageController>;
 function renderMenuPreview(controller: MenuLabPageController) {
   return (
     <MenuPlaygroundStage
-      value={controller.value}
-      onValueChange={controller.setValue}
       align={controller.align}
       disabled={controller.disabled}
       side={controller.side}
