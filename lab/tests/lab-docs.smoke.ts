@@ -395,14 +395,37 @@ test('routes between Plane docs and Lab and exposes tabs only on documented page
     }),
   ).toBeAttached();
 
+  const nearestPointPressToggle = page.getByRole('checkbox', {
+    name: 'Press empty space to move the nearest point.',
+    exact: true,
+  });
+  await expect(nearestPointPressToggle).toBeChecked();
+
   if (testInfo.project.name === 'desktop') {
-    const [multiPlaneBox, firstThumbStyle, secondThumbStyle] =
-      await Promise.all([
-        multiPlane.boundingBox(),
-        multiThumbs.nth(0).getAttribute('style'),
-        multiThumbs.nth(1).getAttribute('style'),
-      ]);
+    const [multiPlaneBox, thumbStyles] = await Promise.all([
+      multiPlane.boundingBox(),
+      multiThumbs.evaluateAll((thumbs) =>
+        thumbs.map((thumb) => thumb.getAttribute('style')),
+      ),
+    ]);
     expect(multiPlaneBox).not.toBeNull();
+    expect(thumbStyles).toHaveLength(4);
+    expect(thumbStyles).not.toContain(null);
+
+    await nearestPointPressToggle.click();
+    await expect(nearestPointPressToggle).not.toBeChecked();
+    await page.mouse.move(
+      multiPlaneBox!.x + multiPlaneBox!.width * 0.1,
+      multiPlaneBox!.y + multiPlaneBox!.height * 0.1,
+    );
+    await page.mouse.down();
+    await page.mouse.up();
+    for (const [index, style] of thumbStyles.entries()) {
+      await expect(multiThumbs.nth(index)).toHaveAttribute('style', style!);
+    }
+
+    await nearestPointPressToggle.click();
+    await expect(nearestPointPressToggle).toBeChecked();
     await page.mouse.move(
       multiPlaneBox!.x + multiPlaneBox!.width * 0.1,
       multiPlaneBox!.y + multiPlaneBox!.height * 0.1,
@@ -411,12 +434,12 @@ test('routes between Plane docs and Lab and exposes tabs only on documented page
     await page.mouse.up();
     await expect(multiThumbs.nth(0)).not.toHaveAttribute(
       'style',
-      firstThumbStyle!,
+      thumbStyles[0]!,
     );
-    await expect(multiThumbs.nth(1)).toHaveAttribute(
-      'style',
-      secondThumbStyle!,
-    );
+    for (const [index, style] of thumbStyles.entries()) {
+      if (index === 0) continue;
+      await expect(multiThumbs.nth(index)).toHaveAttribute('style', style!);
+    }
 
     const firstHorizontalAxis = multiPlane.getByRole('slider', {
       name: 'Control point 1, horizontal position',
