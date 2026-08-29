@@ -539,6 +539,13 @@ test('renders and exercises the documented primitive and component pages', async
       exampleCount: 2,
     },
     {
+      slug: 'control-field',
+      heading: 'Control Field',
+      lab: '/lab/control-field',
+      apiHeading: 'API',
+      exampleCount: 2,
+    },
+    {
       slug: 'input-primitive',
       heading: 'Input Primitive',
       lab: '/lab/input-primitive',
@@ -651,6 +658,14 @@ test('renders and exercises the documented primitive and component pages', async
   await primitiveInput.fill('55');
   await primitiveInput.press('Enter');
   await expect(primitiveInput).toHaveValue('55');
+
+  await page.goto('/docs/control-field');
+  const controlFieldInput = page
+    .getByLabel('Control Field demo', { exact: true })
+    .locator('[data-slot="control-field-input"]');
+  await controlFieldInput.fill('* 2');
+  await controlFieldInput.press('Enter');
+  await expect(controlFieldInput).toHaveValue('84');
 
   await page.goto('/docs/input-multi');
   const multiInput = page.getByRole('spinbutton', {

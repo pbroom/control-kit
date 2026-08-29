@@ -17,6 +17,7 @@ describe('documentation routes', () => {
       'plane',
       'input',
       'inputMulti',
+      'controlField',
       'checkbox',
       'colorPlane',
       'menu',
@@ -36,6 +37,7 @@ describe('documentation routes', () => {
       ['plane', 'Primitives'],
       ['input', 'Primitives'],
       ['inputMulti', 'Primitives'],
+      ['controlField', 'Components'],
       ['checkbox', 'Components'],
       ['colorPlane', 'Components'],
       ['menu', 'Components'],
@@ -57,6 +59,7 @@ describe('documentation routes', () => {
     expect(getDocsPagePath('checkbox')).toBe('/docs/checkbox');
     expect(getDocsPagePath('input')).toBe('/docs/input-primitive');
     expect(getDocsPagePath('inputMulti')).toBe('/docs/input-multi');
+    expect(getDocsPagePath('controlField')).toBe('/docs/control-field');
     expect(getDocsPagePath('menu')).toBe('/docs/menu');
     expect(getDocsPagePath('select')).toBe('/docs/select');
     expect(getDocsPagePath('slider')).toBe('/docs/slider');

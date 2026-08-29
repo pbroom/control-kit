@@ -2,6 +2,8 @@
 
 A numeric text input with keyboard stepping, expression parsing, and pointer scrubbing. It keeps draft editing separate from committed numeric values.
 
+> Legacy — This API remains available for compatibility while the Base UI-backed [Control Field](/docs/control-field) component is evaluated. Prefer Control Field for new compositions.
+
 <!-- demo:basic -->
 
 ## Anatomy

@@ -28,6 +28,8 @@ const LAB_PAGE_PANEL_TEXT = {
   plane: 'Move a normalized 2D position with pointer or keyboard input.',
   colorPlane: 'Drive the current sample color.',
   input: 'Choose what appears inside the scrub handle.',
+  controlField:
+    'Compose Base UI number behavior with expression editing and cyclic bounds.',
   inputMulti: 'Configure the selected color channel input.',
   checkbox:
     'Preview the compact checkbox row used throughout the properties panel.',

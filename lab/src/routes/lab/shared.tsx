@@ -152,6 +152,7 @@ type OutputGamut = 'display-p3' | 'srgb';
 type LabPageKey =
   | 'plane'
   | 'colorPlane'
+  | 'controlField'
   | 'input'
   | 'inputMulti'
   | 'checkbox'

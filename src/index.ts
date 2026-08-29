@@ -29,6 +29,33 @@ export type {
   TooltipTriggerProps,
 } from './tooltip.js';
 export {
+  ControlField,
+  ControlFieldDecrement,
+  ControlFieldDescription,
+  ControlFieldError,
+  ControlFieldGroup,
+  ControlFieldIncrement,
+  ControlFieldInput,
+  ControlFieldLabel,
+  ControlFieldRoot,
+  ControlFieldScrubArea,
+  ControlFieldScrubAreaCursor,
+} from './control-field.js';
+export type {
+  ControlFieldBoundaryBehavior,
+  ControlFieldCustomEventDetails,
+  ControlFieldCustomReason,
+  ControlFieldInputProps,
+  ControlFieldRootProps,
+  ControlFieldValueChangeDetails,
+  ControlFieldValueCommitDetails,
+} from './control-field.js';
+export type {
+  ControlFieldExpressionContext,
+  ControlFieldExpressionResolver,
+} from './control-field-expression.js';
+export { resolveControlFieldExpression } from './control-field-expression.js';
+export {
   PrimitiveValueInput,
   formatPrimitiveValue,
   getPrimitiveModifiedStep,
