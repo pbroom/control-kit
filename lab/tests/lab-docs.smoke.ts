@@ -395,6 +395,12 @@ test('routes between Plane docs and Lab and exposes tabs only on documented page
     }),
   ).toBeAttached();
 
+  const nearestPointPressToggle = page.getByRole('checkbox', {
+    name: 'Press empty space to move the nearest point.',
+    exact: true,
+  });
+  await expect(nearestPointPressToggle).toBeChecked();
+
   if (testInfo.project.name === 'desktop') {
     const [multiPlaneBox, firstThumbStyle, secondThumbStyle] =
       await Promise.all([
@@ -403,6 +409,23 @@ test('routes between Plane docs and Lab and exposes tabs only on documented page
         multiThumbs.nth(1).getAttribute('style'),
       ]);
     expect(multiPlaneBox).not.toBeNull();
+
+    await nearestPointPressToggle.click();
+    await expect(nearestPointPressToggle).not.toBeChecked();
+    await page.mouse.move(
+      multiPlaneBox!.x + multiPlaneBox!.width * 0.1,
+      multiPlaneBox!.y + multiPlaneBox!.height * 0.1,
+    );
+    await page.mouse.down();
+    await page.mouse.up();
+    await expect(multiThumbs.nth(0)).toHaveAttribute('style', firstThumbStyle!);
+    await expect(multiThumbs.nth(1)).toHaveAttribute(
+      'style',
+      secondThumbStyle!,
+    );
+
+    await nearestPointPressToggle.click();
+    await expect(nearestPointPressToggle).toBeChecked();
     await page.mouse.move(
       multiPlaneBox!.x + multiPlaneBox!.width * 0.1,
       multiPlaneBox!.y + multiPlaneBox!.height * 0.1,
