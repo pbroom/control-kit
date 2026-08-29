@@ -137,6 +137,36 @@ describe('ControlField', () => {
     );
   });
 
+  it('commits arithmetic expression drafts once on blur', () => {
+    const onValueChange = vi.fn();
+    const onValueCommitted = vi.fn();
+    const container = mountControlField({
+      onValueChange,
+      onValueCommitted,
+    });
+    const input = container.querySelector(
+      '[data-slot="control-field-input"]',
+    ) as HTMLInputElement;
+
+    act(() => {
+      input.focus();
+      changeInputValue(input, '* 2');
+    });
+    act(() => input.blur());
+
+    expect(input.value).toBe('20');
+    expect(onValueChange).toHaveBeenCalledTimes(1);
+    expect(onValueChange).toHaveBeenCalledWith(
+      20,
+      expect.objectContaining({ reason: 'expression', expression: '* 2' }),
+    );
+    expect(onValueCommitted).toHaveBeenCalledTimes(1);
+    expect(onValueCommitted).toHaveBeenCalledWith(
+      20,
+      expect.objectContaining({ reason: 'expression', expression: '* 2' }),
+    );
+  });
+
   it('keeps invalid expressions editable and restores the value with Escape', () => {
     const container = mountControlField();
     const input = container.querySelector(
@@ -174,6 +204,33 @@ describe('ControlField', () => {
     expect(input.value).toBe('10');
   });
 
+  it('does not apply custom keyboard steps when read-only', () => {
+    const onValueChange = vi.fn();
+    const onValueCommitted = vi.fn();
+    const container = mountControlField({
+      boundaryBehavior: 'wrap',
+      min: 0,
+      max: 100,
+      onValueChange,
+      onValueCommitted,
+      readOnly: true,
+    });
+    const input = container.querySelector(
+      '[data-slot="control-field-input"]',
+    ) as HTMLInputElement;
+
+    act(() => {
+      keyDown(input, 'PageUp');
+      keyDown(input, 'PageDown');
+      keyDown(input, 'Home');
+      keyDown(input, 'End');
+    });
+
+    expect(input.value).toBe('10');
+    expect(onValueChange).not.toHaveBeenCalled();
+    expect(onValueCommitted).not.toHaveBeenCalled();
+  });
+
   it('wraps stepped values when requested', () => {
     const container = mountControlField({
       boundaryBehavior: 'wrap',
@@ -205,5 +262,17 @@ describe('resolveControlFieldExpression', () => {
         currentValue: 10,
       }),
     ).toBeNull();
+  });
+
+  it('applies exponentiation before unary signs', () => {
+    expect(resolveControlFieldExpression('-2^2', { currentValue: 10 })).toBe(
+      -4,
+    );
+    expect(resolveControlFieldExpression('2^-2', { currentValue: 10 })).toBe(
+      0.25,
+    );
+    expect(resolveControlFieldExpression('2^3^2', { currentValue: 10 })).toBe(
+      512,
+    );
   });
 });

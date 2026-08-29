@@ -61,6 +61,7 @@ interface ControlFieldContextValue {
   max?: number;
   min?: number;
   pageStep: number;
+  readOnly: boolean;
   value: number | null;
   changeValue: (
     value: number | null,
@@ -149,6 +150,7 @@ export const ControlFieldRoot = React.forwardRef<
     onValueChange,
     onValueCommitted,
     pageStep = 10,
+    readOnly = false,
     value: valueProp,
     ...props
   },
@@ -181,6 +183,8 @@ export const ControlFieldRoot = React.forwardRef<
       event: Event,
       expression?: string,
     ) => {
+      if (readOnly) return false;
+
       const details = createCustomChangeDetails(reason, event, expression);
       const { normalized, canceled } = publishValue(nextValue, details);
       if (!canceled) {
@@ -192,7 +196,7 @@ export const ControlFieldRoot = React.forwardRef<
       }
       return !canceled;
     },
-    [onValueCommitted, publishValue],
+    [onValueCommitted, publishValue, readOnly],
   );
 
   const context = React.useMemo<ControlFieldContextValue>(
@@ -203,6 +207,7 @@ export const ControlFieldRoot = React.forwardRef<
       max,
       min,
       pageStep: Math.abs(pageStep),
+      readOnly,
       value,
     }),
     [
@@ -212,6 +217,7 @@ export const ControlFieldRoot = React.forwardRef<
       max,
       min,
       pageStep,
+      readOnly,
       value,
     ],
   );
@@ -223,6 +229,7 @@ export const ControlFieldRoot = React.forwardRef<
         data-slot="control-field"
         min={boundaryBehavior === 'wrap' ? undefined : min}
         max={boundaryBehavior === 'wrap' ? undefined : max}
+        readOnly={readOnly}
         value={value}
         onValueChange={(nextValue, details) => {
           publishValue(nextValue, details);
@@ -321,7 +328,10 @@ export const ControlFieldInput = React.forwardRef<
       data-expression-invalid={expressionInvalid ? '' : undefined}
       onBlur={(event) => {
         onBlur?.(event);
-        if (!event.defaultPrevented) resolveExpression(event.nativeEvent);
+        if (event.defaultPrevented) return;
+
+        if (expressionDraft !== null) preventBaseUIHandler(event);
+        resolveExpression(event.nativeEvent);
       }}
       onChange={(event) => {
         onChange?.(event);
@@ -360,6 +370,8 @@ export const ControlFieldInput = React.forwardRef<
           preventBaseUIHandler(event);
           return;
         }
+
+        if (context.readOnly) return;
 
         if (event.key === 'PageUp' || event.key === 'PageDown') {
           event.preventDefault();

@@ -91,7 +91,7 @@ function evaluate(tokens: Token[], currentValue: number): number | null {
   };
 
   const parseTerm = (): number | null => {
-    const first = parsePower();
+    const first = parseUnary();
     if (first === null) return null;
 
     let value = first;
@@ -102,7 +102,7 @@ function evaluate(tokens: Token[], currentValue: number): number | null {
       if (operator !== '*' && operator !== '/') break;
       index += 1;
 
-      const right = parsePower();
+      const right = parseUnary();
       if (right === null) return null;
       value = operator === '*' ? value * right : value / right;
     }
@@ -110,33 +110,38 @@ function evaluate(tokens: Token[], currentValue: number): number | null {
     return value;
   };
 
+  const parseUnary = (): number | null => {
+    const token = tokens[index];
+    if (
+      token?.type === 'operator' &&
+      (token.value === '+' || token.value === '-')
+    ) {
+      index += 1;
+      const value = parseUnary();
+      if (value === null) return null;
+      return token.value === '-' ? -value : value;
+    }
+
+    return parsePower();
+  };
+
   const parsePower = (): number | null => {
-    const left = parseFactor();
+    const left = parsePrimary();
     if (left === null) return null;
 
     const operator = tokens[index];
     if (operator?.type === 'operator' && operator.value === '^') {
       index += 1;
-      const right = parsePower();
+      const right = parseUnary();
       return right === null ? null : left ** right;
     }
 
     return left;
   };
 
-  const parseFactor = (): number | null => {
+  const parsePrimary = (): number | null => {
     const token = tokens[index];
     if (!token) return null;
-
-    if (
-      token.type === 'operator' &&
-      (token.value === '+' || token.value === '-')
-    ) {
-      index += 1;
-      const value = parseFactor();
-      if (value === null) return null;
-      return token.value === '-' ? -value : value;
-    }
 
     if (token.type === 'number') {
       index += 1;
