@@ -402,13 +402,15 @@ test('routes between Plane docs and Lab and exposes tabs only on documented page
   await expect(nearestPointPressToggle).toBeChecked();
 
   if (testInfo.project.name === 'desktop') {
-    const [multiPlaneBox, firstThumbStyle, secondThumbStyle] =
-      await Promise.all([
-        multiPlane.boundingBox(),
-        multiThumbs.nth(0).getAttribute('style'),
-        multiThumbs.nth(1).getAttribute('style'),
-      ]);
+    const [multiPlaneBox, thumbStyles] = await Promise.all([
+      multiPlane.boundingBox(),
+      multiThumbs.evaluateAll((thumbs) =>
+        thumbs.map((thumb) => thumb.getAttribute('style')),
+      ),
+    ]);
     expect(multiPlaneBox).not.toBeNull();
+    expect(thumbStyles).toHaveLength(4);
+    expect(thumbStyles).not.toContain(null);
 
     await nearestPointPressToggle.click();
     await expect(nearestPointPressToggle).not.toBeChecked();
@@ -418,11 +420,9 @@ test('routes between Plane docs and Lab and exposes tabs only on documented page
     );
     await page.mouse.down();
     await page.mouse.up();
-    await expect(multiThumbs.nth(0)).toHaveAttribute('style', firstThumbStyle!);
-    await expect(multiThumbs.nth(1)).toHaveAttribute(
-      'style',
-      secondThumbStyle!,
-    );
+    for (const [index, style] of thumbStyles.entries()) {
+      await expect(multiThumbs.nth(index)).toHaveAttribute('style', style!);
+    }
 
     await nearestPointPressToggle.click();
     await expect(nearestPointPressToggle).toBeChecked();
@@ -434,12 +434,12 @@ test('routes between Plane docs and Lab and exposes tabs only on documented page
     await page.mouse.up();
     await expect(multiThumbs.nth(0)).not.toHaveAttribute(
       'style',
-      firstThumbStyle!,
+      thumbStyles[0]!,
     );
-    await expect(multiThumbs.nth(1)).toHaveAttribute(
-      'style',
-      secondThumbStyle!,
-    );
+    for (const [index, style] of thumbStyles.entries()) {
+      if (index === 0) continue;
+      await expect(multiThumbs.nth(index)).toHaveAttribute('style', style!);
+    }
 
     const firstHorizontalAxis = multiPlane.getByRole('slider', {
       name: 'Control point 1, horizontal position',
