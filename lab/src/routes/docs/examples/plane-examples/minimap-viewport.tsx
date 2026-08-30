@@ -14,7 +14,7 @@ export function MinimapViewportExample() {
     <div className="flex min-h-[360px] flex-col items-center justify-center gap-4 p-6 max-sm:min-h-[340px] max-sm:p-4">
       <Plane
         aria-label="Diagram minimap"
-        className="relative size-[240px] touch-none overflow-hidden rounded-2xl border border-white/12 bg-[#101820] max-sm:size-[220px]"
+        className="relative size-[240px] touch-none overflow-hidden rounded-2xl border border-white/12 [background-origin:border-box] bg-[#101820] max-sm:size-[220px]"
       >
         <div aria-hidden="true" className="absolute inset-4 opacity-70">
           <span className="absolute top-[12%] left-[8%] h-7 w-12 rounded bg-sky-400/40" />

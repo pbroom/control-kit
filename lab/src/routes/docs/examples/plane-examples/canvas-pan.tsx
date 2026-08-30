@@ -16,7 +16,7 @@ export function CanvasPanExample() {
     <div className="flex min-h-[360px] flex-col items-center justify-center gap-4 p-6 max-sm:min-h-[340px] max-sm:p-4">
       <Plane
         aria-label="Canvas pan position"
-        className="relative size-[240px] touch-none overflow-hidden rounded-2xl border border-white/12 bg-[#15171a] max-sm:size-[220px]"
+        className="relative size-[240px] touch-none overflow-hidden rounded-2xl border border-white/12 [background-origin:border-box] bg-[#15171a] max-sm:size-[220px]"
       >
         <div
           aria-hidden="true"

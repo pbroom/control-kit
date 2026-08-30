@@ -88,6 +88,15 @@ test('renders the focused Plane examples with executable source', async ({
         ),
       ),
   ).toBe(true);
+  expect(
+    await gallery.locator('[data-slot="plane"]').evaluateAll((planes) =>
+      planes.every((plane) =>
+        getComputedStyle(plane)
+          .backgroundOrigin.split(',')
+          .every((origin) => origin.trim() === 'border-box'),
+      ),
+    ),
+  ).toBe(true);
   await expect(gallery.locator('[data-docs-example-source]')).toHaveCount(36);
   await expect(
     gallery.getByRole('button', { name: 'Show code', exact: true }),

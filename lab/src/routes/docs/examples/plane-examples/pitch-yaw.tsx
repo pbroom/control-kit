@@ -24,7 +24,7 @@ export function PitchYawExample() {
     <div className="flex min-h-[360px] flex-col items-center justify-center gap-4 p-6 max-sm:min-h-[340px] max-sm:p-4">
       <Plane
         aria-label="Pitch and yaw"
-        className="relative size-[240px] touch-none overflow-hidden rounded-2xl border border-white/12 bg-[radial-gradient(circle_at_center,#26384a_0%,#111820_68%)] max-sm:size-[220px]"
+        className="relative size-[240px] touch-none overflow-hidden rounded-2xl border border-white/12 [background-origin:border-box] bg-[radial-gradient(circle_at_center,#26384a_0%,#111820_68%)] max-sm:size-[220px]"
       >
         <div aria-hidden="true" className="absolute inset-0">
           <span className="absolute top-1/2 left-1/2 h-px w-28 -translate-x-1/2 bg-cyan-200/35" />
