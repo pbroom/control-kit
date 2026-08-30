@@ -18,7 +18,7 @@ Select is currently a Lab recipe rather than a package export.
    pnpm add @base-ui/react lucide-react clsx tailwind-merge
    ```
 
-2. Copy the [Menu wrapper](https://github.com/pbroom/control-kit/blob/main/lab/src/components/ui/dropdown-menu.tsx), [Select composition](https://github.com/pbroom/control-kit/blob/main/lab/src/routes/lab/shared.tsx), and [selection list](https://github.com/pbroom/control-kit/blob/main/lab/src/routes/lab/lab-menu.tsx) into your project.
+2. Copy the [Menu wrapper](https://github.com/pbroom/control-kit/blob/main/lab/src/components/ui/dropdown-menu.tsx), [focused Select composition](https://github.com/pbroom/control-kit/blob/main/lab/src/routes/docs/examples/select-basic-example.tsx), [selection list](https://github.com/pbroom/control-kit/blob/main/lab/src/routes/lab/lab-menu.tsx), and [class-name utility](https://github.com/pbroom/control-kit/blob/main/lab/src/lib/utils.ts) into your project.
 3. Update the `@/` aliases and local imports to match your project setup.
 
 ## Usage
@@ -85,4 +85,4 @@ This recipe does not render a hidden form control and does not submit a native s
 
 ## Source
 
-[Lab page](https://github.com/pbroom/control-kit/blob/main/lab/src/routes/lab/pages/select.tsx) · [Select composition](https://github.com/pbroom/control-kit/blob/main/lab/src/routes/lab/shared.tsx) · [Selection list](https://github.com/pbroom/control-kit/blob/main/lab/src/routes/lab/lab-menu.tsx) · [Menu wrapper](https://github.com/pbroom/control-kit/blob/main/lab/src/components/ui/dropdown-menu.tsx) · [Base UI Menu API](https://base-ui.com/react/components/menu#api-reference)
+[Lab page](https://github.com/pbroom/control-kit/blob/main/lab/src/routes/lab/pages/select.tsx) · [Focused composition](https://github.com/pbroom/control-kit/blob/main/lab/src/routes/docs/examples/select-basic-example.tsx) · [Selection list](https://github.com/pbroom/control-kit/blob/main/lab/src/routes/lab/lab-menu.tsx) · [Menu wrapper](https://github.com/pbroom/control-kit/blob/main/lab/src/components/ui/dropdown-menu.tsx) · [Class-name utility](https://github.com/pbroom/control-kit/blob/main/lab/src/lib/utils.ts) · [Base UI Menu API](https://base-ui.com/react/components/menu#api-reference)

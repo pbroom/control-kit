@@ -50,4 +50,29 @@ describe('component installation documentation', () => {
       expect(source).not.toContain('## Installation');
     },
   );
+
+  it('keeps Lab prototype copy instructions focused and dependency-complete', () => {
+    const installationSection = (source: string) =>
+      source.slice(
+        source.indexOf('## Installation'),
+        source.indexOf('## Usage'),
+      );
+
+    const menuInstallation = installationSection(menuDocs);
+    expect(menuInstallation).toContain('menu-installation-example.tsx');
+    expect(menuInstallation).toContain('lab/src/lib/utils.ts');
+    expect(menuInstallation).not.toContain('routes/lab/shared.tsx');
+
+    const selectInstallation = installationSection(selectDocs);
+    expect(selectInstallation).toContain('select-basic-example.tsx');
+    expect(selectInstallation).toContain('routes/lab/lab-menu.tsx');
+    expect(selectInstallation).toContain('lab/src/lib/utils.ts');
+    expect(selectInstallation).not.toContain('routes/lab/shared.tsx');
+
+    const toggleButtonInstallation = installationSection(toggleButtonDocs);
+    expect(toggleButtonInstallation).toContain(
+      'toggle-button-basic-example.tsx',
+    );
+    expect(toggleButtonInstallation).not.toContain('routes/lab/shared.tsx');
+  });
 });
