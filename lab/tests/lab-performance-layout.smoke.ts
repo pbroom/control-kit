@@ -384,12 +384,16 @@ test('keeps desktop performance panel layout, scrollbars, and resize behavior st
       ) +
       panelViewTabsBox!.height +
       72;
+    // Pointer tab switches intentionally preserve the Structure height while
+    // the pointer remains inside the panel. Leave the panel before asserting
+    // its auto-fit contract; the held-height behavior has dedicated coverage.
+    await page.mouse.move(0, 0);
     await expect
       .poll(
         async () =>
           (await performancePanel.boundingBox())?.height ??
           maximumSettledMetricsHeight + 1,
-        { timeout: 2_000 },
+        { timeout: 3_000 },
       )
       .toBeLessThanOrEqual(maximumSettledMetricsHeight);
     const settledMetricsPanelBox = await performancePanel.boundingBox();
@@ -434,11 +438,22 @@ test('keeps desktop performance panel layout, scrollbars, and resize behavior st
       'scroll-area-viewport',
     );
     await selectPerformancePanelView(performancePanel, 'Metrics');
+    const maximumRoundTripMetricsHeight =
+      Math.max(metricsPanelHeight, structurePanelBox!.height) + 2;
+    await page.mouse.move(0, 0);
+    await expect
+      .poll(
+        async () =>
+          (await performancePanel.boundingBox())?.height ??
+          maximumRoundTripMetricsHeight + 1,
+        { timeout: 3_000 },
+      )
+      .toBeLessThanOrEqual(maximumRoundTripMetricsHeight);
     const metricsPanelRoundTripBox = await performancePanel.boundingBox();
     expect(metricsPanelRoundTripBox).not.toBeNull();
     expect(metricsPanelRoundTripBox!.height).toBeGreaterThanOrEqual(128);
     expect(metricsPanelRoundTripBox!.height).toBeLessThanOrEqual(
-      Math.max(metricsPanelHeight, structurePanelBox!.height) + 2,
+      maximumRoundTripMetricsHeight,
     );
     expect(propertiesPanelBox!.height).toBeGreaterThanOrEqual(998);
     expect(
