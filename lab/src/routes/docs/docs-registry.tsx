@@ -1,5 +1,5 @@
 import { useEffect, useState, type ComponentType } from 'react';
-import type { LabPageKey } from '../lab/shared.js';
+import type { NavigationPageKey } from '../lab/lab-page-runtime.js';
 
 type DocsPageComponent = ComponentType;
 
@@ -14,6 +14,18 @@ const DOCS_PAGE_LOADERS = {
 
     return modulePromise.then((module) => ({
       default: module.ControlFieldDocsPage,
+    }));
+  },
+  planeExamples: (loadAttempt: number) => {
+    const modulePromise =
+      loadAttempt === 0
+        ? import('./plane-examples-docs-page.js')
+        : // A distinct module URL bypasses the browser's rejected-import cache.
+          // @ts-expect-error Vite resolves query-suffixed local modules.
+          import('./plane-examples-docs-page.js?retry=1');
+
+    return modulePromise.then((module) => ({
+      default: module.PlaneExamplesDocsPage,
     }));
   },
   checkbox: (loadAttempt: number) => {
@@ -162,7 +174,7 @@ const DOCS_PAGE_LOADERS = {
   },
 } satisfies Partial<
   Record<
-    LabPageKey,
+    NavigationPageKey,
     (loadAttempt: number) => Promise<{ default: DocsPageComponent }>
   >
 >;
@@ -206,7 +218,7 @@ const DOCS_PAGE_PRELOADERS = Object.fromEntries(
   ReturnType<typeof createRetryablePreloader<{ default: DocsPageComponent }>>
 >;
 
-export function hasDocsPage(page: LabPageKey): page is DocsPageKey {
+export function hasDocsPage(page: NavigationPageKey): page is DocsPageKey {
   return Object.hasOwn(DOCS_PAGE_LOADERS, page);
 }
 

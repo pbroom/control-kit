@@ -37,6 +37,7 @@ import { LabPerformanceAnalysisPanel } from './performance-analysis.js';
 import type { LabPageKey } from './shared.js';
 import type {
   LabPageNavigationSection,
+  NavigationPageKey,
   PrimitivePageView,
 } from './lab-page-runtime.js';
 
@@ -163,11 +164,11 @@ function PagesPanel({
   onPagePreload,
   pages,
 }: {
-  activePage: LabPageKey;
-  getPageHref: (page: LabPageKey) => string;
+  activePage: NavigationPageKey;
+  getPageHref: (page: NavigationPageKey) => string;
   hasPageViewTabs?: boolean;
-  onPageChange: (page: LabPageKey) => void;
-  onPagePreload?: (page: LabPageKey) => void;
+  onPageChange: (page: NavigationPageKey) => void;
+  onPagePreload?: (page: NavigationPageKey) => void;
   pages: readonly LabPageNavigationItem[];
 }) {
   const sections = Array.from(new Set(pages.map((page) => page.section)));
@@ -233,7 +234,7 @@ function PagesPanel({
 }
 
 export type LabPageNavigationItem = {
-  value: LabPageKey;
+  value: NavigationPageKey;
   label: string;
   section: LabPageNavigationSection;
 };
@@ -254,13 +255,14 @@ export type LabPanelTooltipProviderProps = {
 };
 
 export type LabPageFrameProps = {
-  activePage: LabPageKey;
+  activePage: NavigationPageKey;
+  activeLabPage: LabPageKey | null;
   docs: ReactNode;
-  getPageHref: (page: LabPageKey) => string;
+  getPageHref: (page: NavigationPageKey) => string;
   getViewHref: (view: PrimitivePageView) => string;
   hasDocs: boolean;
-  onPageChange: (page: LabPageKey) => void;
-  onPagePreload?: (page: LabPageKey) => void;
+  onPageChange: (page: NavigationPageKey) => void;
+  onPagePreload?: (page: NavigationPageKey) => void;
   onViewChange: (view: PrimitivePageView) => void;
   pages: readonly LabPageNavigationItem[];
   view: PrimitivePageView;
@@ -452,6 +454,7 @@ function LabPanelToggleControls({
 
 function LabPageFrameContent({
   activePage,
+  activeLabPage,
   docs,
   getPageHref,
   getViewHref,
@@ -469,7 +472,7 @@ function LabPageFrameContent({
     useState(false);
   const [isPerformancePanelCollapsed, setIsPerformancePanelCollapsed] =
     useState(false);
-  const isLabPageLoading = preview === null;
+  const isLabPageLoading = activeLabPage !== null && preview === null;
   const isDocsView = hasDocs && view === 'docs';
   const togglePropertiesPanel = useCallback(() => {
     setIsPropertiesPanelCollapsed((isCollapsed) => !isCollapsed);
@@ -486,7 +489,7 @@ function LabPageFrameContent({
       <PagesPanel
         activePage={activePage}
         getPageHref={getPageHref}
-        hasPageViewTabs
+        hasPageViewTabs={activeLabPage !== null}
         onPageChange={onPageChange}
         onPagePreload={onPagePreload}
         pages={pages}
@@ -497,7 +500,7 @@ function LabPageFrameContent({
     </div>
   );
 
-  const labView = (
+  const labView = activeLabPage ? (
     <div className="relative grid min-h-screen min-w-0 grid-cols-1 transition-[grid-template-columns] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] lg:h-full lg:grid-cols-[minmax(0,1fr)_var(--lab-properties-panel-width)]">
       <LabPanelToggleControls
         isPerformancePanelCollapsed={isPerformancePanelCollapsed}
@@ -523,7 +526,7 @@ function LabPageFrameContent({
             data-lab-component-preview
           >
             <LabPageCrossfadeSlot
-              activePage={activePage}
+              activePage={activeLabPage}
               activeClassName="pointer-events-auto absolute inset-0 flex min-w-0 items-center justify-center"
               className="relative h-full w-full min-w-0"
               content={preview}
@@ -536,7 +539,7 @@ function LabPageFrameContent({
 
         {/* Lab pages are eager; an empty slot here is only the layout-effect handoff. */}
         <LabPerformanceAnalysisPanel
-          activePage={activePage}
+          activePage={activeLabPage}
           isCollapsed={isPerformancePanelCollapsed}
           isLoading={isLabPageLoading}
           onCollapsedChange={setIsPerformancePanelCollapsed}
@@ -567,7 +570,7 @@ function LabPageFrameContent({
             >
               <div className="w-full min-w-0 max-w-full overflow-x-hidden p-4">
                 <LabPageCrossfadeSlot
-                  activePage={activePage}
+                  activePage={activeLabPage}
                   activeClassName="w-full min-w-0 max-w-full space-y-6"
                   className="relative overflow-hidden"
                   content={properties}
@@ -581,7 +584,7 @@ function LabPageFrameContent({
         </div>
       </aside>
     </div>
-  );
+  ) : null;
 
   return (
     <div className="min-h-screen bg-[#171717] lg:overflow-hidden">
@@ -594,7 +597,7 @@ function LabPageFrameContent({
           } as CSSProperties
         }
       >
-        {hasDocs ? (
+        {hasDocs && activeLabPage ? (
           <Tabs
             className="relative min-h-screen min-w-0 gap-0 lg:h-full"
             onValueChange={(nextView) => {
@@ -616,6 +619,8 @@ function LabPageFrameContent({
               value="lab"
             />
           </Tabs>
+        ) : hasDocs ? (
+          docsView
         ) : (
           labView
         )}

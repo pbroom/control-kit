@@ -6,7 +6,11 @@ import {
 } from 'react';
 import type { LabPageKey } from './shared.js';
 
-export { getLabPagePath, LAB_PAGE_NAVIGATION } from './lab-page-runtime.js';
+export {
+  getLabPagePath,
+  LAB_PAGE_NAVIGATION,
+  PAGE_NAVIGATION,
+} from './lab-page-runtime.js';
 
 type ActiveLabPageComponent = ComponentType<{
   isActive?: boolean;

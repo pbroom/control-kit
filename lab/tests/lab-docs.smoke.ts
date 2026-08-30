@@ -1,6 +1,128 @@
 import { expect, test } from '@playwright/test';
 import { collectBrowserErrors } from './lab-smoke-utils.js';
 
+const FOCUSED_PLANE_EXAMPLE_TITLES = [
+  'Saturation × brightness/value',
+  'Color grading controls — Circular controls (3-way color adjuster)',
+  'Background-position',
+  'Gradient center/origin',
+  'Pattern/texture offset',
+  'Drop-shadow offset',
+  'Image crop focal point',
+  'Anchor point inside a container',
+  'Variable-font axis pairs, e.g. weight × width',
+  'Tracking × line-height',
+  'Bezier control-point editor',
+  'Spring stiffness × damping',
+  'Motion direction/intensity',
+  'Force direction and magnitude',
+  'Gravity vector',
+  'Joystick/game controls',
+  'Fluid-flow direction',
+  'Particle emitter direction/spread',
+  'XY synth pads',
+  'Filter cutoff × resonance',
+  'Timbre morphing between parameters',
+  'Spatial-audio source positioning',
+  'Color curves control',
+  'Choosing an interpolation point between four states',
+  'Familiar ↔ novel × safe ↔ adventurous',
+  'Border radius × border width',
+  'Elevation × blur',
+  'Noise scale × intensity',
+  'Minimap viewport position',
+  'Canvas pan',
+  'Relative position within a floor plan',
+  'Light direction',
+  'Camera orbit: azimuth × elevation',
+  'Pitch × yaw',
+  'Importance × urgency',
+  'Literal ↔ creative × concise ↔ detailed',
+] as const;
+
+test('renders the focused Plane examples with executable source', async ({
+  page,
+}) => {
+  const browserErrors = await collectBrowserErrors(page);
+
+  await page.goto('/lab/plane-examples');
+  await expect(page).toHaveURL(/\/docs\/plane-examples$/);
+
+  await page.goto('/lab/plane');
+  await page
+    .getByRole('navigation', { name: 'Lab pages' })
+    .getByRole('link', { name: 'Plane Examples', exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/docs\/plane-examples$/);
+
+  await page.goto('/docs/plane-examples');
+
+  await expect(page).toHaveURL(/\/docs\/plane-examples$/);
+  await expect(
+    page.getByRole('heading', {
+      name: 'Plane Examples',
+      exact: true,
+      level: 1,
+    }),
+  ).toBeVisible();
+
+  const navigation = page.getByRole('navigation', { name: 'Lab pages' });
+  await expect(
+    navigation.getByRole('link', { name: 'Plane Examples', exact: true }),
+  ).toHaveAttribute('aria-current', 'page');
+  const navigationSections = await navigation.locator('h2').allTextContents();
+  expect(navigationSections.indexOf('Examples')).toBeLessThan(
+    navigationSections.indexOf('Primitives'),
+  );
+
+  const gallery = page.locator('[data-plane-examples-gallery]');
+  await expect(gallery).toHaveAttribute('data-plane-examples-count', '36');
+  await expect(gallery.locator('h3')).toHaveText(FOCUSED_PLANE_EXAMPLE_TITLES);
+  await expect(gallery.locator('[data-docs-example]')).toHaveCount(36);
+  expect(
+    await gallery
+      .locator('[data-docs-example]')
+      .evaluateAll((examples) =>
+        examples.every((example) =>
+          example.querySelector('[data-slot="plane"]'),
+        ),
+      ),
+  ).toBe(true);
+  await expect(gallery.locator('[data-docs-example-source]')).toHaveCount(36);
+  await expect(
+    gallery.getByRole('button', { name: 'Show code', exact: true }),
+  ).toHaveCount(36);
+
+  const firstExample = gallery.locator('[data-docs-example]').first();
+  const firstAxis = firstExample.getByRole('slider').first();
+  const initialAxisValue = await firstAxis.inputValue();
+  await firstAxis.focus();
+  await firstAxis.press('ArrowRight');
+  await expect(firstAxis).not.toHaveValue(initialAxisValue);
+
+  const firstCodeToggle = firstExample.getByRole('button', {
+    name: 'Show code',
+    exact: true,
+  });
+  await firstCodeToggle.click();
+  await expect(
+    firstExample.getByRole('button', { name: 'Hide code', exact: true }),
+  ).toBeVisible();
+  await expect(firstExample.locator('[data-docs-example-code]')).toContainText(
+    '<Plane',
+  );
+  await expect(firstExample.locator('[data-docs-example-code]')).toContainText(
+    'PlaneThumb',
+  );
+
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+  expect(browserErrors).toEqual([]);
+});
+
 test('recovers after a transient documentation module failure', async ({
   page,
 }, testInfo) => {

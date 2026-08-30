@@ -3,17 +3,18 @@ import {
   getDocsPagePath,
   getLabPagePath,
   getPrimitivePagePath,
-  LAB_PAGE_NAVIGATION,
+  PAGE_NAVIGATION,
 } from '../lab/lab-page-runtime.js';
 import { createRetryablePreloader, hasDocsPage } from './docs-registry.js';
 
 describe('documentation routes', () => {
   it('registers every documented page', () => {
     expect(
-      LAB_PAGE_NAVIGATION.filter((page) => hasDocsPage(page.value)).map(
+      PAGE_NAVIGATION.filter((page) => hasDocsPage(page.value)).map(
         (page) => page.value,
       ),
     ).toEqual([
+      'planeExamples',
       'plane',
       'input',
       'inputMulti',
@@ -32,8 +33,9 @@ describe('documentation routes', () => {
 
   it('separates low-level primitives from assembled components', () => {
     expect(
-      LAB_PAGE_NAVIGATION.map(({ value, section }) => [value, section]),
+      PAGE_NAVIGATION.map(({ value, section }) => [value, section]),
     ).toEqual([
+      ['planeExamples', 'Examples'],
       ['plane', 'Primitives'],
       ['input', 'Primitives'],
       ['inputMulti', 'Primitives'],
@@ -51,10 +53,17 @@ describe('documentation routes', () => {
   });
 
   it('builds stable Docs and Lab paths from the shared page slug', () => {
+    expect(getDocsPagePath('planeExamples')).toBe('/docs/plane-examples');
     expect(getDocsPagePath('plane')).toBe('/docs/plane');
     expect(getLabPagePath('plane')).toBe('/lab/plane');
     expect(getPrimitivePagePath('plane', 'docs')).toBe('/docs/plane');
     expect(getPrimitivePagePath('plane', 'lab')).toBe('/lab/plane');
+    expect(getPrimitivePagePath('planeExamples', 'docs')).toBe(
+      '/docs/plane-examples',
+    );
+    expect(getPrimitivePagePath('planeExamples', 'lab')).toBe(
+      '/docs/plane-examples',
+    );
     expect(getDocsPagePath('colorPlane')).toBe('/docs/color-plane');
     expect(getDocsPagePath('checkbox')).toBe('/docs/checkbox');
     expect(getDocsPagePath('input')).toBe('/docs/input-primitive');
