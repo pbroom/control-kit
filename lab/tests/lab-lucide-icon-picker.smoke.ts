@@ -34,8 +34,7 @@ test('keeps the Lucide icon picker anchored and keyboard operable', async ({
   expect(popupBox).not.toBeNull();
   expect(popupBox!.width).toBeCloseTo(triggerBox!.width, 0);
   expect(popupBox!.x).toBeCloseTo(triggerBox!.x, 0);
-  const opensBelow =
-    popupBox!.y >= triggerBox!.y + triggerBox!.height + 5;
+  const opensBelow = popupBox!.y >= triggerBox!.y + triggerBox!.height + 5;
   const opensAbove = popupBox!.y + popupBox!.height <= triggerBox!.y - 5;
   expect(opensBelow || opensAbove).toBe(true);
 
