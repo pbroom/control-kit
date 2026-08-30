@@ -376,19 +376,29 @@ test('keeps desktop performance panel layout, scrollbars, and resize behavior st
         (node) => getComputedStyle(node).scrollbarGutter,
       ),
     ).toBe('auto');
+    const maximumSettledMetricsHeight =
+      Math.max(
+        metricsTableBox!.height,
+        timelineFitBox!.height,
+        panelBoxBeforeMetricsToggle!.height,
+      ) +
+      panelViewTabsBox!.height +
+      72;
+    await expect
+      .poll(
+        async () =>
+          (await performancePanel.boundingBox())?.height ??
+          maximumSettledMetricsHeight + 1,
+        { timeout: 2_000 },
+      )
+      .toBeLessThanOrEqual(maximumSettledMetricsHeight);
     const settledMetricsPanelBox = await performancePanel.boundingBox();
     const settledMetricsShellBox = await metricsShell.boundingBox();
     expect(settledMetricsPanelBox).not.toBeNull();
     expect(settledMetricsShellBox).not.toBeNull();
     expect(settledMetricsPanelBox!.height).toBeGreaterThanOrEqual(128);
     expect(settledMetricsPanelBox!.height).toBeLessThanOrEqual(
-      Math.max(
-        metricsTableBox!.height,
-        timelineFitBox!.height,
-        panelBoxBeforeMetricsToggle!.height,
-      ) +
-        panelViewTabsBox!.height +
-        72,
+      maximumSettledMetricsHeight,
     );
     expect(settledMetricsShellBox!.height).toBeGreaterThanOrEqual(
       metricsTableBox!.height - 4,
