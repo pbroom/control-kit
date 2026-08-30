@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Field } from '@base-ui/react/field';
 import { ControlField } from '@color-kit/control-kit';
 import { PanelSection, ToggleField } from '../shared.js';
 import { createActiveLabPage } from '../create-active-lab-page.js';
@@ -29,32 +28,25 @@ type ControlFieldLabPageController = ReturnType<
 
 function renderControlFieldPreview(controller: ControlFieldLabPageController) {
   return (
-    <Field.Root className="flex w-48 flex-col gap-2">
-      <ControlField.Root
-        boundaryBehavior={controller.wrap ? 'wrap' : 'clamp'}
-        disabled={controller.disabled}
-        format={{ maximumFractionDigits: 3 }}
-        max={100}
-        min={0}
-        onValueChange={controller.setValue}
-        pageStep={10}
-        readOnly={controller.readOnly}
-        value={controller.value}
-      >
+    <ControlField.Root
+      boundaryBehavior={controller.wrap ? 'wrap' : 'clamp'}
+      className="w-32"
+      disabled={controller.disabled}
+      format={{ maximumFractionDigits: 3 }}
+      max={100}
+      min={0}
+      onValueChange={controller.setValue}
+      pageStep={10}
+      readOnly={controller.readOnly}
+      value={controller.value}
+    >
+      <ControlField.Group>
         <ControlField.ScrubArea>
-          <ControlField.Label>Value</ControlField.Label>
-          <ControlField.ScrubAreaCursor />
+          <span aria-hidden="true">V</span>
         </ControlField.ScrubArea>
-        <ControlField.Group>
-          <ControlField.Decrement aria-label="Decrease value" />
-          <ControlField.Input />
-          <ControlField.Increment aria-label="Increase value" />
-        </ControlField.Group>
-        <ControlField.Description>
-          Type <code>* 2</code>, then press Enter.
-        </ControlField.Description>
-      </ControlField.Root>
-    </Field.Root>
+        <ControlField.Input aria-label="Value" />
+      </ControlField.Group>
+    </ControlField.Root>
   );
 }
 

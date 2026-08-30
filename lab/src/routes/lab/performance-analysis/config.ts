@@ -315,7 +315,7 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
     label: 'Control Field',
     primitiveStructure: primitiveStructure(
       'ControlField',
-      'A Base UI number field composition with a scrub label, grouped input, and optional step buttons.',
+      'A compact Base UI number field composition with an inline scrub handle and optional affix.',
       [
         {
           id: 'control-field-root',
@@ -342,14 +342,14 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
         },
         {
           id: 'control-field-scrub-area',
-          label: 'Scrub area',
-          detail: 'Pointer drag target composed around the visible label.',
+          label: 'Scrub handle',
+          detail: 'Inline pointer drag target for direct value adjustment.',
           color: '#38bdf8',
           width: 1.2,
           height: 0.52,
           depth: 0.18,
           offsetX: -1.64,
-          offsetY: 0.72,
+          offsetY: 0,
           offsetZ: 0.34,
           opacity: 0.94,
         },

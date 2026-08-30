@@ -6,34 +6,38 @@ A composable value control built on Base UI Field and Number Field. Control Fiel
 
 ## Usage
 
-Compose the semantic field wrapper from Base UI with Control Field's number-field parts:
+The default composition is a compact value surface with a leading scrub handle and no stepper buttons, visible label, or description:
 
 ```tsx
-import { Field } from '@base-ui/react/field';
 import { ControlField } from '@color-kit/control-kit';
 
-<Field.Root>
-  <ControlField.Root value={value} onValueChange={setValue} min={0} max={100}>
+<ControlField.Root
+  className="w-32"
+  value={value}
+  onValueChange={setValue}
+  min={0}
+  max={100}
+>
+  <ControlField.Group>
     <ControlField.ScrubArea>
-      <ControlField.Label>Opacity</ControlField.Label>
-      <ControlField.ScrubAreaCursor />
+      <span aria-hidden="true">V</span>
     </ControlField.ScrubArea>
-    <ControlField.Group>
-      <ControlField.Decrement aria-label="Decrease opacity" />
-      <ControlField.Input />
-      <ControlField.Increment aria-label="Increase opacity" />
-    </ControlField.Group>
-  </ControlField.Root>
-</Field.Root>;
+    <ControlField.Input aria-label="Opacity" />
+    <ControlField.Affix aria-hidden="true">%</ControlField.Affix>
+  </ControlField.Group>
+</ControlField.Root>;
 ```
 
 ## Composition
 
-- Base UI `Field.Root` owns labeling, description, validation, and error state.
 - `ControlField.Root` owns the numeric value, stepping, formatting, form value, and Control Kit additions.
-- `ControlField.ScrubArea` turns its contents into the drag target. Put the label here when the label should also scrub.
-- `ControlField.Group` arranges the editable input with optional decrement and increment buttons.
+- `ControlField.Group` is the compact value surface.
+- `ControlField.ScrubArea` is the leading drag target. Replace `V` with a property marker or icon when useful.
 - `ControlField.Input` keeps ordinary locale-aware number entry in Base UI and switches to an expression draft only when expression syntax is entered.
+- `ControlField.Affix` renders optional non-interactive unit or status content.
+- `ControlField.Increment`, `ControlField.Decrement`, `ControlField.Label`, and `ControlField.Description` are optional composition parts rather than default anatomy.
+
+Wrap the control in Base UI `Field.Root` when the interface needs a visible label, description, validation, or error message.
 
 ## Examples
 
@@ -64,13 +68,14 @@ When `boundaryBehavior="wrap"`, Control Field normalizes changes itself and omit
 | `ControlField.Root`                                | `value`, `defaultValue`, `onValueChange`, `onValueCommitted`, `min`, `max`, `step`, `smallStep`, `largeStep`, `format`, `locale`, `name`, `disabled`, `readOnly`, `required`, `allowWheelScrub`, `snapOnStep` |
 | `ControlField.ScrubArea`                           | `direction`, `pixelSensitivity`, `teleportDistance`, `render`                                                                                                                                                 |
 | `ControlField.Input`                               | Native input props, `render`, and Base UI state-based `className`                                                                                                                                             |
+| `ControlField.Affix`                               | Native `span` props                                                                                                                                                                                           |
 | `ControlField.Increment`, `ControlField.Decrement` | Native button props, `render`, and Base UI state-based `className`                                                                                                                                            |
 
 The wrapper forwards the corresponding Base UI props unless Control Kit documents an addition above. See the [Base UI Number Field API](https://base-ui.com/react/components/number-field#api-reference) and [Field API](https://base-ui.com/react/components/field#api-reference) for the complete upstream contracts.
 
 ## Accessibility
 
-Base UI owns field association, keyboard stepping, validation, form serialization, disabled and read-only behavior, and scrub semantics. Keep a visible `ControlField.Label` inside a Base UI `Field.Root`. Page Up and Page Down use `pageStep`; Home and End move to finite bounds. Expressions use the same text input and commit model rather than creating a second focus target.
+Base UI owns keyboard stepping, validation, form serialization, disabled and read-only behavior, and scrub semantics. Give `ControlField.Input` an accessible name directly when the compact control stands alone. Use `ControlField.Label` inside a Base UI `Field.Root` when a visible label is part of the composition. Page Up and Page Down use `pageStep`; Home and End move to finite bounds. Expressions use the same text input and commit model rather than creating a second focus target.
 
 ## Legacy input
 

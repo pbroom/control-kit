@@ -320,7 +320,7 @@ export const ControlFieldInput = React.forwardRef<
       aria-invalid={expressionInvalid || props['aria-invalid'] || undefined}
       className={(state) =>
         cn(
-          'h-6 min-w-0 flex-1 bg-transparent px-2 text-right text-xs tabular-nums text-[color:var(--ck-foreground,#fff)] outline-none placeholder:text-[color:var(--ck-foreground,#fff)]/35 disabled:cursor-not-allowed disabled:opacity-45',
+          'h-full min-w-0 flex-1 cursor-default bg-transparent py-0 pl-1 pr-0 font-sans text-[11px] leading-4 tabular-nums text-[color:var(--ck-foreground,#fff)] outline-none placeholder:text-[color:var(--ck-foreground,#fff)]/35 focus:cursor-text disabled:cursor-not-allowed disabled:opacity-45',
           typeof className === 'function' ? className(state) : className,
         )
       }
@@ -444,7 +444,7 @@ export const ControlFieldGroup = React.forwardRef<
       data-slot="control-field-group"
       className={(state) =>
         cn(
-          'flex h-6 min-w-0 items-stretch overflow-hidden rounded-md border border-[color:var(--ck-border,#4c4c4c)] bg-[color:var(--ck-surface,#2c2c2c)] transition-colors focus-within:border-[color:var(--ck-accent,#0d99ff)] data-[disabled]:opacity-50',
+          'relative box-border flex h-6 min-h-6 w-full min-w-0 items-center rounded-[4px] border border-transparent bg-[var(--ck-surface,#383838)] p-0 font-sans text-[11px] leading-4 text-[color:var(--ck-foreground,#fff)] transition-colors [&:hover:not(:focus-within)]:border-[color:var(--ck-border,#4c4c4c)] focus-within:border-[color:var(--ck-border-focus,#5288db)] data-[invalid]:border-[color:var(--ck-border-invalid,#ff4e4e)] data-[scrubbing]:border-[color:var(--ck-border-scrub,#97c1ef)] data-[disabled]:opacity-45',
           typeof className === 'function' ? className(state) : className,
         )
       }
@@ -464,7 +464,7 @@ export const ControlFieldScrubArea = React.forwardRef<
       data-slot="control-field-scrub-area"
       className={(state) =>
         cn(
-          'inline-flex w-fit cursor-ew-resize touch-none select-none items-center gap-1 text-xs font-medium text-[color:var(--ck-foreground,#fff)]/65 data-[disabled]:cursor-not-allowed data-[disabled]:opacity-45',
+          'flex h-full w-6 shrink-0 cursor-ew-resize touch-none select-none items-center justify-center font-medium tabular-nums text-[color:var(--ck-foreground,#fff)]/55 data-[disabled]:cursor-not-allowed data-[disabled]:opacity-45',
           typeof className === 'function' ? className(state) : className,
         )
       }
@@ -486,6 +486,25 @@ export const ControlFieldScrubAreaCursor = React.forwardRef<
           typeof className === 'function' ? className(state) : className,
         )
       }
+    />
+  );
+});
+
+export interface ControlFieldAffixProps extends React.HTMLAttributes<HTMLSpanElement> {}
+
+export const ControlFieldAffix = React.forwardRef<
+  HTMLSpanElement,
+  ControlFieldAffixProps
+>(function ControlFieldAffix({ className, ...props }, ref) {
+  return (
+    <span
+      ref={ref}
+      {...props}
+      data-slot="control-field-affix"
+      className={cn(
+        'flex h-full w-5 shrink-0 select-none items-center justify-center text-[11px] font-medium leading-4 text-[color:var(--ck-foreground,#fff)]/50',
+        className,
+      )}
     />
   );
 });
@@ -601,6 +620,7 @@ export const ControlField = {
   ScrubAreaCursor: ControlFieldScrubAreaCursor,
   Group: ControlFieldGroup,
   Input: ControlFieldInput,
+  Affix: ControlFieldAffix,
   Increment: ControlFieldIncrement,
   Decrement: ControlFieldDecrement,
 };

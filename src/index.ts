@@ -30,6 +30,7 @@ export type {
 } from './tooltip.js';
 export {
   ControlField,
+  ControlFieldAffix,
   ControlFieldDecrement,
   ControlFieldDescription,
   ControlFieldError,
@@ -42,6 +43,7 @@ export {
   ControlFieldScrubAreaCursor,
 } from './control-field.js';
 export type {
+  ControlFieldAffixProps,
   ControlFieldBoundaryBehavior,
   ControlFieldCustomEventDetails,
   ControlFieldCustomReason,
