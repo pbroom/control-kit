@@ -64,27 +64,71 @@ Positioning props pass through to the Base UI positioner. This example opens abo
 
 <!-- demo:placement -->
 
-## API
+## API reference
 
-### Control Kit additions
+These tables describe the current Lab wrapper. Menu is not a stable Control Kit package API; unlisted props follow Base UI unless the wrapper changes them below.
 
-| Part                     | Addition                      | Purpose                                                                                  |
-| ------------------------ | ----------------------------- | ---------------------------------------------------------------------------------------- |
-| `DropdownMenuContent`    | `variant="ui3"`               | Applies the Control Kit menu surface, spacing, and open animation.                       |
-| `DropdownMenuItem`       | `variant`, `density`, `label` | Applies item styling and supplies a typeahead label when visible text is not sufficient. |
-| `DropdownMenuSubTrigger` | `variant`, `density`          | Matches submenu triggers to the chosen item treatment.                                   |
-| `DropdownMenuSubContent` | `variant="ui3"`               | Matches nested content to the UI3 surface.                                               |
+### DropdownMenu (current Lab contract)
+
+Owns open state and coordinates the trigger with the popup.
+
+<!-- props:dropdown-menu -->
+
+### DropdownMenuTrigger (current Lab contract)
+
+Opens the menu and can compose its behavior onto a supplied button.
+
+<!-- props:dropdown-menu-trigger -->
+
+### DropdownMenuContent (current Lab contract)
+
+Portals and positions the command surface. `variant="ui3"` applies the Control Kit surface, spacing, and open animation.
+
+<!-- props:dropdown-menu-content -->
+
+### DropdownMenuItem (current Lab contract)
+
+Runs a command and closes the menu by default. The Lab additions provide item variants, density, and normalized typeahead labels.
+
+<!-- props:dropdown-menu-item -->
+
+### DropdownMenuCheckboxItem (current Lab contract)
+
+Represents an on/off setting inside the command menu.
+
+<!-- props:dropdown-menu-checkbox-item -->
+
+### DropdownMenuRadioGroup (current Lab contract)
+
+Owns the selected value for a related set of radio items.
+
+<!-- props:dropdown-menu-radio-group -->
+
+### DropdownMenuRadioItem (current Lab contract)
+
+Selects one value from its surrounding radio group.
+
+<!-- props:dropdown-menu-radio-item -->
+
+### DropdownMenuSub (current Lab contract)
+
+Owns the open state for a nested menu.
+
+<!-- props:dropdown-menu-sub -->
+
+### DropdownMenuSubTrigger (current Lab contract)
+
+Opens a nested menu and matches the selected item treatment.
+
+<!-- props:dropdown-menu-sub-trigger -->
+
+### DropdownMenuSubContent (current Lab contract)
+
+Positions the nested command surface and accepts the same visual and positioning inputs as `DropdownMenuContent`.
+
+<!-- props:dropdown-menu-sub-content -->
 
 The Lab wrapper also normalizes keyboard navigation and typeahead across scrollable content and nested menus.
-
-### Important forwarded props
-
-| Part                  | Props                                                                             |
-| --------------------- | --------------------------------------------------------------------------------- |
-| `DropdownMenu`        | `open`, `defaultOpen`, `onOpenChange`, `modal`                                    |
-| `DropdownMenuTrigger` | `disabled`, `render` through the wrapper's `asChild` composition                  |
-| `DropdownMenuContent` | `side`, `align`, `sideOffset`, `collisionAvoidance`, `collisionPadding`, `sticky` |
-| Items                 | `disabled`, `closeOnClick`, selection and checked-state callbacks                 |
 
 The wrapper forwards the corresponding Base UI props unless Control Kit documents a changed contract above. See the [Base UI Menu API](https://base-ui.com/react/components/menu#api-reference) for the complete upstream contract.
 

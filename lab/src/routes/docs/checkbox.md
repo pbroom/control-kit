@@ -65,28 +65,13 @@ Use a `fieldset` and `legend` when several checkboxes describe one set of option
 
 <!-- demo:group -->
 
-## API
+## API reference
 
-### Control Kit contract
+### Checkbox
 
-| Prop                 | Default | Purpose                                              |
-| -------------------- | ------- | ---------------------------------------------------- |
-| `checked`            | —       | Required controlled checked state.                   |
-| `onCheckedChange`    | —       | Reports the next state and Base UI event details.    |
-| `children`           | —       | Renders the integrated visible and accessible label. |
-| `className`          | —       | Adds classes to the interactive root.                |
-| `indicatorClassName` | —       | Adds classes to the mounted indicator.               |
-| `labelClassName`     | —       | Adds classes to the label span.                      |
+Renders a Base UI Checkbox root with an integrated indicator and optional label. `CheckboxProps` includes the corresponding Base UI root props except uncontrolled checked state and the native `onChange` handler.
 
-### Important forwarded props
-
-| Props                                     | Purpose                                                                |
-| ----------------------------------------- | ---------------------------------------------------------------------- |
-| `disabled`, `readOnly`, `required`        | Configure interaction and semantic state.                              |
-| `name`, `value`, `uncheckedValue`, `form` | Connect the hidden input to native form submission.                    |
-| `id`, `inputRef`                          | Address or access the hidden input.                                    |
-| `aria-label`, `aria-labelledby`           | Name a checkbox when it has no text children.                          |
-| `render`, `nativeButton`                  | Replace the root element when a composition needs different semantics. |
+<!-- props:checkbox -->
 
 The wrapper forwards the corresponding Base UI Root props unless Control Kit documents a changed contract above. Control Kit requires `checked`, so Base UI's `defaultChecked` is not a standalone uncontrolled path on this component. See the [Base UI Checkbox API](https://base-ui.com/react/components/checkbox#api-reference) for the complete upstream contract and event detail types.
 

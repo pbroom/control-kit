@@ -79,29 +79,35 @@ Control Kit defaults the provider to a `450` ms initial delay and a `300` ms han
 </TooltipProvider>
 ```
 
-## API
+## API reference
 
-### Control Kit additions
+The wrappers forward the corresponding Base UI props unless Control Kit documents a changed default or addition. See the [Base UI Tooltip API reference](https://base-ui.com/react/components/tooltip#api-reference) for the complete upstream contract.
 
-| Prop                  | Part             | Default | Purpose                                                 |
-| --------------------- | ---------------- | ------- | ------------------------------------------------------- |
-| `highContrast`        | `TooltipContent` | `true`  | Selects the solid inverse or surfaced visual treatment. |
-| `showPointer`         | `TooltipContent` | `true`  | Shows or hides the decorative pointer.                  |
-| `keepMounted`         | `TooltipContent` | `false` | Keeps the portal contents mounted while closed.         |
-| `positionerClassName` | `TooltipContent` | —       | Styles the composed Base UI positioner.                 |
+### TooltipProvider
 
-Control Kit changes the provider defaults to `450` ms for `delay` and `300` ms for `timeout`. `TooltipContent` also composes Base UI's portal, positioner, popup, and arrow into one part.
+Coordinates delay and pointer handoff across related tooltips. It does not render an HTML element.
 
-### Important forwarded props
+<!-- props:tooltip-provider -->
 
-| Part              | Props                                                                             |
-| ----------------- | --------------------------------------------------------------------------------- |
-| `TooltipProvider` | `delay`, `closeDelay`, `timeout`                                                  |
-| `Tooltip`         | `open`, `defaultOpen`, `onOpenChange`, `disableHoverablePopup`, `trackCursorAxis` |
-| `TooltipTrigger`  | `render`, `delay`, `closeDelay`, `closeOnClick`, `disabled`                       |
-| `TooltipContent`  | `side`, `align`, `sideOffset`, `collisionAvoidance`, `collisionPadding`, `sticky` |
+Control Kit changes the provider defaults to `450` ms for `delay` and `300` ms for `timeout`.
 
-The wrapper forwards the corresponding Base UI props unless Control Kit documents a changed default or addition above. See the [Base UI Tooltip API reference](https://base-ui.com/react/components/tooltip#api-reference) for the complete upstream contract.
+### Tooltip
+
+Owns controlled or uncontrolled open state. It does not render an HTML element.
+
+<!-- props:tooltip -->
+
+### TooltipTrigger
+
+Composes tooltip interaction onto a trigger and renders a `button` by default. Control Kit adds `data-slot="tooltip-trigger"`.
+
+<!-- props:tooltip-trigger -->
+
+### TooltipContent
+
+Composes Base UI's portal, positioner, popup, and optional arrow into one styled part.
+
+<!-- props:tooltip-content -->
 
 ## Accessibility
 

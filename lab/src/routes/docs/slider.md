@@ -70,18 +70,13 @@ Style the root directly and target the generated thumb with `data-color-slider-t
 />
 ```
 
-## API
+## API reference
 
-### Important props
+### ColorSlider
 
-| Prop                              | Purpose                                                  |
-| --------------------------------- | -------------------------------------------------------- |
-| `channel`                         | Selects lightness, chroma, hue, or alpha.                |
-| `requested` / `onChangeRequested` | Controls standalone requested color state.               |
-| `range`                           | Overrides the channel's numeric domain.                  |
-| `orientation`                     | Sets horizontal or vertical interaction and semantics.   |
-| `aria-label` / `aria-valuetext`   | Overrides the generated channel name or announced value. |
-| `dragEpsilon` / `maxPointerRate`  | Tunes minimum pointer movement and update frequency.     |
+Controls one color channel and renders a focusable `div` with slider semantics.
+
+<!-- props:color-slider -->
 
 `ColorSlider` accepts native `div` styling and semantic props except `onChange`. Its pointer and keyboard handlers remain component-owned.
 

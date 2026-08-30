@@ -82,31 +82,33 @@ const [tab, setTab] = React.useState('canvas');
 </Tabs>;
 ```
 
-## API
+## API reference
 
-### Control Kit additions
+Control Kit does not add behavioral props to the Radix contract. It applies the default layout and visual states, and each part accepts `className` plus the native props of its rendered element. See the [Radix Tabs API reference](https://www.radix-ui.com/primitives/docs/components/tabs#api-reference) for the complete upstream contract.
 
-Control Kit does not add behavioral props. It applies the default layout and visual states and adds `data-slot` attributes to all four parts:
+### Tabs
 
-| Part          | Data slot      |
-| ------------- | -------------- |
-| `Tabs`        | `tabs`         |
-| `TabsList`    | `tabs-list`    |
-| `TabsTrigger` | `tabs-trigger` |
-| `TabsContent` | `tabs-content` |
+Owns the selected value and keyboard-navigation behavior. Renders a `div` with `data-slot="tabs"`.
 
-Each part accepts `className` for composition-specific layout adjustments.
+<!-- props:tabs -->
 
-### Important forwarded props
+### TabsList
 
-| Part          | Props                                                                            |
-| ------------- | -------------------------------------------------------------------------------- |
-| `Tabs`        | `value`, `defaultValue`, `onValueChange`, `activationMode`, `dir`, `orientation` |
-| `TabsList`    | `loop`, `asChild`, native `div` props                                            |
-| `TabsTrigger` | `value`, `disabled`, `asChild`, native button props                              |
-| `TabsContent` | `value`, `forceMount`, `asChild`, native `div` props                             |
+Groups the triggers and establishes roving keyboard focus. Renders a `div` with `data-slot="tabs-list"`.
 
-See the [Radix Tabs API reference](https://www.radix-ui.com/primitives/docs/components/tabs#api-reference) for the complete upstream contract.
+<!-- props:tabs-list -->
+
+### TabsTrigger
+
+Selects the content with the matching value. Renders a `button` with `data-slot="tabs-trigger"`.
+
+<!-- props:tabs-trigger -->
+
+### TabsContent
+
+Renders the panel associated with a trigger value. Renders a `div` with `data-slot="tabs-content"`.
+
+<!-- props:tabs-content -->
 
 ## Accessibility
 

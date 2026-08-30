@@ -67,29 +67,97 @@ Expression drafts remain editable until Enter or blur. Escape restores the commi
 
 Pass `expressionResolver={null}` to keep Base UI's numeric-only input, or supply a resolver for domain syntax such as units or design tokens.
 
-## API
+## API reference
 
-### Control Kit additions
+### ControlField.Root
 
-| Prop                 | Part                | Default                      | Purpose                                                                      |
-| -------------------- | ------------------- | ---------------------------- | ---------------------------------------------------------------------------- |
-| `expressionResolver` | `ControlField.Root` | Built-in arithmetic resolver | Resolves a non-numeric draft to a number. Use `null` for numeric-only entry. |
-| `pageStep`           | `ControlField.Root` | `10`                         | Value added or removed by Page Up and Page Down.                             |
-| `boundaryBehavior`   | `ControlField.Root` | `'clamp'`                    | Uses Base UI bounds or cycles stepped values with `'wrap'`.                  |
+Groups every part and owns the value, number formatting, stepping, form state, expression handling, and boundary policy.
 
-When `boundaryBehavior="wrap"`, Control Field normalizes changes itself and omits native `min` and `max` constraints from Base UI so stepping and scrubbing can cross the boundary.
+<!-- props:control-field-root -->
 
-### Important forwarded props
+When `boundaryBehavior="wrap"`, Control Field normalizes changes itself and omits native `min` and `max` constraints from Base UI so stepping and scrubbing can cross the boundary. The root also forwards native `div` props and the remaining Base UI Number Field Root contract.
 
-| Part                                               | Props                                                                                                                                                                                                         |
-| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ControlField.Root`                                | `value`, `defaultValue`, `onValueChange`, `onValueCommitted`, `min`, `max`, `step`, `smallStep`, `largeStep`, `format`, `locale`, `name`, `disabled`, `readOnly`, `required`, `allowWheelScrub`, `snapOnStep` |
-| `ControlField.ScrubArea`                           | `direction`, `pixelSensitivity`, `teleportDistance`, `render`                                                                                                                                                 |
-| `ControlField.Input`                               | Native input props, `render`, and Base UI state-based `className`                                                                                                                                             |
-| `ControlField.Affix`                               | Native `span` props                                                                                                                                                                                           |
-| `ControlField.Increment`, `ControlField.Decrement` | Native button props, `render`, and Base UI state-based `className`                                                                                                                                            |
+### ControlField.Group
 
-The wrapper forwards the corresponding Base UI props unless Control Kit documents an addition above. See the [Base UI Number Field API](https://base-ui.com/react/components/number-field#api-reference) and [Field API](https://base-ui.com/react/components/field#api-reference) for the complete upstream contracts.
+Renders the compact value surface that arranges the scrub area, input, affix, and optional step buttons.
+
+<!-- props:control-field-group -->
+
+The group forwards native `div` props.
+
+### ControlField.ScrubArea
+
+Renders the leading pointer target used to drag the value.
+
+<!-- props:control-field-scrub-area -->
+
+The scrub area forwards native `span` props.
+
+### ControlField.ScrubAreaCursor
+
+Renders an optional cursor that follows Base UI's pointer-lock scrubbing state.
+
+<!-- props:control-field-scrub-area-cursor -->
+
+The scrub cursor forwards native `span` props.
+
+### ControlField.Input
+
+Renders the locale-aware number input and temporarily owns expression drafts when a resolver is enabled.
+
+<!-- props:control-field-input -->
+
+The input forwards native input props and the remaining Base UI Number Field Input contract.
+
+### ControlField.Affix
+
+Renders non-interactive unit or status content next to the input.
+
+<!-- props:control-field-affix -->
+
+The affix forwards native `span` props.
+
+### ControlField.Increment
+
+Renders an optional button that increases the value.
+
+<!-- props:control-field-increment -->
+
+The default child is `+`. The increment part forwards native button props and the remaining Base UI Number Field Increment contract.
+
+### ControlField.Decrement
+
+Renders an optional button that decreases the value.
+
+<!-- props:control-field-decrement -->
+
+The default child is `−`. The decrement part forwards native button props and the remaining Base UI Number Field Decrement contract.
+
+### ControlField.Label
+
+Renders an optional visible label when Control Field participates in a Base UI Field composition.
+
+<!-- props:control-field-label -->
+
+The label forwards native label props and the remaining Base UI Field Label contract.
+
+### ControlField.Description
+
+Renders optional guidance associated with the field.
+
+<!-- props:control-field-description -->
+
+The description forwards native paragraph props and the remaining Base UI Field Description contract.
+
+### ControlField.Error
+
+Renders an optional error message when the field matches the requested validity state.
+
+<!-- props:control-field-error -->
+
+The error forwards native `div` props and the remaining Base UI Field Error contract.
+
+See the [Base UI Number Field API](https://base-ui.com/react/components/number-field#api-reference) and [Field API](https://base-ui.com/react/components/field#api-reference) for the complete upstream contracts.
 
 ## Accessibility
 

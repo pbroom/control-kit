@@ -58,21 +58,15 @@ Selection and disabled state remain independent. Hover, focus, and active feedba
 
 <!-- demo:states -->
 
-## API
+## API reference
 
-### Current Lab contract
+### ToggleButton (current Lab contract)
 
-| Input              | Purpose                                                 |
-| ------------------ | ------------------------------------------------------- |
-| `selected`         | Controls the on or off state.                           |
-| `onSelectedChange` | Receives the next selected state after activation.      |
-| `disabled`         | Applies native disabled behavior.                       |
-| `density`          | Selects compact or comfortable dimensions.              |
-| `content`          | Shows an icon, an icon with label, or a label.          |
-| `label`            | Supplies visible text or the icon-only accessible name. |
-| `interactionState` | Forces hover or pressed visuals for Lab review.         |
+These inputs describe the current Lab preview and are not a stable package API.
 
-These inputs describe the current Lab preview and are not a stable package API. `interactionState` is a visual review override; consumer interaction should use native hover, active, and focus-visible states.
+<!-- props:toggle-button -->
+
+`interactionState` is a visual review override; consumer interaction should use native hover, active, and focus-visible states.
 
 ### Data attributes
 

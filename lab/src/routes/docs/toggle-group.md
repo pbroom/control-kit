@@ -67,25 +67,21 @@ const [view, setView] = React.useState<string | undefined>('grid');
 </ToggleGroup>;
 ```
 
-## API
+## API reference
 
-### Control Kit additions
+### ToggleGroup
 
-| Prop      | Part          | Default     | Purpose                                                                  |
-| --------- | ------------- | ----------- | ------------------------------------------------------------------------ |
-| `type`    | `ToggleGroup` | `'single'`  | Selects scalar single-selection or array-based multiple-selection state. |
-| `variant` | `ToggleGroup` | `'default'` | Selects the surfaced or outlined visual treatment.                       |
-| `size`    | Both          | `'default'` | Selects `sm`, `default`, or `lg` sizing.                                 |
-| `loop`    | `ToggleGroup` | `true`      | Controls whether arrow-key focus wraps from the last item to the first.  |
+Provides shared selection and roving focus to its items. It renders a Base UI Toggle Group and includes native `div` props.
+
+<!-- props:toggle-group -->
 
 In single mode, Control Kit converts Base UI's array state to a string or `undefined` for `value`, `defaultValue`, and `onValueChange`.
 
-### Important forwarded props
+### ToggleGroupItem
 
-| Part              | Props                                                   |
-| ----------------- | ------------------------------------------------------- |
-| `ToggleGroup`     | `disabled`, `orientation`, `render`, native `div` props |
-| `ToggleGroupItem` | `value`, `disabled`, `render`, native button props      |
+Renders a styled Base UI Toggle button and joins the nearest group through its `value`. It includes native button props.
+
+<!-- props:toggle-group-item -->
 
 See the [Base UI Toggle Group API](https://base-ui.com/react/components/toggle-group#api-reference) and [Base UI Toggle API](https://base-ui.com/react/components/toggle#api-reference) for the complete upstream contracts.
 
