@@ -24,6 +24,7 @@ import {
   useState,
   type CSSProperties,
   type MouseEvent as ReactMouseEvent,
+  type ReactElement,
   type ReactNode,
 } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -40,7 +41,7 @@ import type {
 } from './lab-page-runtime.js';
 
 const LAB_PANEL_SCROLL_AREA_CLASS =
-  'ck-lab-properties-scroll-area h-full w-full min-w-0 max-w-full overflow-hidden [&>[data-radix-scroll-area-viewport]]:w-full [&>[data-radix-scroll-area-viewport]]:min-w-0 [&>[data-radix-scroll-area-viewport]]:max-w-full [&>[data-radix-scroll-area-viewport]]:overflow-x-hidden [&>[data-radix-scroll-area-viewport]>div]:!block [&>[data-radix-scroll-area-viewport]>div]:!w-full [&>[data-radix-scroll-area-viewport]>div]:!min-w-0 [&>[data-radix-scroll-area-viewport]>div]:!max-w-full';
+  'ck-lab-properties-scroll-area h-full w-full min-w-0 max-w-full overflow-hidden [&>[data-slot=scroll-area-viewport]]:w-full [&>[data-slot=scroll-area-viewport]]:min-w-0 [&>[data-slot=scroll-area-viewport]]:max-w-full [&>[data-slot=scroll-area-viewport]]:overflow-x-hidden [&>[data-slot=scroll-area-viewport]>[data-slot=scroll-area-content]]:!block [&>[data-slot=scroll-area-viewport]>[data-slot=scroll-area-content]]:!w-full [&>[data-slot=scroll-area-viewport]>[data-slot=scroll-area-content]]:!min-w-0 [&>[data-slot=scroll-area-viewport]>[data-slot=scroll-area-content]]:!max-w-full';
 const LAB_PAGE_CONTENT_CROSSFADE_MS = 72;
 
 type LabPageCrossfadeItem = {
@@ -273,19 +274,25 @@ function PrimitivePageViewTabs({
 }) {
   return (
     <TabsList
+      activateOnFocus={false}
       aria-label="Page view"
       className="absolute top-4 left-1/2 z-50 -translate-x-1/2"
     >
       {(['docs', 'lab'] as const).map((pageView) => (
-        <TabsTrigger asChild key={pageView} value={pageView}>
-          <a
-            href={getViewHref(pageView)}
-            onClick={(event) => {
-              if (shouldHandlePageLinkInApp(event)) event.preventDefault();
-            }}
-          >
-            {pageView === 'docs' ? 'Docs' : 'Lab'}
-          </a>
+        <TabsTrigger
+          key={pageView}
+          nativeButton={false}
+          render={
+            <a
+              href={getViewHref(pageView)}
+              onClick={(event) => {
+                if (shouldHandlePageLinkInApp(event)) event.preventDefault();
+              }}
+            />
+          }
+          value={pageView}
+        >
+          {pageView === 'docs' ? 'Docs' : 'Lab'}
         </TabsTrigger>
       ))}
     </TabsList>
@@ -589,7 +596,6 @@ function LabPageFrameContent({
       >
         {hasDocs ? (
           <Tabs
-            activationMode="manual"
             className="relative min-h-screen min-w-0 gap-0 lg:h-full"
             onValueChange={(nextView) => {
               if (nextView === 'docs' || nextView === 'lab') {
@@ -600,19 +606,15 @@ function LabPageFrameContent({
           >
             <PrimitivePageViewTabs getViewHref={getViewHref} />
             <TabsContent
-              asChild
               className="!rounded-none !border-0 !bg-transparent !p-0 !text-inherit focus-visible:!ring-0"
+              render={docsView as ReactElement}
               value="docs"
-            >
-              {docsView}
-            </TabsContent>
+            />
             <TabsContent
-              asChild
               className="!rounded-none !border-0 !bg-transparent !p-0 !text-inherit focus-visible:!ring-0"
+              render={labView as ReactElement}
               value="lab"
-            >
-              {labView}
-            </TabsContent>
+            />
           </Tabs>
         ) : (
           labView

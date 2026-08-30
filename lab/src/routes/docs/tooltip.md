@@ -11,7 +11,7 @@ A styled tooltip for short, descriptive labels. Built on [Base UI Tooltip](https
 1. Install Control Kit and its peer dependencies:
 
    ```bash
-   pnpm add @color-kit/control-kit @base-ui/react radix-ui
+   pnpm add @color-kit/control-kit @base-ui/react
    ```
 
 2. Add the package source to Tailwind's content graph:

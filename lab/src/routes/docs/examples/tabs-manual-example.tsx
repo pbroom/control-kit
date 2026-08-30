@@ -8,12 +8,8 @@ import {
 export function TabsManualExample() {
   return (
     <div className="flex min-h-[280px] items-center justify-center p-8">
-      <Tabs
-        activationMode="manual"
-        className="w-full max-w-sm"
-        defaultValue="local"
-      >
-        <TabsList aria-label="Storage location">
+      <Tabs className="w-full max-w-sm" defaultValue="local">
+        <TabsList activateOnFocus={false} aria-label="Storage location">
           <TabsTrigger value="local">Local</TabsTrigger>
           <TabsTrigger value="cloud">Cloud</TabsTrigger>
           <TabsTrigger value="archive">Archive</TabsTrigger>

@@ -1,6 +1,6 @@
 # Tabs
 
-A styled tab set for switching between related sections of content. Built on [Radix Tabs](https://www.radix-ui.com/primitives/docs/components/tabs); Control Kit adds its compact visual treatment and stable styling hooks.
+A styled tab set for switching between related sections of content. Built on [Base UI Tabs](https://base-ui.com/react/components/tabs); Control Kit adds its compact visual treatment and stable styling hooks.
 
 <!-- demo:basic -->
 
@@ -11,7 +11,7 @@ A styled tab set for switching between related sections of content. Built on [Ra
 1. Install Control Kit and its peer dependencies:
 
    ```bash
-   pnpm add @color-kit/control-kit @base-ui/react radix-ui
+   pnpm add @color-kit/control-kit @base-ui/react
    ```
 
 2. Add the package source to Tailwind's content graph:
@@ -55,7 +55,7 @@ import {
 
 ### Manual activation
 
-Set `activationMode="manual"` when moving focus should not switch potentially expensive content. Arrow keys move focus; Space or Enter activates the focused tab.
+Set `activateOnFocus={false}` on `TabsList` when moving focus should not switch potentially expensive content. Arrow keys move focus; Space or Enter activates the focused tab.
 
 <!-- demo:manual -->
 
@@ -73,7 +73,7 @@ Use `value` and `onValueChange` when another part of the application owns the ac
 
 ## API reference
 
-Control Kit does not add behavioral props to the Radix contract. It applies the default layout and visual states, and each part accepts `className` plus the native props of its rendered element. See the [Radix Tabs API reference](https://www.radix-ui.com/primitives/docs/components/tabs#api-reference) for the complete upstream contract.
+Control Kit applies the default layout and visual states and keeps automatic activation as its default by setting `activateOnFocus` on `TabsList` to `true`. Every part otherwise accepts the corresponding Base UI props. See the [Base UI Tabs API reference](https://base-ui.com/react/components/tabs#api-reference) for the complete upstream contract.
 
 ### Tabs
 
@@ -105,4 +105,4 @@ The list, triggers, and panels use the tabs pattern and maintain the required re
 
 ## Source
 
-[Implementation](https://github.com/pbroom/control-kit/blob/main/src/tabs.tsx) · [Tests](https://github.com/pbroom/control-kit/blob/main/__tests__/tabs.test.tsx) · [Radix Tabs API](https://www.radix-ui.com/primitives/docs/components/tabs#api-reference) · [Issues](https://github.com/pbroom/control-kit/issues)
+[Implementation](https://github.com/pbroom/control-kit/blob/main/src/tabs.tsx) · [Tests](https://github.com/pbroom/control-kit/blob/main/__tests__/tabs.test.tsx) · [Base UI Tabs API](https://base-ui.com/react/components/tabs#api-reference) · [Issues](https://github.com/pbroom/control-kit/issues)
