@@ -59,7 +59,7 @@ const TABS_LIST_PROPS = [
     name: 'loop',
     type: 'boolean | undefined',
     shortType: 'boolean',
-    defaultValue: 'false',
+    defaultValue: 'true',
     description:
       'Controls whether arrow-key focus wraps between the first and last trigger.',
   },

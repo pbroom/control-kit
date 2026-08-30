@@ -82,6 +82,9 @@ describe('ControlField', () => {
     expect(
       container.querySelector('[data-slot="control-field-group"]'),
     ).not.toBeNull();
+    expect(
+      container.querySelector('[data-slot="control-field-description"]'),
+    ).toBeInstanceOf(HTMLParagraphElement);
     expect(input?.getAttribute('aria-labelledby')).toBeTruthy();
     expect(input?.getAttribute('aria-describedby')).toBeTruthy();
   });

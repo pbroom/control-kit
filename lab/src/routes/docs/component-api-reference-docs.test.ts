@@ -6,6 +6,7 @@ import menuDocs from './menu.md?raw';
 import selectDocs from './select.md?raw';
 import sliderDocs from './slider.md?raw';
 import tabsDocs from './tabs.md?raw';
+import tabsDocsPageSource from './tabs-docs-page.tsx?raw';
 import toggleButtonDocs from './toggle-button.md?raw';
 import toggleGroupDocs from './toggle-group.md?raw';
 import tooltipDocs from './tooltip.md?raw';
@@ -34,4 +35,16 @@ describe('component API reference documentation', () => {
       expect(new Set(propSlots).size).toBe(propSlots.length);
     },
   );
+
+  it('matches wrapper-owned defaults and rendered element contracts', () => {
+    const tabsListPropsSource = tabsDocsPageSource.slice(
+      tabsDocsPageSource.indexOf('const TABS_LIST_PROPS'),
+      tabsDocsPageSource.indexOf('const TABS_TRIGGER_PROPS'),
+    );
+    expect(tabsListPropsSource).toContain("name: 'loop'");
+    expect(tabsListPropsSource).toContain("defaultValue: 'true'");
+    expect(controlFieldDocs).toContain(
+      'The description forwards native paragraph props',
+    );
+  });
 });
