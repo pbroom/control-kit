@@ -3,6 +3,8 @@ import { TooltipExample } from './examples/tooltip-basic-example.js';
 import tooltipExampleCode from './examples/tooltip-basic-example.tsx?raw';
 import { TooltipContrastExample } from './examples/tooltip-contrast-example.js';
 import tooltipContrastExampleCode from './examples/tooltip-contrast-example.tsx?raw';
+import { TooltipDelayExample } from './examples/tooltip-delay-example.js';
+import tooltipDelayExampleCode from './examples/tooltip-delay-example.tsx?raw';
 import { TooltipPlacementExample } from './examples/tooltip-placement-example.js';
 import tooltipPlacementExampleCode from './examples/tooltip-placement-example.tsx?raw';
 import { TooltipPointerExample } from './examples/tooltip-pointer-example.js';
@@ -226,6 +228,14 @@ export function TooltipDocsPage() {
             label="Tooltip contrast"
           >
             <TooltipContrastExample />
+          </DocsExample>
+        ),
+        'demo:delay': (
+          <DocsExample
+            code={tooltipDelayExampleCode}
+            label="Tooltip delay and handoff"
+          >
+            <TooltipDelayExample />
           </DocsExample>
         ),
         'demo:placement': (

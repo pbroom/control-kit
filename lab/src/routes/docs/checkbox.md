@@ -53,6 +53,12 @@ Use `className`, `indicatorClassName`, and `labelClassName` as attachment points
 
 ## Examples
 
+### Attachment points
+
+Use `className`, `indicatorClassName`, and `labelClassName` to adapt the assembled checkbox without replacing its parts.
+
+<!-- demo:styling -->
+
 ### States
 
 The same component covers checked, unchecked, and disabled states. A disabled checkbox ignores interaction and receives the corresponding Base UI data attribute.

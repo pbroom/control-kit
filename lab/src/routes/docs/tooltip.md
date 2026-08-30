@@ -71,13 +71,9 @@ Base UI positioning props pass through to `TooltipContent`.
 
 ### Delay and handoff
 
-Control Kit defaults the provider to a `450` ms initial delay and a `300` ms handoff window. Base UI opens adjacent tooltips immediately during that window, and Control Kit suppresses the transition for that instant state.
+Control Kit defaults the provider to a `450` ms initial delay and a `300` ms handoff window. Base UI opens adjacent tooltips immediately during that window, and Control Kit suppresses the transition for that instant state. Set `delay` and `timeout` on the provider to tune both timings for a group.
 
-```tsx
-<TooltipProvider delay={450} timeout={300}>
-  {/* Related tooltips */}
-</TooltipProvider>
-```
+<!-- demo:delay -->
 
 ## API reference
 

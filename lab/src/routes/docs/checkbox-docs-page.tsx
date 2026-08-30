@@ -5,6 +5,8 @@ import { CheckboxGroupExample } from './examples/checkbox-group-example.js';
 import checkboxGroupExampleCode from './examples/checkbox-group-example.tsx?raw';
 import { CheckboxStatesExample } from './examples/checkbox-states-example.js';
 import checkboxStatesExampleCode from './examples/checkbox-states-example.tsx?raw';
+import { CheckboxStylingExample } from './examples/checkbox-styling-example.js';
+import checkboxStylingExampleCode from './examples/checkbox-styling-example.tsx?raw';
 import { MarkdownDocsPage } from './markdown-docs-page.js';
 import {
   PropReferenceTable,
@@ -112,6 +114,14 @@ export function CheckboxDocsPage() {
         'demo:states': (
           <DocsExample code={checkboxStatesExampleCode} label="Checkbox states">
             <CheckboxStatesExample />
+          </DocsExample>
+        ),
+        'demo:styling': (
+          <DocsExample
+            code={checkboxStylingExampleCode}
+            label="Checkbox attachment points"
+          >
+            <CheckboxStylingExample />
           </DocsExample>
         ),
         'demo:group': (

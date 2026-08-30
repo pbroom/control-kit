@@ -58,14 +58,13 @@ Use `variant="outline"` for a bordered treatment. Apply the same `sm`, `default`
 
 Single groups use a string or `undefined`; multiple groups use an array.
 
-```tsx
-const [view, setView] = React.useState<string | undefined>('grid');
+<!-- demo:controlled -->
 
-<ToggleGroup value={view} onValueChange={setView}>
-  <ToggleGroupItem value="list">List</ToggleGroupItem>
-  <ToggleGroupItem value="grid">Grid</ToggleGroupItem>
-</ToggleGroup>;
-```
+### Focus wrapping
+
+Set `loop={false}` when arrow-key focus should stop at the first and last item instead of wrapping around the group.
+
+<!-- demo:loop -->
 
 ## API reference
 

@@ -1,6 +1,10 @@
 import { DocsExample } from './docs-example.js';
 import { ToggleGroupExample } from './examples/toggle-group-basic-example.js';
 import toggleGroupExampleCode from './examples/toggle-group-basic-example.tsx?raw';
+import { ToggleGroupControlledExample } from './examples/toggle-group-controlled-example.js';
+import toggleGroupControlledExampleCode from './examples/toggle-group-controlled-example.tsx?raw';
+import { ToggleGroupLoopExample } from './examples/toggle-group-loop-example.js';
+import toggleGroupLoopExampleCode from './examples/toggle-group-loop-example.tsx?raw';
 import { ToggleGroupMultipleExample } from './examples/toggle-group-multiple-example.js';
 import toggleGroupMultipleExampleCode from './examples/toggle-group-multiple-example.tsx?raw';
 import { ToggleGroupVariantsExample } from './examples/toggle-group-variants-example.js';
@@ -125,6 +129,22 @@ export function ToggleGroupDocsPage() {
         'demo:basic': (
           <DocsExample code={toggleGroupExampleCode} label="Toggle group">
             <ToggleGroupExample />
+          </DocsExample>
+        ),
+        'demo:controlled': (
+          <DocsExample
+            code={toggleGroupControlledExampleCode}
+            label="Controlled toggle group"
+          >
+            <ToggleGroupControlledExample />
+          </DocsExample>
+        ),
+        'demo:loop': (
+          <DocsExample
+            code={toggleGroupLoopExampleCode}
+            label="Toggle group focus wrapping"
+          >
+            <ToggleGroupLoopExample />
           </DocsExample>
         ),
         'demo:multiple': (

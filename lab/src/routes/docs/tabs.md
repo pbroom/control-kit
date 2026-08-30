@@ -69,18 +69,7 @@ Disable an unavailable trigger without removing it from the list.
 
 Use `value` and `onValueChange` when another part of the application owns the active tab.
 
-```tsx
-const [tab, setTab] = React.useState('canvas');
-
-<Tabs value={tab} onValueChange={setTab}>
-  <TabsList aria-label="Settings">
-    <TabsTrigger value="canvas">Canvas</TabsTrigger>
-    <TabsTrigger value="export">Export</TabsTrigger>
-  </TabsList>
-  <TabsContent value="canvas">Canvas settings</TabsContent>
-  <TabsContent value="export">Export settings</TabsContent>
-</Tabs>;
-```
+<!-- demo:controlled -->
 
 ## API reference
 

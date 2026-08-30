@@ -1,6 +1,8 @@
 import { DocsExample } from './docs-example.js';
 import { MenuBasicExample } from './examples/menu-basic-example.js';
 import menuBasicExampleCode from './examples/menu-basic-example.tsx?raw';
+import { MenuItemOptionsExample } from './examples/menu-item-options-example.js';
+import menuItemOptionsExampleCode from './examples/menu-item-options-example.tsx?raw';
 import { MenuMinimalExample } from './examples/menu-minimal-example.js';
 import menuMinimalExampleCode from './examples/menu-minimal-example.tsx?raw';
 import { MenuPlacementExample } from './examples/menu-placement-example.js';
@@ -307,6 +309,14 @@ export function MenuDocsPage() {
         'demo:placement': (
           <DocsExample code={menuPlacementExampleCode} label="Menu placement">
             <MenuPlacementExample />
+          </DocsExample>
+        ),
+        'demo:item-options': (
+          <DocsExample
+            code={menuItemOptionsExampleCode}
+            label="Menu item options"
+          >
+            <MenuItemOptionsExample />
           </DocsExample>
         ),
         'props:dropdown-menu': (

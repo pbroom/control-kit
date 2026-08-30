@@ -1,6 +1,8 @@
 import { DocsExample } from './docs-example.js';
 import { SelectBasicExample } from './examples/select-basic-example.js';
 import selectBasicExampleCode from './examples/select-basic-example.tsx?raw';
+import { SelectBehaviorExample } from './examples/select-behavior-example.js';
+import selectBehaviorExampleCode from './examples/select-behavior-example.tsx?raw';
 import { SelectLongListExample } from './examples/select-long-list-example.js';
 import selectLongListExampleCode from './examples/select-long-list-example.tsx?raw';
 import { SelectPlacementExample } from './examples/select-placement-example.js';
@@ -173,6 +175,14 @@ export function SelectDocsPage() {
             label="Select placement"
           >
             <SelectPlacementExample />
+          </DocsExample>
+        ),
+        'demo:behavior': (
+          <DocsExample
+            code={selectBehaviorExampleCode}
+            label="Select list behavior"
+          >
+            <SelectBehaviorExample />
           </DocsExample>
         ),
         'props:select-trigger': (

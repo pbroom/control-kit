@@ -3,6 +3,14 @@ import { ControlFieldBasicExample } from './examples/control-field-basic-example
 import controlFieldBasicCode from './examples/control-field-basic-example.tsx?raw';
 import { ControlFieldExpressionExample } from './examples/control-field-expression-example.js';
 import controlFieldExpressionCode from './examples/control-field-expression-example.tsx?raw';
+import { ControlFieldFormattingExample } from './examples/control-field-formatting-example.js';
+import controlFieldFormattingCode from './examples/control-field-formatting-example.tsx?raw';
+import { ControlFieldStatesExample } from './examples/control-field-states-example.js';
+import controlFieldStatesCode from './examples/control-field-states-example.tsx?raw';
+import { ControlFieldSteppersExample } from './examples/control-field-steppers-example.js';
+import controlFieldSteppersCode from './examples/control-field-steppers-example.tsx?raw';
+import { ControlFieldSteppingExample } from './examples/control-field-stepping-example.js';
+import controlFieldSteppingCode from './examples/control-field-stepping-example.tsx?raw';
 import { MarkdownDocsPage } from './markdown-docs-page.js';
 import {
   PropReferenceTable,
@@ -305,6 +313,38 @@ export function ControlFieldDocsPage() {
             label="Control Field expressions"
           >
             <ControlFieldExpressionExample />
+          </DocsExample>
+        ),
+        'demo:stepping': (
+          <DocsExample
+            code={controlFieldSteppingCode}
+            label="Control Field stepping and bounds"
+          >
+            <ControlFieldSteppingExample />
+          </DocsExample>
+        ),
+        'demo:formatting': (
+          <DocsExample
+            code={controlFieldFormattingCode}
+            label="Formatted Control Fields"
+          >
+            <ControlFieldFormattingExample />
+          </DocsExample>
+        ),
+        'demo:steppers': (
+          <DocsExample
+            code={controlFieldSteppersCode}
+            label="Control Field stepper buttons"
+          >
+            <ControlFieldSteppersExample />
+          </DocsExample>
+        ),
+        'demo:states': (
+          <DocsExample
+            code={controlFieldStatesCode}
+            label="Control Field states and field composition"
+          >
+            <ControlFieldStatesExample />
           </DocsExample>
         ),
         'props:control-field-root': (

@@ -3,6 +3,8 @@ import { ToggleButtonBasicExample } from './examples/toggle-button-basic-example
 import toggleButtonBasicExampleCode from './examples/toggle-button-basic-example.tsx?raw';
 import { ToggleButtonContentExample } from './examples/toggle-button-content-example.js';
 import toggleButtonContentExampleCode from './examples/toggle-button-content-example.tsx?raw';
+import { ToggleButtonDensityExample } from './examples/toggle-button-density-example.js';
+import toggleButtonDensityExampleCode from './examples/toggle-button-density-example.tsx?raw';
 import { ToggleButtonStatesExample } from './examples/toggle-button-states-example.js';
 import toggleButtonStatesExampleCode from './examples/toggle-button-states-example.tsx?raw';
 import { MarkdownDocsPage } from './markdown-docs-page.js';
@@ -98,6 +100,14 @@ export function ToggleButtonDocsPage() {
             label="Toggle button states"
           >
             <ToggleButtonStatesExample />
+          </DocsExample>
+        ),
+        'demo:density': (
+          <DocsExample
+            code={toggleButtonDensityExampleCode}
+            label="Toggle button density"
+          >
+            <ToggleButtonDensityExample />
           </DocsExample>
         ),
         'props:toggle-button': (

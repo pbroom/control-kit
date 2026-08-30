@@ -62,6 +62,12 @@ Positioning props pass through to the Lab's Base UI Menu wrapper.
 
 <!-- demo:placement -->
 
+### Selection behavior
+
+Keep the list open after selection with `closeOnSelect={false}`. Set `openAlignment="none"` to preserve normal anchored positioning instead of aligning the selected row to the trigger. Item density and typeahead labels remain independently configurable.
+
+<!-- demo:behavior -->
+
 ## API reference
 
 The following tables describe the current Lab recipe, not a stable package API.
