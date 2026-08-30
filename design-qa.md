@@ -2,43 +2,46 @@
 
 ## Visual truth
 
-- Primary reference: `/Users/peterbroomfield/Downloads/Screenshot 2026-08-29 at 3.19.27 PM.png` (494 × 1080 px).
-- Crosshair reference: `/var/folders/9b/7w9djy9j5dlfjn79khk4l92h0000gn/T/TemporaryItems/NSIRD_screencaptureui_Kie5Y1/Screenshot 2026-08-30 at 5.51.19 PM.png` (460 × 312 px).
-- User override: retain only the three drag planes and their side tracks; remove the panel background, title, sparkle, toggle, mode selector, reset buttons, and visible tone labels.
-- Implementation screenshot: `/tmp/control-kit-three-way-color-adjuster-final-desktop.png`.
-- Viewport: 1375 × 998 CSS px, dark theme, default values, no focused control.
-- Density normalization: the source is a compact mobile control while the implementation sits inside the existing docs example frame. Proportions were compared at the control level rather than by matching full-page pixels.
+- Primary reference: `/var/folders/9b/7w9djy9j5dlfjn79khk4l92h0000gn/T/TemporaryItems/NSIRD_screencaptureui_Kie5Y1/Screenshot 2026-08-30 at 5.51.19 PM.png` (460 × 312 px).
+- Supporting reference: `/Users/peterbroomfield/Downloads/Screenshot 2026-08-29 at 3.19.27 PM.png` (494 × 1080 px).
+- User overrides: keep the Highlights, Midtones, and Shadows labels; reduce each Plane by about 50%; make both side controls functional sliders whose rails are even circular arcs with a larger radius than the Plane.
+- Desktop implementation screenshot: `/tmp/control-kit-arc-sliders-final-desktop.png` (1375 × 998 px).
+- Mobile implementation screenshot: `/tmp/control-kit-arc-sliders-final-mobile.png` (390 × 844 px).
+- State: dark theme, default values, unfocused controls.
+- Density normalization: source and implementation were compared at the control level. The source is a single large row while the implementation intentionally presents three half-size rows inside the existing docs frame.
 
 ## Comparison history
 
-1. The first pass closely reproduced the complete Color Balance panel, but was too literal for this example gallery.
-2. The panel chrome and all non-control content were removed. The remaining three wheel-and-side-track rows use the existing `Plane` primitive.
-3. The moving crosshair was separated from `PlaneThumb`. A fixed, low-contrast plus now stays at the exact center of every plane while the plain circular thumb moves independently above it.
+1. The earlier implementation used 198 px Planes, omitted the three labels, and rendered the side marks as decorative tracks. These were P1 interaction and P2 density/content mismatches against the latest annotation.
+2. Each Plane was reduced to 100 px, labels were restored, and each row received two accessible slider controls with thumbs projected onto 138 px circular rails.
+3. The first implementation used transparent native vertical ranges. Browser interaction did not reliably emit input changes, so the result remained blocked.
+4. The controls were replaced with focusable ARIA sliders using pointer capture and keyboard handling. Post-fix browser evidence shows keyboard adjustment from saturation 64 to 65 and pointer dragging luminance to 66.
 
 ## Fidelity review
 
-- Typography: no demo-local visible typography remains, per the user override.
-- Spacing and layout: three evenly spaced vertical rows; the complete control fits inside the example frame at desktop and mobile widths.
-- Colors and tokens: dark-centered hue wheels, two-tone side tracks, light side handles, and neutral light thumbs match the supplied reference language.
-- Image quality and assets: all surfaces are resolution-independent CSS gradients; the center reference uses the project icon library.
-- Copy and content: no visible title, selector, labels, toggle, or reset affordances remain.
-- Full-view evidence: the desktop screenshot shows all three rows and the example source panel.
-- Focused-region evidence: the mobile comparison showed the wheel, tracks, fixed center reference, and independently offset thumb together.
+- Typography: the three requested labels are restored with compact 15 px medium text and consistent spacing beneath each row.
+- Spacing and layout: the 100 px Planes are approximately 50% of the previous 198 px size. Three rows fit comfortably at both 1375 × 998 and 390 × 844 viewports without clipping.
+- Colors and tokens: dark-centered hue wheels, coral left progress, light right progress, dim remaining rails, and neutral thumbs preserve the reference language.
+- Image quality and assets: the controls are resolution-independent UI surfaces; the fixed center reference uses the existing icon library.
+- Copy and content: Highlights, Midtones, and Shadows appear in the requested order. No removed panel title, toggle, selector, or reset control returned.
+- Full-view evidence: both implementation screenshots show all three rows, labels, source card, and surrounding docs layout.
+- Focused-region evidence: the source and mobile implementation were opened together. The larger-radius arcs remain concentric with each Plane, and their custom thumbs follow the rail geometry.
 
 ## Interaction and accessibility checks
 
-- Browser: Control Kit Lab at `http://127.0.0.1:5201/docs/plane-examples`.
-- Three named Plane groups render inside one named region.
-- No switch, button, or combobox remains in the simplified demo.
-- Keyboard adjustment changes the selected Plane value and the live output.
-- The three center references are pointer-inert and remain geometrically aligned with their plane centers.
-- No application warnings or errors were observed in the browser console.
+- Browser: in-app Browser at `http://127.0.0.1:5201/docs/plane-examples`.
+- Three named Plane groups and six named arc sliders render inside one named region.
+- Each arc slider exposes role, label, orientation, minimum, maximum, current value, and percentage value text.
+- Arrow keys adjust by 1, Page Up/Down by 10, and Home/End move to the limits.
+- Pointer press, click, and drag map vertical position to the curved-rail value while the visible thumb follows the circular arc.
+- The Plane controls remain independently pointer- and keyboard-operable.
+- No application warnings, errors, or framework overlay were observed.
 
 ## Findings
 
 - P0: none.
-- P1: none.
-- P2: none.
-- P3: the curved side tracks are visual context rather than separate interactive range inputs, matching the existing scope of this Plane example.
+- P1: none after the functional-slider fix.
+- P2: none after the sizing, label, and responsive fixes.
+- P3: the docs example title remains outside the control because it belongs to the shared example frame, not the demo itself.
 
 final result: passed
