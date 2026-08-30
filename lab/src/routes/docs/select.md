@@ -6,6 +6,21 @@ A menu-backed single-selection recipe used by the Control Kit Lab.
 
 <!-- demo:basic -->
 
+## Installation
+
+### Manual
+
+Select is currently a Lab recipe rather than a package export.
+
+1. Install the implementation dependencies:
+
+   ```bash
+   pnpm add @base-ui/react lucide-react clsx tailwind-merge
+   ```
+
+2. Copy the [Menu wrapper](https://github.com/pbroom/control-kit/blob/main/lab/src/components/ui/dropdown-menu.tsx), [Select composition](https://github.com/pbroom/control-kit/blob/main/lab/src/routes/lab/shared.tsx), and [selection list](https://github.com/pbroom/control-kit/blob/main/lab/src/routes/lab/lab-menu.tsx) into your project.
+3. Update the `@/` aliases and local imports to match your project setup.
+
 ## Usage
 
 Compose a menu trigger with `SelectList` and `SelectListItem`, then control the selected value from the application:

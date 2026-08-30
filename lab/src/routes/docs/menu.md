@@ -6,6 +6,21 @@ A composed command menu built on [Base UI Menu](https://base-ui.com/react/compon
 
 <!-- demo:basic -->
 
+## Installation
+
+### Manual
+
+Menu is currently a Lab prototype rather than a package export.
+
+1. Install the implementation dependencies:
+
+   ```bash
+   pnpm add @base-ui/react lucide-react clsx tailwind-merge
+   ```
+
+2. Copy the [Menu wrapper](https://github.com/pbroom/control-kit/blob/main/lab/src/components/ui/dropdown-menu.tsx) and [Lab composition files](https://github.com/pbroom/control-kit/blob/main/lab/src/routes/lab/shared.tsx) into your project.
+3. Update the `@/` aliases and local imports to match your project setup.
+
 ## Usage
 
 Compose the trigger, positioned content, groups, and command items:

@@ -530,6 +530,7 @@ test('renders and exercises the documented primitive and component pages', async
       lab: '/lab/checkbox',
       apiHeading: 'API',
       exampleCount: 3,
+      format: 'component',
     },
     {
       slug: 'color-plane',
@@ -537,6 +538,7 @@ test('renders and exercises the documented primitive and component pages', async
       lab: '/lab/color-plane',
       apiHeading: 'API',
       exampleCount: 2,
+      format: 'component',
     },
     {
       slug: 'control-field',
@@ -544,6 +546,7 @@ test('renders and exercises the documented primitive and component pages', async
       lab: '/lab/control-field',
       apiHeading: 'API',
       exampleCount: 2,
+      format: 'component',
     },
     {
       slug: 'input-primitive',
@@ -551,6 +554,7 @@ test('renders and exercises the documented primitive and component pages', async
       lab: '/lab/input-primitive',
       apiHeading: 'API reference',
       exampleCount: 1,
+      format: 'primitive',
     },
     {
       slug: 'input-multi',
@@ -558,6 +562,7 @@ test('renders and exercises the documented primitive and component pages', async
       lab: '/lab/input-multi',
       apiHeading: 'API reference',
       exampleCount: 1,
+      format: 'primitive',
     },
     {
       slug: 'menu',
@@ -565,6 +570,7 @@ test('renders and exercises the documented primitive and component pages', async
       lab: '/lab/menu',
       apiHeading: 'API',
       exampleCount: 3,
+      format: 'component',
     },
     {
       slug: 'select',
@@ -572,6 +578,7 @@ test('renders and exercises the documented primitive and component pages', async
       lab: '/lab/select',
       apiHeading: 'API',
       exampleCount: 3,
+      format: 'component',
     },
     {
       slug: 'slider',
@@ -579,6 +586,7 @@ test('renders and exercises the documented primitive and component pages', async
       lab: '/lab/slider',
       apiHeading: 'API',
       exampleCount: 2,
+      format: 'component',
     },
     {
       slug: 'tabs',
@@ -586,6 +594,7 @@ test('renders and exercises the documented primitive and component pages', async
       lab: '/lab/tabs',
       apiHeading: 'API',
       exampleCount: 3,
+      format: 'component',
     },
     {
       slug: 'toggle-button',
@@ -593,6 +602,7 @@ test('renders and exercises the documented primitive and component pages', async
       lab: '/lab/toggle-button',
       apiHeading: 'API',
       exampleCount: 3,
+      format: 'component',
     },
     {
       slug: 'toggle-group',
@@ -600,6 +610,7 @@ test('renders and exercises the documented primitive and component pages', async
       lab: '/lab/toggle-group',
       apiHeading: 'API',
       exampleCount: 3,
+      format: 'component',
     },
     {
       slug: 'tooltip',
@@ -607,6 +618,7 @@ test('renders and exercises the documented primitive and component pages', async
       lab: '/lab/tooltip',
       apiHeading: 'API',
       exampleCount: 4,
+      format: 'component',
     },
   ] as const;
 
@@ -626,6 +638,13 @@ test('renders and exercises the documented primitive and component pages', async
         exact: true,
       }),
     ).toBeVisible();
+    const isComponentDocs = docsPage.format === 'component';
+    await expect(
+      page.getByRole('heading', { name: 'Installation', exact: true }),
+    ).toHaveCount(isComponentDocs ? 1 : 0);
+    await expect(
+      page.getByRole('heading', { name: 'Manual', exact: true }),
+    ).toHaveCount(isComponentDocs ? 1 : 0);
     await expect(page.locator('[data-docs-example]')).toHaveCount(
       docsPage.exampleCount,
     );

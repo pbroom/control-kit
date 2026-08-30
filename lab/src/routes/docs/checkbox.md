@@ -4,6 +4,24 @@ A compact controlled checkbox with an integrated label. Built on [Base UI Checkb
 
 <!-- demo:basic -->
 
+## Installation
+
+### Manual
+
+1. Install Control Kit and its peer dependencies:
+
+   ```bash
+   pnpm add @color-kit/control-kit @base-ui/react radix-ui
+   ```
+
+2. Add the package source to Tailwind's content graph:
+
+   ```css
+   @source '../node_modules/@color-kit/control-kit/src';
+   ```
+
+3. Import `Checkbox` from `@color-kit/control-kit` as shown below.
+
 ## Usage
 
 Keep the checked value in application state and update it from `onCheckedChange`:
