@@ -44,31 +44,23 @@ The default orientation is horizontal. Set `orientation="vertical"` and give the
 
 <!-- demo:vertical -->
 
+### Channels
+
+Use `channel` to bind the slider to lightness, chroma, hue, or alpha. Each channel receives its own default range.
+
+<!-- demo:channels -->
+
 ### Range
 
 Channel defaults are lightness `[0, 1]`, chroma `[0, 0.4]`, hue `[0, 360]`, and alpha `[0, 1]`. A custom range changes pointer mapping, keyboard movement, and accessible bounds together.
 
-```tsx
-<ColorSlider
-  channel="h"
-  range={[120, 240]}
-  requested={color.requested}
-  onChangeRequested={color.setRequested}
-/>
-```
+<!-- demo:range -->
 
 ### Styling
 
 Style the root directly and target the generated thumb with `data-color-slider-thumb`.
 
-```tsx
-<ColorSlider
-  channel="l"
-  className="h-6 rounded-full bg-linear-to-r from-black to-white [&_[data-color-slider-thumb]]:size-6 [&_[data-color-slider-thumb]]:rounded-full [&_[data-color-slider-thumb]]:border-2 [&_[data-color-slider-thumb]]:border-white"
-  requested={color.requested}
-  onChangeRequested={color.setRequested}
-/>
-```
+<!-- demo:styling -->
 
 ## API reference
 

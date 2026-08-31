@@ -56,11 +56,15 @@ The default axes are lightness on X and chroma on Y. Pass `axes` to choose anoth
 
 `renderer="auto"` selects a supported backend. Edge behavior and resolution can be adjusted independently.
 
-```tsx
-<ColorPlane edgeBehavior="transparent" renderer="auto" resolutionScale={1} />
-```
+<!-- demo:rendering -->
 
 `edgeBehavior="clamp"` maps displayed out-of-gamut pixels to the nearest in-gamut edge. `edgeBehavior="transparent"` leaves those pixels transparent.
+
+### Interaction tuning
+
+Use the explicit `thumb` slot when the marker is wrapped or supplied across a module boundary. Performance and pointer-update props can be tuned together for a particular surface.
+
+<!-- demo:interaction -->
 
 ## API reference
 

@@ -64,6 +64,12 @@ Positioning props pass through to the Base UI positioner. This example opens abo
 
 <!-- demo:placement -->
 
+### Item density and typeahead
+
+Choose compact or comfortable item height independently of the menu surface. Supply `typeaheadLabel` when visible content is abbreviated or otherwise insufficient for keyboard matching.
+
+<!-- demo:item-options -->
+
 ## API reference
 
 These tables describe the current Lab wrapper. Menu is not a stable Control Kit package API; unlisted props follow Base UI unless the wrapper changes them below.

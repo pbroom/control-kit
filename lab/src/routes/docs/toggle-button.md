@@ -58,6 +58,12 @@ Selection and disabled state remain independent. Hover, focus, and active feedba
 
 <!-- demo:states -->
 
+### Density
+
+Use compact sizing for dense toolbars and comfortable sizing when the control benefits from a larger target.
+
+<!-- demo:density -->
+
 ## API reference
 
 ### ToggleButton (current Lab contract)

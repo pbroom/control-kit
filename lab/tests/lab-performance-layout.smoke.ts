@@ -376,19 +376,33 @@ test('keeps desktop performance panel layout, scrollbars, and resize behavior st
         (node) => getComputedStyle(node).scrollbarGutter,
       ),
     ).toBe('auto');
+    const maximumSettledMetricsHeight =
+      Math.max(
+        metricsTableBox!.height,
+        timelineFitBox!.height,
+        panelBoxBeforeMetricsToggle!.height,
+      ) +
+      panelViewTabsBox!.height +
+      72;
+    // Pointer tab switches intentionally preserve the Structure height while
+    // the pointer remains inside the panel. Leave the panel before asserting
+    // its auto-fit contract; the held-height behavior has dedicated coverage.
+    await page.mouse.move(0, 0);
+    await expect
+      .poll(
+        async () =>
+          (await performancePanel.boundingBox())?.height ??
+          maximumSettledMetricsHeight + 1,
+        { timeout: 3_000 },
+      )
+      .toBeLessThanOrEqual(maximumSettledMetricsHeight);
     const settledMetricsPanelBox = await performancePanel.boundingBox();
     const settledMetricsShellBox = await metricsShell.boundingBox();
     expect(settledMetricsPanelBox).not.toBeNull();
     expect(settledMetricsShellBox).not.toBeNull();
     expect(settledMetricsPanelBox!.height).toBeGreaterThanOrEqual(128);
     expect(settledMetricsPanelBox!.height).toBeLessThanOrEqual(
-      Math.max(
-        metricsTableBox!.height,
-        timelineFitBox!.height,
-        panelBoxBeforeMetricsToggle!.height,
-      ) +
-        panelViewTabsBox!.height +
-        72,
+      maximumSettledMetricsHeight,
     );
     expect(settledMetricsShellBox!.height).toBeGreaterThanOrEqual(
       metricsTableBox!.height - 4,
@@ -405,10 +419,14 @@ test('keeps desktop performance panel layout, scrollbars, and resize behavior st
       '#lab-performance-structure-panel',
     );
     const structurePanelBox = await performancePanel.boundingBox();
+    const structureViewportBox = await structurePanel.boundingBox();
     expect(structurePanelBox).not.toBeNull();
-    expect(structurePanelBox!.height).toBeGreaterThanOrEqual(
-      metricsPanelHeight - 1,
-    );
+    expect(structureViewportBox).not.toBeNull();
+    expect(structurePanelBox!.height).toBeGreaterThanOrEqual(128);
+    expect(structureViewportBox!.height).toBeGreaterThan(0);
+    expect(
+      viewport!.height - (structurePanelBox!.y + structurePanelBox!.height),
+    ).toBeGreaterThanOrEqual(8);
     const structureScrollState = await structurePanel.evaluate((node) => {
       const style = getComputedStyle(node);
 
@@ -424,11 +442,22 @@ test('keeps desktop performance panel layout, scrollbars, and resize behavior st
       'scroll-area-viewport',
     );
     await selectPerformancePanelView(performancePanel, 'Metrics');
+    const maximumRoundTripMetricsHeight =
+      Math.max(metricsPanelHeight, structurePanelBox!.height) + 2;
+    await page.mouse.move(0, 0);
+    await expect
+      .poll(
+        async () =>
+          (await performancePanel.boundingBox())?.height ??
+          maximumRoundTripMetricsHeight + 1,
+        { timeout: 3_000 },
+      )
+      .toBeLessThanOrEqual(maximumRoundTripMetricsHeight);
     const metricsPanelRoundTripBox = await performancePanel.boundingBox();
     expect(metricsPanelRoundTripBox).not.toBeNull();
     expect(metricsPanelRoundTripBox!.height).toBeGreaterThanOrEqual(128);
     expect(metricsPanelRoundTripBox!.height).toBeLessThanOrEqual(
-      Math.max(metricsPanelHeight, structurePanelBox!.height) + 2,
+      maximumRoundTripMetricsHeight,
     );
     expect(propertiesPanelBox!.height).toBeGreaterThanOrEqual(998);
     expect(

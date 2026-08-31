@@ -1,6 +1,8 @@
 import { DocsExample } from './docs-example.js';
 import { TabsExample } from './examples/tabs-basic-example.js';
 import tabsExampleCode from './examples/tabs-basic-example.tsx?raw';
+import { TabsControlledExample } from './examples/tabs-controlled-example.js';
+import tabsControlledExampleCode from './examples/tabs-controlled-example.tsx?raw';
 import { TabsDisabledExample } from './examples/tabs-disabled-example.js';
 import tabsDisabledExampleCode from './examples/tabs-disabled-example.tsx?raw';
 import { TabsManualExample } from './examples/tabs-manual-example.js';
@@ -145,6 +147,11 @@ export function TabsDocsPage() {
         'demo:basic': (
           <DocsExample code={tabsExampleCode} label="Tabs">
             <TabsExample />
+          </DocsExample>
+        ),
+        'demo:controlled': (
+          <DocsExample code={tabsControlledExampleCode} label="Controlled tabs">
+            <TabsControlledExample />
           </DocsExample>
         ),
         'demo:disabled': (

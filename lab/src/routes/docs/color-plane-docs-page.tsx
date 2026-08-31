@@ -3,6 +3,10 @@ import { ColorPlaneAxesExample } from './examples/color-plane-axes-example.js';
 import colorPlaneAxesExampleCode from './examples/color-plane-axes-example.tsx?raw';
 import { ColorPlaneExample } from './examples/color-plane-basic-example.js';
 import colorPlaneExampleCode from './examples/color-plane-basic-example.tsx?raw';
+import { ColorPlaneInteractionExample } from './examples/color-plane-interaction-example.js';
+import colorPlaneInteractionExampleCode from './examples/color-plane-interaction-example.tsx?raw';
+import { ColorPlaneRenderingExample } from './examples/color-plane-rendering-example.js';
+import colorPlaneRenderingExampleCode from './examples/color-plane-rendering-example.tsx?raw';
 import { MarkdownDocsPage } from './markdown-docs-page.js';
 import {
   PropReferenceTable,
@@ -159,6 +163,22 @@ export function ColorPlaneDocsPage() {
             label="Color plane axes"
           >
             <ColorPlaneAxesExample />
+          </DocsExample>
+        ),
+        'demo:rendering': (
+          <DocsExample
+            code={colorPlaneRenderingExampleCode}
+            label="Color plane rendering"
+          >
+            <ColorPlaneRenderingExample />
+          </DocsExample>
+        ),
+        'demo:interaction': (
+          <DocsExample
+            code={colorPlaneInteractionExampleCode}
+            label="Color plane interaction tuning"
+          >
+            <ColorPlaneInteractionExample />
           </DocsExample>
         ),
         'props:color-area': (

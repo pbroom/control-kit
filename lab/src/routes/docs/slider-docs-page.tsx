@@ -1,6 +1,12 @@
 import { DocsExample } from './docs-example.js';
 import { SliderExample } from './examples/slider-basic-example.js';
 import sliderExampleCode from './examples/slider-basic-example.tsx?raw';
+import { SliderChannelsExample } from './examples/slider-channels-example.js';
+import sliderChannelsExampleCode from './examples/slider-channels-example.tsx?raw';
+import { SliderRangeExample } from './examples/slider-range-example.js';
+import sliderRangeExampleCode from './examples/slider-range-example.tsx?raw';
+import { SliderStylingExample } from './examples/slider-styling-example.js';
+import sliderStylingExampleCode from './examples/slider-styling-example.tsx?raw';
 import { SliderVerticalExample } from './examples/slider-vertical-example.js';
 import sliderVerticalExampleCode from './examples/slider-vertical-example.tsx?raw';
 import { MarkdownDocsPage } from './markdown-docs-page.js';
@@ -90,6 +96,21 @@ export function SliderDocsPage() {
         'demo:vertical': (
           <DocsExample code={sliderVerticalExampleCode} label="Vertical slider">
             <SliderVerticalExample />
+          </DocsExample>
+        ),
+        'demo:channels': (
+          <DocsExample code={sliderChannelsExampleCode} label="Slider channels">
+            <SliderChannelsExample />
+          </DocsExample>
+        ),
+        'demo:range': (
+          <DocsExample code={sliderRangeExampleCode} label="Slider range">
+            <SliderRangeExample />
+          </DocsExample>
+        ),
+        'demo:styling': (
+          <DocsExample code={sliderStylingExampleCode} label="Slider styling">
+            <SliderStylingExample />
           </DocsExample>
         ),
         'props:color-slider': (

@@ -81,10 +81,17 @@ test('suppresses properties scrollbar during crossfade transitions', async ({
           .querySelector<HTMLAnchorElement>('a[href="/lab/checkbox"]')
           ?.click();
         let frame = 0;
+        const startedAt = performance.now();
         const sampleNextFrame = () => {
           sample('after');
           frame += 1;
-          if (frame >= 10) {
+          const sawCheckbox = samples.some(
+            (currentSample) => currentSample.activeKey === 'checkbox',
+          );
+          if (
+            (frame >= 10 && sawCheckbox) ||
+            performance.now() - startedAt >= 2_000
+          ) {
             resolve(samples);
             return;
           }

@@ -529,7 +529,7 @@ test('renders and exercises the documented primitive and component pages', async
       heading: 'Checkbox',
       lab: '/lab/checkbox',
       apiHeading: 'API reference',
-      exampleCount: 3,
+      exampleCount: 4,
       format: 'component',
     },
     {
@@ -537,7 +537,7 @@ test('renders and exercises the documented primitive and component pages', async
       heading: 'ColorPlane',
       lab: '/lab/color-plane',
       apiHeading: 'API reference',
-      exampleCount: 2,
+      exampleCount: 4,
       format: 'component',
     },
     {
@@ -545,7 +545,7 @@ test('renders and exercises the documented primitive and component pages', async
       heading: 'Control Field',
       lab: '/lab/control-field',
       apiHeading: 'API reference',
-      exampleCount: 2,
+      exampleCount: 6,
       format: 'component',
     },
     {
@@ -569,7 +569,7 @@ test('renders and exercises the documented primitive and component pages', async
       heading: 'Menu',
       lab: '/lab/menu',
       apiHeading: 'API reference',
-      exampleCount: 3,
+      exampleCount: 4,
       format: 'component',
     },
     {
@@ -577,7 +577,7 @@ test('renders and exercises the documented primitive and component pages', async
       heading: 'Select',
       lab: '/lab/select',
       apiHeading: 'API reference',
-      exampleCount: 3,
+      exampleCount: 4,
       format: 'component',
     },
     {
@@ -585,7 +585,7 @@ test('renders and exercises the documented primitive and component pages', async
       heading: 'Slider',
       lab: '/lab/slider',
       apiHeading: 'API reference',
-      exampleCount: 2,
+      exampleCount: 5,
       format: 'component',
     },
     {
@@ -593,7 +593,7 @@ test('renders and exercises the documented primitive and component pages', async
       heading: 'Tabs',
       lab: '/lab/tabs',
       apiHeading: 'API reference',
-      exampleCount: 3,
+      exampleCount: 4,
       format: 'component',
     },
     {
@@ -601,7 +601,7 @@ test('renders and exercises the documented primitive and component pages', async
       heading: 'Toggle Button',
       lab: '/lab/toggle-button',
       apiHeading: 'API reference',
-      exampleCount: 3,
+      exampleCount: 4,
       format: 'component',
     },
     {
@@ -609,7 +609,7 @@ test('renders and exercises the documented primitive and component pages', async
       heading: 'Toggle Group',
       lab: '/lab/toggle-group',
       apiHeading: 'API reference',
-      exampleCount: 3,
+      exampleCount: 5,
       format: 'component',
     },
     {
@@ -617,7 +617,7 @@ test('renders and exercises the documented primitive and component pages', async
       heading: 'Tooltip',
       lab: '/lab/tooltip',
       apiHeading: 'API reference',
-      exampleCount: 4,
+      exampleCount: 5,
       format: 'component',
     },
   ] as const;
@@ -677,9 +677,9 @@ test('renders and exercises the documented primitive and component pages', async
   }
 
   await page.goto('/docs/color-plane');
-  const colorThumb = page.getByRole('slider', {
-    name: 'Lightness and chroma',
-  });
+  const colorThumb = page
+    .getByLabel('Color plane demo', { exact: true })
+    .getByRole('slider', { name: 'Lightness and chroma', exact: true });
   const initialColorX = await colorThumb.getAttribute('data-x');
   await colorThumb.press('ArrowRight');
   await expect(colorThumb).not.toHaveAttribute('data-x', initialColorX!);
@@ -758,9 +758,10 @@ test('renders and exercises the documented primitive and component pages', async
   );
 
   await page.goto('/docs/tabs');
-  await page.getByRole('tab', { name: 'Export', exact: true }).click();
+  const tabsDemo = page.getByLabel('Tabs demo', { exact: true });
+  await tabsDemo.getByRole('tab', { name: 'Export', exact: true }).click();
   await expect(
-    page.getByRole('tabpanel', { name: 'Export', exact: true }),
+    tabsDemo.getByRole('tabpanel', { name: 'Export', exact: true }),
   ).toContainText('output format');
 
   await page.goto('/docs/select');
@@ -800,7 +801,13 @@ test('renders and exercises the documented primitive and component pages', async
   await expect(favoriteToggle).toHaveAttribute('aria-pressed', 'true');
 
   await page.goto('/docs/toggle-group');
-  const listToggle = page.getByRole('button', { name: 'List', exact: true });
+  const toggleGroupDemo = page.getByLabel('Toggle group demo', {
+    exact: true,
+  });
+  const listToggle = toggleGroupDemo.getByRole('button', {
+    name: 'List',
+    exact: true,
+  });
   await listToggle.click();
   await expect(listToggle).toHaveAttribute('aria-pressed', 'true');
 

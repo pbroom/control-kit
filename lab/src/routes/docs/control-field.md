@@ -67,6 +67,30 @@ Expression drafts remain editable until Enter or blur. Escape restores the commi
 
 Pass `expressionResolver={null}` to keep Base UI's numeric-only input, or supply a resolver for domain syntax such as units or design tokens.
 
+### Step sizes and boundaries
+
+Set `smallStep`, `step`, `largeStep`, and `pageStep` to give precision modifiers and Page keys meaningful increments. Use `boundaryBehavior="wrap"` for cyclic values such as angles.
+
+<!-- demo:stepping -->
+
+### Formatting and affixes
+
+Use Base UI's `format` and `locale` props for locale-aware display. Compose `ControlField.Affix` when a short unit should occupy a fixed position in the control.
+
+<!-- demo:formatting -->
+
+### Stepper buttons
+
+Add `ControlField.Decrement` and `ControlField.Increment` only where persistent step controls are useful. The default compact composition omits them.
+
+<!-- demo:steppers -->
+
+### Field composition and states
+
+Wrap Control Field in Base UI `Field.Root` to add a visible label, description, and validation message. Native `disabled`, `readOnly`, and `required` behavior passes through the root.
+
+<!-- demo:states -->
+
 ## API reference
 
 ### ControlField.Root
