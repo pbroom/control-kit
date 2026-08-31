@@ -62,18 +62,33 @@ Positioning props pass through to the Lab's Base UI Menu wrapper.
 
 <!-- demo:placement -->
 
-## API
+## API reference
 
-### Current Lab contract
+The following tables describe the current Lab recipe, not a stable package API.
 
-| Input            | Purpose                                     |
-| ---------------- | ------------------------------------------- |
-| `disabled`       | Prevents the trigger from opening.          |
-| `side` / `align` | Positions the menu relative to the trigger. |
+### SelectTrigger (current Lab contract)
 
-These inputs belong to the current Lab preview and are not a stable package API.
+Renders the styled native button used by `DropdownMenuTrigger`.
 
-### Important forwarded props
+<!-- props:select-trigger -->
+
+### SelectList (current Lab contract)
+
+Provides the selected value and selection behavior to its items.
+
+<!-- props:select-list -->
+
+### SelectListItem (current Lab contract)
+
+Renders a selectable `menuitemradio` row in the surrounding menu.
+
+<!-- props:select-list-item -->
+
+### DropdownMenuContent positioning
+
+The recipe uses the Lab Menu wrapper for its option-list surface and positioning.
+
+<!-- props:select-content -->
 
 The underlying menu content accepts Base UI positioning inputs including `side`, `align`, `sideOffset`, `collisionAvoidance`, `collisionPadding`, and `sticky`. See the [Base UI Menu API](https://base-ui.com/react/components/menu#api-reference) for the upstream contract.
 

@@ -62,34 +62,25 @@ The default axes are lightness on X and chroma on Y. Pass `axes` to choose anoth
 
 `edgeBehavior="clamp"` maps displayed out-of-gamut pixels to the nearest in-gamut edge. `edgeBehavior="transparent"` leaves those pixels transparent.
 
-## API
+## API reference
 
-### Important `ColorArea` props
+### ColorArea
 
-| Prop                              | Purpose                                                |
-| --------------------------------- | ------------------------------------------------------ |
-| `requested` / `onChangeRequested` | Controls standalone requested color state.             |
-| `axes`                            | Selects the X and Y channels and their numeric ranges. |
-| `performanceProfile`              | Chooses the runtime quality and responsiveness policy. |
-| `thumb` / `showDefaultThumb`      | Replaces or suppresses the default top-most thumb.     |
-| `maxUpdateHz` / `dragEpsilon`     | Tunes pointer-update frequency and minimum movement.   |
+Owns requested color state, axis mapping, pointer interaction, and runtime quality policy.
 
-### Important `ColorPlane` props
+<!-- props:color-area -->
 
-| Prop              | Purpose                                                    |
-| ----------------- | ---------------------------------------------------------- |
-| `source`          | Renders the requested or gamut-mapped displayed color.     |
-| `displayGamut`    | Selects the output gamut for displayed-source pixels.      |
-| `renderer`        | Selects automatic, GPU, or CPU rendering.                  |
-| `edgeBehavior`    | Clamps or makes displayed out-of-gamut pixels transparent. |
-| `resolutionScale` | Multiplies the canvas backing-store resolution.            |
+### ColorPlane
 
-### Important `Thumb` props
+Renders the color field into a canvas using the surrounding `ColorArea` state.
 
-| Prop                            | Purpose                                     |
-| ------------------------------- | ------------------------------------------- |
-| `aria-label` / `aria-valuetext` | Names and describes the two-axis value.     |
-| `stepRatio` / `shiftStepRatio`  | Sets the standard and large keyboard steps. |
+<!-- props:color-plane -->
+
+### Thumb
+
+Provides the focusable marker and keyboard interaction above the visual layers.
+
+<!-- props:thumb -->
 
 Each part also accepts the native props for its rendered element: `ColorArea` and `Thumb` render `div` elements, while `ColorPlane` renders a `canvas`.
 

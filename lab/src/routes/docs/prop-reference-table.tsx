@@ -19,6 +19,11 @@ function TypeCode({ children }: { children: string }) {
 }
 
 export function PropReferenceTable({ name, props }: PropReferenceTableProps) {
+  const tableSlug = name
+    .replace(/[^a-z0-9]+/gi, '-')
+    .replace(/^-|-$/g, '')
+    .toLowerCase();
+
   return (
     <section
       aria-label={`${name} component props table`}
@@ -35,7 +40,11 @@ export function PropReferenceTable({ name, props }: PropReferenceTableProps) {
       </div>
 
       {props.map((prop) => {
-        const id = `${name.toLowerCase()}-${prop.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`;
+        const propSlug = prop.name
+          .replace(/[^a-z0-9]+/gi, '-')
+          .replace(/^-|-$/g, '')
+          .toLowerCase();
+        const id = `${tableSlug}-${propSlug}`;
 
         return (
           <details

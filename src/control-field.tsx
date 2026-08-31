@@ -574,7 +574,7 @@ export const ControlFieldLabel = React.forwardRef<
 });
 
 export const ControlFieldDescription = React.forwardRef<
-  HTMLDivElement,
+  HTMLParagraphElement,
   Field.Description.Props
 >(function ControlFieldDescription({ className, ...props }, ref) {
   return (
