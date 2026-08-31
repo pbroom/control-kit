@@ -23,8 +23,7 @@ The package builds ESM, CommonJS, and TypeScript declarations into `dist/`. Git 
 - **React 19 or newer** is required (`react` and `react-dom` are peer
   dependencies with a `>=19.0.0` floor). This is a deliberate choice to build
   on current React semantics rather than carry compatibility shims.
-- `@base-ui/react` and `radix-ui` are peer dependencies used for the headless
-  primitives.
+- `@base-ui/react` is a peer dependency used for the headless primitives.
 - Node 18+ is required to build the package.
 
 ## Releases

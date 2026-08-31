@@ -41,7 +41,7 @@ describe('component API reference documentation', () => {
       tabsDocsPageSource.indexOf('const TABS_LIST_PROPS'),
       tabsDocsPageSource.indexOf('const TABS_TRIGGER_PROPS'),
     );
-    expect(tabsListPropsSource).toContain("name: 'loop'");
+    expect(tabsListPropsSource).toContain("name: 'loopFocus'");
     expect(tabsListPropsSource).toContain("defaultValue: 'true'");
     expect(controlFieldDocs).toContain(
       'The description forwards native paragraph props',

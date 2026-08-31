@@ -54,7 +54,7 @@ describe('Tabs', () => {
 
     expect(triggers).toHaveLength(2);
     expect(triggers[0].getAttribute('aria-selected')).toBe('true');
-    expect(triggers[0].getAttribute('data-state')).toBe('active');
+    expect(triggers[0].hasAttribute('data-active')).toBe(true);
     expect(triggers[1].getAttribute('aria-selected')).toBe('false');
   });
 
@@ -71,6 +71,47 @@ describe('Tabs', () => {
 
     expect(container.textContent).toContain('Second panel');
     expect(container.textContent).not.toContain('First panel');
-    expect(triggers[1].getAttribute('data-state')).toBe('active');
+    expect(triggers[1].hasAttribute('data-active')).toBe(true);
+  });
+
+  it('preserves automatic activation as the Control Kit default', () => {
+    const container = mountTabs();
+    const triggers = container.querySelectorAll<HTMLElement>(
+      '[data-slot="tabs-trigger"]',
+    );
+
+    act(() => triggers[1].focus());
+
+    expect(triggers[1].hasAttribute('data-active')).toBe(true);
+    expect(container.textContent).toContain('Second panel');
+  });
+
+  it('composes triggers and panels with the Base UI render prop', () => {
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    mountedRoots.push(root);
+
+    act(() => {
+      root.render(
+        <Tabs defaultValue="one">
+          <TabsList>
+            <TabsTrigger
+              nativeButton={false}
+              render={<a href="/one" />}
+              value="one"
+            >
+              First
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent render={<section />} value="one">
+            First panel
+          </TabsContent>
+        </Tabs>,
+      );
+    });
+
+    expect(container.querySelector('a[role="tab"]')).not.toBeNull();
+    expect(container.querySelector('section[role="tabpanel"]')).not.toBeNull();
   });
 });

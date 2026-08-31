@@ -17,29 +17,23 @@ import tabsDocs from './tabs.md?raw';
 const TABS_PROPS = [
   {
     name: 'value',
-    type: 'string | undefined',
-    shortType: 'string',
-    description: 'The controlled value of the active tab.',
+    type: 'any | null | undefined',
+    shortType: 'any | null',
+    description:
+      'The controlled value of the active tab. Pass null to leave every tab inactive.',
   },
   {
     name: 'defaultValue',
-    type: 'string | undefined',
-    shortType: 'string',
+    type: 'any | null | undefined',
+    shortType: 'any | null',
+    defaultValue: '0',
     description: 'The initially active tab in uncontrolled mode.',
   },
   {
     name: 'onValueChange',
     shortType: 'function',
-    type: '(value: string) => void',
+    type: '(value: any | null, eventDetails: ChangeEventDetails) => void',
     description: 'Called when the active tab changes.',
-  },
-  {
-    name: 'activationMode',
-    type: "'automatic' | 'manual' | undefined",
-    shortType: "'automatic' | 'manual'",
-    defaultValue: "'automatic'",
-    description:
-      'Controls whether a focused trigger activates automatically or requires Enter or Space.',
   },
   {
     name: 'orientation',
@@ -48,29 +42,24 @@ const TABS_PROPS = [
     defaultValue: "'horizontal'",
     description: 'Sets the tab list orientation and arrow-key direction.',
   },
-  {
-    name: 'dir',
-    type: "'ltr' | 'rtl' | undefined",
-    shortType: "'ltr' | 'rtl'",
-    description: 'Sets the reading direction used for keyboard navigation.',
-  },
 ] satisfies readonly PropReference[];
 
 const TABS_LIST_PROPS = [
   {
-    name: 'loop',
+    name: 'activateOnFocus',
+    type: 'boolean | undefined',
+    shortType: 'boolean',
+    defaultValue: 'true',
+    description:
+      'Controls whether arrow-key focus also activates the focused trigger.',
+  },
+  {
+    name: 'loopFocus',
     type: 'boolean | undefined',
     shortType: 'boolean',
     defaultValue: 'true',
     description:
       'Controls whether arrow-key focus wraps between the first and last trigger.',
-  },
-  {
-    name: 'asChild',
-    type: 'boolean | undefined',
-    shortType: 'boolean',
-    defaultValue: 'false',
-    description: 'Composes the list behavior onto its immediate child.',
   },
   {
     name: 'className',
@@ -95,11 +84,11 @@ const TABS_TRIGGER_PROPS = [
     description: 'Prevents the trigger from receiving focus or activation.',
   },
   {
-    name: 'asChild',
-    type: 'boolean | undefined',
-    shortType: 'boolean',
-    defaultValue: 'false',
-    description: 'Composes the trigger behavior onto its immediate child.',
+    name: 'render',
+    type: 'ReactElement | ((props, state) => ReactElement) | undefined',
+    shortType: 'ReactElement | function',
+    description:
+      'Replaces the trigger element or composes it with another component.',
   },
   {
     name: 'className',
@@ -117,19 +106,19 @@ const TABS_CONTENT_PROPS = [
     description: 'Associates the panel with the trigger of the same value.',
   },
   {
-    name: 'forceMount',
-    type: 'true | undefined',
-    shortType: 'true',
+    name: 'keepMounted',
+    type: 'boolean | undefined',
+    shortType: 'boolean',
     defaultValue: 'false',
     description:
       'Keeps the panel mounted when inactive for animation or state-preservation needs.',
   },
   {
-    name: 'asChild',
-    type: 'boolean | undefined',
-    shortType: 'boolean',
-    defaultValue: 'false',
-    description: 'Composes the panel behavior onto its immediate child.',
+    name: 'render',
+    type: 'ReactElement | ((props, state) => ReactElement) | undefined',
+    shortType: 'ReactElement | function',
+    description:
+      'Replaces the panel element or composes it with another component.',
   },
   {
     name: 'className',

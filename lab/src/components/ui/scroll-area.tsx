@@ -1,6 +1,15 @@
 import * as React from 'react';
-import * as ScrollAreaPrimitive from '@radix-ui/react-scroll-area';
+import { ScrollArea as ScrollAreaPrimitive } from '@base-ui/react/scroll-area';
 import { cn } from '@/lib/utils';
+
+function resolveClassName<State>(
+  baseClassName: string,
+  className: string | ((state: State) => string | undefined) | undefined,
+) {
+  return typeof className === 'function'
+    ? (state: State) => cn(baseClassName, className(state))
+    : cn(baseClassName, className);
+}
 
 function ScrollArea({
   className,
@@ -60,16 +69,27 @@ function ScrollArea({
   return (
     <ScrollAreaPrimitive.Root
       data-slot="scroll-area"
-      className={cn('relative overflow-hidden rounded-[inherit]', className)}
+      className={resolveClassName(
+        'relative overflow-hidden rounded-[inherit]',
+        className,
+      )}
       {...props}
     >
       <ScrollAreaPrimitive.Viewport
         {...resolvedViewportProps}
         data-slot="scroll-area-viewport"
-        className={cn('size-full rounded-[inherit]', viewportClassName)}
+        className={resolveClassName(
+          'size-full rounded-[inherit]',
+          viewportClassName,
+        )}
         ref={setViewportRef}
       >
-        {children}
+        <ScrollAreaPrimitive.Content
+          data-slot="scroll-area-content"
+          style={{ display: 'table', minWidth: '100%' }}
+        >
+          {children}
+        </ScrollAreaPrimitive.Content>
       </ScrollAreaPrimitive.Viewport>
       <ScrollBar />
       <ScrollAreaPrimitive.Corner />
@@ -81,23 +101,26 @@ function ScrollBar({
   className,
   orientation = 'vertical',
   ...props
-}: React.ComponentProps<typeof ScrollAreaPrimitive.ScrollAreaScrollbar>) {
+}: React.ComponentProps<typeof ScrollAreaPrimitive.Scrollbar>) {
   return (
-    <ScrollAreaPrimitive.ScrollAreaScrollbar
+    <ScrollAreaPrimitive.Scrollbar
       data-slot="scroll-area-scrollbar"
       orientation={orientation}
-      className={cn(
-        'box-border flex touch-none select-none p-px transition-colors',
-        orientation === 'vertical' &&
-          'h-full w-2.5 border-l border-l-transparent py-4',
-        orientation === 'horizontal' &&
-          'h-2.5 flex-col border-t border-t-transparent px-4',
+      className={resolveClassName(
+        cn(
+          'box-border flex touch-none select-none p-px transition-colors',
+          'pointer-events-none opacity-0 data-hovering:pointer-events-auto data-hovering:opacity-100 data-scrolling:pointer-events-auto data-scrolling:opacity-100',
+          orientation === 'vertical' &&
+            'h-full w-2.5 border-l border-l-transparent py-4',
+          orientation === 'horizontal' &&
+            'h-2.5 flex-col border-t border-t-transparent px-4',
+        ),
         className,
       )}
       {...props}
     >
-      <ScrollAreaPrimitive.ScrollAreaThumb className="relative flex-1 rounded-full bg-border" />
-    </ScrollAreaPrimitive.ScrollAreaScrollbar>
+      <ScrollAreaPrimitive.Thumb className="relative flex-1 rounded-full bg-border" />
+    </ScrollAreaPrimitive.Scrollbar>
   );
 }
 

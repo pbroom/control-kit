@@ -1,5 +1,5 @@
 import { ChevronDown } from 'lucide-react';
-import { Popover as PopoverPrimitive } from 'radix-ui';
+import { Popover as PopoverPrimitive } from '@base-ui/react/popover';
 import {
   lazy,
   memo,
@@ -644,102 +644,89 @@ export function LucideIconPicker({
     [activeSlug, immediateFiltered, pickSlug, resetSearch],
   );
 
-  useLayoutEffect(() => {
-    if (!open) {
-      return;
-    }
-    queueMicrotask(() => {
-      const input = searchInputRef.current;
-      if (!input) {
-        return;
-      }
-      input.focus({ preventScroll: true });
-    });
-  }, [open]);
-
   return (
     <PopoverPrimitive.Root open={open} onOpenChange={handleOpenChange}>
-      <PopoverPrimitive.Trigger asChild>
-        <button
-          ref={triggerRef}
-          type="button"
-          className="flex h-6 w-full items-center gap-2 rounded-[5px] border border-transparent bg-[#383838] px-2 text-left text-[11px] font-medium text-white outline-none transition-[border-color] hover:border-[#4C4C4C] focus-visible:border-[#5288db]"
-          aria-haspopup="listbox"
-          aria-expanded={open}
-          aria-controls={open ? listboxId : undefined}
-          aria-label={`Choose Lucide icon. Current icon: ${formatLucideSlugLabel(
-            resolvedValue,
-          )}.`}
-        >
-          <span className="flex size-5 shrink-0 items-center justify-center text-white/75">
-            <DynamicLucideGlyph
-              slug={resolvedValue}
-              className="size-3.5"
-              strokeWidth={1.75}
+      <PopoverPrimitive.Trigger
+        ref={triggerRef}
+        render={
+          <button
+            type="button"
+            className="flex h-6 w-full items-center gap-2 rounded-[5px] border border-transparent bg-[#383838] px-2 text-left text-[11px] font-medium text-white outline-none transition-[border-color] hover:border-[#4C4C4C] focus-visible:border-[#5288db]"
+            aria-haspopup="listbox"
+            aria-expanded={open}
+            aria-controls={open ? listboxId : undefined}
+            aria-label={`Choose Lucide icon. Current icon: ${formatLucideSlugLabel(
+              resolvedValue,
+            )}.`}
+          >
+            <span className="flex size-5 shrink-0 items-center justify-center text-white/75">
+              <DynamicLucideGlyph
+                slug={resolvedValue}
+                className="size-3.5"
+                strokeWidth={1.75}
+              />
+            </span>
+            <span className="min-w-0 flex-1 truncate" title={resolvedValue}>
+              {formatLucideSlugLabel(resolvedValue)}
+            </span>
+            <ChevronDown
+              aria-hidden
+              className="size-3.5 shrink-0 text-white/45"
+              strokeWidth={2}
             />
-          </span>
-          <span className="min-w-0 flex-1 truncate" title={resolvedValue}>
-            {formatLucideSlugLabel(resolvedValue)}
-          </span>
-          <ChevronDown
-            aria-hidden
-            className="size-3.5 shrink-0 text-white/45"
-            strokeWidth={2}
-          />
-        </button>
-      </PopoverPrimitive.Trigger>
+          </button>
+        }
+      />
       <PopoverPrimitive.Portal>
-        <PopoverPrimitive.Content
-          align="start"
-          sideOffset={6}
-          className="z-[80] w-[var(--radix-popover-trigger-width)] overflow-hidden rounded-md border border-white/10 bg-[#2a2a2a] p-0 text-white shadow-lg outline-none"
-          onOpenAutoFocus={(event) => {
-            event.preventDefault();
-          }}
-        >
-          <div className="border-b border-white/10 p-2">
-            <input
-              ref={searchInputRef}
-              role="combobox"
-              type="text"
-              value={search}
-              onChange={(event) => handleSearchChange(event.target.value)}
-              onKeyDown={handleSearchKeyDown}
-              placeholder="Search icons…"
-              autoComplete="off"
-              spellCheck={false}
-              className="h-6 w-full rounded-[4px] border border-transparent bg-[#383838] px-2 text-[11px] font-medium text-white outline-none transition-[border-color] placeholder:text-white/35 focus:border-[#5288db]"
-              aria-label="Search Lucide icons"
-              aria-autocomplete="list"
-              aria-controls={listboxId}
-              aria-expanded={open}
-              aria-activedescendant={activeOptionId}
-            />
-          </div>
-          {filtered.length === 0 ? (
-            <div
-              id={listboxId}
-              role="listbox"
-              aria-label="Lucide icons"
-              className="px-3 py-6 text-center text-[11px] text-white/45"
-            >
-              <span role="status" aria-live="polite">
-                No icons match “{search.trim()}”.
-              </span>
+        <PopoverPrimitive.Positioner align="start" sideOffset={6}>
+          <PopoverPrimitive.Popup
+            className="z-[80] w-[var(--anchor-width)] overflow-hidden rounded-md border border-white/10 bg-[#2a2a2a] p-0 text-white shadow-lg outline-none"
+            initialFocus={searchInputRef}
+          >
+            <div className="border-b border-white/10 p-2">
+              <input
+                ref={searchInputRef}
+                role="combobox"
+                type="text"
+                value={search}
+                onChange={(event) => handleSearchChange(event.target.value)}
+                onKeyDown={handleSearchKeyDown}
+                placeholder="Search icons…"
+                autoComplete="off"
+                spellCheck={false}
+                className="h-6 w-full rounded-[4px] border border-transparent bg-[#383838] px-2 text-[11px] font-medium text-white outline-none transition-[border-color] placeholder:text-white/35 focus:border-[#5288db]"
+                aria-label="Search Lucide icons"
+                aria-autocomplete="list"
+                aria-controls={listboxId}
+                aria-expanded={open}
+                aria-activedescendant={activeOptionId}
+              />
             </div>
-          ) : (
-            <VirtualLucideRows
-              activeSlug={activeSlug}
-              getOptionId={getOptionId}
-              listboxId={listboxId}
-              slugs={filtered}
-              selectedSlug={resolvedValue}
-              searchTrimmed={search.trim()}
-              onActiveChange={setActiveSlug}
-              onPick={pickSlug}
-            />
-          )}
-        </PopoverPrimitive.Content>
+            {filtered.length === 0 ? (
+              <div
+                id={listboxId}
+                role="listbox"
+                aria-label="Lucide icons"
+                className="px-3 py-6 text-center text-[11px] text-white/45"
+              >
+                <span role="status" aria-live="polite">
+                  No icons match “{search.trim()}”.
+                </span>
+              </div>
+            ) : (
+              <VirtualLucideRows
+                activeSlug={activeSlug}
+                getOptionId={getOptionId}
+                listboxId={listboxId}
+                slugs={filtered}
+                selectedSlug={resolvedValue}
+                searchTrimmed={search.trim()}
+                onActiveChange={setActiveSlug}
+                onPick={pickSlug}
+              />
+            )}
+          </PopoverPrimitive.Popup>
+        </PopoverPrimitive.Positioner>
       </PopoverPrimitive.Portal>
     </PopoverPrimitive.Root>
   );
