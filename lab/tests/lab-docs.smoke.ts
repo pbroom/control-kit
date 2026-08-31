@@ -103,11 +103,39 @@ test('renders the focused Plane examples with executable source', async ({
   ).toHaveCount(36);
 
   const firstExample = gallery.locator('[data-docs-example]').first();
+  const firstPlane = firstExample.locator('[data-slot="plane"]');
+  const firstThumb = firstExample.locator('[data-slot="plane-thumb"]');
+  const firstReadout = firstExample.locator('output');
   const firstAxis = firstExample.getByRole('slider').first();
   const initialAxisValue = await firstAxis.inputValue();
+
+  await expect(firstReadout).toHaveText(/^S \d+% V \d+%$/);
+  expect(
+    await firstReadout.evaluate(
+      (readout) => getComputedStyle(readout).fontFamily,
+    ),
+  ).toBe(
+    await page
+      .locator('body')
+      .evaluate((body) => getComputedStyle(body).fontFamily),
+  );
+
   await firstAxis.focus();
   await firstAxis.press('ArrowRight');
   await expect(firstAxis).not.toHaveValue(initialAxisValue);
+  await firstAxis.press('End');
+  await expect(firstAxis).toHaveValue('1');
+  expect(
+    await firstPlane.evaluate((plane) => getComputedStyle(plane).overflow),
+  ).toBe('visible');
+
+  const planeBounds = await firstPlane.boundingBox();
+  const thumbBounds = await firstThumb.boundingBox();
+  expect(planeBounds).not.toBeNull();
+  expect(thumbBounds).not.toBeNull();
+  expect(thumbBounds!.x + thumbBounds!.width).toBeGreaterThan(
+    planeBounds!.x + planeBounds!.width,
+  );
 
   const firstCodeToggle = firstExample.getByRole('button', {
     name: 'Show code',
