@@ -419,10 +419,14 @@ test('keeps desktop performance panel layout, scrollbars, and resize behavior st
       '#lab-performance-structure-panel',
     );
     const structurePanelBox = await performancePanel.boundingBox();
+    const structureViewportBox = await structurePanel.boundingBox();
     expect(structurePanelBox).not.toBeNull();
-    expect(structurePanelBox!.height).toBeGreaterThanOrEqual(
-      metricsPanelHeight - 1,
-    );
+    expect(structureViewportBox).not.toBeNull();
+    expect(structurePanelBox!.height).toBeGreaterThanOrEqual(128);
+    expect(structureViewportBox!.height).toBeGreaterThan(0);
+    expect(
+      viewport!.height - (structurePanelBox!.y + structurePanelBox!.height),
+    ).toBeGreaterThanOrEqual(8);
     const structureScrollState = await structurePanel.evaluate((node) => {
       const style = getComputedStyle(node);
 
