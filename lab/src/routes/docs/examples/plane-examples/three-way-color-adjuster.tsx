@@ -55,15 +55,48 @@ function formatColorBalance(label: string, value: PlaneValue) {
   return `${label}: ${Math.round(angle)} degrees, ${Math.round(magnitude * 100)} percent intensity`;
 }
 
+const COLOR_BALANCE_STOPS = [
+  { color: [227, 92, 40], position: 0 },
+  { color: [214, 75, 131], position: 55 },
+  { color: [116, 77, 179], position: 95 },
+  { color: [40, 120, 212], position: 140 },
+  { color: [24, 182, 197], position: 190 },
+  { color: [29, 187, 141], position: 230 },
+  { color: [124, 168, 61], position: 285 },
+  { color: [227, 166, 46], position: 325 },
+  { color: [227, 92, 40], position: 360 },
+] as const;
+
+function getColorBalanceBias(value: PlaneValue) {
+  const vector = toCenteredVector(value);
+  if (vector.magnitude < 0.001) return 'rgb(112 112 112)';
+
+  const wheelPosition = (vector.angle + 110 + 360) % 360;
+  const endIndex = COLOR_BALANCE_STOPS.findIndex(
+    (stop) => stop.position >= wheelPosition,
+  );
+  const start = COLOR_BALANCE_STOPS[Math.max(0, endIndex - 1)]!;
+  const end = COLOR_BALANCE_STOPS[endIndex]!;
+  const progress =
+    (wheelPosition - start.position) / (end.position - start.position || 1);
+  const color = start.color.map((channel, index) =>
+    Math.round(channel + (end.color[index]! - channel) * progress),
+  );
+
+  return `rgb(${color.join(' ')})`;
+}
+
 function ToneSlider({
-  accent,
+  kind,
   label,
   onChange,
+  trackBackground,
   value,
 }: {
-  accent: string;
+  kind: 'luminance' | 'saturation';
   label: string;
   onChange: (value: number) => void;
+  trackBackground: string;
   value: number;
 }) {
   return (
@@ -72,16 +105,15 @@ function ToneSlider({
       <span
         aria-hidden="true"
         className="pointer-events-none absolute inset-x-0 top-1/2 h-[3px] -translate-y-1/2 rounded-full"
-        style={{
-          background: `linear-gradient(to right, ${accent} 0%, ${accent} ${value}%, #4b4b4b ${value}%, #4b4b4b 100%)`,
-        }}
+        data-tone-slider-track={kind}
+        style={{ background: trackBackground }}
       />
       <input
         aria-label={label}
         aria-orientation="horizontal"
         aria-valuetext={`${value}%`}
         className="absolute inset-0 m-0 h-6 w-full cursor-ew-resize appearance-none bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-[#ff535b]/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#111113] [&::-moz-range-thumb]:size-[14px] [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border [&::-moz-range-thumb]:border-black/20 [&::-moz-range-thumb]:bg-[#d0d0d0] [&::-moz-range-thumb]:shadow-[0_1px_3px_rgb(0_0_0/0.45)] [&::-moz-range-track]:h-6 [&::-moz-range-track]:bg-transparent [&::-webkit-slider-runnable-track]:h-6 [&::-webkit-slider-runnable-track]:bg-transparent [&::-webkit-slider-thumb]:mt-[5px] [&::-webkit-slider-thumb]:size-[14px] [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-black/20 [&::-webkit-slider-thumb]:bg-[#d0d0d0] [&::-webkit-slider-thumb]:shadow-[0_1px_3px_rgb(0_0_0/0.45)]"
-        data-tone-slider=""
+        data-tone-slider={kind}
         max={100}
         min={0}
         onChange={(event) => onChange(Number(event.currentTarget.value))}
@@ -104,6 +136,8 @@ function ToneWheel({
   onValueChange: (value: PlaneValue) => void;
   tone: Tone;
 }) {
+  const biasColor = getColorBalanceBias(tone.value);
+
   return (
     <div
       className="flex min-w-0 flex-col items-center gap-3"
@@ -139,15 +173,17 @@ function ToneWheel({
       </span>
       <div className="flex w-full max-w-[120px] flex-col gap-2 max-sm:max-w-[96px]">
         <ToneSlider
-          accent="#ff535b"
+          kind="saturation"
           label={`${tone.label} saturation`}
           onChange={onSaturationChange}
+          trackBackground={`linear-gradient(to right, #4b4b4b, ${biasColor})`}
           value={tone.saturation}
         />
         <ToneSlider
-          accent="#d8d8d8"
+          kind="luminance"
           label={`${tone.label} luminance`}
           onChange={onLuminanceChange}
+          trackBackground="linear-gradient(to right, #111111, #f2f2f2)"
           value={tone.luminance}
         />
       </div>

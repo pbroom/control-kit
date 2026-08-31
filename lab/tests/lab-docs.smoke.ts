@@ -168,6 +168,58 @@ test('renders the focused Plane examples with executable source', async ({
     ),
   ).toBe(true);
 
+  const saturationTracks = colorBalance.locator(
+    '[data-tone-slider-track="saturation"]',
+  );
+  const luminanceTracks = colorBalance.locator(
+    '[data-tone-slider-track="luminance"]',
+  );
+  await expect(saturationTracks).toHaveCount(3);
+  await expect(luminanceTracks).toHaveCount(3);
+
+  const initialSaturationBackgrounds = await saturationTracks.evaluateAll(
+    (tracks) => tracks.map((track) => getComputedStyle(track).backgroundImage),
+  );
+  expect(initialSaturationBackgrounds[0]).not.toBe(
+    initialSaturationBackgrounds[2],
+  );
+  expect(initialSaturationBackgrounds[1]).toBe(
+    'linear-gradient(to right, rgb(75, 75, 75), rgb(112, 112, 112))',
+  );
+  expect(
+    await luminanceTracks.evaluateAll((tracks) =>
+      tracks.every(
+        (track) =>
+          getComputedStyle(track).backgroundImage ===
+          'linear-gradient(to right, rgb(17, 17, 17), rgb(242, 242, 242))',
+      ),
+    ),
+  ).toBe(true);
+
+  const midtonesSaturationTrack = saturationTracks.nth(1);
+  const initialMidtonesSaturationBackground =
+    await midtonesSaturationTrack.evaluate(
+      (track) => getComputedStyle(track).backgroundImage,
+    );
+  await colorBalance
+    .getByRole('slider', {
+      name: 'Midtones cyan to red balance',
+      exact: true,
+    })
+    .press('End');
+  await expect
+    .poll(() =>
+      midtonesSaturationTrack.evaluate(
+        (track) => getComputedStyle(track).backgroundImage,
+      ),
+    )
+    .toBe('linear-gradient(to right, rgb(75, 75, 75), rgb(91, 91, 190))');
+  expect(
+    await midtonesSaturationTrack.evaluate(
+      (track) => getComputedStyle(track).backgroundImage,
+    ),
+  ).not.toBe(initialMidtonesSaturationBackground);
+
   const toneLayout = await toneControls.evaluateAll((controls) =>
     controls.map((control) => {
       const bounds = control.getBoundingClientRect();
