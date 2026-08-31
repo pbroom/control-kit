@@ -137,6 +137,78 @@ test('renders the focused Plane examples with executable source', async ({
     planeBounds!.x + planeBounds!.width,
   );
 
+  const threeWayExample = gallery.getByRole('figure', {
+    name: 'Color grading controls — Circular controls (3-way color adjuster) demo',
+    exact: true,
+  });
+  const colorBalance = threeWayExample.getByRole('region', {
+    name: 'Color balance control',
+    exact: true,
+  });
+  const toneControls = colorBalance.locator('[data-tone-control]');
+  const toneLabels = colorBalance.locator('[data-tone-label]');
+  const toneSliders = colorBalance.locator('[data-tone-slider]');
+
+  await expect(toneControls).toHaveCount(3);
+  await expect(toneLabels).toHaveText(['Highlights', 'Midtones', 'Shadows']);
+  expect(
+    await toneLabels.evaluateAll((labels) =>
+      labels.map((label) => getComputedStyle(label).fontSize),
+    ),
+  ).toEqual(['13px', '13px', '13px']);
+  await expect(toneSliders).toHaveCount(6);
+  expect(
+    await toneSliders.evaluateAll((sliders) =>
+      sliders.every(
+        (slider) =>
+          slider instanceof HTMLInputElement &&
+          slider.type === 'range' &&
+          slider.getAttribute('aria-orientation') === 'horizontal',
+      ),
+    ),
+  ).toBe(true);
+
+  const toneLayout = await toneControls.evaluateAll((controls) =>
+    controls.map((control) => {
+      const bounds = control.getBoundingClientRect();
+      const plane = control
+        .querySelector('[data-slot="plane"]')!
+        .getBoundingClientRect();
+      const sliders = Array.from(
+        control.querySelectorAll('[data-tone-slider]'),
+        (slider) => slider.getBoundingClientRect(),
+      );
+
+      return {
+        bottom: bounds.bottom,
+        left: bounds.left,
+        top: bounds.top,
+        planeBottom: plane.bottom,
+        sliderTops: sliders.map((slider) => slider.top),
+      };
+    }),
+  );
+  expect(Math.max(...toneLayout.map(({ top }) => top))).toBeLessThanOrEqual(
+    Math.min(...toneLayout.map(({ top }) => top)) + 1,
+  );
+  expect(toneLayout[0]!.left).toBeLessThan(toneLayout[1]!.left);
+  expect(toneLayout[1]!.left).toBeLessThan(toneLayout[2]!.left);
+  for (const tone of toneLayout) {
+    expect(tone.sliderTops[0]).toBeGreaterThanOrEqual(tone.planeBottom);
+    expect(tone.sliderTops[1]).toBeGreaterThan(tone.sliderTops[0]!);
+    expect(tone.bottom).toBeGreaterThan(tone.sliderTops[1]!);
+  }
+
+  const midtonesLuminance = colorBalance.getByRole('slider', {
+    name: 'Midtones luminance',
+    exact: true,
+  });
+  await midtonesLuminance.press('End');
+  await expect(midtonesLuminance).toHaveValue('100');
+  await expect(colorBalance.locator('output')).toContainText(
+    /Midtones \d+, saturation \d+, luminance 100/,
+  );
+
   const firstCodeToggle = firstExample.getByRole('button', {
     name: 'Show code',
     exact: true,
