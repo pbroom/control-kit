@@ -32,6 +32,10 @@ const LAB_PAGE_LOADERS: Record<
     import('./pages/input-multi.js').then((module) => ({
       default: module.InputMultiLabActivePage,
     })),
+  controlField: () =>
+    import('./pages/control-field.js').then((module) => ({
+      default: module.ControlFieldLabActivePage,
+    })),
   checkbox: () =>
     import('./pages/checkbox.js').then((module) => ({
       default: module.CheckboxLabActivePage,

@@ -539,6 +539,13 @@ test('renders and exercises the documented primitive and component pages', async
       exampleCount: 2,
     },
     {
+      slug: 'control-field',
+      heading: 'Control Field',
+      lab: '/lab/control-field',
+      apiHeading: 'API',
+      exampleCount: 2,
+    },
+    {
       slug: 'input-primitive',
       heading: 'Input Primitive',
       lab: '/lab/input-primitive',
@@ -651,6 +658,50 @@ test('renders and exercises the documented primitive and component pages', async
   await primitiveInput.fill('55');
   await primitiveInput.press('Enter');
   await expect(primitiveInput).toHaveValue('55');
+
+  await page.goto('/docs/control-field');
+  const controlFieldDemo = page.getByLabel('Control Field demo', {
+    exact: true,
+  });
+  const controlFieldGroup = controlFieldDemo.locator(
+    '[data-slot="control-field-group"]',
+  );
+  const controlFieldInput = controlFieldDemo.locator(
+    '[data-slot="control-field-input"]',
+  );
+  const controlFieldScrubArea = controlFieldDemo.locator(
+    '[data-slot="control-field-scrub-area"]',
+  );
+  await expect(controlFieldScrubArea).toBeVisible();
+  await expect(
+    controlFieldDemo.locator('[data-slot="control-field-affix"]'),
+  ).toHaveText('%');
+  await expect(controlFieldDemo.getByRole('button')).toHaveCount(0);
+  await expect(controlFieldGroup).toHaveCSS('height', '24px');
+  await expect(controlFieldGroup).toHaveCSS('width', '128px');
+  const scrubBounds = await controlFieldScrubArea.boundingBox();
+  expect(scrubBounds).not.toBeNull();
+  await page.mouse.move(
+    scrubBounds!.x + scrubBounds!.width / 2,
+    scrubBounds!.y + scrubBounds!.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(
+    scrubBounds!.x + scrubBounds!.width + 24,
+    scrubBounds!.y,
+    {
+      steps: 4,
+    },
+  );
+  await page.mouse.up();
+  await expect(controlFieldInput).not.toHaveValue('42');
+  await page.reload();
+  const resetControlFieldInput = page
+    .getByLabel('Control Field demo', { exact: true })
+    .locator('[data-slot="control-field-input"]');
+  await resetControlFieldInput.fill('* 2');
+  await resetControlFieldInput.press('Enter');
+  await expect(resetControlFieldInput).toHaveValue('84');
 
   await page.goto('/docs/input-multi');
   const multiInput = page.getByRole('spinbutton', {

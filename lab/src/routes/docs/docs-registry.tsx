@@ -4,6 +4,18 @@ import type { LabPageKey } from '../lab/shared.js';
 type DocsPageComponent = ComponentType;
 
 const DOCS_PAGE_LOADERS = {
+  controlField: (loadAttempt: number) => {
+    const modulePromise =
+      loadAttempt === 0
+        ? import('./control-field-docs-page.js')
+        : // A distinct module URL bypasses the browser's rejected-import cache.
+          // @ts-expect-error Vite resolves query-suffixed local modules.
+          import('./control-field-docs-page.js?retry=1');
+
+    return modulePromise.then((module) => ({
+      default: module.ControlFieldDocsPage,
+    }));
+  },
   checkbox: (loadAttempt: number) => {
     const modulePromise =
       loadAttempt === 0

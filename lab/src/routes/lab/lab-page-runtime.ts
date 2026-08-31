@@ -35,13 +35,18 @@ export const LAB_PAGE_ROUTE_REGISTRY = {
   plane: { slug: 'plane', label: 'Plane', section: 'Primitives' },
   input: {
     slug: 'input-primitive',
-    label: 'Input Primitive',
+    label: 'Input Primitive (Legacy)',
     section: 'Primitives',
   },
   inputMulti: {
     slug: 'input-multi',
     label: 'Input Multi',
     section: 'Primitives',
+  },
+  controlField: {
+    slug: 'control-field',
+    label: 'Control Field',
+    section: 'Components',
   },
   checkbox: { slug: 'checkbox', label: 'Checkbox', section: 'Components' },
   colorPlane: {
