@@ -4,6 +4,24 @@ A styled tab set for switching between related sections of content. Built on [Ra
 
 <!-- demo:basic -->
 
+## Installation
+
+### Manual
+
+1. Install Control Kit and its peer dependencies:
+
+   ```bash
+   pnpm add @color-kit/control-kit @base-ui/react radix-ui
+   ```
+
+2. Add the package source to Tailwind's content graph:
+
+   ```css
+   @source '../node_modules/@color-kit/control-kit/src';
+   ```
+
+3. Import the Tabs parts from `@color-kit/control-kit` as shown below.
+
 ## Usage
 
 Match every trigger value to one content value and place triggers inside `TabsList`:

@@ -20,7 +20,13 @@ const MARKDOWN_COMPONENTS: Components = {
         <HighlightedCode
           block
           code={String(children).replace(/\n$/, '')}
-          language={language === 'ts' ? 'typescript' : 'tsx'}
+          language={
+            language === 'ts'
+              ? 'typescript'
+              : language === 'sh' || language === 'shell'
+                ? 'bash'
+                : language
+          }
         />
       );
     }

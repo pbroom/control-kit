@@ -6,7 +6,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MarkdownDocsPage } from './markdown-docs-page.js';
 
 vi.mock('./highlighted-code.js', () => ({
-  HighlightedCode: ({ code }: { code: string }) => <pre>{code}</pre>,
+  HighlightedCode: ({
+    code,
+    language,
+  }: {
+    code: string;
+    language?: string;
+  }) => <pre data-language={language}>{code}</pre>,
 }));
 
 (
@@ -47,6 +53,31 @@ describe('MarkdownDocsPage', () => {
     expect(article?.getAttribute('data-docs-format')).toBe('component');
     expect(article?.classList.contains('ck-component-docs')).toBe(true);
     expect(article?.classList.contains('ck-primitive-docs')).toBe(false);
+
+    act(() => root.unmount());
+  });
+
+  it('preserves the language of manual-install code blocks', () => {
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+
+    act(() => {
+      root.render(
+        <MarkdownDocsPage
+          format="component"
+          source={
+            '```bash\npnpm add example\n```\n\n```css\n@source "src";\n```'
+          }
+        />,
+      );
+    });
+
+    expect(
+      Array.from(container.querySelectorAll('pre')).map((block) =>
+        block.getAttribute('data-language'),
+      ),
+    ).toEqual(['bash', 'css']);
 
     act(() => root.unmount());
   });

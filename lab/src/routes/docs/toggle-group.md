@@ -4,6 +4,24 @@ A styled set of two-state buttons for choosing one or more related options. Buil
 
 <!-- demo:basic -->
 
+## Installation
+
+### Manual
+
+1. Install Control Kit and its peer dependencies:
+
+   ```bash
+   pnpm add @color-kit/control-kit @base-ui/react radix-ui
+   ```
+
+2. Add the package source to Tailwind's content graph:
+
+   ```css
+   @source '../node_modules/@color-kit/control-kit/src';
+   ```
+
+3. Import `ToggleGroup` and `ToggleGroupItem` from `@color-kit/control-kit` as shown below.
+
 ## Usage
 
 Compose each item inside a group and give every item a stable value:

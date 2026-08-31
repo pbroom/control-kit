@@ -4,6 +4,24 @@ A styled tooltip for short, descriptive labels. Built on [Base UI Tooltip](https
 
 <!-- demo:basic -->
 
+## Installation
+
+### Manual
+
+1. Install Control Kit and its peer dependencies:
+
+   ```bash
+   pnpm add @color-kit/control-kit @base-ui/react radix-ui
+   ```
+
+2. Add the package source to Tailwind's content graph:
+
+   ```css
+   @source '../node_modules/@color-kit/control-kit/src';
+   ```
+
+3. Import the Tooltip parts from `@color-kit/control-kit` as shown below.
+
 ## Usage
 
 Add one provider around a related group of triggers, then compose each tooltip from its root, trigger, and content:

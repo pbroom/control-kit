@@ -6,6 +6,21 @@ A composed command menu built on [Base UI Menu](https://base-ui.com/react/compon
 
 <!-- demo:basic -->
 
+## Installation
+
+### Manual
+
+Menu is currently a Lab prototype rather than a package export.
+
+1. Install the implementation dependencies:
+
+   ```bash
+   pnpm add @base-ui/react lucide-react clsx tailwind-merge
+   ```
+
+2. Copy the [Menu wrapper](https://github.com/pbroom/control-kit/blob/main/lab/src/components/ui/dropdown-menu.tsx), [focused Menu composition](https://github.com/pbroom/control-kit/blob/main/lab/src/routes/docs/examples/menu-installation-example.tsx), and [class-name utility](https://github.com/pbroom/control-kit/blob/main/lab/src/lib/utils.ts) into your project.
+3. Update the `@/` aliases and local imports to match your project setup.
+
 ## Usage
 
 Compose the trigger, positioned content, groups, and command items:
@@ -81,4 +96,4 @@ Menu items should perform commands or change menu-local settings. Use Select whe
 
 ## Source
 
-[Menu wrapper](https://github.com/pbroom/control-kit/blob/main/lab/src/components/ui/dropdown-menu.tsx) · [Lab page](https://github.com/pbroom/control-kit/blob/main/lab/src/routes/lab/pages/menu.tsx) · [Base UI Menu API](https://base-ui.com/react/components/menu#api-reference) · [Issues](https://github.com/pbroom/control-kit/issues)
+[Menu wrapper](https://github.com/pbroom/control-kit/blob/main/lab/src/components/ui/dropdown-menu.tsx) · [Focused composition](https://github.com/pbroom/control-kit/blob/main/lab/src/routes/docs/examples/menu-installation-example.tsx) · [Class-name utility](https://github.com/pbroom/control-kit/blob/main/lab/src/lib/utils.ts) · [Lab page](https://github.com/pbroom/control-kit/blob/main/lab/src/routes/lab/pages/menu.tsx) · [Base UI Menu API](https://base-ui.com/react/components/menu#api-reference) · [Issues](https://github.com/pbroom/control-kit/issues)

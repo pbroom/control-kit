@@ -6,6 +6,21 @@ A two-state button that keeps selection separate from transient pointer and keyb
 
 <!-- demo:basic -->
 
+## Installation
+
+### Manual
+
+Toggle Button is currently a Lab prototype rather than a package export.
+
+1. Copy the [focused native-button implementation and state styles](https://github.com/pbroom/control-kit/blob/main/lab/src/routes/docs/examples/toggle-button-basic-example.tsx) into your project.
+2. Install `lucide-react` if you use the example icons:
+
+   ```bash
+   pnpm add lucide-react
+   ```
+
+3. Update the local imports and styles to match your project setup.
+
 ## Usage
 
 Control the selected state and expose it with `aria-pressed`:
@@ -72,4 +87,4 @@ Native button semantics preserve Enter and Space activation. `aria-pressed` anno
 
 ## Source
 
-[Lab page](https://github.com/pbroom/control-kit/blob/main/lab/src/routes/lab/pages/toggle-button.tsx) · [Implementation and state styles](https://github.com/pbroom/control-kit/blob/main/lab/src/routes/lab/shared.tsx) · [Issues](https://github.com/pbroom/control-kit/issues)
+[Lab page](https://github.com/pbroom/control-kit/blob/main/lab/src/routes/lab/pages/toggle-button.tsx) · [Focused implementation and state styles](https://github.com/pbroom/control-kit/blob/main/lab/src/routes/docs/examples/toggle-button-basic-example.tsx) · [Issues](https://github.com/pbroom/control-kit/issues)
