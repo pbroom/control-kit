@@ -10,7 +10,7 @@ export function SliderRangeExample() {
         aria-label="Limited hue"
         aria-valuetext={`${Math.round(color.requested.h)} degrees`}
         channel="h"
-        className="h-6 w-full rounded-full border border-white/10 bg-linear-to-r from-emerald-500 via-cyan-500 to-blue-500 [&_[data-color-slider-thumb]]:size-6 [&_[data-color-slider-thumb]]:rounded-full [&_[data-color-slider-thumb]]:border-2 [&_[data-color-slider-thumb]]:border-white [&_[data-color-slider-thumb]]:bg-transparent [&_[data-color-slider-thumb]]:shadow-[0_1px_4px_rgb(0_0_0/0.5)]"
+        className="h-6 w-full rounded-full border border-white/10 bg-linear-to-r bg-origin-border bg-no-repeat from-emerald-500 via-cyan-500 to-blue-500 [&_[data-color-slider-thumb]]:size-6 [&_[data-color-slider-thumb]]:rounded-full [&_[data-color-slider-thumb]]:border-2 [&_[data-color-slider-thumb]]:border-white [&_[data-color-slider-thumb]]:bg-transparent [&_[data-color-slider-thumb]]:shadow-[0_1px_4px_rgb(0_0_0/0.5)]"
         onChangeRequested={color.setRequested}
         range={[120, 240]}
         requested={color.requested}

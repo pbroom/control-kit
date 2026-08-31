@@ -8,7 +8,7 @@ export function SliderStylingExample() {
       <ColorSlider
         aria-label="Styled lightness"
         channel="l"
-        className="h-3 w-full max-w-72 rounded-full bg-linear-to-r from-black to-white [&_[data-color-slider-thumb]]:size-7 [&_[data-color-slider-thumb]]:rounded-md [&_[data-color-slider-thumb]]:border-2 [&_[data-color-slider-thumb]]:border-white [&_[data-color-slider-thumb]]:bg-[#171718]"
+        className="h-3 w-full max-w-72 rounded-full bg-linear-to-r bg-origin-border bg-no-repeat from-black to-white [&_[data-color-slider-thumb]]:size-7 [&_[data-color-slider-thumb]]:rounded-md [&_[data-color-slider-thumb]]:border-2 [&_[data-color-slider-thumb]]:border-white [&_[data-color-slider-thumb]]:bg-[#171718]"
         onChangeRequested={color.setRequested}
         requested={color.requested}
       />
