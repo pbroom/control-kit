@@ -163,6 +163,28 @@ test('renders the focused Plane examples with executable source', async ({
     )
     .not.toBe(initialMeshBackground);
 
+  const dropShadowExample = gallery.getByRole('figure', {
+    name: 'Drop-shadow offset demo',
+    exact: true,
+  });
+  const dropShadowPlane = dropShadowExample.locator('[data-slot="plane"]');
+  const horizontalShadowAxis = dropShadowExample.getByRole('slider', {
+    name: 'Horizontal shadow offset',
+    exact: true,
+  });
+  await expect(dropShadowPlane).toHaveCSS(
+    'background-color',
+    'rgb(230, 232, 236)',
+  );
+  const initialShadowReadout = await dropShadowExample
+    .locator('output')
+    .textContent();
+  await horizontalShadowAxis.focus();
+  await horizontalShadowAxis.press('ArrowLeft');
+  await expect(dropShadowExample.locator('output')).not.toHaveText(
+    initialShadowReadout ?? '',
+  );
+
   const threeWayExample = gallery.getByRole('figure', {
     name: 'Color grading controls — Circular controls (3-way color adjuster) demo',
     exact: true,
