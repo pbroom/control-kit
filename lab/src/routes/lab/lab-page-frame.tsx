@@ -499,7 +499,7 @@ function LabPageFrameContent({
         onPagePreload={onPagePreload}
         pages={pages}
       />
-      <div className="mx-auto w-full max-w-[1180px] px-6 pb-24 sm:pt-24 sm:pr-10 sm:pl-[236px] lg:pr-16 lg:pl-[252px]">
+      <div className="mx-auto w-full max-w-[1440px] px-6 pb-24 sm:pt-24 sm:pr-10 sm:pl-[236px] lg:pr-16 lg:pl-[252px]">
         {docs}
       </div>
     </div>

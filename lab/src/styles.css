@@ -212,9 +212,9 @@
   color: rgba(255, 255, 255, 0.75);
 }
 
-.ck-lab-page-link[aria-current='page'],
-.ck-lab-page-link[aria-current='page']:hover,
-.ck-lab-page-link[aria-current='page']:focus-visible {
+.ck-lab-page-link[aria-current],
+.ck-lab-page-link[aria-current]:hover,
+.ck-lab-page-link[aria-current]:focus-visible {
   color: #fff;
   font-weight: 600;
 }

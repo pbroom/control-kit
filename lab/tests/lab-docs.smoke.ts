@@ -284,6 +284,99 @@ test('renders the focused Plane examples with executable source', async ({
   expect(browserErrors).toEqual([]);
 });
 
+test('provides responsive on-page navigation for documentation headings', async ({
+  page,
+}, testInfo) => {
+  const browserErrors = await collectBrowserErrors(page);
+
+  await page.goto('/docs/plane');
+  await expect(
+    page.getByRole('heading', { name: 'Plane', exact: true, level: 1 }),
+  ).toBeVisible();
+
+  const outline = page.getByRole('navigation', { name: 'On this page' });
+
+  if (testInfo.project.name === 'mobile') {
+    await expect(outline).toBeHidden();
+    expect(browserErrors).toEqual([]);
+    return;
+  }
+
+  await expect(outline).toBeVisible();
+  await expect(
+    outline.getByRole('link', { name: 'Anatomy', exact: true }),
+  ).toBeVisible();
+  await expect(
+    outline.getByRole('link', { name: 'API reference', exact: true }),
+  ).toBeVisible();
+  await expect(
+    outline.getByRole('link', { name: 'PlaneThumb', exact: true }),
+  ).toHaveAttribute('data-depth', '3');
+
+  const primaryNavigation = page.getByRole('navigation', {
+    name: 'Lab pages',
+  });
+  const primaryActiveLink = primaryNavigation.getByRole('link', {
+    name: 'Plane',
+    exact: true,
+  });
+  const primaryInactiveLink = primaryNavigation.getByRole('link', {
+    name: 'Input Multi',
+    exact: true,
+  });
+  const outlineActiveLink = outline.getByRole('link', {
+    name: 'Anatomy',
+    exact: true,
+  });
+  const outlineInactiveLink = outline.getByRole('link', {
+    name: 'Usage guidelines',
+    exact: true,
+  });
+  const linkStyle = (element: Element) => {
+    const styles = getComputedStyle(element);
+    return [styles.backgroundColor, styles.color, styles.fontWeight];
+  };
+
+  expect(await outlineActiveLink.evaluate(linkStyle)).toEqual(
+    await primaryActiveLink.evaluate(linkStyle),
+  );
+  expect(await outlineInactiveLink.evaluate(linkStyle)).toEqual(
+    await primaryInactiveLink.evaluate(linkStyle),
+  );
+  await outlineInactiveLink.hover();
+  await page.waitForTimeout(200);
+  const outlineHoverStyle = await outlineInactiveLink.evaluate(linkStyle);
+  await primaryInactiveLink.hover();
+  await page.waitForTimeout(200);
+  expect(outlineHoverStyle).toEqual(
+    await primaryInactiveLink.evaluate(linkStyle),
+  );
+
+  const apiReferenceLink = outline.getByRole('link', {
+    name: 'API reference',
+    exact: true,
+  });
+  await apiReferenceLink.click();
+  await expect(page).toHaveURL(/\/docs\/plane#api-reference$/);
+  await expect(apiReferenceLink).toHaveAttribute('aria-current', 'location');
+  expect(
+    await page.evaluate(() => {
+      const scrollRoot = document.querySelector<HTMLElement>(
+        '[data-docs-page-scroll]',
+      );
+      const heading = document.querySelector<HTMLElement>('#api-reference');
+      if (!scrollRoot || !heading) return false;
+
+      const rootRect = scrollRoot.getBoundingClientRect();
+      const headingRect = heading.getBoundingClientRect();
+      return (
+        headingRect.top >= rootRect.top && headingRect.top < rootRect.bottom
+      );
+    }),
+  ).toBe(true);
+  expect(browserErrors).toEqual([]);
+});
+
 test('recovers after a transient documentation module failure', async ({
   page,
 }, testInfo) => {
@@ -786,7 +879,9 @@ test('routes between Plane docs and Lab and exposes tabs only on documented page
   await expect(page).toHaveURL(/\/docs\/color-plane$/);
   await expect(page.getByRole('tablist', { name: 'Page view' })).toBeVisible();
   await expect(
-    page.getByRole('link', { name: 'ColorPlane', exact: true }),
+    page
+      .getByRole('navigation', { name: 'Lab pages' })
+      .getByRole('link', { name: 'ColorPlane', exact: true }),
   ).toHaveAttribute('aria-current', 'page');
 
   await page.goto('/docs/checkbox');
