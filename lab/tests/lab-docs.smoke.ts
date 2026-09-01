@@ -4,6 +4,7 @@ import { collectBrowserErrors } from './lab-smoke-utils.js';
 const FOCUSED_PLANE_EXAMPLE_TITLES = [
   'Saturation × brightness/value',
   'Color grading controls — Circular controls (3-way color adjuster)',
+  'Mesh gradient',
   'Background-position',
   'Gradient center/origin',
   'Pattern/texture offset',
@@ -76,9 +77,9 @@ test('renders the focused Plane examples with executable source', async ({
   );
 
   const gallery = page.locator('[data-plane-examples-gallery]');
-  await expect(gallery).toHaveAttribute('data-plane-examples-count', '36');
+  await expect(gallery).toHaveAttribute('data-plane-examples-count', '37');
   await expect(gallery.locator('h3')).toHaveText(FOCUSED_PLANE_EXAMPLE_TITLES);
-  await expect(gallery.locator('[data-docs-example]')).toHaveCount(36);
+  await expect(gallery.locator('[data-docs-example]')).toHaveCount(37);
   expect(
     await gallery
       .locator('[data-docs-example]')
@@ -97,10 +98,10 @@ test('renders the focused Plane examples with executable source', async ({
       ),
     ),
   ).toBe(true);
-  await expect(gallery.locator('[data-docs-example-source]')).toHaveCount(36);
+  await expect(gallery.locator('[data-docs-example-source]')).toHaveCount(37);
   await expect(
     gallery.getByRole('button', { name: 'Show code', exact: true }),
-  ).toHaveCount(36);
+  ).toHaveCount(37);
 
   const firstExample = gallery.locator('[data-docs-example]').first();
   const firstPlane = firstExample.locator('[data-slot="plane"]');
@@ -136,6 +137,31 @@ test('renders the focused Plane examples with executable source', async ({
   expect(thumbBounds!.x + thumbBounds!.width).toBeGreaterThan(
     planeBounds!.x + planeBounds!.width,
   );
+
+  const meshExample = gallery.getByRole('figure', {
+    name: 'Mesh gradient demo',
+    exact: true,
+  });
+  const meshHorizontalAxis = meshExample.getByRole('slider', {
+    name: 'Coral mesh point horizontal position',
+    exact: true,
+  });
+  await expect(meshExample.locator('[data-slot="plane-thumb"]')).toHaveCount(4);
+  await expect(meshExample.getByRole('slider')).toHaveCount(8);
+  const initialMeshBackground = await meshExample
+    .locator('[data-slot="plane"]')
+    .evaluate((plane) => getComputedStyle(plane).backgroundImage);
+  await meshHorizontalAxis.focus();
+  await meshHorizontalAxis.press('End');
+  await expect(meshHorizontalAxis).toHaveValue('1');
+  await expect(meshExample.locator('output')).toHaveText(/^Coral 100% \d+%$/);
+  await expect
+    .poll(() =>
+      meshExample
+        .locator('[data-slot="plane"]')
+        .evaluate((plane) => getComputedStyle(plane).backgroundImage),
+    )
+    .not.toBe(initialMeshBackground);
 
   const threeWayExample = gallery.getByRole('figure', {
     name: 'Color grading controls — Circular controls (3-way color adjuster) demo',

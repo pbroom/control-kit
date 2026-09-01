@@ -40,6 +40,11 @@ const PLANE_EXAMPLE_GROUPS = [
         title:
           'Color grading controls — Circular controls (3-way color adjuster)',
       },
+      {
+        file: 'mesh-gradient',
+        exportName: 'MeshGradientExample',
+        title: 'Mesh gradient',
+      },
     ],
   },
   {
@@ -319,7 +324,7 @@ function PlaneExamplesGallery() {
   return (
     <div
       className="flex flex-col gap-16"
-      data-plane-examples-count="36"
+      data-plane-examples-count="37"
       data-plane-examples-gallery
     >
       {PLANE_EXAMPLE_GROUPS.map((group) => (
