@@ -303,8 +303,18 @@ test('provides responsive on-page navigation for documentation headings', async 
   }
 
   await expect(outline).toBeVisible();
-  await expect(outline.getByText('Guide', { exact: true })).toBeVisible();
+  const outlineTitle = page
+    .locator('[data-docs-on-this-page]')
+    .getByText('On this page', { exact: true });
+  const guideTitle = outline.getByText('Guide', { exact: true });
+  await expect(guideTitle).toBeVisible();
   await expect(outline.getByText('API', { exact: true })).toBeVisible();
+  expect(
+    Math.abs(
+      (await outlineTitle.boundingBox())!.x -
+        (await guideTitle.boundingBox())!.x,
+    ),
+  ).toBeLessThan(0.5);
   await expect(
     outline.getByRole('link', { name: 'Anatomy', exact: true }),
   ).toBeVisible();
