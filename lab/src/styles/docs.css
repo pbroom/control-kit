@@ -171,6 +171,10 @@
     gap: 0;
   }
 
+  .docs-on-this-page-link {
+    font-size: 0.8125rem;
+  }
+
   .docs-on-this-page-link.nested {
     @apply pl-4;
   }
@@ -192,8 +196,8 @@
   @media (min-width: 1280px) {
     .docs-page-layout {
       display: grid;
-      max-width: 1040px;
-      grid-template-columns: minmax(0, 700px) 184px;
+      max-width: 1024px;
+      grid-template-columns: minmax(0, 700px) 168px;
       justify-content: center;
       align-items: start;
       gap: 4rem;

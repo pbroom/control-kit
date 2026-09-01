@@ -71,8 +71,8 @@ The right rail was inspected at 1440 × 1000. It begins level with the article i
 
 ## Required fidelity surfaces
 
-- Fonts and typography: passed. The rail uses the existing Control Kit sans family, 12px title, 14px links, and a medium active weight.
-- Spacing and layout rhythm: passed. The 700px article track, 64px gap, and 184px rail create the same three-column reading hierarchy as the reference without compressing examples. The rail uses tighter rows than the primary navigation to keep long outlines scannable.
+- Fonts and typography: passed. The rail uses the existing Control Kit sans family, 12px title, 13px links, and a medium active weight.
+- Spacing and layout rhythm: passed. The 700px article track, 64px gap, and 168px rail create the same three-column reading hierarchy as the reference without compressing examples. The rail uses tighter rows than the primary navigation to keep long outlines scannable.
 - Colors and visual tokens: passed. The rail reuses the primary left navigation's muted, hover, and active text states. Default, hover, and active links remain transparent.
 - Image quality and asset fidelity: passed. This pattern introduces no image or icon assets; none from the source were required for the requested rail.
 - Copy and content: passed. “On this page” is generated from visible h2 and h3 documentation headings, excludes the page h1 and headings inside example previews, and preserves existing heading IDs.

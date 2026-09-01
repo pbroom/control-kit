@@ -139,7 +139,7 @@ export function DocsOnThisPage({
         {items.map((item) => (
           <a
             aria-current={activeId === item.id ? 'location' : undefined}
-            className={`ck-lab-page-link docs-on-this-page-link flex w-full items-center rounded-lg px-1 py-1 text-left text-sm leading-tight outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[#5288db]${item.depth === 3 ? ' nested' : ''}`}
+            className={`ck-lab-page-link docs-on-this-page-link flex w-full items-center rounded-lg px-1 py-1 text-left leading-tight outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[#5288db]${item.depth === 3 ? ' nested' : ''}`}
             data-active={activeId === item.id ? 'true' : 'false'}
             data-depth={item.depth}
             href={`#${item.id}`}
