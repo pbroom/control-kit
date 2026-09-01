@@ -132,4 +132,38 @@ describe('MarkdownDocsPage', () => {
 
     act(() => root.unmount());
   });
+
+  it('groups API reference headings for quicker scanning', () => {
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+
+    act(() => {
+      root.render(
+        <MarkdownDocsPage
+          source={
+            '# Example\n\n## Anatomy\n\n### Parts\n\n## API reference\n\n### Widget\n\n## Accessibility'
+          }
+        />,
+      );
+    });
+
+    const guide = container.querySelector('[data-docs-outline-group="guide"]');
+    const api = container.querySelector('[data-docs-outline-group="api"]');
+
+    expect(guide?.querySelector('p')?.textContent).toBe('Guide');
+    expect(
+      Array.from(guide?.querySelectorAll('a') ?? []).map(
+        (link) => link.textContent,
+      ),
+    ).toEqual(['Anatomy', 'Parts']);
+    expect(api?.querySelector('p')?.textContent).toBe('API');
+    expect(
+      Array.from(api?.querySelectorAll('a') ?? []).map(
+        (link) => link.textContent,
+      ),
+    ).toEqual(['API reference', 'Widget', 'Accessibility']);
+
+    act(() => root.unmount());
+  });
 });

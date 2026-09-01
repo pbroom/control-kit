@@ -6,6 +6,11 @@ type DocsOutlineItem = {
   label: string;
 };
 
+type DocsOutlineGroup = {
+  label?: 'Guide' | 'API';
+  items: readonly DocsOutlineItem[];
+};
+
 const HEADING_SELECTOR = 'h2, h3';
 
 function slugifyHeading(label: string) {
@@ -52,6 +57,21 @@ function collectOutlineItems(article: HTMLElement) {
       },
     ];
   });
+}
+
+function groupOutlineItems(
+  items: readonly DocsOutlineItem[],
+): readonly DocsOutlineGroup[] {
+  const referenceIndex = items.findIndex(
+    (item) => item.depth === 2 && item.label.toLowerCase() === 'api reference',
+  );
+
+  if (referenceIndex <= 0) return [{ items }];
+
+  return [
+    { label: 'Guide', items: items.slice(0, referenceIndex) },
+    { label: 'API', items: items.slice(referenceIndex) },
+  ];
 }
 
 export function DocsOnThisPage({
@@ -127,6 +147,8 @@ export function DocsOnThisPage({
 
   if (items.length === 0) return null;
 
+  const groups = groupOutlineItems(items);
+
   return (
     <aside className="docs-on-this-page" data-docs-on-this-page>
       <p className="docs-on-this-page-title" id="docs-on-this-page-title">
@@ -136,18 +158,29 @@ export function DocsOnThisPage({
         aria-labelledby="docs-on-this-page-title"
         className="docs-on-this-page-nav flex flex-col"
       >
-        {items.map((item) => (
-          <a
-            aria-current={activeId === item.id ? 'location' : undefined}
-            className={`ck-lab-page-link docs-on-this-page-link flex w-full items-center rounded-lg px-1 py-1 text-left leading-tight outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[#5288db]${item.depth === 3 ? ' nested' : ''}`}
-            data-active={activeId === item.id ? 'true' : 'false'}
-            data-depth={item.depth}
-            href={`#${item.id}`}
-            key={item.id}
-            onClick={() => setActiveId(item.id)}
+        {groups.map((group, groupIndex) => (
+          <div
+            className="docs-on-this-page-group"
+            data-docs-outline-group={group.label?.toLowerCase()}
+            key={group.label ?? `outline-group-${groupIndex}`}
           >
-            {item.label}
-          </a>
+            {group.label ? (
+              <p className="docs-on-this-page-group-title">{group.label}</p>
+            ) : null}
+            {group.items.map((item) => (
+              <a
+                aria-current={activeId === item.id ? 'location' : undefined}
+                className={`ck-lab-page-link docs-on-this-page-link flex w-full items-center rounded-lg px-1 py-1 text-left leading-tight outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[#5288db]${item.depth === 3 ? ' nested' : ''}`}
+                data-active={activeId === item.id ? 'true' : 'false'}
+                data-depth={item.depth}
+                href={`#${item.id}`}
+                key={item.id}
+                onClick={() => setActiveId(item.id)}
+              >
+                {item.label}
+              </a>
+            ))}
+          </div>
         ))}
       </nav>
     </aside>

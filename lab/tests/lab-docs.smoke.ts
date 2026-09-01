@@ -303,6 +303,8 @@ test('provides responsive on-page navigation for documentation headings', async 
   }
 
   await expect(outline).toBeVisible();
+  await expect(outline.getByText('Guide', { exact: true })).toBeVisible();
+  await expect(outline.getByText('API', { exact: true })).toBeVisible();
   await expect(
     outline.getByRole('link', { name: 'Anatomy', exact: true }),
   ).toBeVisible();
@@ -312,6 +314,11 @@ test('provides responsive on-page navigation for documentation headings', async 
   await expect(
     outline.getByRole('link', { name: 'PlaneThumb', exact: true }),
   ).toHaveAttribute('data-depth', '3');
+  await expect(
+    outline
+      .locator('[data-docs-outline-group="api"]')
+      .getByRole('link', { name: 'API reference', exact: true }),
+  ).toBeVisible();
 
   const primaryNavigation = page.getByRole('navigation', {
     name: 'Lab pages',
