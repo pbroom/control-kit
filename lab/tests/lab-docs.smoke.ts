@@ -195,10 +195,95 @@ test('renders the focused Plane examples with executable source', async ({
   });
   const toneControls = colorBalance.locator('[data-tone-control]');
   const toneLabels = colorBalance.locator('[data-tone-label]');
+  const toneShaders = colorBalance.locator('[data-tone-shader]');
   const toneSliders = colorBalance.locator('[data-tone-slider]');
 
   await expect(toneControls).toHaveCount(3);
   await expect(toneLabels).toHaveText(['Highlights', 'Midtones', 'Shadows']);
+  await expect(toneShaders).toHaveCount(3);
+  await expect
+    .poll(() =>
+      toneShaders.evaluateAll((canvases) =>
+        canvases.map((canvas) => canvas.getAttribute('data-renderer')),
+      ),
+    )
+    .toEqual(['webgl', 'webgl', 'webgl']);
+  expect(
+    await toneShaders.evaluateAll((canvases) =>
+      canvases.map((node) => {
+        const canvas = node as HTMLCanvasElement;
+        const bounds = canvas.getBoundingClientRect();
+        const plane = canvas.parentElement!;
+        const planeBounds = plane.getBoundingClientRect();
+        const planeStyles = getComputedStyle(plane);
+        const borderLeft = parseFloat(planeStyles.borderLeftWidth);
+        const borderRight = parseFloat(planeStyles.borderRightWidth);
+        const borderTop = parseFloat(planeStyles.borderTopWidth);
+        const borderBottom = parseFloat(planeStyles.borderBottomWidth);
+        const pixelRatio = Math.min(
+          2,
+          Math.max(1, window.devicePixelRatio || 1),
+        );
+
+        return {
+          backingSize: [canvas.width, canvas.height],
+          expectedBackingSize: [
+            Math.round(bounds.width * pixelRatio),
+            Math.round(bounds.height * pixelRatio),
+          ],
+          fillsPlane:
+            Math.abs(bounds.left - (planeBounds.left + borderLeft)) < 0.5 &&
+            Math.abs(bounds.top - (planeBounds.top + borderTop)) < 0.5 &&
+            Math.abs(
+              bounds.width - (planeBounds.width - borderLeft - borderRight),
+            ) < 0.5 &&
+            Math.abs(
+              bounds.height - (planeBounds.height - borderTop - borderBottom),
+            ) < 0.5,
+          pointerEvents: getComputedStyle(canvas).pointerEvents,
+          seed: canvas.getAttribute('data-tone-shader-seed'),
+        };
+      }),
+    ),
+  ).toEqual([
+    {
+      backingSize: expect.any(Array),
+      expectedBackingSize: expect.any(Array),
+      fillsPlane: true,
+      pointerEvents: 'none',
+      seed: '17',
+    },
+    {
+      backingSize: expect.any(Array),
+      expectedBackingSize: expect.any(Array),
+      fillsPlane: true,
+      pointerEvents: 'none',
+      seed: '43',
+    },
+    {
+      backingSize: expect.any(Array),
+      expectedBackingSize: expect.any(Array),
+      fillsPlane: true,
+      pointerEvents: 'none',
+      seed: '79',
+    },
+  ]);
+  expect(
+    await toneShaders.evaluateAll((canvases) =>
+      canvases.every((node) => {
+        const canvas = node as HTMLCanvasElement;
+        const bounds = canvas.getBoundingClientRect();
+        const pixelRatio = Math.min(
+          2,
+          Math.max(1, window.devicePixelRatio || 1),
+        );
+        return (
+          canvas.width === Math.round(bounds.width * pixelRatio) &&
+          canvas.height === Math.round(bounds.height * pixelRatio)
+        );
+      }),
+    ),
+  ).toBe(true);
   expect(
     await toneLabels.evaluateAll((labels) =>
       labels.map((label) => getComputedStyle(label).fontSize),
