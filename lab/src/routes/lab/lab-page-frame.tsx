@@ -159,6 +159,7 @@ function PagesPanel({
   activePage,
   getPageHref,
   hasPageViewTabs = false,
+  flowOnMobile = false,
   onPageChange,
   onPagePreload,
   pages,
@@ -166,6 +167,7 @@ function PagesPanel({
   activePage: LabPageKey;
   getPageHref: (page: LabPageKey) => string;
   hasPageViewTabs?: boolean;
+  flowOnMobile?: boolean;
   onPageChange: (page: LabPageKey) => void;
   onPagePreload?: (page: LabPageKey) => void;
   pages: readonly LabPageNavigationItem[];
@@ -175,8 +177,10 @@ function PagesPanel({
   return (
     <div
       className={[
-        'pointer-events-none absolute bottom-4 left-4 z-20 flex w-[190px] flex-col',
-        hasPageViewTabs ? 'top-16 sm:top-4' : 'top-4',
+        'pointer-events-none z-20 flex w-[190px] flex-col',
+        flowOnMobile
+          ? 'relative mx-4 mb-8 pt-16 sm:absolute sm:bottom-4 sm:left-4 sm:top-4 sm:mx-0 sm:mb-0 sm:pt-0'
+          : `absolute bottom-4 left-4 ${hasPageViewTabs ? 'top-16 sm:top-4' : 'top-4'}`,
       ].join(' ')}
     >
       <div className="pointer-events-auto flex items-center gap-2">
@@ -487,11 +491,12 @@ function LabPageFrameContent({
         activePage={activePage}
         getPageHref={getPageHref}
         hasPageViewTabs
+        flowOnMobile
         onPageChange={onPageChange}
         onPagePreload={onPagePreload}
         pages={pages}
       />
-      <div className="mx-auto w-full max-w-[1180px] px-6 pt-[580px] pb-24 sm:pt-24 sm:pr-10 sm:pl-[236px] lg:pr-16 lg:pl-[252px]">
+      <div className="mx-auto w-full max-w-[1180px] px-6 pb-24 sm:pt-24 sm:pr-10 sm:pl-[236px] lg:pr-16 lg:pl-[252px]">
         {docs}
       </div>
     </div>

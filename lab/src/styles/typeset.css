@@ -528,6 +528,8 @@
         [data-not-typeset] *
       )
     ) {
+    /* The docs canvas stays dark regardless of the selected control theme. */
+    color: #eff3f8;
     font-family: var(--typeset-font-heading);
     text-wrap: balance;
     scroll-margin-top: 5rem;
