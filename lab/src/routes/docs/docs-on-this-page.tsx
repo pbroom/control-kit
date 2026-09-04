@@ -134,12 +134,38 @@ export function DocsOnThisPage({
       animationFrame = window.requestAnimationFrame(updateActiveHeading);
     };
 
-    scheduleUpdate();
+    const restoreFragment = () => {
+      let targetId: string;
+      try {
+        targetId = decodeURIComponent(window.location.hash.slice(1));
+      } catch {
+        return;
+      }
+      const target = headings.find((heading) => heading.id === targetId);
+      if (!target) return;
+
+      target.scrollIntoView({ block: 'start', behavior: 'instant' });
+      setActiveId(target.id);
+    };
+    const scheduleFragmentRestore = () => {
+      window.cancelAnimationFrame(animationFrame);
+      animationFrame = window.requestAnimationFrame(() => {
+        restoreFragment();
+        updateActiveHeading();
+      });
+    };
+
+    // Lazy docs create heading IDs after the browser's initial fragment lookup.
+    scheduleFragmentRestore();
+    window.addEventListener('hashchange', scheduleFragmentRestore);
+    window.addEventListener('popstate', scheduleFragmentRestore);
     scrollRoot.addEventListener('scroll', scheduleUpdate, { passive: true });
     window.addEventListener('resize', scheduleUpdate);
 
     return () => {
       window.cancelAnimationFrame(animationFrame);
+      window.removeEventListener('hashchange', scheduleFragmentRestore);
+      window.removeEventListener('popstate', scheduleFragmentRestore);
       scrollRoot.removeEventListener('scroll', scheduleUpdate);
       window.removeEventListener('resize', scheduleUpdate);
     };
