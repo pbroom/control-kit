@@ -113,6 +113,7 @@ export function usePrimitiveValueInput({
   const lastScrubCommitTsRef = useRef(0);
   const processPendingScrubRef = useRef<(frameTime: number) => void>(() => {});
   const lastCommittedValueRef = useRef(value);
+  const hasTextDraftRef = useRef(false);
   const skipBlurCommitRef = useRef(false);
   const [draft, setDraft] = useState(() =>
     formatPrimitiveValue(value, precision, autoTrim),
@@ -246,6 +247,7 @@ export function usePrimitiveValueInput({
       }
 
       lastCommittedValueRef.current = normalized;
+      hasTextDraftRef.current = false;
       setDraft(formatPrimitiveValue(normalized, precision, autoTrim));
       onValueChange(normalized, { interaction });
       return normalized;
@@ -314,6 +316,7 @@ export function usePrimitiveValueInput({
   );
 
   const handleFocus = useCallback(() => {
+    hasTextDraftRef.current = false;
     setIsEditing(true);
     setFocusStartValue(value);
     lastCommittedValueRef.current = value;
@@ -340,6 +343,7 @@ export function usePrimitiveValueInput({
 
   const handleChange = useCallback(
     (event: ReactChangeEvent<HTMLInputElement>) => {
+      hasTextDraftRef.current = true;
       setDraft(event.target.value);
       setIsEditing(true);
     },
@@ -371,7 +375,9 @@ export function usePrimitiveValueInput({
       ) {
         const activeStep = getModifiedStep(event.shiftKey, event.altKey);
         const stepBaseValue =
-          isEditing && parsedDraft !== null ? parsedDraft : value;
+          isEditing && hasTextDraftRef.current && parsedDraft !== null
+            ? parsedDraft
+            : value;
         const nextValue = getPrimitiveSteppedValue({
           value: stepBaseValue,
           key: event.key,
@@ -649,7 +655,9 @@ export function usePrimitiveValueInput({
         return;
       }
       endScrub(
-        hasPointerLock() ? lastScrubXRef.current : event.clientX,
+        hasPointerLock()
+          ? (pendingScrubRef.current?.clientX ?? lastScrubXRef.current)
+          : event.clientX,
         event.shiftKey,
         event.altKey,
       );
@@ -666,7 +674,8 @@ export function usePrimitiveValueInput({
         return;
       }
       queueScrubValue(
-        lastScrubXRef.current + event.movementX,
+        (pendingScrubRef.current?.clientX ?? lastScrubXRef.current) +
+          event.movementX,
         event.shiftKey,
         event.altKey,
       );
