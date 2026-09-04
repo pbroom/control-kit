@@ -436,15 +436,16 @@ export function usePrimitiveValueInput({
   }, []);
 
   const commitScrubValue = useCallback(
-    (nextValue: number, clientX: number, force = false) => {
+    (nextValue: number, clientX: number, force = false, publish = true) => {
       const normalized = normalizePrimitiveValue(nextValue, min, max, wrapMode);
       const previousCommittedValue = lastCommittedValueRef.current;
       scrubCurrentValueRef.current = normalized;
       if (
-        force ||
-        (!Object.is(normalized, previousCommittedValue) &&
-          Math.abs(normalized - previousCommittedValue) >=
-            Math.max(0, scrubCommitThreshold))
+        publish &&
+        (force ||
+          (!Object.is(normalized, previousCommittedValue) &&
+            Math.abs(normalized - previousCommittedValue) >=
+              Math.max(0, scrubCommitThreshold)))
       ) {
         emitValue(normalized, 'pointer');
       }
@@ -458,7 +459,7 @@ export function usePrimitiveValueInput({
   );
 
   const applyScrubSnapshot = useCallback(
-    (snapshot: PrimitiveScrubSnapshot, force = false) => {
+    (snapshot: PrimitiveScrubSnapshot, force = false, publish = true) => {
       const deltaPixels = snapshot.clientX - scrubStartXRef.current;
       if (
         !hasDragStartedRef.current &&
@@ -479,7 +480,7 @@ export function usePrimitiveValueInput({
       const rebasedDeltaPixels = snapshot.clientX - scrubStartXRef.current;
       const nextValue = getScrubValueFromDelta(rebasedDeltaPixels, activeStep);
       lastScrubXRef.current = snapshot.clientX;
-      commitScrubValue(nextValue, snapshot.clientX, force);
+      commitScrubValue(nextValue, snapshot.clientX, force, publish);
     },
     [commitScrubValue, getModifiedStep, getScrubValueFromDelta, scrubThreshold],
   );
@@ -541,12 +542,27 @@ export function usePrimitiveValueInput({
         return;
       }
 
+      const pending = pendingScrubRef.current;
+      if (
+        pending &&
+        getModifiedStep(pending.shiftKey, pending.altKey) !==
+          getModifiedStep(shiftKey, altKey)
+      ) {
+        // Preserve the previous movement segment without bypassing the
+        // configured callback rate when modifiers change between frames.
+        applyScrubSnapshot(pending, false, false);
+      }
       pendingScrubRef.current = snapshot;
       if (scrubFrameRef.current === null) {
         schedulePendingScrubFrame();
       }
     },
-    [applyScrubSnapshot, schedulePendingScrubFrame, shouldRateLimitScrub],
+    [
+      applyScrubSnapshot,
+      getModifiedStep,
+      schedulePendingScrubFrame,
+      shouldRateLimitScrub,
+    ],
   );
 
   const stopScrubFrame = useCallback(() => {
@@ -654,13 +670,11 @@ export function usePrimitiveValueInput({
       if (event.pointerId !== activePointerIdRef.current) {
         return;
       }
-      endScrub(
-        hasPointerLock()
-          ? (pendingScrubRef.current?.clientX ?? lastScrubXRef.current)
-          : event.clientX,
-        event.shiftKey,
-        event.altKey,
-      );
+      if (hasPointerLock()) {
+        endScrub();
+      } else {
+        endScrub(event.clientX, event.shiftKey, event.altKey);
+      }
     };
 
     const handleDocumentPointerCancel = (event: PointerEvent) => {

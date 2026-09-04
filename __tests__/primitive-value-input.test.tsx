@@ -772,8 +772,16 @@ describe('PrimitiveValueInput', () => {
       frameCallbacks.delete(frameId);
       act(() => callback(frameTime));
     };
-    const moveLockedPointer = (movementX: number, altKey = false) => {
-      const event = new MouseEvent('mousemove', { bubbles: true, altKey });
+    const moveLockedPointer = (
+      movementX: number,
+      altKey = false,
+      shiftKey = false,
+    ) => {
+      const event = new MouseEvent('mousemove', {
+        bubbles: true,
+        altKey,
+        shiftKey,
+      });
       Object.defineProperty(event, 'movementX', { value: movementX });
       act(() => document.dispatchEvent(event));
     };
@@ -821,17 +829,29 @@ describe('PrimitiveValueInput', () => {
         interaction: 'pointer',
       });
 
+      moveLockedPointer(5);
+      moveLockedPointer(5, true);
+      moveLockedPointer(2, false, true);
+      moveLockedPointer(5, true);
+      moveLockedPointer(1);
+      flushFrame(140);
+      expect(onValueChange).toHaveBeenCalledTimes(2);
+      flushFrame(216);
+      expect(onValueChange).toHaveBeenLastCalledWith(84.5, {
+        interaction: 'pointer',
+      });
+
       moveLockedPointer(4, true);
       moveLockedPointer(1, true);
       act(() => {
         firePointerEvent(document, 'pointerup', {
           pointerId: 8,
           clientX: 0,
-          altKey: true,
+          altKey: false,
         });
       });
-      expect(onValueChange).toHaveBeenCalledTimes(3);
-      expect(onValueChange).toHaveBeenLastCalledWith(58, {
+      expect(onValueChange).toHaveBeenCalledTimes(4);
+      expect(onValueChange).toHaveBeenLastCalledWith(85, {
         interaction: 'pointer',
       });
     } finally {
@@ -846,6 +866,66 @@ describe('PrimitiveValueInput', () => {
       }
     }
   });
+
+  it.each([false, true])(
+    'preserves pending modifier segments with a frame after each move: %s',
+    (flushEachMove) => {
+      const frameCallbacks = new Map<number, FrameRequestCallback>();
+      let nextFrameId = 1;
+      vi.spyOn(window, 'requestAnimationFrame').mockImplementation(
+        (callback) => {
+          const frameId = nextFrameId++;
+          frameCallbacks.set(frameId, callback);
+          return frameId;
+        },
+      );
+      vi.spyOn(window, 'cancelAnimationFrame').mockImplementation((frameId) => {
+        frameCallbacks.delete(frameId);
+      });
+      const flushFrame = (time: number) => {
+        const [frameId, callback] = frameCallbacks.entries().next().value!;
+        frameCallbacks.delete(frameId);
+        act(() => callback(time));
+      };
+      const onValueChange = vi.fn();
+      const container = mountPrimitive(
+        { onValueChange, scrubMaxCommitRate: 10 },
+        true,
+      );
+      const handle = container.querySelector(
+        '[data-control-kit-scrub-handle]',
+      ) as HTMLDivElement;
+      handle.setPointerCapture = vi.fn();
+      act(() =>
+        firePointerEvent(handle, 'pointerdown', { pointerId: 9, clientX: 0 }),
+      );
+
+      const moves = [
+        { clientX: 5, altKey: false, shiftKey: false },
+        { clientX: 10, altKey: true, shiftKey: false },
+        { clientX: 12, altKey: false, shiftKey: true },
+        { clientX: 17, altKey: true, shiftKey: false },
+        { clientX: 18, altKey: false, shiftKey: false },
+      ];
+      for (const [index, move] of moves.entries()) {
+        act(() =>
+          firePointerEvent(document, 'pointermove', { pointerId: 9, ...move }),
+        );
+        if (flushEachMove) flushFrame(16 + index * 100);
+        else expect(onValueChange).not.toHaveBeenCalled();
+      }
+      if (!flushEachMove) flushFrame(16);
+      expect(onValueChange).toHaveBeenLastCalledWith(69, {
+        interaction: 'pointer',
+      });
+      expect(onValueChange).toHaveBeenCalledTimes(
+        flushEachMove ? moves.length : 1,
+      );
+      act(() =>
+        firePointerEvent(document, 'pointerup', { pointerId: 9, clientX: 18 }),
+      );
+    },
+  );
 
   it('forwards scrub commit thresholds through the component wrapper', () => {
     const onValueChange = vi.fn();
