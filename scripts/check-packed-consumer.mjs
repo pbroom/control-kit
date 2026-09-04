@@ -109,6 +109,31 @@ try {
   await expect(hsl).toHaveAttribute('aria-pressed', 'true');
   await expect(rgb).toHaveAttribute('aria-pressed', 'false');
 
+  const outline = page.getByRole('group', { name: 'Channel display' });
+  await expect(outline).toHaveCSS('border-color', 'rgb(76, 76, 76)');
+  await hsl.press('Tab');
+  const linear = page.getByRole('button', { name: 'Linear', exact: true });
+  await expect(linear).toBeFocused();
+  await expect(linear).toHaveCSS('box-shadow', /0px 0px 0px 2px/);
+  const defaultRing = await linear.evaluate(
+    (element) => getComputedStyle(element).boxShadow,
+  );
+  await page.evaluate(() => {
+    document.documentElement.style.setProperty('--ck-border', '#654321');
+    document.documentElement.style.setProperty('--ck-accent', '#ff0000');
+  });
+  await expect(outline).toHaveCSS('border-color', 'rgb(101, 67, 33)');
+  await expect
+    .poll(() =>
+      linear.evaluate((element) => getComputedStyle(element).boxShadow),
+    )
+    .not.toBe(defaultRing);
+  await expect(linear).toHaveCSS('box-shadow', /0px 0px 0px 2px/);
+  await page.evaluate(() => {
+    document.documentElement.style.removeProperty('--ck-border');
+    document.documentElement.style.removeProperty('--ck-accent');
+  });
+
   await page.getByRole('button', { name: 'Channel help' }).hover();
   const tooltip = page.locator('[data-slot="tooltip-content"]');
   await expect(tooltip).toBeVisible();

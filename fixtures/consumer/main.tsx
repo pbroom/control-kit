@@ -68,6 +68,15 @@ function Consumer() {
         <ToggleGroupItem value="rgb">RGB</ToggleGroupItem>
         <ToggleGroupItem value="hsl">HSL</ToggleGroupItem>
       </ToggleGroup>
+      <ToggleGroup
+        type="single"
+        variant="outline"
+        defaultValue="linear"
+        aria-label="Channel display"
+      >
+        <ToggleGroupItem value="linear">Linear</ToggleGroupItem>
+        <ToggleGroupItem value="gamma">Gamma</ToggleGroupItem>
+      </ToggleGroup>
       <TooltipProvider delay={0} timeout={0}>
         <Tooltip>
           <TooltipTrigger render={<button type="button" />}>
