@@ -22,6 +22,13 @@ A styled tooltip for short, descriptive labels. Built on [Base UI Tooltip](https
 
 3. Import the Tooltip parts from `@color-kit/control-kit` as shown below.
 
+The `@source` path is relative to your stylesheet. Tooltip's colors use the
+package's `--ck-foreground`, `--ck-surface-content`, and `--ck-border` tokens
+with dark defaults; no host `foreground`/`background` theme or animation
+plugin is needed. Shared theme variables must be on `:root` or `body`
+because the content is portaled. Alternatively, set them directly on
+`TooltipContent` with `style` or `className`.
+
 ## Usage
 
 Add one provider around a related group of triggers, then compose each tooltip from its root, trigger, and content:
@@ -41,6 +48,44 @@ import {
   </Tooltip>
 </TooltipProvider>;
 ```
+
+## Upgrading from the Radix-based Tooltip
+
+The package name and Tooltip export names are unchanged, but the current
+wrappers forward Base UI props. An existing consumer pinned to an earlier
+Radix-based revision must update its call sites before upgrading.
+
+Earlier composition:
+
+```tsx
+<TooltipProvider delayDuration={450} skipDelayDuration={300}>
+  <Tooltip>
+    <TooltipTrigger asChild>
+      <button type="button">Settings</button>
+    </TooltipTrigger>
+    <TooltipContent>Open settings</TooltipContent>
+  </Tooltip>
+</TooltipProvider>
+```
+
+Current composition:
+
+```tsx
+<TooltipProvider delay={450} timeout={300}>
+  <Tooltip>
+    <TooltipTrigger render={<button type="button" />}>Settings</TooltipTrigger>
+    <TooltipContent>Open settings</TooltipContent>
+  </Tooltip>
+</TooltipProvider>
+```
+
+`delay` controls the initial delay and `timeout` controls the immediate-open
+handoff window. Move the trigger element to `render` and keep its content as
+the trigger's children. Custom trigger components must forward their ref and
+the supplied props to the underlying element. Install the declared Base UI
+peer, review any other forwarded props against the current API reference,
+then run the consumer's typecheck and hover, focus, and activation checks.
+The previous prop names are not compatibility aliases.
 
 ## Composition
 

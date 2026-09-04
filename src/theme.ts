@@ -1,15 +1,14 @@
 /**
  * Control-kit color tokens.
  *
- * Every color in the package resolves through a `--ck-*` CSS custom property
- * with the historical default as the fallback, so consumers can retheme the
- * components by defining these variables. Apps that define nothing keep the
- * original appearance.
+ * Component palette colors resolve through `--ck-*` CSS custom properties
+ * with dark defaults. Define them on a containing element; portaled tooltips
+ * inherit from the portal location, so use :root/body for a shared theme.
  */
 export const controlKitColor = {
-  /** Base control background (inputs, unchecked checkbox, active tab). */
+  /** Base control background (inputs, unchecked checkbox, selected tab/toggle). */
   surface: 'var(--ck-surface,#383838)',
-  /** Recessed panel background (tabs content). */
+  /** Recessed panels, toggle groups, and the dark tooltip surface/text. */
   surfaceContent: 'var(--ck-surface-content,#1f1f1f)',
   /** Base text color; components apply opacity ramps on top of it. */
   foreground: 'var(--ck-foreground,#ffffff)',

@@ -10,8 +10,8 @@ import { cn } from './utils.js';
 const toggleGroupVariants = cva('flex items-center justify-center gap-1', {
   variants: {
     variant: {
-      default: 'rounded-lg bg-muted p-1',
-      outline: 'rounded-lg border p-1',
+      default: 'rounded-lg bg-[var(--ck-surface-content,#1f1f1f)] p-1',
+      outline: 'rounded-lg border border-[color:var(--ck-border,#4c4c4c)] p-1',
     },
     size: {
       default: 'h-9',
@@ -26,7 +26,7 @@ const toggleGroupVariants = cva('flex items-center justify-center gap-1', {
 });
 
 const toggleGroupItemVariants = cva(
-  'inline-flex items-center justify-center rounded-md px-2.5 py-1 text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/60 data-[pressed]:bg-background data-[pressed]:text-foreground data-[pressed]:shadow-sm disabled:pointer-events-none disabled:opacity-50',
+  'inline-flex items-center justify-center rounded-md px-2.5 py-1 text-sm font-medium text-[color:var(--ck-foreground,#ffffff)] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ck-accent,#0d99ff)]/60 data-[pressed]:bg-[var(--ck-surface,#383838)] data-[pressed]:shadow-sm disabled:pointer-events-none disabled:opacity-50',
   {
     variants: {
       size: {

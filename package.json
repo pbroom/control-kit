@@ -46,6 +46,7 @@
     "lab:typecheck": "tsc -p lab/tsconfig.json --noEmit",
     "prepare": "pnpm build",
     "test": "vitest run --passWithNoTests",
+    "test:consumer": "node scripts/check-packed-consumer.mjs",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },
