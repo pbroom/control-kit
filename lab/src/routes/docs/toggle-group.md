@@ -22,6 +22,13 @@ A styled set of two-state buttons for choosing one or more related options. Buil
 
 3. Import `ToggleGroup` and `ToggleGroupItem` from `@color-kit/control-kit` as shown below.
 
+The `@source` path is relative to your stylesheet. The group uses
+`--ck-surface-content` for its background, `--ck-surface` for selected items,
+`--ck-foreground` for text, `--ck-border` for the outline variant, and
+`--ck-accent` for focus rings. Each token has a dark default, so no host
+Tailwind theme names are required. Define these variables on the group or
+an ancestor to customize its colors.
+
 ## Usage
 
 Compose each item inside a group and give every item a stable value:

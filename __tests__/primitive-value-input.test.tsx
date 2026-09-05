@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act } from 'react';
+import { act, useState } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -54,14 +54,16 @@ function renderPrimitive(
 
 function mountPrimitive(
   props: Partial<Parameters<typeof PrimitiveValueInput>[0]> = {},
+  acceptValueChanges = false,
 ) {
   const container = document.createElement('div');
   document.body.append(container);
   const root = createRoot(container);
   mountedRoots.push(root);
 
-  act(() => {
-    root.render(
+  function Harness() {
+    const [value, setValue] = useState(props.value ?? 42);
+    return (
       <PrimitiveValueInput
         value={42}
         onValueChange={noop}
@@ -86,8 +88,19 @@ function mountPrimitive(
         visualState="auto"
         size="full"
         {...props}
-      />,
+        {...(acceptValueChanges && {
+          value,
+          onValueChange: (nextValue, details) => {
+            setValue(nextValue);
+            props.onValueChange?.(nextValue, details);
+          },
+        })}
+      />
     );
+  }
+
+  act(() => {
+    root.render(<Harness />);
   });
 
   return container;
@@ -285,6 +298,46 @@ describe('PrimitiveValueInput', () => {
     expect(onValueChange).toHaveBeenLastCalledWith(52, {
       interaction: 'keyboard',
     });
+  });
+
+  it('accumulates fine keyboard steps independently of display rounding', () => {
+    const onValueChange = vi.fn();
+    const container = mountPrimitive({ onValueChange }, true);
+    const input = container.querySelector('input') as HTMLInputElement;
+
+    act(() => input.focus());
+    for (let index = 0; index < 3; index += 1) {
+      act(() => {
+        input.dispatchEvent(
+          new KeyboardEvent('keydown', {
+            key: 'ArrowUp',
+            altKey: true,
+            bubbles: true,
+            cancelable: true,
+          }),
+        );
+      });
+    }
+
+    expect(onValueChange).toHaveBeenCalledTimes(3);
+    expect(onValueChange.mock.calls[2][0]).toBeCloseTo(42.3);
+    expect(input.value).toBe('42');
+
+    act(() => changeInputValue(input, ''));
+    act(() => changeInputValue(input, '42'));
+    act(() => {
+      input.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key: 'ArrowUp',
+          altKey: true,
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    });
+    expect(onValueChange.mock.calls[3][0]).toBeCloseTo(42.1);
+    act(() => input.blur());
+    expect(onValueChange).toHaveBeenCalledTimes(4);
   });
 
   it('lets horizontal arrows move the caret unless stepping is requested', () => {
@@ -702,6 +755,177 @@ describe('PrimitiveValueInput', () => {
       interaction: 'pointer',
     });
   });
+
+  it('accumulates locked pointer movement across rate-limited frames and release', () => {
+    const frameCallbacks = new Map<number, FrameRequestCallback>();
+    let nextFrameId = 1;
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      const frameId = nextFrameId++;
+      frameCallbacks.set(frameId, callback);
+      return frameId;
+    });
+    vi.spyOn(window, 'cancelAnimationFrame').mockImplementation((frameId) => {
+      frameCallbacks.delete(frameId);
+    });
+    const flushFrame = (frameTime: number) => {
+      const [frameId, callback] = frameCallbacks.entries().next().value!;
+      frameCallbacks.delete(frameId);
+      act(() => callback(frameTime));
+    };
+    const moveLockedPointer = (
+      movementX: number,
+      altKey = false,
+      shiftKey = false,
+    ) => {
+      const event = new MouseEvent('mousemove', {
+        bubbles: true,
+        altKey,
+        shiftKey,
+      });
+      Object.defineProperty(event, 'movementX', { value: movementX });
+      act(() => document.dispatchEvent(event));
+    };
+    const onValueChange = vi.fn();
+    const container = mountPrimitive(
+      {
+        onValueChange,
+        pointerLockEnabled: true,
+        scrubMaxCommitRate: 10,
+      },
+      true,
+    );
+    const handle = container.querySelector(
+      '[data-control-kit-scrub-handle]',
+    ) as HTMLDivElement;
+    handle.setPointerCapture = vi.fn();
+    handle.requestPointerLock = vi.fn();
+    const originalPointerLock = Object.getOwnPropertyDescriptor(
+      document,
+      'pointerLockElement',
+    );
+    Object.defineProperty(document, 'pointerLockElement', {
+      configurable: true,
+      get: () => handle,
+    });
+    try {
+      act(() => {
+        firePointerEvent(handle, 'pointerdown', { pointerId: 8, clientX: 0 });
+      });
+      moveLockedPointer(5);
+      moveLockedPointer(5);
+      moveLockedPointer(5);
+      expect(onValueChange).not.toHaveBeenCalled();
+      flushFrame(16);
+      expect(onValueChange).toHaveBeenLastCalledWith(57, {
+        interaction: 'pointer',
+      });
+
+      moveLockedPointer(2, true);
+      moveLockedPointer(3, true);
+      flushFrame(40);
+      expect(onValueChange).toHaveBeenCalledTimes(1);
+      flushFrame(116);
+      expect(onValueChange).toHaveBeenLastCalledWith(57.5, {
+        interaction: 'pointer',
+      });
+
+      moveLockedPointer(5);
+      moveLockedPointer(5, true);
+      moveLockedPointer(2, false, true);
+      moveLockedPointer(5, true);
+      moveLockedPointer(1);
+      flushFrame(140);
+      expect(onValueChange).toHaveBeenCalledTimes(2);
+      flushFrame(216);
+      expect(onValueChange).toHaveBeenLastCalledWith(84.5, {
+        interaction: 'pointer',
+      });
+
+      moveLockedPointer(4, true);
+      moveLockedPointer(1, true);
+      act(() => {
+        firePointerEvent(document, 'pointerup', {
+          pointerId: 8,
+          clientX: 0,
+          altKey: false,
+        });
+      });
+      expect(onValueChange).toHaveBeenCalledTimes(4);
+      expect(onValueChange).toHaveBeenLastCalledWith(85, {
+        interaction: 'pointer',
+      });
+    } finally {
+      if (originalPointerLock) {
+        Object.defineProperty(
+          document,
+          'pointerLockElement',
+          originalPointerLock,
+        );
+      } else {
+        Reflect.deleteProperty(document, 'pointerLockElement');
+      }
+    }
+  });
+
+  it.each([false, true])(
+    'preserves pending modifier segments with a frame after each move: %s',
+    (flushEachMove) => {
+      const frameCallbacks = new Map<number, FrameRequestCallback>();
+      let nextFrameId = 1;
+      vi.spyOn(window, 'requestAnimationFrame').mockImplementation(
+        (callback) => {
+          const frameId = nextFrameId++;
+          frameCallbacks.set(frameId, callback);
+          return frameId;
+        },
+      );
+      vi.spyOn(window, 'cancelAnimationFrame').mockImplementation((frameId) => {
+        frameCallbacks.delete(frameId);
+      });
+      const flushFrame = (time: number) => {
+        const [frameId, callback] = frameCallbacks.entries().next().value!;
+        frameCallbacks.delete(frameId);
+        act(() => callback(time));
+      };
+      const onValueChange = vi.fn();
+      const container = mountPrimitive(
+        { onValueChange, scrubMaxCommitRate: 10 },
+        true,
+      );
+      const handle = container.querySelector(
+        '[data-control-kit-scrub-handle]',
+      ) as HTMLDivElement;
+      handle.setPointerCapture = vi.fn();
+      act(() =>
+        firePointerEvent(handle, 'pointerdown', { pointerId: 9, clientX: 0 }),
+      );
+
+      const moves = [
+        { clientX: 5, altKey: false, shiftKey: false },
+        { clientX: 10, altKey: true, shiftKey: false },
+        { clientX: 12, altKey: false, shiftKey: true },
+        { clientX: 17, altKey: true, shiftKey: false },
+        { clientX: 18, altKey: false, shiftKey: false },
+      ];
+      for (const [index, move] of moves.entries()) {
+        act(() =>
+          firePointerEvent(document, 'pointermove', { pointerId: 9, ...move }),
+        );
+        if (flushEachMove) flushFrame(16 + index * 100);
+        else expect(onValueChange).not.toHaveBeenCalled();
+      }
+      if (!flushEachMove) flushFrame(16);
+      expect(onValueChange).toHaveBeenLastCalledWith(69, {
+        interaction: 'pointer',
+      });
+      expect(onValueChange).toHaveBeenCalledTimes(
+        flushEachMove ? moves.length : 1,
+      );
+      act(() =>
+        firePointerEvent(document, 'pointerup', { pointerId: 9, clientX: 18 }),
+      );
+    },
+  );
 
   it('forwards scrub commit thresholds through the component wrapper', () => {
     const onValueChange = vi.fn();
