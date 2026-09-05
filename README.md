@@ -71,20 +71,34 @@ axes; use `onValueChange` for live updates and `onValueCommit` for completed
 pointer or keyboard interactions.
 
 ```tsx
-const [point, setPoint] = useState({ x: 0.35, y: 0.65 });
+import { useState } from 'react';
+import { Plane, PlaneThumb, type PlaneValue } from '@color-kit/control-kit';
 
-<Plane
-  aria-label="Curve control point"
-  className="size-72 rounded-xl border"
-  value={point}
-  onValueChange={setPoint}
-  onValueCommit={(value) => savePoint(value)}
->
-  <svg aria-hidden="true" className="absolute inset-0 size-full">
-    {/* Consumer-owned guides, curves, canvas, or other content. */}
-  </svg>
-  <PlaneThumb xAriaLabel="Horizontal position" yAriaLabel="Vertical position" />
-</Plane>;
+export function PositionControl({
+  savePoint,
+}: {
+  savePoint: (value: PlaneValue) => void;
+}) {
+  const [point, setPoint] = useState({ x: 0.35, y: 0.65 });
+
+  return (
+    <Plane
+      aria-label="Curve control point"
+      className="size-72 rounded-xl border"
+    >
+      <svg aria-hidden="true" className="absolute inset-0 size-full">
+        {/* Consumer-owned guides, curves, canvas, or other content. */}
+      </svg>
+      <PlaneThumb
+        value={point}
+        onValueChange={setPoint}
+        onValueCommit={savePoint}
+        xAriaLabel="Horizontal position"
+        yAriaLabel="Vertical position"
+      />
+    </Plane>
+  );
+}
 ```
 
 Coordinates are clamped to `0..1`, with X increasing left-to-right and Y
