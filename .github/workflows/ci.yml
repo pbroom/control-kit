@@ -50,6 +50,7 @@ jobs:
       - if: steps.playwright-cache.outputs.cache-hit == 'true'
         run: pnpm exec playwright install-deps chromium
       - run: pnpm test:consumer
+      - run: pnpm test:consumer:git
       - run: pnpm lab:smoke
       - name: Upload Playwright artifacts
         if: failure()

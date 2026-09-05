@@ -3,10 +3,11 @@ import { execFileSync } from 'node:child_process';
 import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { chromium, expect } from '@playwright/test';
 import { preview } from 'vite';
 
+const gitInstall = process.argv.includes('--git');
 const repo = fileURLToPath(new URL('..', import.meta.url));
 const temporary = await mkdtemp(join(tmpdir(), 'control-kit-consumer-'));
 const consumer = join(temporary, 'consumer');
@@ -19,14 +20,37 @@ function run(command, args, cwd = consumer) {
 }
 
 try {
-  run('pnpm', ['build'], repo);
-  run('pnpm', ['pack', '--out', tarball], repo);
+  let packageSource = `file:${tarball}`;
+  if (gitInstall) {
+    // Clone only committed files: local dist/ and node_modules must not mask
+    // a broken prepare lifecycle. A file Git URL exercises pnpm's Git fetcher
+    // at the exact checkout commit without depending on a published branch.
+    const source = join(temporary, 'source');
+    run('git', ['clone', '--no-local', '--no-checkout', repo, source], repo);
+    const head = execFileSync('git', ['rev-parse', 'HEAD'], {
+      cwd: repo,
+      encoding: 'utf8',
+    }).trim();
+    const trackedDist = execFileSync(
+      'git',
+      ['ls-tree', '-r', '--name-only', head, 'dist'],
+      {
+        cwd: repo,
+        encoding: 'utf8',
+      },
+    ).trim();
+    assert.equal(trackedDist, '', 'Git install must build dist from source');
+    packageSource = `git+${pathToFileURL(source).href}#${head}`;
+  } else {
+    run('pnpm', ['build'], repo);
+    run('pnpm', ['pack', '--out', tarball], repo);
+  }
   await cp(join(repo, 'fixtures/consumer'), consumer, { recursive: true });
 
   // Use the versions selected by the repository lockfile, but install them
   // outside the repository. No workspace links or source aliases can mask a
   // missing package file, export, peer dependency, or Tailwind source.
-  const dependencies = { 'control-kit': `file:${tarball}` };
+  const dependencies = { 'control-kit': packageSource };
   for (const name of [
     '@base-ui/react',
     'react',
@@ -49,9 +73,12 @@ try {
     JSON.stringify({ private: true, type: 'module', dependencies }, null, 2),
   );
   run('pnpm', [
-    'install',
-    '--no-frozen-lockfile',
-    '--ignore-scripts',
+    ...(gitInstall
+      ? ['add', '--allow-build=control-kit', `control-kit@${packageSource}`]
+      : ['install', '--no-frozen-lockfile']),
+    ...(gitInstall
+      ? ['--store-dir', join(temporary, 'store')]
+      : ['--ignore-scripts']),
     '--config.auto-install-peers=false',
   ]);
   run('pnpm', ['exec', 'tsc', '--project', 'tsconfig.json']);
@@ -178,7 +205,7 @@ try {
   );
   assert.deepEqual(errors, []);
   console.log(
-    'Packed consumer passed: ESM/CJS, types, channel input, Tooltip, ToggleGroup and Tailwind themes.',
+    `${gitInstall ? 'Git-installed' : 'Packed'} consumer passed: ESM/CJS, types, channel input, Tooltip, ToggleGroup and Tailwind themes.`,
   );
 } finally {
   await browser?.close();

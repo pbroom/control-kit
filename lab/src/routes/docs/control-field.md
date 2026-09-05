@@ -11,7 +11,7 @@ A composable value control built on Base UI Field and Number Field. Control Fiel
 1. Install Control Kit and its peer dependencies:
 
    ```bash
-   pnpm add control-kit@github:pbroom/control-kit @base-ui/react
+   pnpm add --allow-build=control-kit control-kit@github:pbroom/control-kit @base-ui/react
    ```
 
 2. Add the package source to Tailwind's content graph:

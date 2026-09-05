@@ -47,6 +47,7 @@
     "prepare": "pnpm build",
     "test": "vitest run --passWithNoTests",
     "test:consumer": "node scripts/check-packed-consumer.mjs",
+    "test:consumer:git": "node scripts/check-packed-consumer.mjs --git",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },

@@ -9,10 +9,10 @@ Control Kit is a standalone package maintained in [pbroom/control-kit](https://g
 Install the renamed package directly from this repository:
 
 ```sh
-pnpm add control-kit@github:pbroom/control-kit @base-ui/react
+pnpm add --allow-build=control-kit control-kit@github:pbroom/control-kit @base-ui/react
 ```
 
-The package builds ESM, CommonJS, and TypeScript declarations into `dist/`. Git installs run the `prepare` script so consumers receive the compiled entrypoints.
+The package builds ESM, CommonJS, and TypeScript declarations into `dist/`. The `--allow-build=control-kit` flag (pnpm 10) allows Git installs to run the `prepare` script so consumers receive the compiled entrypoints.
 
 ## Compatibility
 
