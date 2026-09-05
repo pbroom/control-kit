@@ -113,6 +113,7 @@ export function usePrimitiveValueInput({
   const lastScrubCommitTsRef = useRef(0);
   const processPendingScrubRef = useRef<(frameTime: number) => void>(() => {});
   const lastCommittedValueRef = useRef(value);
+  const hasTextDraftRef = useRef(false);
   const skipBlurCommitRef = useRef(false);
   const [draft, setDraft] = useState(() =>
     formatPrimitiveValue(value, precision, autoTrim),
@@ -246,6 +247,7 @@ export function usePrimitiveValueInput({
       }
 
       lastCommittedValueRef.current = normalized;
+      hasTextDraftRef.current = false;
       setDraft(formatPrimitiveValue(normalized, precision, autoTrim));
       onValueChange(normalized, { interaction });
       return normalized;
@@ -314,6 +316,7 @@ export function usePrimitiveValueInput({
   );
 
   const handleFocus = useCallback(() => {
+    hasTextDraftRef.current = false;
     setIsEditing(true);
     setFocusStartValue(value);
     lastCommittedValueRef.current = value;
@@ -340,6 +343,7 @@ export function usePrimitiveValueInput({
 
   const handleChange = useCallback(
     (event: ReactChangeEvent<HTMLInputElement>) => {
+      hasTextDraftRef.current = true;
       setDraft(event.target.value);
       setIsEditing(true);
     },
@@ -371,7 +375,9 @@ export function usePrimitiveValueInput({
       ) {
         const activeStep = getModifiedStep(event.shiftKey, event.altKey);
         const stepBaseValue =
-          isEditing && parsedDraft !== null ? parsedDraft : value;
+          isEditing && hasTextDraftRef.current && parsedDraft !== null
+            ? parsedDraft
+            : value;
         const nextValue = getPrimitiveSteppedValue({
           value: stepBaseValue,
           key: event.key,
@@ -430,15 +436,16 @@ export function usePrimitiveValueInput({
   }, []);
 
   const commitScrubValue = useCallback(
-    (nextValue: number, clientX: number, force = false) => {
+    (nextValue: number, clientX: number, force = false, publish = true) => {
       const normalized = normalizePrimitiveValue(nextValue, min, max, wrapMode);
       const previousCommittedValue = lastCommittedValueRef.current;
       scrubCurrentValueRef.current = normalized;
       if (
-        force ||
-        (!Object.is(normalized, previousCommittedValue) &&
-          Math.abs(normalized - previousCommittedValue) >=
-            Math.max(0, scrubCommitThreshold))
+        publish &&
+        (force ||
+          (!Object.is(normalized, previousCommittedValue) &&
+            Math.abs(normalized - previousCommittedValue) >=
+              Math.max(0, scrubCommitThreshold)))
       ) {
         emitValue(normalized, 'pointer');
       }
@@ -452,7 +459,7 @@ export function usePrimitiveValueInput({
   );
 
   const applyScrubSnapshot = useCallback(
-    (snapshot: PrimitiveScrubSnapshot, force = false) => {
+    (snapshot: PrimitiveScrubSnapshot, force = false, publish = true) => {
       const deltaPixels = snapshot.clientX - scrubStartXRef.current;
       if (
         !hasDragStartedRef.current &&
@@ -473,7 +480,7 @@ export function usePrimitiveValueInput({
       const rebasedDeltaPixels = snapshot.clientX - scrubStartXRef.current;
       const nextValue = getScrubValueFromDelta(rebasedDeltaPixels, activeStep);
       lastScrubXRef.current = snapshot.clientX;
-      commitScrubValue(nextValue, snapshot.clientX, force);
+      commitScrubValue(nextValue, snapshot.clientX, force, publish);
     },
     [commitScrubValue, getModifiedStep, getScrubValueFromDelta, scrubThreshold],
   );
@@ -535,12 +542,27 @@ export function usePrimitiveValueInput({
         return;
       }
 
+      const pending = pendingScrubRef.current;
+      if (
+        pending &&
+        getModifiedStep(pending.shiftKey, pending.altKey) !==
+          getModifiedStep(shiftKey, altKey)
+      ) {
+        // Preserve the previous movement segment without bypassing the
+        // configured callback rate when modifiers change between frames.
+        applyScrubSnapshot(pending, false, false);
+      }
       pendingScrubRef.current = snapshot;
       if (scrubFrameRef.current === null) {
         schedulePendingScrubFrame();
       }
     },
-    [applyScrubSnapshot, schedulePendingScrubFrame, shouldRateLimitScrub],
+    [
+      applyScrubSnapshot,
+      getModifiedStep,
+      schedulePendingScrubFrame,
+      shouldRateLimitScrub,
+    ],
   );
 
   const stopScrubFrame = useCallback(() => {
@@ -648,11 +670,11 @@ export function usePrimitiveValueInput({
       if (event.pointerId !== activePointerIdRef.current) {
         return;
       }
-      endScrub(
-        hasPointerLock() ? lastScrubXRef.current : event.clientX,
-        event.shiftKey,
-        event.altKey,
-      );
+      if (hasPointerLock()) {
+        endScrub();
+      } else {
+        endScrub(event.clientX, event.shiftKey, event.altKey);
+      }
     };
 
     const handleDocumentPointerCancel = (event: PointerEvent) => {
@@ -666,7 +688,8 @@ export function usePrimitiveValueInput({
         return;
       }
       queueScrubValue(
-        lastScrubXRef.current + event.movementX,
+        (pendingScrubRef.current?.clientX ?? lastScrubXRef.current) +
+          event.movementX,
         event.shiftKey,
         event.altKey,
       );
