@@ -11,16 +11,16 @@ A styled tooltip for short, descriptive labels. Built on [Base UI Tooltip](https
 1. Install Control Kit and its peer dependencies:
 
    ```bash
-   pnpm add @color-kit/control-kit @base-ui/react
+   pnpm add control-kit@github:pbroom/control-kit @base-ui/react
    ```
 
 2. Add the package source to Tailwind's content graph:
 
    ```css
-   @source '../node_modules/@color-kit/control-kit/src';
+   @source '../node_modules/control-kit/src';
    ```
 
-3. Import the Tooltip parts from `@color-kit/control-kit` as shown below.
+3. Import the Tooltip parts from `control-kit` as shown below.
 
 The `@source` path is relative to your stylesheet. Tooltip's colors use the
 package's `--ck-foreground`, `--ck-surface-content`, and `--ck-border` tokens
@@ -39,7 +39,7 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from '@color-kit/control-kit';
+} from 'control-kit';
 
 <TooltipProvider>
   <Tooltip>

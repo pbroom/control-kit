@@ -1,5 +1,5 @@
 {
-  "name": "@color-kit/control-kit",
+  "name": "control-kit",
   "version": "0.0.1",
   "description": "React UI primitives for building operational color controls",
   "type": "module",

@@ -2,7 +2,7 @@
 
 A menu-backed single-selection recipe used by the Control Kit Lab.
 
-> Lab prototype — Select is not currently exported from `@color-kit/control-kit`. It composes the Lab's Base UI Menu wrapper rather than Base UI Select.
+> Lab prototype — Select is not currently exported from `control-kit`. It composes the Lab's Base UI Menu wrapper rather than Base UI Select.
 
 <!-- demo:basic -->
 

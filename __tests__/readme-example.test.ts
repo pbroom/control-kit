@@ -21,7 +21,7 @@ it('typechecks the actual README Plane example against the public API', () => {
     moduleResolution: ts.ModuleResolutionKind.Bundler,
     jsx: ts.JsxEmit.ReactJSX,
     paths: {
-      '@color-kit/control-kit': [path.join(repoRoot, 'src/index.ts')],
+      'control-kit': [path.join(repoRoot, 'src/index.ts')],
     },
   };
   const host = ts.createCompilerHost(options);

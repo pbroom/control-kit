@@ -1,10 +1,5 @@
 import { useState } from 'react';
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@color-kit/control-kit';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from 'control-kit';
 
 export function TabsControlledExample() {
   const [tab, setTab] = useState('canvas');

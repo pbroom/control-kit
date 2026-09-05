@@ -26,7 +26,7 @@ try {
   // Use the versions selected by the repository lockfile, but install them
   // outside the repository. No workspace links or source aliases can mask a
   // missing package file, export, peer dependency, or Tailwind source.
-  const dependencies = { '@color-kit/control-kit': `file:${tarball}` };
+  const dependencies = { 'control-kit': `file:${tarball}` };
   for (const name of [
     '@base-ui/react',
     'react',
@@ -60,11 +60,12 @@ try {
     '-e',
     String.raw`import assert from 'node:assert/strict';
      import { createRequire } from 'node:module';
-     import * as esm from '@color-kit/control-kit';
+     import * as esm from 'control-kit';
      const require = createRequire(import.meta.url);
-     const cjs = require('@color-kit/control-kit');
-     assert.match(import.meta.resolve('@color-kit/control-kit'), /\/dist\/index\.js$/);
-     assert.match(require.resolve('@color-kit/control-kit'), /\/dist\/index\.cjs$/);
+     const cjs = require('control-kit');
+     assert.equal(require('control-kit/package.json').name, 'control-kit');
+     assert.match(import.meta.resolve('control-kit'), /\/dist\/index\.js$/);
+     assert.match(require.resolve('control-kit'), /\/dist\/index\.cjs$/);
      assert.deepEqual(Object.keys(esm).sort(), Object.keys(cjs).sort());
      for (const kit of [esm, cjs]) {
        assert.deepEqual(kit.clampPlaneValue({x: 2, y: -1}), {x: 1, y: 0});

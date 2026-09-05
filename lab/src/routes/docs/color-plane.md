@@ -8,7 +8,7 @@ A composed color-field control for editing two color channels. Color Kit owns th
 
 ### Manual
 
-`ColorPlane` is owned by Color Kit and is not exported from `@color-kit/control-kit`. The Lab runs the Color Kit source directly.
+`ColorPlane` is owned by Color Kit and is not exported from `control-kit`. The Lab runs the Color Kit source directly.
 
 1. Copy the Color Kit [`ColorArea` source](https://github.com/pbroom/color-kit/blob/main/packages/react/src/color-area.tsx), [`ColorPlane` source](https://github.com/pbroom/color-kit/blob/main/packages/react/src/color-plane.tsx), and [`Thumb` source](https://github.com/pbroom/color-kit/blob/main/packages/react/src/thumb.tsx) files with their shared dependencies into your project.
 2. Update the `color-kit/react` import path to match your project setup.

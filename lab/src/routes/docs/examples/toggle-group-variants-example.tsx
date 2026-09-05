@@ -1,4 +1,4 @@
-import { ToggleGroup, ToggleGroupItem } from '@color-kit/control-kit';
+import { ToggleGroup, ToggleGroupItem } from 'control-kit';
 
 const sizes = ['sm', 'default', 'lg'] as const;
 
