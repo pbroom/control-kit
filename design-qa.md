@@ -45,3 +45,54 @@
 - P3: the docs example title remains outside the control because it belongs to the shared example frame, not the demo itself.
 
 final result: passed
+
+---
+
+# Design QA: documentation on-page navigation
+
+- Source visual truth: `/Users/peterbroomfield/Downloads/Screenshot 2026-08-31 at 10.28.23 PM.png`
+- Implementation: `http://127.0.0.1:5201/docs/plane`
+- Implementation screenshots:
+  - `/tmp/control-kit-docs-on-page-nav-desktop.png`
+  - `/tmp/control-kit-docs-on-page-nav-api-reference.png`
+  - `/tmp/control-kit-docs-on-page-nav-mobile.png`
+- Viewports: desktop 1440 × 1000 CSS px at 1×; mobile 390 × 844 CSS px at 1×
+- Source pixels: 2194 × 1848. The source is a reference for the right-rail documentation pattern rather than a full-page clone, so density normalization is not applicable.
+- Implementation pixels: 1440 × 1000 desktop; 390 × 844 mobile.
+- State: dark-theme Plane documentation at the top of the page, API reference selected, and narrow responsive layout.
+
+## Full-view comparison evidence
+
+The source and implementation were opened together for comparison. Both use a readable central article with a compact right-side section list. The implementation preserves Control Kit's existing left navigation, typography, spacing, color tokens, and demo treatment rather than copying the source application's unrelated top navigation and advertising.
+
+## Focused region comparison evidence
+
+The right rail was inspected at 1440 × 1000. It begins level with the article intro, uses a muted title and compact links, indents third-level headings, highlights the current section, remains sticky while the docs container scrolls, and limits its own height for long pages. The Plane Examples page produced 52 outline links from both Markdown and injected gallery headings, with its long list independently scrollable.
+
+## Required fidelity surfaces
+
+- Fonts and typography: passed. The rail uses the existing Control Kit sans family, 12px title, 13px links, and a medium active weight.
+- Spacing and layout rhythm: passed. The 700px article track remains fixed while the 168px rail is shifted 64px toward the right edge, reducing its outside margin without moving or compressing the article. The rail uses tighter rows than the primary navigation to keep long outlines scannable.
+- Colors and visual tokens: passed. The rail reuses the primary left navigation's muted, hover, and active text states. Default, hover, and active links remain transparent.
+- Image quality and asset fidelity: passed. This pattern introduces no image or icon assets; none from the source were required for the requested rail.
+- Copy and content: passed. “On this page” is generated from visible h2 and h3 documentation headings, excludes the page h1 and headings inside example previews, and preserves existing heading IDs. Pages with an API reference split the outline into Guide and API subsections for faster scanning.
+
+## Interaction and responsive evidence
+
+- Clicking “API reference” changed the URL hash to `#api-reference`, scrolled the heading to 80px within the docs scroller, and set `aria-current="location"`.
+- Browser console warnings/errors: none.
+- At 390 × 844, the rail is hidden, the article is 342px wide, and document scroll width remains 390px.
+
+## Findings
+
+No actionable P0, P1, or P2 differences remain. Intentional differences are the Control Kit shell, its existing type and color system, and omission of unrelated source-page chrome.
+
+## Comparison history
+
+The first rendered comparison passed. No P0/P1/P2 visual fixes were required after the comparison.
+
+## Follow-up polish
+
+No P3 follow-up is required for this scope.
+
+final result: passed

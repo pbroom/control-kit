@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { collectBrowserErrors } from './lab-smoke-utils.js';
 
 const FOCUSED_PLANE_EXAMPLE_TITLES = [
@@ -281,6 +281,247 @@ test('renders the focused Plane examples with executable source', async ({
       () => document.documentElement.scrollWidth <= window.innerWidth,
     ),
   ).toBe(true);
+  expect(browserErrors).toEqual([]);
+});
+
+test('provides responsive on-page navigation for documentation headings', async ({
+  page,
+}, testInfo) => {
+  const browserErrors = await collectBrowserErrors(page);
+
+  await page.goto('/docs/plane');
+  await expect(
+    page.getByRole('heading', { name: 'Plane', exact: true, level: 1 }),
+  ).toBeVisible();
+
+  const outline = page.getByRole('navigation', { name: 'On this page' });
+
+  if (testInfo.project.name === 'mobile') {
+    await expect(outline).toBeHidden();
+    expect(browserErrors).toEqual([]);
+    return;
+  }
+
+  await expect(outline).toBeVisible();
+  const outlineTitle = page
+    .locator('[data-docs-on-this-page]')
+    .getByText('On this page', { exact: true });
+  const guideTitle = outline.getByText('Guide', { exact: true });
+  await expect(guideTitle).toBeVisible();
+  await expect(outline.getByText('API', { exact: true })).toBeVisible();
+  expect(
+    Math.abs(
+      (await outlineTitle.boundingBox())!.x -
+        (await guideTitle.boundingBox())!.x,
+    ),
+  ).toBeLessThan(0.5);
+  await expect(
+    outline.getByRole('link', { name: 'Anatomy', exact: true }),
+  ).toBeVisible();
+  await expect(
+    outline.getByRole('link', { name: 'API reference', exact: true }),
+  ).toBeVisible();
+  await expect(
+    outline.getByRole('link', { name: 'PlaneThumb', exact: true }),
+  ).toHaveAttribute('data-depth', '3');
+  await expect(
+    outline
+      .locator('[data-docs-outline-group="api"]')
+      .getByRole('link', { name: 'API reference', exact: true }),
+  ).toBeVisible();
+
+  const primaryNavigation = page.getByRole('navigation', {
+    name: 'Lab pages',
+  });
+  const primaryActiveLink = primaryNavigation.getByRole('link', {
+    name: 'Plane',
+    exact: true,
+  });
+  const primaryInactiveLink = primaryNavigation.getByRole('link', {
+    name: 'Input Multi',
+    exact: true,
+  });
+  const outlineActiveLink = outline.getByRole('link', {
+    name: 'Anatomy',
+    exact: true,
+  });
+  const outlineInactiveLink = outline.getByRole('link', {
+    name: 'Usage guidelines',
+    exact: true,
+  });
+  const linkStyle = (element: Element) => {
+    const styles = getComputedStyle(element);
+    return [styles.backgroundColor, styles.color, styles.fontWeight];
+  };
+
+  expect(await outlineActiveLink.evaluate(linkStyle)).toEqual(
+    await primaryActiveLink.evaluate(linkStyle),
+  );
+  expect(await outlineInactiveLink.evaluate(linkStyle)).toEqual(
+    await primaryInactiveLink.evaluate(linkStyle),
+  );
+  await outlineInactiveLink.hover();
+  await page.waitForTimeout(200);
+  const outlineHoverStyle = await outlineInactiveLink.evaluate(linkStyle);
+  await primaryInactiveLink.hover();
+  await page.waitForTimeout(200);
+  expect(outlineHoverStyle).toEqual(
+    await primaryInactiveLink.evaluate(linkStyle),
+  );
+
+  const apiReferenceLink = outline.getByRole('link', {
+    name: 'API reference',
+    exact: true,
+  });
+  await apiReferenceLink.click();
+  await expect(page).toHaveURL(/\/docs\/plane#api-reference$/);
+  await expect(apiReferenceLink).toHaveAttribute('aria-current', 'location');
+  expect(
+    await page.evaluate(() => {
+      const scrollRoot = document.querySelector<HTMLElement>(
+        '[data-docs-page-scroll]',
+      );
+      const heading = document.querySelector<HTMLElement>('#api-reference');
+      if (!scrollRoot || !heading) return false;
+
+      const rootRect = scrollRoot.getBoundingClientRect();
+      const headingRect = heading.getBoundingClientRect();
+      return (
+        headingRect.top >= rootRect.top && headingRect.top < rootRect.bottom
+      );
+    }),
+  ).toBe(true);
+  expect(browserErrors).toEqual([]);
+});
+
+async function expectDocsFragment(
+  page: Page,
+  id: string,
+  hasVisibleOutline: boolean,
+) {
+  const heading = page.locator(`[data-docs-outline-target][id="${id}"]`);
+  await expect(heading).toHaveCount(1);
+  await expect
+    .poll(() =>
+      heading.evaluate((element) => {
+        const scrollRoot = element.closest('[data-docs-page-scroll]');
+        if (!scrollRoot) return false;
+        const rootRect = scrollRoot.getBoundingClientRect();
+        const headingRect = element.getBoundingClientRect();
+        return (
+          headingRect.top >= Math.max(0, rootRect.top) &&
+          headingRect.bottom <= Math.min(window.innerHeight, rootRect.bottom)
+        );
+      }),
+    )
+    .toBe(true);
+
+  const outline = page.getByRole('navigation', { name: 'On this page' });
+  if (hasVisibleOutline) {
+    await expect(outline.locator(`a[href="#${id}"]`)).toHaveAttribute(
+      'aria-current',
+      'location',
+    );
+  } else {
+    await expect(outline).toBeHidden();
+  }
+}
+
+for (const fragment of ['api-reference', '%61pi-reference']) {
+  test(`restores documentation fragment #${fragment} after lazy load and reload`, async ({
+    page,
+  }, testInfo) => {
+    const browserErrors = await collectBrowserErrors(page);
+    let releaseModule!: () => void;
+    const moduleReady = new Promise<void>((resolve) => {
+      releaseModule = resolve;
+    });
+    await page.route(
+      '**/src/routes/docs/plane-docs-page.tsx*',
+      async (route) => {
+        await moduleReady;
+        await route.continue();
+      },
+    );
+
+    try {
+      await page.goto(`/docs/plane#${fragment}`, {
+        waitUntil: 'domcontentloaded',
+      });
+      await expect(
+        page.getByRole('status', { name: 'Loading documentation' }),
+      ).toBeVisible();
+    } finally {
+      releaseModule();
+    }
+
+    const hasVisibleOutline = testInfo.project.name === 'desktop';
+    await expectDocsFragment(page, 'api-reference', hasVisibleOutline);
+    await expect(page).toHaveURL(`/docs/plane#${fragment}`);
+    await page.reload();
+    await expectDocsFragment(page, 'api-reference', hasVisibleOutline);
+    await expect(page).toHaveURL(`/docs/plane#${fragment}`);
+    expect(browserErrors).toEqual([]);
+  });
+}
+
+test('restores documentation fragments through history and a different docs page', async ({
+  page,
+}, testInfo) => {
+  const browserErrors = await collectBrowserErrors(page);
+  const hasVisibleOutline = testInfo.project.name === 'desktop';
+  await page.goto('/docs/plane');
+  await expect(page.locator('#api-reference')).toHaveCount(1);
+
+  // Native fragment navigation also exercises the mobile layout, where the
+  // outline is hidden, without adding links or calling implementation helpers.
+  await page.evaluate(() => {
+    window.location.hash = 'api-reference';
+  });
+  await expectDocsFragment(page, 'api-reference', hasVisibleOutline);
+  await page.evaluate(() => {
+    window.location.hash = 'anatomy';
+  });
+  await expectDocsFragment(page, 'anatomy', hasVisibleOutline);
+
+  await page.goBack();
+  await expect(page).toHaveURL('/docs/plane#api-reference');
+  await expectDocsFragment(page, 'api-reference', hasVisibleOutline);
+  await page.goForward();
+  await expect(page).toHaveURL('/docs/plane#anatomy');
+  await expectDocsFragment(page, 'anatomy', hasVisibleOutline);
+
+  await page
+    .getByRole('navigation', { name: 'Lab pages' })
+    .getByRole('link', { name: 'Checkbox', exact: true })
+    .click();
+  await expect(page).toHaveURL('/docs/checkbox');
+  await expect(
+    page.getByRole('heading', { name: 'Checkbox', exact: true, level: 1 }),
+  ).toBeVisible();
+  await page.goBack();
+  await expect(page).toHaveURL('/docs/plane#anatomy');
+  await expectDocsFragment(page, 'anatomy', hasVisibleOutline);
+  expect(browserErrors).toEqual([]);
+});
+
+test('ignores unknown and malformed documentation fragments without crashing', async ({
+  page,
+}, testInfo) => {
+  const browserErrors = await collectBrowserErrors(page);
+  for (const fragment of ['missing-heading', '%E0%A4%A']) {
+    await page.goto(`/docs/plane#${fragment}`);
+    await expect(page.locator('#api-reference')).toHaveCount(1);
+    await expect(page).toHaveURL(`/docs/plane#${fragment}`);
+    await page.evaluate(() => {
+      window.location.hash = 'api-reference';
+    });
+    await expectDocsFragment(
+      page,
+      'api-reference',
+      testInfo.project.name === 'desktop',
+    );
+  }
   expect(browserErrors).toEqual([]);
 });
 
@@ -786,7 +1027,9 @@ test('routes between Plane docs and Lab and exposes tabs only on documented page
   await expect(page).toHaveURL(/\/docs\/color-plane$/);
   await expect(page.getByRole('tablist', { name: 'Page view' })).toBeVisible();
   await expect(
-    page.getByRole('link', { name: 'ColorPlane', exact: true }),
+    page
+      .getByRole('navigation', { name: 'Lab pages' })
+      .getByRole('link', { name: 'ColorPlane', exact: true }),
   ).toHaveAttribute('aria-current', 'page');
 
   await page.goto('/docs/checkbox');
