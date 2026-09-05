@@ -48,7 +48,7 @@ import {
   type PrimitiveSize,
   type PrimitiveVisualState,
   type PrimitiveWrapMode,
-} from '@color-kit/control-kit';
+} from 'control-kit';
 import {
   ArrowBigDown,
   ArrowBigUp,

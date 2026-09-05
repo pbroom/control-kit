@@ -2,7 +2,7 @@
 
 A composed command menu built on [Base UI Menu](https://base-ui.com/react/components/menu). The Control Kit Lab wrapper adds the UI3 visual treatment, keyboard typeahead, shortcuts, selection indicators, and submenu presentation.
 
-> Lab prototype — Menu is not currently exported from `@color-kit/control-kit`.
+> Lab prototype — Menu is not currently exported from `control-kit`.
 
 <!-- demo:basic -->
 

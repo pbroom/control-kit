@@ -3,7 +3,7 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from '@color-kit/control-kit';
+} from 'control-kit';
 
 export function TooltipExample() {
   return (

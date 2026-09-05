@@ -1,9 +1,4 @@
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@color-kit/control-kit';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from 'control-kit';
 
 export function TabsExample() {
   return (

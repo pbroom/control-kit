@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plane, PlaneThumb, type PlaneValue } from '@color-kit/control-kit';
+import { Plane, PlaneThumb, type PlaneValue } from 'control-kit';
 
 const initialValue: PlaneValue = { x: 0.62, y: 0.68 };
 

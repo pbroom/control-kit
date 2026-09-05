@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Plus } from 'lucide-react';
-import { Plane, PlaneThumb, type PlaneValue } from '@color-kit/control-kit';
+import { Plane, PlaneThumb, type PlaneValue } from 'control-kit';
 
 type Tone = {
   label: 'Highlights' | 'Midtones' | 'Shadows';

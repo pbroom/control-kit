@@ -5,7 +5,7 @@ import {
   usePrimitiveValueInput,
   type PrimitiveExpressionParser,
   type PrimitiveValueChangeDetails,
-} from '@color-kit/control-kit';
+} from 'control-kit';
 import { useOptionalColorContext } from './context.js';
 import {
   colorFromColorInputChannelValue,

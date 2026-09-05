@@ -6,7 +6,7 @@ import {
   normalizePrimitiveValue,
   parsePrimitiveDraft,
   type PrimitiveExpressionParser,
-} from '@color-kit/control-kit';
+} from 'control-kit';
 import { parseColorInputExpression } from './color-input-parser.js';
 import type { ParseColorInputExpressionOptions } from './color-input-parser.js';
 

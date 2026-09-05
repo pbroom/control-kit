@@ -2,7 +2,7 @@
 
 ## Cursor Cloud specific instructions
 
-This repo is a single npm package `@color-kit/control-kit` (React 19 + TypeScript UI
+This repo is a single npm package `control-kit` (React 19 + TypeScript UI
 primitive library) plus an embedded Vite "lab" dev app under `lab/` used for demos and
 smoke tests. There is no backend, database, or external service — everything runs in the
 browser or Node. Package manager is **pnpm** (`pnpm@10.30.3`); Node ≥18 (Node 22 works).

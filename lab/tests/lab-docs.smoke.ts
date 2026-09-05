@@ -862,7 +862,7 @@ test('routes between Plane docs and Lab and exposes tabs only on documented page
     'Code copied to clipboard.',
   );
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
-    `import { Plane, PlaneThumb } from '@color-kit/control-kit';
+    `import { Plane, PlaneThumb } from 'control-kit';
 
 <Plane aria-label="Position">
   <PlaneThumb defaultValue={{ x: 0.5, y: 0.5 }} />
