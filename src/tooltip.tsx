@@ -100,8 +100,8 @@ export function TooltipContent({
             cn(
               'z-50 w-fit origin-(--transform-origin) rounded-md px-3 py-1.5 text-xs text-balance transition-[transform,opacity] duration-100 ease-out data-ending-style:opacity-0 data-ending-style:[transform:scale(0.95)] data-instant:transition-none data-starting-style:opacity-0 data-starting-style:[transform:scale(0.95)]',
               highContrast
-                ? 'bg-foreground text-background'
-                : 'bg-background text-foreground [filter:drop-shadow(0_0_1px_var(--border))_drop-shadow(0_4px_6px_rgb(0_0_0/0.1))]',
+                ? 'bg-[var(--ck-foreground,#ffffff)] text-[color:var(--ck-surface-content,#1f1f1f)]'
+                : 'bg-[var(--ck-surface-content,#1f1f1f)] text-[color:var(--ck-foreground,#ffffff)] [filter:drop-shadow(0_0_1px_var(--ck-border,#4c4c4c))_drop-shadow(0_4px_6px_rgb(0_0_0/0.1))]',
               typeof className === 'function' ? className(state) : className,
             )
           }
@@ -135,12 +135,16 @@ export function TooltipContent({
               }
             >
               <path
-                className={highContrast ? 'fill-foreground' : 'fill-background'}
+                className={
+                  highContrast
+                    ? 'fill-[var(--ck-foreground,#ffffff)]'
+                    : 'fill-[var(--ck-surface-content,#1f1f1f)]'
+                }
                 d="M0 0 L4.5 5 Q6 7 7.5 5 L12 0 Z"
               />
               {highContrast ? null : (
                 <path
-                  className="stroke-border stroke-[1.25px]"
+                  className="stroke-[color:var(--ck-border,#4c4c4c)] stroke-[1.25px]"
                   d="M0 0 L4.5 5 Q6 7 7.5 5 L12 0"
                   fill="none"
                   vectorEffect="non-scaling-stroke"

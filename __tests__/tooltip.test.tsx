@@ -111,7 +111,9 @@ describe('TooltipContent', () => {
     mountControlledTooltip({ highContrast: false });
     const content = getContent();
 
-    expect(content?.className).toContain('bg-background');
+    expect(content?.className).toContain(
+      'bg-[var(--ck-surface-content,#1f1f1f)]',
+    );
     expect(content?.querySelectorAll('svg path')).toHaveLength(2);
   });
 
