@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { Plane, PlaneThumb, type PlaneValue } from '@color-kit/control-kit';
 
@@ -49,6 +49,212 @@ const initialTones: Tone[] = [
     value: { x: 0.46, y: 0.52 },
   },
 ];
+
+const TONE_SHADER_SEED = {
+  Highlights: 17,
+  Midtones: 43,
+  Shadows: 79,
+} as const;
+
+const TONE_WHEEL_VERTEX_SHADER = `
+  attribute vec2 a_position;
+  varying vec2 v_uv;
+
+  void main() {
+    v_uv = (a_position + 1.0) * 0.5;
+    gl_Position = vec4(a_position, 0.0, 1.0);
+  }
+`;
+
+const TONE_WHEEL_FRAGMENT_SHADER = `
+  precision highp float;
+  varying vec2 v_uv;
+  uniform float u_seed;
+
+  const float PI = 3.14159265359;
+
+  vec3 wheelColor(float angle) {
+    vec3 orange = vec3(227.0, 92.0, 40.0) / 255.0;
+    vec3 pink = vec3(214.0, 75.0, 131.0) / 255.0;
+    vec3 purple = vec3(116.0, 77.0, 179.0) / 255.0;
+    vec3 blue = vec3(40.0, 120.0, 212.0) / 255.0;
+    vec3 cyan = vec3(24.0, 182.0, 197.0) / 255.0;
+    vec3 green = vec3(29.0, 187.0, 141.0) / 255.0;
+    vec3 lime = vec3(124.0, 168.0, 61.0) / 255.0;
+    vec3 yellow = vec3(227.0, 166.0, 46.0) / 255.0;
+
+    if (angle < 55.0) return mix(orange, pink, angle / 55.0);
+    if (angle < 95.0) return mix(pink, purple, (angle - 55.0) / 40.0);
+    if (angle < 140.0) return mix(purple, blue, (angle - 95.0) / 45.0);
+    if (angle < 190.0) return mix(blue, cyan, (angle - 140.0) / 50.0);
+    if (angle < 230.0) return mix(cyan, green, (angle - 190.0) / 40.0);
+    if (angle < 285.0) return mix(green, lime, (angle - 230.0) / 55.0);
+    if (angle < 325.0) return mix(lime, yellow, (angle - 285.0) / 40.0);
+    return mix(yellow, orange, (angle - 325.0) / 35.0);
+  }
+
+  float gradientNoise(vec2 position, float seed) {
+    vec2 offset = vec2(seed * 19.19, seed * 47.77);
+    float first = fract(52.9829189 * fract(dot(position + offset, vec2(0.06711056, 0.00583715))));
+    float second = fract(52.9829189 * fract(dot(position.yx + offset + 31.0, vec2(0.06711056, 0.00583715))));
+    return first + second - 1.0;
+  }
+
+  void main() {
+    vec2 centered = v_uv - 0.5;
+    float angle = mod(degrees(atan(centered.x, centered.y)) + 380.0, 360.0);
+    vec3 color = wheelColor(angle);
+    float radius = length(centered) * 2.0;
+
+    vec3 radialColor;
+    float radialAlpha;
+    if (radius < 0.53) {
+      float progress = radius / 0.53;
+      radialColor = mix(vec3(57.0), vec3(43.0), progress) / 255.0;
+      radialAlpha = mix(1.0, 0.72, progress);
+    } else {
+      radialColor = vec3(43.0 / 255.0);
+      radialAlpha = 0.72 * (1.0 - smoothstep(0.53, 1.0, radius));
+    }
+
+    color = mix(color, radialColor, radialAlpha);
+
+    // Dither in the shader before the browser quantizes the drawing buffer.
+    float dither = gradientNoise(gl_FragCoord.xy, u_seed) / 255.0;
+    color = clamp(color + vec3(dither), 0.0, 1.0);
+    gl_FragColor = vec4(color, 1.0);
+  }
+`;
+
+function compileToneWheelShader(
+  gl: WebGLRenderingContext,
+  type: number,
+  source: string,
+) {
+  const shader = gl.createShader(type);
+  if (!shader) return null;
+
+  gl.shaderSource(shader, source);
+  gl.compileShader(shader);
+  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+    gl.deleteShader(shader);
+    return null;
+  }
+
+  return shader;
+}
+
+function ToneWheelGradient({ seed }: { seed: number }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const gl = canvas.getContext('webgl', {
+      alpha: false,
+      antialias: false,
+      powerPreference: 'low-power',
+      premultipliedAlpha: false,
+    });
+    if (!gl) {
+      canvas.dataset.renderer = 'css-fallback';
+      return;
+    }
+
+    const vertexShader = compileToneWheelShader(
+      gl,
+      gl.VERTEX_SHADER,
+      TONE_WHEEL_VERTEX_SHADER,
+    );
+    const fragmentShader = compileToneWheelShader(
+      gl,
+      gl.FRAGMENT_SHADER,
+      TONE_WHEEL_FRAGMENT_SHADER,
+    );
+    const program = gl.createProgram();
+    const buffer = gl.createBuffer();
+
+    if (!vertexShader || !fragmentShader || !program || !buffer) {
+      if (vertexShader) gl.deleteShader(vertexShader);
+      if (fragmentShader) gl.deleteShader(fragmentShader);
+      if (program) gl.deleteProgram(program);
+      if (buffer) gl.deleteBuffer(buffer);
+      canvas.dataset.renderer = 'css-fallback';
+      return;
+    }
+
+    gl.attachShader(program, vertexShader);
+    gl.attachShader(program, fragmentShader);
+    gl.linkProgram(program);
+    gl.deleteShader(vertexShader);
+    gl.deleteShader(fragmentShader);
+
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+      gl.deleteProgram(program);
+      gl.deleteBuffer(buffer);
+      canvas.dataset.renderer = 'css-fallback';
+      return;
+    }
+
+    const position = gl.getAttribLocation(program, 'a_position');
+    const seedUniform = gl.getUniformLocation(program, 'u_seed');
+    if (position < 0 || seedUniform === null) {
+      gl.deleteProgram(program);
+      gl.deleteBuffer(buffer);
+      canvas.dataset.renderer = 'css-fallback';
+      return;
+    }
+
+    gl.useProgram(program);
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.bufferData(
+      gl.ARRAY_BUFFER,
+      new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]),
+      gl.STATIC_DRAW,
+    );
+    gl.enableVertexAttribArray(position);
+    gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
+    gl.uniform1f(seedUniform, seed);
+
+    const draw = () => {
+      const bounds = canvas.getBoundingClientRect();
+      const pixelRatio = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
+      const width = Math.max(1, Math.round(bounds.width * pixelRatio));
+      const height = Math.max(1, Math.round(bounds.height * pixelRatio));
+
+      if (canvas.width !== width || canvas.height !== height) {
+        canvas.width = width;
+        canvas.height = height;
+      }
+
+      gl.viewport(0, 0, width, height);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      canvas.dataset.renderer = 'webgl';
+    };
+
+    draw();
+    const observer = new ResizeObserver(draw);
+    observer.observe(canvas);
+
+    return () => {
+      observer.disconnect();
+      gl.deleteBuffer(buffer);
+      gl.deleteProgram(program);
+    };
+  }, [seed]);
+
+  return (
+    <canvas
+      aria-hidden="true"
+      className="pointer-events-none absolute inset-0 z-0 size-full rounded-[inherit]"
+      data-renderer="pending"
+      data-tone-shader=""
+      data-tone-shader-seed={seed}
+      ref={canvasRef}
+    />
+  );
+}
 
 function formatColorBalance(label: string, value: PlaneValue) {
   const { angle, magnitude } = toCenteredVector(value);
@@ -151,9 +357,10 @@ function ToneWheel({
             'radial-gradient(circle, #393939 0%, rgb(50 50 50 / 0.98) 31%, rgb(43 43 43 / 0.72) 53%, transparent 73%), conic-gradient(from -20deg, #e35c28 0deg, #d64b83 55deg, #744db3 95deg, #2878d4 140deg, #18b6c5 190deg, #1dbb8d 230deg, #7ca83d 285deg, #e3a62e 325deg, #e35c28 360deg)',
         }}
       >
+        <ToneWheelGradient seed={TONE_SHADER_SEED[tone.label]} />
         <Plus
           aria-hidden="true"
-          className="pointer-events-none absolute top-1/2 left-1/2 z-0 size-8 -translate-x-1/2 -translate-y-1/2 text-[#727272]"
+          className="pointer-events-none absolute top-1/2 left-1/2 z-[1] size-8 -translate-x-1/2 -translate-y-1/2 text-[#727272]"
           strokeWidth={0.8}
         />
         <PlaneThumb

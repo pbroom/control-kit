@@ -4,6 +4,7 @@ import { collectBrowserErrors } from './lab-smoke-utils.js';
 const FOCUSED_PLANE_EXAMPLE_TITLES = [
   'Saturation × brightness/value',
   'Color grading controls — Circular controls (3-way color adjuster)',
+  'Mesh gradient',
   'Background-position',
   'Gradient center/origin',
   'Pattern/texture offset',
@@ -76,9 +77,9 @@ test('renders the focused Plane examples with executable source', async ({
   );
 
   const gallery = page.locator('[data-plane-examples-gallery]');
-  await expect(gallery).toHaveAttribute('data-plane-examples-count', '36');
+  await expect(gallery).toHaveAttribute('data-plane-examples-count', '37');
   await expect(gallery.locator('h3')).toHaveText(FOCUSED_PLANE_EXAMPLE_TITLES);
-  await expect(gallery.locator('[data-docs-example]')).toHaveCount(36);
+  await expect(gallery.locator('[data-docs-example]')).toHaveCount(37);
   expect(
     await gallery
       .locator('[data-docs-example]')
@@ -97,10 +98,10 @@ test('renders the focused Plane examples with executable source', async ({
       ),
     ),
   ).toBe(true);
-  await expect(gallery.locator('[data-docs-example-source]')).toHaveCount(36);
+  await expect(gallery.locator('[data-docs-example-source]')).toHaveCount(37);
   await expect(
     gallery.getByRole('button', { name: 'Show code', exact: true }),
-  ).toHaveCount(36);
+  ).toHaveCount(37);
 
   const firstExample = gallery.locator('[data-docs-example]').first();
   const firstPlane = firstExample.locator('[data-slot="plane"]');
@@ -137,6 +138,53 @@ test('renders the focused Plane examples with executable source', async ({
     planeBounds!.x + planeBounds!.width,
   );
 
+  const meshExample = gallery.getByRole('figure', {
+    name: 'Mesh gradient demo',
+    exact: true,
+  });
+  const meshHorizontalAxis = meshExample.getByRole('slider', {
+    name: 'Coral mesh point horizontal position',
+    exact: true,
+  });
+  await expect(meshExample.locator('[data-slot="plane-thumb"]')).toHaveCount(4);
+  await expect(meshExample.getByRole('slider')).toHaveCount(8);
+  const initialMeshBackground = await meshExample
+    .locator('[data-slot="plane"]')
+    .evaluate((plane) => getComputedStyle(plane).backgroundImage);
+  await meshHorizontalAxis.focus();
+  await meshHorizontalAxis.press('End');
+  await expect(meshHorizontalAxis).toHaveValue('1');
+  await expect(meshExample.locator('output')).toHaveText(/^Coral 100% \d+%$/);
+  await expect
+    .poll(() =>
+      meshExample
+        .locator('[data-slot="plane"]')
+        .evaluate((plane) => getComputedStyle(plane).backgroundImage),
+    )
+    .not.toBe(initialMeshBackground);
+
+  const dropShadowExample = gallery.getByRole('figure', {
+    name: 'Drop-shadow offset demo',
+    exact: true,
+  });
+  const dropShadowPlane = dropShadowExample.locator('[data-slot="plane"]');
+  const horizontalShadowAxis = dropShadowExample.getByRole('slider', {
+    name: 'Horizontal shadow offset',
+    exact: true,
+  });
+  await expect(dropShadowPlane).toHaveCSS(
+    'background-color',
+    'rgb(230, 232, 236)',
+  );
+  const initialShadowReadout = await dropShadowExample
+    .locator('output')
+    .textContent();
+  await horizontalShadowAxis.focus();
+  await horizontalShadowAxis.press('ArrowLeft');
+  await expect(dropShadowExample.locator('output')).not.toHaveText(
+    initialShadowReadout ?? '',
+  );
+
   const threeWayExample = gallery.getByRole('figure', {
     name: 'Color grading controls — Circular controls (3-way color adjuster) demo',
     exact: true,
@@ -147,10 +195,95 @@ test('renders the focused Plane examples with executable source', async ({
   });
   const toneControls = colorBalance.locator('[data-tone-control]');
   const toneLabels = colorBalance.locator('[data-tone-label]');
+  const toneShaders = colorBalance.locator('[data-tone-shader]');
   const toneSliders = colorBalance.locator('[data-tone-slider]');
 
   await expect(toneControls).toHaveCount(3);
   await expect(toneLabels).toHaveText(['Highlights', 'Midtones', 'Shadows']);
+  await expect(toneShaders).toHaveCount(3);
+  await expect
+    .poll(() =>
+      toneShaders.evaluateAll((canvases) =>
+        canvases.map((canvas) => canvas.getAttribute('data-renderer')),
+      ),
+    )
+    .toEqual(['webgl', 'webgl', 'webgl']);
+  expect(
+    await toneShaders.evaluateAll((canvases) =>
+      canvases.map((node) => {
+        const canvas = node as HTMLCanvasElement;
+        const bounds = canvas.getBoundingClientRect();
+        const plane = canvas.parentElement!;
+        const planeBounds = plane.getBoundingClientRect();
+        const planeStyles = getComputedStyle(plane);
+        const borderLeft = parseFloat(planeStyles.borderLeftWidth);
+        const borderRight = parseFloat(planeStyles.borderRightWidth);
+        const borderTop = parseFloat(planeStyles.borderTopWidth);
+        const borderBottom = parseFloat(planeStyles.borderBottomWidth);
+        const pixelRatio = Math.min(
+          2,
+          Math.max(1, window.devicePixelRatio || 1),
+        );
+
+        return {
+          backingSize: [canvas.width, canvas.height],
+          expectedBackingSize: [
+            Math.round(bounds.width * pixelRatio),
+            Math.round(bounds.height * pixelRatio),
+          ],
+          fillsPlane:
+            Math.abs(bounds.left - (planeBounds.left + borderLeft)) < 0.5 &&
+            Math.abs(bounds.top - (planeBounds.top + borderTop)) < 0.5 &&
+            Math.abs(
+              bounds.width - (planeBounds.width - borderLeft - borderRight),
+            ) < 0.5 &&
+            Math.abs(
+              bounds.height - (planeBounds.height - borderTop - borderBottom),
+            ) < 0.5,
+          pointerEvents: getComputedStyle(canvas).pointerEvents,
+          seed: canvas.getAttribute('data-tone-shader-seed'),
+        };
+      }),
+    ),
+  ).toEqual([
+    {
+      backingSize: expect.any(Array),
+      expectedBackingSize: expect.any(Array),
+      fillsPlane: true,
+      pointerEvents: 'none',
+      seed: '17',
+    },
+    {
+      backingSize: expect.any(Array),
+      expectedBackingSize: expect.any(Array),
+      fillsPlane: true,
+      pointerEvents: 'none',
+      seed: '43',
+    },
+    {
+      backingSize: expect.any(Array),
+      expectedBackingSize: expect.any(Array),
+      fillsPlane: true,
+      pointerEvents: 'none',
+      seed: '79',
+    },
+  ]);
+  expect(
+    await toneShaders.evaluateAll((canvases) =>
+      canvases.every((node) => {
+        const canvas = node as HTMLCanvasElement;
+        const bounds = canvas.getBoundingClientRect();
+        const pixelRatio = Math.min(
+          2,
+          Math.max(1, window.devicePixelRatio || 1),
+        );
+        return (
+          canvas.width === Math.round(bounds.width * pixelRatio) &&
+          canvas.height === Math.round(bounds.height * pixelRatio)
+        );
+      }),
+    ),
+  ).toBe(true);
   expect(
     await toneLabels.evaluateAll((labels) =>
       labels.map((label) => getComputedStyle(label).fontSize),

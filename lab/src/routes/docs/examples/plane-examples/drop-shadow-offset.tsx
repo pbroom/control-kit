@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { Plane, PlaneThumb, type PlaneValue } from '@color-kit/control-kit';
 
 const EXAMPLE_PLANE_CLASS_NAME =
-  'relative size-[240px] touch-none overflow-hidden rounded-2xl border border-white/12 [background-origin:border-box] bg-[#171718] max-sm:size-[220px]';
+  'relative size-[240px] touch-none overflow-hidden rounded-2xl border border-black/12 [background-origin:border-box] bg-[#e6e8ec] max-sm:size-[220px]';
 const EXAMPLE_THUMB_CLASS_NAME =
   'size-6 border-2 border-white bg-[#171718] shadow-[0_2px_10px_rgba(0,0,0,0.45)]';
 
@@ -36,7 +36,7 @@ function GridLayer({ subdivisions = 4 }: { subdivisions?: number }) {
       className="absolute inset-0"
       style={{
         backgroundImage:
-          'linear-gradient(to right, rgb(255 255 255 / 0.08) 1px, transparent 1px), linear-gradient(to bottom, rgb(255 255 255 / 0.08) 1px, transparent 1px)',
+          'linear-gradient(to right, rgb(17 24 39 / 0.08) 1px, transparent 1px), linear-gradient(to bottom, rgb(17 24 39 / 0.08) 1px, transparent 1px)',
         backgroundSize: `${step}% ${step}%`,
       }}
     />
