@@ -3,32 +3,42 @@ import { Navigate, Route, Routes, useNavigate, useParams } from 'react-router';
 import {
   DEFAULT_LAB_PAGE,
   getDocsPagePath,
-  getLabPageFromSlug,
   getLabPagePath,
+  getPageFromSlug,
   getPrimitivePagePath,
+  hasLabPage,
+  type NavigationPageKey,
   type PrimitivePageView,
 } from './routes/lab/lab-page-runtime.js';
 import { hasDocsPage } from './routes/docs/docs-registry.js';
 import { LabPage } from './routes/lab.js';
 import { ThemeProvider } from './components/theme-context.js';
-import type { LabPageKey } from './routes/lab/shared.js';
 
 function RoutedPrimitivePage() {
   const { pageSlug, pageView } = useParams();
   const navigate = useNavigate();
   const view: PrimitivePageView | null =
     pageView === 'docs' || pageView === 'lab' ? pageView : null;
-  const activePage = getLabPageFromSlug(pageSlug);
+  const activePage = getPageFromSlug(pageSlug);
   const handlePageChange = useCallback(
-    (page: LabPageKey) => {
-      const nextView = view === 'docs' && hasDocsPage(page) ? 'docs' : 'lab';
+    (page: NavigationPageKey) => {
+      const nextView =
+        view === 'docs' && hasDocsPage(page)
+          ? 'docs'
+          : hasLabPage(page)
+            ? 'lab'
+            : 'docs';
       navigate(getPrimitivePagePath(page, nextView));
     },
     [navigate, view],
   );
   const handleViewChange = useCallback(
     (nextView: PrimitivePageView) => {
-      if (!activePage || (nextView === 'docs' && !hasDocsPage(activePage))) {
+      if (
+        !activePage ||
+        (nextView === 'docs' && !hasDocsPage(activePage)) ||
+        (nextView === 'lab' && !hasLabPage(activePage))
+      ) {
         return;
       }
 
@@ -42,7 +52,15 @@ function RoutedPrimitivePage() {
   }
 
   if (view === 'docs' && !hasDocsPage(activePage)) {
-    return <Navigate to={getLabPagePath(activePage)} replace />;
+    return hasLabPage(activePage) ? (
+      <Navigate to={getLabPagePath(activePage)} replace />
+    ) : (
+      <Navigate to={getLabPagePath(DEFAULT_LAB_PAGE)} replace />
+    );
+  }
+
+  if (view === 'lab' && !hasLabPage(activePage)) {
+    return <Navigate to={getDocsPagePath(activePage)} replace />;
   }
 
   return (

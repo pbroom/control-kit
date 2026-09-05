@@ -1,6 +1,289 @@
 import { expect, test } from '@playwright/test';
 import { collectBrowserErrors } from './lab-smoke-utils.js';
 
+const FOCUSED_PLANE_EXAMPLE_TITLES = [
+  'Saturation × brightness/value',
+  'Color grading controls — Circular controls (3-way color adjuster)',
+  'Background-position',
+  'Gradient center/origin',
+  'Pattern/texture offset',
+  'Drop-shadow offset',
+  'Image crop focal point',
+  'Anchor point inside a container',
+  'Variable-font axis pairs, e.g. weight × width',
+  'Tracking × line-height',
+  'Bezier control-point editor',
+  'Spring stiffness × damping',
+  'Motion direction/intensity',
+  'Force direction and magnitude',
+  'Gravity vector',
+  'Joystick/game controls',
+  'Fluid-flow direction',
+  'Particle emitter direction/spread',
+  'XY synth pads',
+  'Filter cutoff × resonance',
+  'Timbre morphing between parameters',
+  'Spatial-audio source positioning',
+  'Color curves control',
+  'Choosing an interpolation point between four states',
+  'Familiar ↔ novel × safe ↔ adventurous',
+  'Border radius × border width',
+  'Elevation × blur',
+  'Noise scale × intensity',
+  'Minimap viewport position',
+  'Canvas pan',
+  'Relative position within a floor plan',
+  'Light direction',
+  'Camera orbit: azimuth × elevation',
+  'Pitch × yaw',
+  'Importance × urgency',
+  'Literal ↔ creative × concise ↔ detailed',
+] as const;
+
+test('renders the focused Plane examples with executable source', async ({
+  page,
+}) => {
+  const browserErrors = await collectBrowserErrors(page);
+
+  await page.goto('/lab/plane-examples');
+  await expect(page).toHaveURL(/\/docs\/plane-examples$/);
+
+  await page.goto('/lab/plane');
+  await page
+    .getByRole('navigation', { name: 'Lab pages' })
+    .getByRole('link', { name: 'Plane Examples', exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/docs\/plane-examples$/);
+
+  await page.goto('/docs/plane-examples');
+
+  await expect(page).toHaveURL(/\/docs\/plane-examples$/);
+  await expect(
+    page.getByRole('heading', {
+      name: 'Plane Examples',
+      exact: true,
+      level: 1,
+    }),
+  ).toBeVisible();
+
+  const navigation = page.getByRole('navigation', { name: 'Lab pages' });
+  await expect(
+    navigation.getByRole('link', { name: 'Plane Examples', exact: true }),
+  ).toHaveAttribute('aria-current', 'page');
+  const navigationSections = await navigation.locator('h2').allTextContents();
+  expect(navigationSections.indexOf('Examples')).toBeLessThan(
+    navigationSections.indexOf('Primitives'),
+  );
+
+  const gallery = page.locator('[data-plane-examples-gallery]');
+  await expect(gallery).toHaveAttribute('data-plane-examples-count', '36');
+  await expect(gallery.locator('h3')).toHaveText(FOCUSED_PLANE_EXAMPLE_TITLES);
+  await expect(gallery.locator('[data-docs-example]')).toHaveCount(36);
+  expect(
+    await gallery
+      .locator('[data-docs-example]')
+      .evaluateAll((examples) =>
+        examples.every((example) =>
+          example.querySelector('[data-slot="plane"]'),
+        ),
+      ),
+  ).toBe(true);
+  expect(
+    await gallery.locator('[data-slot="plane"]').evaluateAll((planes) =>
+      planes.every((plane) =>
+        getComputedStyle(plane)
+          .backgroundOrigin.split(',')
+          .every((origin) => origin.trim() === 'border-box'),
+      ),
+    ),
+  ).toBe(true);
+  await expect(gallery.locator('[data-docs-example-source]')).toHaveCount(36);
+  await expect(
+    gallery.getByRole('button', { name: 'Show code', exact: true }),
+  ).toHaveCount(36);
+
+  const firstExample = gallery.locator('[data-docs-example]').first();
+  const firstPlane = firstExample.locator('[data-slot="plane"]');
+  const firstThumb = firstExample.locator('[data-slot="plane-thumb"]');
+  const firstReadout = firstExample.locator('output');
+  const firstAxis = firstExample.getByRole('slider').first();
+  const initialAxisValue = await firstAxis.inputValue();
+
+  await expect(firstReadout).toHaveText(/^S \d+% V \d+%$/);
+  expect(
+    await firstReadout.evaluate(
+      (readout) => getComputedStyle(readout).fontFamily,
+    ),
+  ).toBe(
+    await page
+      .locator('body')
+      .evaluate((body) => getComputedStyle(body).fontFamily),
+  );
+
+  await firstAxis.focus();
+  await firstAxis.press('ArrowRight');
+  await expect(firstAxis).not.toHaveValue(initialAxisValue);
+  await firstAxis.press('End');
+  await expect(firstAxis).toHaveValue('1');
+  expect(
+    await firstPlane.evaluate((plane) => getComputedStyle(plane).overflow),
+  ).toBe('visible');
+
+  const planeBounds = await firstPlane.boundingBox();
+  const thumbBounds = await firstThumb.boundingBox();
+  expect(planeBounds).not.toBeNull();
+  expect(thumbBounds).not.toBeNull();
+  expect(thumbBounds!.x + thumbBounds!.width).toBeGreaterThan(
+    planeBounds!.x + planeBounds!.width,
+  );
+
+  const threeWayExample = gallery.getByRole('figure', {
+    name: 'Color grading controls — Circular controls (3-way color adjuster) demo',
+    exact: true,
+  });
+  const colorBalance = threeWayExample.getByRole('region', {
+    name: 'Color balance control',
+    exact: true,
+  });
+  const toneControls = colorBalance.locator('[data-tone-control]');
+  const toneLabels = colorBalance.locator('[data-tone-label]');
+  const toneSliders = colorBalance.locator('[data-tone-slider]');
+
+  await expect(toneControls).toHaveCount(3);
+  await expect(toneLabels).toHaveText(['Highlights', 'Midtones', 'Shadows']);
+  expect(
+    await toneLabels.evaluateAll((labels) =>
+      labels.map((label) => getComputedStyle(label).fontSize),
+    ),
+  ).toEqual(['13px', '13px', '13px']);
+  await expect(toneSliders).toHaveCount(6);
+  expect(
+    await toneSliders.evaluateAll((sliders) =>
+      sliders.every(
+        (slider) =>
+          slider instanceof HTMLInputElement &&
+          slider.type === 'range' &&
+          slider.getAttribute('aria-orientation') === 'horizontal',
+      ),
+    ),
+  ).toBe(true);
+
+  const saturationTracks = colorBalance.locator(
+    '[data-tone-slider-track="saturation"]',
+  );
+  const luminanceTracks = colorBalance.locator(
+    '[data-tone-slider-track="luminance"]',
+  );
+  await expect(saturationTracks).toHaveCount(3);
+  await expect(luminanceTracks).toHaveCount(3);
+
+  const initialSaturationBackgrounds = await saturationTracks.evaluateAll(
+    (tracks) => tracks.map((track) => getComputedStyle(track).backgroundImage),
+  );
+  expect(initialSaturationBackgrounds[0]).not.toBe(
+    initialSaturationBackgrounds[2],
+  );
+  expect(initialSaturationBackgrounds[1]).toBe(
+    'linear-gradient(to right, rgb(75, 75, 75), rgb(112, 112, 112))',
+  );
+  expect(
+    await luminanceTracks.evaluateAll((tracks) =>
+      tracks.every(
+        (track) =>
+          getComputedStyle(track).backgroundImage ===
+          'linear-gradient(to right, rgb(17, 17, 17), rgb(242, 242, 242))',
+      ),
+    ),
+  ).toBe(true);
+
+  const midtonesSaturationTrack = saturationTracks.nth(1);
+  const initialMidtonesSaturationBackground =
+    await midtonesSaturationTrack.evaluate(
+      (track) => getComputedStyle(track).backgroundImage,
+    );
+  await colorBalance
+    .getByRole('slider', {
+      name: 'Midtones cyan to red balance',
+      exact: true,
+    })
+    .press('End');
+  await expect
+    .poll(() =>
+      midtonesSaturationTrack.evaluate(
+        (track) => getComputedStyle(track).backgroundImage,
+      ),
+    )
+    .toBe('linear-gradient(to right, rgb(75, 75, 75), rgb(91, 91, 190))');
+  expect(
+    await midtonesSaturationTrack.evaluate(
+      (track) => getComputedStyle(track).backgroundImage,
+    ),
+  ).not.toBe(initialMidtonesSaturationBackground);
+
+  const toneLayout = await toneControls.evaluateAll((controls) =>
+    controls.map((control) => {
+      const bounds = control.getBoundingClientRect();
+      const plane = control
+        .querySelector('[data-slot="plane"]')!
+        .getBoundingClientRect();
+      const sliders = Array.from(
+        control.querySelectorAll('[data-tone-slider]'),
+        (slider) => slider.getBoundingClientRect(),
+      );
+
+      return {
+        bottom: bounds.bottom,
+        left: bounds.left,
+        top: bounds.top,
+        planeBottom: plane.bottom,
+        sliderTops: sliders.map((slider) => slider.top),
+      };
+    }),
+  );
+  expect(Math.max(...toneLayout.map(({ top }) => top))).toBeLessThanOrEqual(
+    Math.min(...toneLayout.map(({ top }) => top)) + 1,
+  );
+  expect(toneLayout[0]!.left).toBeLessThan(toneLayout[1]!.left);
+  expect(toneLayout[1]!.left).toBeLessThan(toneLayout[2]!.left);
+  for (const tone of toneLayout) {
+    expect(tone.sliderTops[0]).toBeGreaterThanOrEqual(tone.planeBottom);
+    expect(tone.sliderTops[1]).toBeGreaterThan(tone.sliderTops[0]!);
+    expect(tone.bottom).toBeGreaterThan(tone.sliderTops[1]!);
+  }
+
+  const midtonesLuminance = colorBalance.getByRole('slider', {
+    name: 'Midtones luminance',
+    exact: true,
+  });
+  await midtonesLuminance.press('End');
+  await expect(midtonesLuminance).toHaveValue('100');
+  await expect(colorBalance.locator('output')).toContainText(
+    /Midtones \d+, saturation \d+, luminance 100/,
+  );
+
+  const firstCodeToggle = firstExample.getByRole('button', {
+    name: 'Show code',
+    exact: true,
+  });
+  await firstCodeToggle.click();
+  await expect(
+    firstExample.getByRole('button', { name: 'Hide code', exact: true }),
+  ).toBeVisible();
+  await expect(firstExample.locator('[data-docs-example-code]')).toContainText(
+    '<Plane',
+  );
+  await expect(firstExample.locator('[data-docs-example-code]')).toContainText(
+    'PlaneThumb',
+  );
+
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+  expect(browserErrors).toEqual([]);
+});
+
 test('recovers after a transient documentation module failure', async ({
   page,
 }, testInfo) => {

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   LAB_PAGE_NAVIGATION,
+  PAGE_NAVIGATION,
   LazyActiveLabPage,
   preloadLabPage,
   preloadLabPages,
@@ -12,6 +13,8 @@ import {
 } from './docs/docs-registry.js';
 import {
   getPrimitivePagePath,
+  hasLabPage,
+  type NavigationPageKey,
   type PrimitivePageView,
 } from './lab/lab-page-runtime.js';
 import { LabPageFrame, type LabPageKey } from './lab/shared.js';
@@ -25,8 +28,8 @@ type PreloadWindow = Window & {
 };
 
 type LabPageProps = {
-  activePage: LabPageKey;
-  onPageChange: (page: LabPageKey) => void;
+  activePage: NavigationPageKey;
+  onPageChange: (page: NavigationPageKey) => void;
   onViewChange: (view: PrimitivePageView) => void;
   view: PrimitivePageView;
 };
@@ -48,10 +51,13 @@ export function LabPage({
   onViewChange,
   view,
 }: LabPageProps) {
-  const [visitedPages, setVisitedPages] = useState<readonly LabPageKey[]>(
-    () => [activePage],
+  const [visitedPages, setVisitedPages] = useState<readonly LabPageKey[]>(() =>
+    hasLabPage(activePage) ? [activePage] : [],
   );
-  const renderedPages = appendVisitedPage(visitedPages, activePage);
+  const activeLabPage = hasLabPage(activePage) ? activePage : null;
+  const renderedPages = activeLabPage
+    ? appendVisitedPage(visitedPages, activeLabPage)
+    : visitedPages;
 
   useEffect(() => {
     const preloadPages = () => {
@@ -75,20 +81,23 @@ export function LabPage({
   }, [activePage]);
 
   useEffect(() => {
-    setVisitedPages((pages) => appendVisitedPage(pages, activePage));
-  }, [activePage]);
+    if (!activeLabPage) return;
+    setVisitedPages((pages) => appendVisitedPage(pages, activeLabPage));
+  }, [activeLabPage]);
 
   const handlePageChange = useCallback(
-    (page: LabPageKey) => {
-      setVisitedPages((pages) => appendVisitedPage(pages, page));
-      ignorePreloadFailure(preloadLabPage(page));
+    (page: NavigationPageKey) => {
+      if (hasLabPage(page)) {
+        setVisitedPages((pages) => appendVisitedPage(pages, page));
+        ignorePreloadFailure(preloadLabPage(page));
+      }
       onPageChange(page);
     },
     [onPageChange],
   );
 
-  const handlePagePreload = useCallback((page: LabPageKey) => {
-    ignorePreloadFailure(preloadLabPage(page));
+  const handlePagePreload = useCallback((page: NavigationPageKey) => {
+    if (hasLabPage(page)) ignorePreloadFailure(preloadLabPage(page));
     if (hasDocsPage(page)) ignorePreloadFailure(preloadDocsPage(page));
   }, []);
   const docsPage = hasDocsPage(activePage) ? activePage : null;
@@ -96,10 +105,15 @@ export function LabPage({
   return (
     <LabPageFrame
       activePage={activePage}
+      activeLabPage={activeLabPage}
       getPageHref={(page) =>
         getPrimitivePagePath(
           page,
-          view === 'docs' && hasDocsPage(page) ? 'docs' : 'lab',
+          view === 'docs' && hasDocsPage(page)
+            ? 'docs'
+            : hasLabPage(page)
+              ? 'lab'
+              : 'docs',
         )
       }
       getViewHref={(nextView) => getPrimitivePagePath(activePage, nextView)}
@@ -107,7 +121,7 @@ export function LabPage({
       onPageChange={handlePageChange}
       onPagePreload={handlePagePreload}
       onViewChange={onViewChange}
-      pages={LAB_PAGE_NAVIGATION}
+      pages={PAGE_NAVIGATION}
       view={view}
       docs={docsPage ? <LazyDocsPage page={docsPage} /> : null}
     >
