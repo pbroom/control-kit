@@ -881,10 +881,6 @@ export function MeshGradientExample() {
             Reset mesh
           </button>
         </div>
-        <p className="m-0 text-xs leading-5 text-white/45">
-          Drag a point to shape the color flow. Select a swatch to edit its
-          color.
-        </p>
       </div>
     </div>
   );
