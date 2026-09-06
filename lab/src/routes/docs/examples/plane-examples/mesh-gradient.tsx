@@ -484,7 +484,6 @@ export function MeshGradientExample() {
         <button
           type="button"
           onClick={() => setShowPoints((value) => !value)}
-          aria-pressed={!showPoints}
           className="rounded-md px-2 py-2 text-xs text-white/55 outline-none hover:text-white focus-visible:ring-2 focus-visible:ring-white/80"
         >
           {showPoints ? 'Hide points' : 'Show points'}

@@ -74,6 +74,9 @@ test('renders and edits the mesh through pointer, keyboard, and appearance contr
     .getByRole('button', { name: 'Hide points', exact: true })
     .click();
   await expect(thumb).toBeHidden();
+  await expect(
+    example.getByRole('button', { name: 'Show points', exact: true }),
+  ).not.toHaveAttribute('aria-pressed');
   await example
     .getByRole('button', { name: 'Show points', exact: true })
     .click();
@@ -183,6 +186,88 @@ test('recovers to software rendering when WebGL shader initialization fails', as
   const before = await gradientHash(canvas);
   await example.getByRole('button', { name: 'Orchid', exact: true }).click();
   await expect.poll(() => gradientHash(canvas)).not.toBe(before);
+  await expect(page.locator('vite-error-overlay')).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test('recovers to software rendering when WebGL restoration cannot reinitialize', async ({
+  page,
+}) => {
+  const errors = await collectBrowserErrors(page);
+  await page.addInitScript(() => {
+    const original = WebGLRenderingContext.prototype.getShaderParameter;
+    WebGLRenderingContext.prototype.getShaderParameter = function (
+      shader: WebGLShader,
+      parameter: number,
+    ) {
+      if (
+        parameter === this.COMPILE_STATUS &&
+        (window as Window & { failMeshRestore?: boolean }).failMeshRestore
+      ) {
+        return false;
+      }
+      return original.call(this, shader, parameter);
+    };
+  });
+  await page.goto('/docs/plane-examples#mesh-gradient');
+  const example = page.getByRole('figure', {
+    name: 'Mesh gradient demo',
+    exact: true,
+  });
+  const canvas = example.locator('canvas[data-mesh-gradient]');
+  await expect(canvas).toHaveAttribute('data-renderer', 'webgl');
+  await canvas.evaluate(async (node) => {
+    const canvas = node as HTMLCanvasElement;
+    const extension = canvas
+      .getContext('webgl')!
+      .getExtension('WEBGL_lose_context');
+    if (!extension) throw new Error('Context-loss testing is unavailable');
+    await new Promise<void>((resolve) => {
+      canvas.addEventListener(
+        'webglcontextlost',
+        () => {
+          (window as Window & { failMeshRestore?: boolean }).failMeshRestore =
+            true;
+          setTimeout(() => extension.restoreContext(), 50);
+        },
+        { once: true },
+      );
+      canvas.addEventListener('webglcontextrestored', () => resolve(), {
+        once: true,
+      });
+      extension.loseContext();
+    });
+  });
+  await expect(canvas).toHaveAttribute('data-renderer', 'canvas2d');
+  await expect(page.locator('vite-error-overlay')).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test('shows a terminal status when no canvas renderer is available', async ({
+  page,
+}) => {
+  const errors = await collectBrowserErrors(page);
+  await page.addInitScript(() => {
+    const original = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function (
+      type: string,
+      ...args: unknown[]
+    ) {
+      if (type === '2d' || type.includes('webgl')) return null;
+      return Reflect.apply(original, this, [type, ...args]);
+    } as typeof original;
+  });
+  await page.goto('/docs/plane-examples#mesh-gradient');
+  const example = page.getByRole('figure', {
+    name: 'Mesh gradient demo',
+    exact: true,
+  });
+  await expect(
+    example.getByText('This browser could not render the gradient.', {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(example.locator('canvas[data-mesh-gradient]')).toHaveCount(0);
   await expect(page.locator('vite-error-overlay')).toHaveCount(0);
   expect(errors).toEqual([]);
 });
