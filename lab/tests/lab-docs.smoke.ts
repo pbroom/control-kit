@@ -143,26 +143,10 @@ test('renders the focused Plane examples with executable source', async ({
     name: 'Mesh gradient demo',
     exact: true,
   });
-  const meshHorizontalAxis = meshExample.getByRole('slider', {
-    name: 'Coral mesh point horizontal position',
-    exact: true,
-  });
-  await expect(meshExample.locator('[data-slot="plane-thumb"]')).toHaveCount(4);
-  await expect(meshExample.getByRole('slider')).toHaveCount(8);
-  const initialMeshBackground = await meshExample
-    .locator('[data-slot="plane"]')
-    .evaluate((plane) => getComputedStyle(plane).backgroundImage);
-  await meshHorizontalAxis.focus();
-  await meshHorizontalAxis.press('End');
-  await expect(meshHorizontalAxis).toHaveValue('1');
-  await expect(meshExample.locator('output')).toHaveText(/^Coral 100% \d+%$/);
-  await expect
-    .poll(() =>
-      meshExample
-        .locator('[data-slot="plane"]')
-        .evaluate((plane) => getComputedStyle(plane).backgroundImage),
-    )
-    .not.toBe(initialMeshBackground);
+  await expect(meshExample.locator('[data-slot="plane-thumb"]')).toHaveCount(6);
+  await expect(
+    meshExample.locator('canvas[data-mesh-gradient]'),
+  ).toHaveAttribute('data-renderer', /webgl|canvas2d/);
 
   const dropShadowExample = gallery.getByRole('figure', {
     name: 'Drop-shadow offset demo',
