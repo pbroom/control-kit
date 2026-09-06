@@ -135,7 +135,8 @@ export function PositionControl({
 
 Coordinates are clamped to `0..1`, with X increasing left-to-right and Y
 increasing bottom-to-top. Arrow keys move the focused axis; Alt/Option uses
-`smallStep`, and Shift uses `largeStep`.
+`smallStep`, and Shift uses `largeStep`. For precise pointer adjustment, use
+`dragBehavior="relative"` with a `dragSensitivity` below `1`.
 
 ## Development
 

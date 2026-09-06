@@ -334,6 +334,38 @@ describe('Plane', () => {
     expect(plane.hasAttribute('data-dragging')).toBe(false);
   });
 
+  it('scales relative pointer distance from a fresh origin for each gesture', () => {
+    const onValueChange = vi.fn();
+    const onValueCommit = vi.fn();
+    const { container, plane } = mountPlane({
+      dragBehavior: 'relative',
+      dragSensitivity: 0.25,
+      onValueChange,
+      onValueCommit,
+    });
+    const thumb = container.querySelector(
+      '[data-slot="plane-thumb"]',
+    ) as HTMLElement;
+
+    act(() => pointer(thumb, 'pointerdown', { clientX: 60, clientY: 45 }));
+    expect(onValueChange).not.toHaveBeenCalled();
+    act(() => pointer(plane, 'pointermove', { clientX: 100, clientY: 65 }));
+    expect(onValueChange.mock.lastCall?.[0]).toEqual({ x: 0.3, y: 0.7 });
+    act(() => pointer(plane, 'pointerup', { clientX: 140, clientY: 85 }));
+    expect(onValueCommit).toHaveBeenLastCalledWith(
+      { x: 0.35, y: 0.65 },
+      details({ interaction: 'pointer', reason: 'thumb-drag' }),
+    );
+
+    act(() => pointer(thumb, 'pointerdown', { clientX: 80, clientY: 55 }));
+    act(() => pointer(plane, 'pointerup', { clientX: 40, clientY: 35 }));
+    expect(onValueCommit.mock.lastCall?.[0].x).toBeCloseTo(0.3);
+    expect(onValueCommit.mock.lastCall?.[0].y).toBeCloseTo(0.7);
+    expect(onValueCommit.mock.lastCall?.[1]).toEqual(
+      details({ interaction: 'pointer', reason: 'thumb-drag' }),
+    );
+  });
+
   it('uses raw relative pointer distance outside the bounds and returns without drift', () => {
     const onValueChange = vi.fn();
     const { plane } = mountPlane({ dragBehavior: 'relative', onValueChange });

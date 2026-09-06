@@ -352,6 +352,8 @@ function ToneWheel({
       <Plane
         aria-label={`${tone.label} color balance`}
         className="relative size-[100px] touch-none overflow-hidden rounded-full border border-white/6 [background-origin:border-box] max-sm:size-[84px]"
+        dragBehavior="relative"
+        dragSensitivity={0.25}
         style={{
           backgroundImage:
             'radial-gradient(circle, #393939 0%, rgb(50 50 50 / 0.98) 31%, rgb(43 43 43 / 0.72) 53%, transparent 73%), conic-gradient(from -20deg, #e35c28 0deg, #d64b83 55deg, #744db3 95deg, #2878d4 140deg, #18b6c5 190deg, #1dbb8d 230deg, #7ca83d 285deg, #e3a62e 325deg, #e35c28 360deg)',
