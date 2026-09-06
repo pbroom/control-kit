@@ -35,6 +35,7 @@ test('spring plane updates a finite physical response by drag and keyboard', asy
     name: 'Spring damping',
     exact: true,
   });
+  const thumb = example.locator('[data-slot="plane-thumb"]');
   const initialPath = await path.getAttribute('d');
   const bounds = await plane.boundingBox();
   if (!bounds) throw new Error('The spring plane has no bounds.');
@@ -54,9 +55,15 @@ test('spring plane updates a finite physical response by drag and keyboard', asy
   await expect(path).not.toHaveAttribute('d', initialPath ?? '');
   expect(Number(await stiffness.inputValue())).toBeCloseTo(0.78, 1);
   expect(Number(await damping.inputValue())).toBeCloseTo(0.78, 1);
+  await expect(thumb).not.toHaveAttribute('data-focus-visible', 'true');
+  await expect(thumb).not.toHaveCSS('box-shadow', /rgb\(245, 211, 79\)/);
 
   const draggedPath = await path.getAttribute('d');
-  await stiffness.focus();
+  await example.getByRole('button', { name: 'Replay', exact: true }).focus();
+  await page.keyboard.press('Tab');
+  await expect(stiffness).toBeFocused();
+  await expect(thumb).toHaveAttribute('data-focus-visible', 'true');
+  await expect(thumb).toHaveCSS('box-shadow', /rgb\(245, 211, 79\)/);
   await stiffness.press('Home');
   await expect(stiffness).toHaveValue('0');
   await expect(path).not.toHaveAttribute('d', draggedPath ?? '');
@@ -67,6 +74,57 @@ test('spring plane updates a finite physical response by drag and keyboard', asy
   const pathData = (await path.getAttribute('d')) ?? '';
   expect(pathData).not.toMatch(/NaN|Infinity/);
   expect(errors).toEqual([]);
+});
+
+test('spring thumb remains visible and interactive at every plane edge', async ({
+  page,
+}) => {
+  const example = await openSpringExample(page);
+  const plane = example.locator('[data-spring-plane]');
+  const thumb = example.locator('[data-slot="plane-thumb"]');
+  const stiffness = example.getByRole('slider', {
+    name: 'Spring stiffness',
+    exact: true,
+  });
+  const damping = example.getByRole('slider', {
+    name: 'Spring damping',
+    exact: true,
+  });
+
+  await stiffness.focus();
+  await stiffness.press('Home');
+  await damping.press('Home');
+
+  const [planeBounds, thumbBounds] = await Promise.all([
+    plane.boundingBox(),
+    thumb.boundingBox(),
+  ]);
+  expect(planeBounds).not.toBeNull();
+  expect(thumbBounds).not.toBeNull();
+  expect(thumbBounds!.x).toBeLessThan(planeBounds!.x);
+  expect(thumbBounds!.y + thumbBounds!.height).toBeGreaterThan(
+    planeBounds!.y + planeBounds!.height,
+  );
+
+  await stiffness.press('End');
+  await damping.press('End');
+  const topRightThumbBounds = await thumb.boundingBox();
+  expect(topRightThumbBounds).not.toBeNull();
+  expect(topRightThumbBounds!.x + topRightThumbBounds!.width).toBeGreaterThan(
+    planeBounds!.x + planeBounds!.width,
+  );
+  expect(topRightThumbBounds!.y).toBeLessThan(planeBounds!.y);
+
+  const outsideCornerHit = await page.evaluate(
+    ({ x, y }) =>
+      document.elementFromPoint(x, y)?.closest('[data-slot="plane-thumb"]') !==
+      null,
+    {
+      x: topRightThumbBounds!.x + topRightThumbBounds!.width - 2,
+      y: topRightThumbBounds!.y + topRightThumbBounds!.height / 2,
+    },
+  );
+  expect(outsideCornerHit).toBe(true);
 });
 
 test('under, critical, and overdamped settings remain finite', async ({

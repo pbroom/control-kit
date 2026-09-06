@@ -303,10 +303,7 @@ export function SpringStiffnessDampingExample() {
               {formatDuration(duration)}
             </text>
           </svg>
-          <div className="mt-2 flex items-center justify-between gap-4 pl-[42px]">
-            <p className="m-0 text-xs leading-5 text-white/42">
-              Drag the plane to balance responsiveness against settling time.
-            </p>
+          <div className="mt-2 flex justify-end">
             <button
               className="h-9 shrink-0 rounded-full border border-white/14 px-5 text-xs font-medium text-white/84 transition-colors hover:border-white/24 hover:bg-white/[0.04] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f5d34f]"
               onClick={replay}
@@ -331,20 +328,21 @@ export function SpringStiffnessDampingExample() {
             </span>
             <Plane
               aria-label="Spring stiffness and damping"
-              className="relative size-[174px] touch-none overflow-hidden rounded-2xl border border-white/12 bg-[#16171a] shadow-[inset_0_1px_0_rgb(255_255_255/0.03)]"
+              className="relative size-[174px] touch-none rounded-2xl border border-white/12 bg-[#16171a] shadow-[inset_0_1px_0_rgb(255_255_255/0.03)]"
               data-spring-plane
             >
-              <div
-                aria-hidden="true"
-                className="absolute inset-0"
-                style={{
-                  backgroundImage:
-                    'linear-gradient(to right, rgb(255 255 255 / 0.075) 1px, transparent 1px), linear-gradient(to bottom, rgb(255 255 255 / 0.075) 1px, transparent 1px)',
-                  backgroundSize: '25% 25%',
-                }}
-              />
+              <div aria-hidden="true" className="absolute inset-0">
+                <div
+                  className="size-full overflow-hidden rounded-[inherit]"
+                  style={{
+                    backgroundImage:
+                      'linear-gradient(to right, rgb(255 255 255 / 0.075) 1px, transparent 1px), linear-gradient(to bottom, rgb(255 255 255 / 0.075) 1px, transparent 1px)',
+                    backgroundSize: '25% 25%',
+                  }}
+                />
+              </div>
               <PlaneThumb
-                className="size-5 border-2 border-[#101114] bg-[#f7f7f5] shadow-[0_2px_10px_rgb(0_0_0/0.5)] outline-none focus-within:ring-2 focus-within:ring-[#f5d34f] focus-within:ring-offset-2 focus-within:ring-offset-[#16171a]"
+                className="size-5 border-2 border-[#101114] bg-[#f7f7f5] shadow-[0_2px_10px_rgb(0_0_0/0.5)] outline-none data-[focus-visible]:ring-2 data-[focus-visible]:ring-[#f5d34f] data-[focus-visible]:ring-offset-2 data-[focus-visible]:ring-offset-[#16171a]"
                 getAriaValueText={formatSpring}
                 onValueChange={(nextValue) => {
                   setCopied(false);
