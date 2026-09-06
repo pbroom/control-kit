@@ -30,7 +30,7 @@ function PlaneExampleFrame({
 
 function AxisLabels({ axes }: { axes: ReturnType<typeof toFontAxes> }) {
   const sampleClass =
-    'absolute text-4xl leading-none text-white/30 select-none';
+    'absolute text-[0.9rem] leading-none text-white/30 select-none';
 
   const sampleStyle = (weight: number, width: number) => ({
     fontVariationSettings: `'wght' ${weight}, 'wdth' ${width}`,
