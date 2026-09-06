@@ -157,7 +157,16 @@ export function SpringStiffnessDampingExample() {
 
   useEffect(() => {
     replay();
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const handleReducedMotionChange = (event: MediaQueryListEvent) => {
+      if (!event.matches) return;
+      stopAnimation();
+      setProgress(1);
+    };
+    reducedMotion.addEventListener('change', handleReducedMotionChange);
+
     return () => {
+      reducedMotion.removeEventListener('change', handleReducedMotionChange);
       stopAnimation();
       if (copyResetTimer.current !== null) {
         window.clearTimeout(copyResetTimer.current);

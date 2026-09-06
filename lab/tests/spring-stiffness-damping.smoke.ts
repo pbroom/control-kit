@@ -93,6 +93,7 @@ test('under, critical, and overdamped settings remain finite', async ({
 test('replay keeps chart and ball on one linear response scale', async ({
   page,
 }) => {
+  await page.clock.install();
   const example = await openSpringExample(page);
   const plane = example.locator('[data-spring-plane]');
   const replay = example.getByRole('button', { name: 'Replay', exact: true });
@@ -135,15 +136,14 @@ test('replay keeps chart and ball on one linear response scale', async ({
     );
   }
 
+  await page.clock.pauseAt(Date.now() + 60_000);
   await replay.click();
-  await expect
-    .poll(() => responsePositionMatches({ minimum: 0.15, maximum: 0.85 }))
-    .toBe(true);
-  await expect
-    .poll(() => responsePositionMatches({ minimum: 1.05 }), {
-      timeout: 3_000,
-    })
-    .toBe(true);
+  await page.clock.runFor(48);
+  expect(await responsePositionMatches({ minimum: 0.15, maximum: 0.85 })).toBe(
+    true,
+  );
+  await page.clock.runFor(80);
+  expect(await responsePositionMatches({ minimum: 1.05 })).toBe(true);
 });
 
 test('copy writes the displayed spring configuration', async ({
@@ -165,18 +165,32 @@ test('reduced motion settles immediately and replay stays settled', async ({
   page,
 }) => {
   const errors = await collectBrowserErrors(page);
+  await page.clock.install();
   await page.emulateMedia({ reducedMotion: 'reduce' });
   const example = await openSpringExample(page);
   const replay = example.getByRole('button', { name: 'Replay', exact: true });
   const ball = example.locator('[data-spring-ball]');
 
-  await expect
-    .poll(async () => Number(await ball.getAttribute('data-current-response')))
-    .toBeGreaterThan(0.99);
+  expect(
+    Number(await ball.getAttribute('data-current-response')),
+  ).toBeGreaterThan(0.99);
   await replay.click();
-  await expect
-    .poll(async () => Number(await ball.getAttribute('data-current-response')))
-    .toBeGreaterThan(0.99);
+  expect(
+    Number(await ball.getAttribute('data-current-response')),
+  ).toBeGreaterThan(0.99);
+
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.clock.pauseAt(Date.now() + 60_000);
+  await replay.click();
+  await page.clock.runFor(48);
+  expect(Number(await ball.getAttribute('data-current-response'))).toBeLessThan(
+    0.99,
+  );
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.clock.runFor(1);
+  expect(
+    Number(await ball.getAttribute('data-current-response')),
+  ).toBeGreaterThan(0.99);
 
   await page.goto('/docs/slider');
   expect(errors).toEqual([]);
