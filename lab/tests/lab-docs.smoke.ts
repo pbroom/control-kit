@@ -528,6 +528,48 @@ test('provides responsive on-page navigation for documentation headings', async 
   expect(browserErrors).toEqual([]);
 });
 
+test('uses compact Plane example outline labels without changing anchors', async ({
+  page,
+}, testInfo) => {
+  await page.goto('/docs/plane-examples');
+
+  const outline = page.getByRole('navigation', { name: 'On this page' });
+  if (testInfo.project.name === 'mobile') {
+    await expect(outline).toBeHidden();
+    return;
+  }
+
+  const focalPointLink = outline.getByRole('link', {
+    name: 'Image pan / focal point',
+    exact: true,
+  });
+  await expect(focalPointLink).toHaveAttribute(
+    'href',
+    '#image-pan-and-focal-point',
+  );
+  await expect(
+    page.getByRole('heading', {
+      name: 'Image pan and focal point',
+      exact: true,
+    }),
+  ).toBeVisible();
+
+  const wrappedLabels = await outline
+    .getByRole('link')
+    .evaluateAll((elements) =>
+      elements
+        .filter((element) => {
+          const styles = getComputedStyle(element);
+          return (
+            element.getBoundingClientRect().height >
+            parseFloat(styles.lineHeight) * 1.5
+          );
+        })
+        .map((element) => element.textContent?.trim()),
+    );
+  expect(wrappedLabels).toEqual([]);
+});
+
 async function expectDocsFragment(
   page: Page,
   id: string,
