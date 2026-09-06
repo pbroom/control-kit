@@ -8,11 +8,9 @@ const EXAMPLE_THUMB_CLASS_NAME =
 
 function PlaneExampleFrame({
   children,
-  description,
   readout,
 }: {
   children: ReactNode;
-  description: string;
   readout: ReactNode;
 }) {
   return (
@@ -22,7 +20,6 @@ function PlaneExampleFrame({
         <output className="font-mono text-[11px] text-white/72">
           {readout}
         </output>
-        <p className="m-0 text-xs leading-5 text-white/42">{description}</p>
       </div>
     </div>
   );
@@ -48,8 +45,7 @@ export function DropShadowOffsetExample() {
 
   return (
     <PlaneExampleFrame
-      description="Move the light source to cast the shadow in the opposite direction."
-      readout={`light ${Math.round(value.x * 100)}% left · ${Math.round(value.y * 100)}% bottom → drop-shadow(${offset.x}px ${offset.y}px 12px)`}
+      readout={`light ${Math.round(value.x * 100)}% left · ${Math.round(value.y * 100)}% bottom → shadows ${offset.x}px ${offset.y}px · 4 / 10 / 22px blur`}
     >
       <Plane
         aria-label="Drop shadow offset"
@@ -60,7 +56,11 @@ export function DropShadowOffsetExample() {
           data-shadow-object
           className="absolute top-1/2 left-1/2 size-20 -translate-1/2 rounded-2xl bg-gradient-to-br from-white to-white/75"
           style={{
-            filter: `drop-shadow(${offset.x}px ${offset.y}px 12px rgb(0 0 0 / 0.75))`,
+            boxShadow: [
+              `${Math.round(offset.x * 0.38)}px ${Math.round(offset.y * 0.38)}px 4px rgb(25 29 37 / 0.16)`,
+              `${Math.round(offset.x * 0.7)}px ${Math.round(offset.y * 0.7)}px 10px rgb(25 29 37 / 0.12)`,
+              `${offset.x}px ${offset.y}px 22px rgb(25 29 37 / 0.08)`,
+            ].join(', '),
           }}
         />
         <PlaneThumb
