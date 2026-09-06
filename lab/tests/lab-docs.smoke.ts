@@ -16,7 +16,7 @@ const FOCUSED_PLANE_EXAMPLE_TITLES = [
   'Bezier control-point editor',
   'Spring stiffness × damping',
   'Motion direction/intensity',
-  'Force direction and magnitude',
+  'Slingshot color picker',
   'Gravity vector',
   'Joystick/game controls',
   'Fluid-flow direction',

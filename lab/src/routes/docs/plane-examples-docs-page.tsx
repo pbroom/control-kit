@@ -136,8 +136,8 @@ const PLANE_EXAMPLE_GROUPS: readonly PlaneExampleGroup[] = [
       {
         file: 'force-direction-magnitude',
         exportName: 'ForceDirectionMagnitudeExample',
-        outlineTitle: 'Force vector',
-        title: 'Force direction and magnitude',
+        outlineTitle: 'Slingshot picker',
+        title: 'Slingshot color picker',
       },
       {
         file: 'gravity-vector',
