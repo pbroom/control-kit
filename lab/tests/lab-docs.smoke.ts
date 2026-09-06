@@ -45,6 +45,7 @@ test('renders the focused Plane examples with executable source', async ({
   page,
 }) => {
   const browserErrors = await collectBrowserErrors(page);
+  await page.route('https://images.unsplash.com/**', (route) => route.abort());
 
   await page.goto('/lab/plane-examples');
   await expect(page).toHaveURL(/\/docs\/plane-examples$/);
@@ -146,6 +147,23 @@ test('renders the focused Plane examples with executable source', async ({
   await expect(
     meshExample.locator('canvas[data-mesh-gradient]'),
   ).toHaveAttribute('data-renderer', /webgl|canvas2d/);
+
+  const imagePanExample = gallery.getByRole('figure', {
+    name: 'Image pan and focal point demo',
+    exact: true,
+  });
+  const landscapePhoto = imagePanExample.locator('img');
+  await expect(landscapePhoto).toHaveAttribute(
+    'src',
+    /image-pan-and-focal-point\.jpg$/,
+  );
+  expect(
+    await landscapePhoto.evaluate((image: HTMLImageElement) => ({
+      complete: image.complete,
+      naturalWidth: image.naturalWidth,
+      sameOrigin: new URL(image.currentSrc).origin === window.location.origin,
+    })),
+  ).toEqual({ complete: true, naturalWidth: 1200, sameOrigin: true });
 
   const dropShadowExample = gallery.getByRole('figure', {
     name: 'Drop-shadow offset demo',

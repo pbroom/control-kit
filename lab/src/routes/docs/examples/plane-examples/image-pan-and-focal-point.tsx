@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Plane, PlaneThumb, type PlaneValue } from 'control-kit';
+import landscapePhotoUrl from './image-pan-and-focal-point.jpg';
 
 function describePosition({ x, y }: PlaneValue) {
   return `${Math.round(x * 100)}% from the left, ${Math.round(y * 100)}% from the bottom`;
@@ -31,7 +32,7 @@ export function ImagePanAndFocalPointExample() {
             alt=""
             className="size-full object-cover"
             draggable={false}
-            src="https://images.unsplash.com/photo-1750157815846-d51ccaf99b42?auto=format&fit=crop&fm=jpg&q=82&w=1200"
+            src={landscapePhotoUrl}
           />
         </div>
         <div
