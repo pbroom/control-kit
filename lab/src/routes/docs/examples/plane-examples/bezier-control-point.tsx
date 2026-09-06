@@ -1,4 +1,9 @@
-import { useState } from 'react';
+import {
+  type Dispatch,
+  type KeyboardEvent,
+  type SetStateAction,
+  useState,
+} from 'react';
 import { Plane, PlaneThumb, type PlaneValue } from 'control-kit';
 
 const GRAPH_SIZE = 220;
@@ -10,12 +15,24 @@ const INITIAL_SECOND_POINT = { x: 0.36, y: 1 };
 const THUMB_CLASS_NAME =
   'size-4 border-2 border-[#7597ff] bg-[#111214] shadow-[0_2px_10px_rgba(0,0,0,0.55)] transition-[transform,box-shadow] hover:scale-110 data-[dragging]:scale-110 data-[focus-visible]:ring-[#7597ff]/60';
 
+function normalizeBezierValue(value: number) {
+  const rounded = Math.round(value * 100) / 100;
+  return Object.is(rounded, -0) ? 0 : rounded;
+}
+
+function normalizeBezierPoint(value: PlaneValue): PlaneValue {
+  return {
+    x: normalizeBezierValue(value.x),
+    y: normalizeBezierValue(value.y),
+  };
+}
+
 function toPlaneValue(value: PlaneValue): PlaneValue {
   return { x: value.x, y: (value.y - Y_MIN) / Y_RANGE };
 }
 
 function fromPlaneValue(value: PlaneValue): PlaneValue {
-  return { x: value.x, y: Y_MIN + value.y * Y_RANGE };
+  return normalizeBezierPoint({ x: value.x, y: Y_MIN + value.y * Y_RANGE });
 }
 
 function toGraphX(value: number) {
@@ -27,8 +44,49 @@ function toGraphY(value: number) {
 }
 
 function formatValue(value: number) {
-  const rounded = Math.round(value * 100) / 100;
+  const rounded = normalizeBezierValue(value);
   return Object.is(rounded, -0) ? '0.00' : rounded.toFixed(2);
+}
+
+function handleYKeyDown(
+  event: KeyboardEvent<HTMLDivElement>,
+  setPoint: Dispatch<SetStateAction<PlaneValue>>,
+) {
+  if (
+    !(event.target instanceof HTMLElement) ||
+    event.target.dataset.planeAxis !== 'y'
+  ) {
+    return;
+  }
+
+  const step = event.shiftKey ? 0.1 : 0.01;
+  const direction =
+    event.key === 'ArrowUp' || event.key === 'PageUp'
+      ? 1
+      : event.key === 'ArrowDown' || event.key === 'PageDown'
+        ? -1
+        : 0;
+  const nextValue =
+    event.key === 'Home'
+      ? Y_MIN
+      : event.key === 'End'
+        ? Y_MAX
+        : direction === 0
+          ? null
+          : direction *
+            (event.key === 'PageUp' || event.key === 'PageDown' ? 0.1 : step);
+
+  if (nextValue === null) return;
+
+  event.preventDefault();
+  setPoint((point) => ({
+    ...point,
+    y: normalizeBezierValue(
+      event.key === 'Home' || event.key === 'End'
+        ? nextValue
+        : Math.min(Y_MAX, Math.max(Y_MIN, point.y + nextValue)),
+    ),
+  }));
 }
 
 function getPointValueText(label: string, value: PlaneValue) {
@@ -65,8 +123,9 @@ function BezierNumberField({
     }
 
     setInvalid(false);
-    setDraft(formatValue(nextValue));
-    onCommit(nextValue);
+    const normalizedValue = normalizeBezierValue(nextValue);
+    setDraft(formatValue(normalizedValue));
+    onCommit(normalizedValue);
   }
 
   return (
@@ -208,6 +267,7 @@ export function BezierControlPointExample() {
               getAriaValueText={() =>
                 getPointValueText('First control point', firstPoint)
               }
+              onKeyDown={(event) => handleYKeyDown(event, setFirstPoint)}
               onValueChange={(value) => setFirstPoint(fromPlaneValue(value))}
               step={0.01}
               thumbId="first-control-point"
@@ -220,6 +280,7 @@ export function BezierControlPointExample() {
               getAriaValueText={() =>
                 getPointValueText('Second control point', secondPoint)
               }
+              onKeyDown={(event) => handleYKeyDown(event, setSecondPoint)}
               onValueChange={(value) => setSecondPoint(fromPlaneValue(value))}
               step={0.01}
               thumbId="second-control-point"

@@ -40,13 +40,26 @@ test('edits both Bezier handles, exact values, and the motion preview', async ({
   await expect(value).toHaveText('cubic-bezier(0.46, 0.03, 0.37, 1.00)');
   await expect(curve).not.toHaveAttribute('d', firstEditedCurve ?? '');
 
+  const firstY = example.getByRole('slider', {
+    name: 'First control point Y',
+    exact: true,
+  });
+  await firstY.focus();
+  await firstY.press('ArrowUp');
+  await expect(value).toHaveText('cubic-bezier(0.46, 0.04, 0.37, 1.00)');
+
   const x1 = example.getByRole('spinbutton', {
     name: 'x1 Bezier value',
     exact: true,
   });
-  await x1.fill('0.2');
+  await x1.fill('0.204');
   await x1.press('Enter');
-  await expect(value).toHaveText('cubic-bezier(0.20, 0.03, 0.37, 1.00)');
+  await expect(x1).toHaveValue('0.20');
+  await expect(value).toHaveText('cubic-bezier(0.20, 0.04, 0.37, 1.00)');
+  await expect(curve).toHaveAttribute(
+    'd',
+    'M 0 165 C 44 160.6, 81.4 55, 220 55',
+  );
 
   const y1 = example.getByRole('spinbutton', {
     name: 'y1 Bezier value',
