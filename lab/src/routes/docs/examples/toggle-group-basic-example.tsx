@@ -1,4 +1,4 @@
-import { ToggleGroup, ToggleGroupItem } from '@color-kit/control-kit';
+import { ToggleGroup, ToggleGroupItem } from 'control-kit';
 
 export function ToggleGroupExample() {
   return (

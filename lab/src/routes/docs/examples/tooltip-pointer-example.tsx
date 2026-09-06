@@ -3,7 +3,7 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from '@color-kit/control-kit';
+} from 'control-kit';
 
 const triggerClassName =
   'rounded-md border border-white/15 bg-white/5 px-3 py-2 text-sm text-white/80';

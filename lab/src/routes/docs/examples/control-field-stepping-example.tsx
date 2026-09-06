@@ -1,4 +1,4 @@
-import { ControlField } from '@color-kit/control-kit';
+import { ControlField } from 'control-kit';
 
 export function ControlFieldSteppingExample() {
   return (

@@ -8,7 +8,7 @@ A composed one-dimensional color-channel control. Color Kit owns its interaction
 
 ### Manual
 
-`ColorSlider` is owned by Color Kit and is not exported from `@color-kit/control-kit`. The Lab runs the Color Kit source directly.
+`ColorSlider` is owned by Color Kit and is not exported from `control-kit`. The Lab runs the Color Kit source directly.
 
 1. Copy the Color Kit [`ColorSlider` source](https://github.com/pbroom/color-kit/blob/main/packages/react/src/color-slider.tsx) and its shared dependencies into your project.
 2. Update the `color-kit/react` import path to match your project setup.

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { PrimitiveValueInput } from '@color-kit/control-kit';
+import { PrimitiveValueInput } from 'control-kit';
 
 export function InputPrimitiveExample() {
   const [value, setValue] = useState(42);

@@ -11,7 +11,7 @@ export default defineConfig({
     alias: [
       { find: '@', replacement: fromLab('./src') },
       {
-        find: '@color-kit/control-kit',
+        find: 'control-kit',
         replacement: fromLab('../src/index.ts'),
       },
       {

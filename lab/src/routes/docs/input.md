@@ -11,7 +11,7 @@ A numeric text input with keyboard stepping, expression parsing, and pointer scr
 `PrimitiveValueInput` is a single composed control:
 
 ```tsx
-import { PrimitiveValueInput } from '@color-kit/control-kit';
+import { PrimitiveValueInput } from 'control-kit';
 
 <PrimitiveValueInput
   value={value}

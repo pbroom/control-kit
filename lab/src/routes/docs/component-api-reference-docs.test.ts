@@ -52,7 +52,7 @@ const PROP_TABLE_DOCS = {
 
 // Inspect page registrations without rendering examples or loading their lab-only
 // aliases, built-package imports, and WebGL/WASM dependencies.
-vi.mock('@color-kit/control-kit', () => ({}));
+vi.mock('control-kit', () => ({}));
 vi.mock('color-kit/react', () => ({}));
 vi.mock('./highlighted-code.js', () => ({}));
 vi.mock('./docs-example.js', () => ({ DocsExample: () => null }));

@@ -19,7 +19,7 @@ export {
   getPrimitiveModifiedStep,
   getPrimitiveSteppedValue,
   usePrimitiveValueInput,
-} from '@color-kit/control-kit';
+} from 'control-kit';
 export type {
   CheckboxProps,
   CreateMultiInputSegmentsOptions,
@@ -48,4 +48,4 @@ export type {
   ToggleGroupProps,
   ToggleGroupSingleProps,
   TooltipContentProps,
-} from '@color-kit/control-kit';
+} from 'control-kit';

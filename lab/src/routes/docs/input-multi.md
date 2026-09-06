@@ -9,7 +9,7 @@ A grouped numeric editor that composes several `PrimitiveValueInput` segments in
 Define fields, per-field configuration, and controlled values:
 
 ```tsx
-import { MultiInputControl } from '@color-kit/control-kit';
+import { MultiInputControl } from 'control-kit';
 
 <MultiInputControl
   fields={fields}
@@ -62,7 +62,7 @@ Renders one configured field through `PrimitiveValueInput` and reports scrub sta
 Joins field metadata with controlled values and configuration before rendering:
 
 ```tsx
-import { createMultiInputSegments } from '@color-kit/control-kit';
+import { createMultiInputSegments } from 'control-kit';
 
 const segments = createMultiInputSegments({ fields, values, config });
 ```

@@ -3,7 +3,7 @@ import {
   MultiInputControl,
   type MultiInputConfig,
   type MultiInputField,
-} from '@color-kit/control-kit';
+} from 'control-kit';
 
 type FieldId = 'x' | 'y';
 

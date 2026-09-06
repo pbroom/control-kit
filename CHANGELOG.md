@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to `@color-kit/control-kit` are documented here. The
+All notable changes to `control-kit` are documented here. The
 format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 the package adheres to [Semantic Versioning](https://semver.org/).
 
@@ -22,6 +22,12 @@ the package adheres to [Semantic Versioning](https://semver.org/).
   animation behavior.
 
 ### Changed
+
+- Renamed the standalone package from `@color-kit/control-kit` to `control-kit`.
+  Replace the dependency and import specifiers, and update Tailwind source paths
+  from `node_modules/@color-kit/control-kit/src` to `node_modules/control-kit/src`.
+  Root exports are unchanged. See the [installation instructions](./README.md#install)
+  for the GitHub install command.
 
 - Tooltip now forwards Base UI props: replace provider `delayDuration` with
   `delay`, `skipDelayDuration` with `timeout`, and trigger `asChild` with

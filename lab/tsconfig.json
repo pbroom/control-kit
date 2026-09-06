@@ -8,7 +8,7 @@
     "types": ["vite/client"],
     "paths": {
       "@/*": ["./src/*"],
-      "@color-kit/control-kit": ["../src/index.ts"],
+      "control-kit": ["../src/index.ts"],
       "@color-kit/core-wasm": ["./src/vendor/color-kit/core-wasm/index.ts"],
       "@color-kit/core": ["./src/vendor/color-kit/core/index.ts"],
       "color-kit/react": ["./src/vendor/color-kit/react/index.ts"],

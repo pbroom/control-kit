@@ -2,7 +2,7 @@
 
 A two-state button that keeps selection separate from transient pointer and keyboard feedback.
 
-> Lab prototype — Toggle Button is not currently exported from `@color-kit/control-kit`. The current implementation is a styled native button used to evaluate Control Kit states and sizing.
+> Lab prototype — Toggle Button is not currently exported from `control-kit`. The current implementation is a styled native button used to evaluate Control Kit states and sizing.
 
 <!-- demo:basic -->
 

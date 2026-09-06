@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ToggleGroup, ToggleGroupItem } from '@color-kit/control-kit';
+import { ToggleGroup, ToggleGroupItem } from 'control-kit';
 
 export function ToggleGroupControlledExample() {
   const [view, setView] = useState<string | undefined>('grid');

@@ -1,22 +1,18 @@
-# @color-kit/control-kit
+# control-kit
 
 React UI primitives for building operational color controls.
 
-This package is published from [pbroom/control-kit](https://github.com/pbroom/control-kit) and keeps the public package name and root entrypoint of the former `packages/control-kit` workspace package in `color-kit`. Component props can change as the API evolves; check the migration guidance before upgrading an existing consumer.
+Control Kit is a standalone package maintained in [pbroom/control-kit](https://github.com/pbroom/control-kit), with imports from `control-kit`. It was originally extracted from the `packages/control-kit` workspace in Color Kit and does not require Color Kit as a dependency. Component props can change as the API evolves; check the migration guidance before upgrading an existing consumer.
 
 ## Install
 
-```sh
-pnpm add @color-kit/control-kit
-```
-
-When consuming directly from GitHub:
+Install the renamed package directly from this repository:
 
 ```sh
-pnpm add github:pbroom/control-kit
+pnpm add --allow-build=control-kit control-kit@github:pbroom/control-kit @base-ui/react
 ```
 
-The package builds ESM, CommonJS, and TypeScript declarations into `dist/`. Git installs run the `prepare` script so consumers receive the compiled entrypoints.
+The package builds ESM, CommonJS, and TypeScript declarations into `dist/`. The `--allow-build=control-kit` flag (pnpm 10) allows Git installs to run the `prepare` script so consumers receive the compiled entrypoints.
 
 ## Compatibility
 
@@ -28,9 +24,15 @@ The package builds ESM, CommonJS, and TypeScript declarations into `dist/`. Git 
 
 ## Releases
 
-Changes are tracked in [CHANGELOG.md](./CHANGELOG.md). The package currently
-publishes under the `next` npm dist-tag while the API stabilizes; pin exact
-versions if you need reproducible installs.
+Changes are tracked in [CHANGELOG.md](./CHANGELOG.md). Use the GitHub install
+above for the renamed package; pin a Git commit for reproducible installs.
+
+### Upgrading from `@color-kit/control-kit`
+
+Replace the old dependency with `control-kit`, update imports to
+`from 'control-kit'`, and update Tailwind source paths from
+`node_modules/@color-kit/control-kit/src` to `node_modules/control-kit/src`.
+The package rename does not change its root exports.
 
 ### Upgrading from the Radix-based Tooltip
 
@@ -53,13 +55,13 @@ before replacing a pinned Git revision or released version.
 ## Tailwind
 
 The components render Tailwind v4 utility class names. Configure Tailwind in
-your app and include the package in its content graph. The published package
+your app and include the package in its content graph. The package
 includes `src/` as well as `dist/` so consumers can scan either path. The
 `@source` path is relative to the stylesheet containing it; adjust it for
 your app's directory layout.
 
 ```css
-@source '../node_modules/@color-kit/control-kit/src';
+@source '../node_modules/control-kit/src';
 ```
 
 ## Theming
@@ -102,7 +104,7 @@ pointer or keyboard interactions.
 
 ```tsx
 import { useState } from 'react';
-import { Plane, PlaneThumb, type PlaneValue } from '@color-kit/control-kit';
+import { Plane, PlaneThumb, type PlaneValue } from 'control-kit';
 
 export function PositionControl({
   savePoint,

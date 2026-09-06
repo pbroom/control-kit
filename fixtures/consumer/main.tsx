@@ -9,7 +9,7 @@ import {
   TooltipTrigger,
   usePrimitiveValueInput,
   type PrimitiveValueChangeDetails,
-} from '@color-kit/control-kit';
+} from 'control-kit';
 import './styles.css';
 
 // Mirrors Color Kit's channel-input boundary: the consumer owns the numeric

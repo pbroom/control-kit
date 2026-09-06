@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Checkbox } from '@color-kit/control-kit';
+import { Checkbox } from 'control-kit';
 
 type GuideSettings = {
   grid: boolean;

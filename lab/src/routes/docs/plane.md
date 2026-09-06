@@ -9,7 +9,7 @@ A composable two-dimensional input for selecting normalized X and Y values. `Pla
 Import the parts and compose them together:
 
 ```tsx
-import { Plane, PlaneThumb } from '@color-kit/control-kit';
+import { Plane, PlaneThumb } from 'control-kit';
 
 <Plane aria-label="Position">
   <PlaneThumb defaultValue={{ x: 0.5, y: 0.5 }} />

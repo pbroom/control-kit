@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plane, PlaneThumb, type PlaneValue } from '@color-kit/control-kit';
+import { Plane, PlaneThumb, type PlaneValue } from 'control-kit';
 
 type MeshPoint = {
   color: string;

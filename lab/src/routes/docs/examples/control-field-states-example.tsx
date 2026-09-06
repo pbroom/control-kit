@@ -1,5 +1,5 @@
 import { Field } from '@base-ui/react/field';
-import { ControlField } from '@color-kit/control-kit';
+import { ControlField } from 'control-kit';
 
 export function ControlFieldStatesExample() {
   return (

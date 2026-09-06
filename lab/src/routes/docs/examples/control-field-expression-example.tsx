@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ControlField } from '@color-kit/control-kit';
+import { ControlField } from 'control-kit';
 
 export function ControlFieldExpressionExample() {
   const [value, setValue] = useState<number | null>(12);
