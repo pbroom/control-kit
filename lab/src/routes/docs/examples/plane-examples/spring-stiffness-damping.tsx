@@ -2,9 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Plane, PlaneThumb, type PlaneValue } from 'control-kit';
 
 const SPRING_YELLOW = '#f5d34f';
-const CHART_WIDTH = 360;
+const CHART_WIDTH = 392;
 const CHART_HEIGHT = 220;
-const PLOT = { left: 42, right: 350, top: 18, bottom: 182 } as const;
+const PLOT = { left: 42, right: 346, top: 18, bottom: 182 } as const;
+const TRACK_X = 375;
 const RESPONSE_MAX = 1.8;
 const initialValue: PlaneValue = { x: 0.46, y: 0.58 };
 
@@ -80,11 +81,6 @@ function responsePoint(response: number, progress: number) {
       (Math.min(RESPONSE_MAX, Math.max(0, response)) / RESPONSE_MAX) *
         (PLOT.bottom - PLOT.top),
   };
-}
-
-function responseTrackPosition(response: number) {
-  const clamped = Math.min(RESPONSE_MAX, Math.max(0, response));
-  return 6 + (clamped / RESPONSE_MAX) * 88;
 }
 
 function makeResponsePath(spring: Spring, duration: number) {
@@ -194,7 +190,7 @@ export function SpringStiffnessDampingExample() {
   }
 
   return (
-    <div className="min-h-[500px] bg-[#101114] px-5 py-6 sm:px-7 sm:py-7">
+    <div className="min-h-[430px] bg-[#101114] px-5 py-6 sm:px-7 sm:py-7">
       <div className="grid gap-7 md:grid-cols-[minmax(0,1fr)_190px] md:items-center">
         <div className="min-w-0" data-spring-chart>
           <svg
@@ -256,6 +252,37 @@ export function SpringStiffnessDampingExample() {
               stroke="#101114"
               strokeWidth="2"
             />
+            <g aria-hidden="true" data-spring-track>
+              <line
+                stroke="rgb(255 255 255 / 0.12)"
+                strokeLinecap="round"
+                strokeWidth="4"
+                x1={TRACK_X}
+                x2={TRACK_X}
+                y1={PLOT.top}
+                y2={PLOT.bottom}
+              />
+              <line
+                data-spring-target
+                stroke="rgb(255 255 255 / 0.3)"
+                strokeLinecap="round"
+                strokeWidth="2"
+                x1={TRACK_X - 7}
+                x2={TRACK_X + 7}
+                y1={responsePoint(1, 0).y}
+                y2={responsePoint(1, 0).y}
+              />
+              <circle
+                cx={TRACK_X}
+                cy={chartMarker.y}
+                data-current-response={currentResponse.toFixed(5)}
+                data-spring-ball
+                fill={SPRING_YELLOW}
+                r="10"
+                stroke="#101114"
+                strokeWidth="2"
+              />
+            </g>
             <text
               fill="rgb(255 255 255 / 0.38)"
               fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
@@ -276,6 +303,18 @@ export function SpringStiffnessDampingExample() {
               {formatDuration(duration)}
             </text>
           </svg>
+          <div className="mt-2 flex items-center justify-between gap-4 pl-[42px]">
+            <p className="m-0 text-xs leading-5 text-white/42">
+              Drag the plane to balance responsiveness against settling time.
+            </p>
+            <button
+              className="h-9 shrink-0 rounded-full border border-white/14 px-5 text-xs font-medium text-white/84 transition-colors hover:border-white/24 hover:bg-white/[0.04] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f5d34f]"
+              onClick={replay}
+              type="button"
+            >
+              Replay
+            </button>
+          </div>
         </div>
 
         <div className="flex flex-col items-center gap-3">
@@ -336,39 +375,6 @@ export function SpringStiffnessDampingExample() {
             <span aria-live="polite">{copied ? 'Copied' : 'Copy'}</span>
           </button>
         </div>
-      </div>
-
-      <div className="mt-7 border-t border-white/[0.07] pt-7">
-        <div className="mx-auto flex w-full max-w-[520px] items-center gap-4">
-          <div className="relative h-10 flex-1" data-spring-track>
-            <div className="absolute top-1/2 right-3 left-3 h-1 -translate-y-1/2 rounded-full bg-white/10" />
-            <div
-              aria-hidden="true"
-              className="absolute top-1/2 h-3 w-px -translate-x-1/2 -translate-y-1/2 bg-white/24"
-              data-spring-target
-              style={{ left: `${responseTrackPosition(1)}%` }}
-            />
-            <div
-              aria-hidden="true"
-              className="absolute top-1/2 size-7 -translate-x-1/2 -translate-y-1/2 rounded-full border border-black/15 bg-[#f5d34f] shadow-[0_4px_14px_rgb(0_0_0/0.38)]"
-              data-current-response={currentResponse.toFixed(5)}
-              data-spring-ball
-              style={{
-                left: `${responseTrackPosition(currentResponse)}%`,
-              }}
-            />
-          </div>
-          <button
-            className="h-9 shrink-0 rounded-full border border-white/14 px-5 text-xs font-medium text-white/84 transition-colors hover:border-white/24 hover:bg-white/[0.04] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f5d34f]"
-            onClick={replay}
-            type="button"
-          >
-            Replay
-          </button>
-        </div>
-        <p className="mt-4 mb-0 text-center text-xs leading-5 text-white/42">
-          Drag the plane to balance responsiveness against settling time.
-        </p>
       </div>
     </div>
   );

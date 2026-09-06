@@ -90,7 +90,7 @@ test('under, critical, and overdamped settings remain finite', async ({
   expect(await path.getAttribute('d')).not.toMatch(/NaN|Infinity/);
 });
 
-test('replay keeps chart and ball on one linear response scale', async ({
+test('replay keeps the vertical ball aligned with the chart response', async ({
   page,
 }) => {
   await page.clock.install();
@@ -109,8 +109,8 @@ test('replay keeps chart and ball on one linear response scale', async ({
     return example.evaluate(
       (node, bounds) => {
         const marker = node.querySelector('[data-spring-chart-marker]');
-        const ball = node.querySelector<HTMLElement>('[data-spring-ball]');
-        const track = node.querySelector<HTMLElement>('[data-spring-track]');
+        const ball = node.querySelector<SVGCircleElement>('[data-spring-ball]');
+        const track = node.querySelector<SVGGElement>('[data-spring-track]');
         const markerResponse = Number(
           marker?.getAttribute('data-current-response'),
         );
@@ -120,16 +120,20 @@ test('replay keeps chart and ball on one linear response scale', async ({
         if (!ball || !track) return false;
         const ballBounds = ball.getBoundingClientRect();
         const trackBounds = track.getBoundingClientRect();
-        const renderedPosition =
-          (ballBounds.left + ballBounds.width / 2 - trackBounds.left) /
-          trackBounds.width;
-        const expectedPosition = 0.06 + (ballResponse / 1.8) * 0.88;
+        const markerBounds = marker?.getBoundingClientRect();
 
         return (
+          markerBounds !== undefined &&
           ballResponse > bounds.minimum &&
           (bounds.maximum === undefined || ballResponse < bounds.maximum) &&
           Math.abs(markerResponse - ballResponse) < 0.00001 &&
-          Math.abs(renderedPosition - expectedPosition) < 0.01
+          Math.abs(
+            markerBounds.top +
+              markerBounds.height / 2 -
+              (ballBounds.top + ballBounds.height / 2),
+          ) < 0.5 &&
+          trackBounds.height > trackBounds.width &&
+          ballBounds.left > markerBounds.right
         );
       },
       { maximum, minimum },
