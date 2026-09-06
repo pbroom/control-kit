@@ -3,8 +3,8 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import '../../../../../../__tests__/helpers/dom-polyfills.js';
-import { GravityVectorExample } from './gravity-vector.js';
+import '../../../../../__tests__/helpers/dom-polyfills.js';
+import { GravityVectorExample } from './plane-examples/gravity-vector.js';
 
 (
   globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }
