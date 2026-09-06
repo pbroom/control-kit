@@ -103,4 +103,13 @@ describe('shared Slider foundation', () => {
     expect(container.querySelector('input')?.value).toBe('30');
     expect(onValueChange).not.toHaveBeenCalled();
   });
+  it('leaves thumb focus visuals to unstyled consumers', () => {
+    const container = mount({
+      'aria-label': 'Custom slider',
+      defaultValue: 50,
+      unstyled: true,
+    });
+    const thumb = container.querySelector('[data-slot="slider-thumb"]');
+    expect(thumb?.className).not.toContain('focus-within:ring');
+  });
 });

@@ -89,8 +89,7 @@ export const Slider = React.forwardRef<HTMLDivElement, SliderProps>(
             {...thumbProps}
             className={cn(
               !unstyled &&
-                'size-3.5 rounded-full border border-black/20 bg-[var(--ck-foreground,#ffffff)] shadow-sm',
-              'outline-none focus-within:ring-2 focus-within:ring-[var(--ck-accent,#0d99ff)] focus-within:ring-offset-2',
+                'size-3.5 rounded-full border border-black/20 bg-[var(--ck-foreground,#ffffff)] shadow-sm outline-none focus-within:ring-2 focus-within:ring-[var(--ck-accent,#0d99ff)] focus-within:ring-offset-2',
               thumbProps?.className,
             )}
           />

@@ -176,7 +176,7 @@ export const ColorSlider = forwardRef<HTMLDivElement, ColorSliderProps>(
               cancelAnimationFrame(frameRef.current);
             frameRef.current = null;
             pendingRef.current = null;
-            if (details.reason === 'drag' || details.reason === 'track-press') {
+            if (details.reason === 'drag') {
               setRequested(
                 colorFromColorSliderPosition(
                   requested,
