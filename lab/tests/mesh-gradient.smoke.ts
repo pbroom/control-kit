@@ -209,6 +209,15 @@ test('keeps the Plane color picker synchronized, keyboard accessible, and in the
   await saturation.press('End');
   await expect(trigger).not.toContainText('#808080');
 
+  await hex.fill('#ff0000');
+  await expect(saturation).toHaveValue('1');
+  await value.press('Home');
+  await expect(trigger).toContainText('#000000');
+  await expect(saturation).toHaveValue('1');
+  await value.press('ArrowUp');
+  await expect(trigger).not.toContainText('#000000');
+  await expect(saturation).toHaveValue('1');
+
   const validColor = (await trigger.textContent())!.trim();
   await hex.fill('#zzzzzz');
   await expect(hex).toHaveAttribute('aria-invalid', 'true');

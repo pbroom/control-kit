@@ -426,14 +426,20 @@ function huesForPalette(index: number) {
   return palettes[index].colors.map((color) => hexToHsv(color).h);
 }
 
+function saturationsForPalette(index: number) {
+  return palettes[index].colors.map((color) => hexToHsv(color).s);
+}
+
 function MeshColorPicker({
   color,
   hue,
+  saturation,
   onChange,
 }: {
   color: string;
   hue: number;
-  onChange: (color: string, hue: number) => void;
+  saturation: number;
+  onChange: (color: string, hue: number, saturation: number) => void;
 }) {
   const [draft, setDraft] = useState(color.toUpperCase());
   const [invalid, setInvalid] = useState(false);
@@ -445,8 +451,14 @@ function MeshColorPicker({
     setInvalid(false);
   }, [color]);
 
-  const updateFromHsv = (next: HsvColor, retainedHue = next.h) => {
-    onChange(hsvToHex(next), retainedHue);
+  const displayedSaturation = hsv.v > 0 ? hsv.s : saturation;
+
+  const updateFromHsv = (
+    next: HsvColor,
+    retainedHue = next.h,
+    retainedSaturation = next.s,
+  ) => {
+    onChange(hsvToHex(next), retainedHue, retainedSaturation);
   };
 
   const updateDraft = (value: string) => {
@@ -455,7 +467,11 @@ function MeshColorPicker({
     setInvalid(normalized === null);
     if (!normalized) return;
     const next = hexToHsv(normalized);
-    updateFromHsv(next, next.s > 0 ? next.h : hue);
+    updateFromHsv(
+      next,
+      next.s > 0 ? next.h : hue,
+      next.v > 0 ? next.s : saturation,
+    );
   };
 
   return (
@@ -521,7 +537,7 @@ function MeshColorPicker({
                     hue,
                   )
                 }
-                value={{ x: hsv.s / 100, y: hsv.v / 100 }}
+                value={{ x: displayedSaturation / 100, y: hsv.v / 100 }}
                 xAriaLabel="Saturation"
                 yAriaLabel="Value"
               />
@@ -540,7 +556,11 @@ function MeshColorPicker({
                 max={360}
                 min={0}
                 onValueChange={(nextHue) =>
-                  updateFromHsv({ ...hsv, h: nextHue }, nextHue)
+                  updateFromHsv(
+                    { ...hsv, h: nextHue, s: displayedSaturation },
+                    nextHue,
+                    displayedSaturation,
+                  )
                 }
                 step={1}
                 thumbAlignment="edge"
@@ -682,12 +702,16 @@ export function MeshGradientExample() {
   const [grain, setGrain] = useState(0.12);
   const [showPoints, setShowPoints] = useState(true);
   const [pointHues, setPointHues] = useState(() => huesForPalette(0));
+  const [pointSaturations, setPointSaturations] = useState(() =>
+    saturationsForPalette(0),
+  );
   const activePoint = points[activeIndex];
 
   const reset = (index: number) => {
     setPaletteIndex(index);
     setPoints(pointsForPalette(index));
     setPointHues(huesForPalette(index));
+    setPointSaturations(saturationsForPalette(index));
     setActiveIndex(2);
     setFlow(0.65);
     setGrain(0.12);
@@ -698,10 +722,20 @@ export function MeshGradientExample() {
       current.map((point, i) => (i === index ? { ...point, ...patch } : point)),
     );
   };
-  const updatePointColor = (index: number, color: string, hue: number) => {
+  const updatePointColor = (
+    index: number,
+    color: string,
+    hue: number,
+    saturation: number,
+  ) => {
     updatePoint(index, { color });
     setPointHues((current) =>
       current.map((currentHue, i) => (i === index ? hue : currentHue)),
+    );
+    setPointSaturations((current) =>
+      current.map((currentSaturation, i) =>
+        i === index ? saturation : currentSaturation,
+      ),
     );
   };
 
@@ -794,7 +828,10 @@ export function MeshGradientExample() {
           <MeshColorPicker
             color={activePoint.color}
             hue={pointHues[activeIndex]}
-            onChange={(color, hue) => updatePointColor(activeIndex, color, hue)}
+            saturation={pointSaturations[activeIndex]}
+            onChange={(color, hue, saturation) =>
+              updatePointColor(activeIndex, color, hue, saturation)
+            }
           />
         </div>
         <div className="grid grid-cols-2 gap-6 max-sm:gap-4">
