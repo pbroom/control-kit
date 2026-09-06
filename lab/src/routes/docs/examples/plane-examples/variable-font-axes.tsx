@@ -4,7 +4,7 @@ import { Plane, PlaneThumb, type PlaneValue } from 'control-kit';
 const EXAMPLE_PLANE_CLASS_NAME =
   'relative size-[240px] touch-none overflow-hidden rounded-2xl border border-white/12 [background-origin:border-box] bg-[#171718] max-sm:size-[220px]';
 const EXAMPLE_THUMB_CLASS_NAME =
-  'size-6 border-2 border-white bg-[#171718] shadow-[0_2px_10px_rgba(0,0,0,0.45)]';
+  "size-6 border-0 bg-transparent shadow-none transition-opacity data-[dragging]:opacity-20 after:absolute after:top-1/2 after:left-1/2 after:size-4 after:-translate-x-1/2 after:-translate-y-1/2 after:rounded-full after:border-2 after:border-white after:bg-white after:shadow-sm after:content-['']";
 
 function PlaneExampleFrame({
   children,
@@ -28,41 +28,24 @@ function PlaneExampleFrame({
   );
 }
 
-function GridLayer({ subdivisions = 4 }: { subdivisions?: number }) {
-  const step = 100 / subdivisions;
-  return (
-    <div
-      aria-hidden="true"
-      className="absolute inset-0"
-      style={{
-        backgroundImage:
-          'linear-gradient(to right, rgb(255 255 255 / 0.08) 1px, transparent 1px), linear-gradient(to bottom, rgb(255 255 255 / 0.08) 1px, transparent 1px)',
-        backgroundSize: `${step}% ${step}%`,
-      }}
-    />
-  );
-}
-
-function CornerLabels({
-  bottomLeft,
-  bottomRight,
-  topLeft,
-  topRight,
-}: {
-  bottomLeft: string;
-  bottomRight: string;
-  topLeft: string;
-  topRight: string;
-}) {
+function AxisLabels() {
   const labelClass =
     'absolute rounded bg-black/35 px-1.5 py-1 text-[9px] font-medium tracking-wide text-white/70 backdrop-blur-sm';
 
   return (
     <div aria-hidden="true" className="absolute inset-0">
-      <span className={`${labelClass} top-2 left-2`}>{topLeft}</span>
-      <span className={`${labelClass} top-2 right-2`}>{topRight}</span>
-      <span className={`${labelClass} bottom-2 left-2`}>{bottomLeft}</span>
-      <span className={`${labelClass} right-2 bottom-2`}>{bottomRight}</span>
+      <span className={`${labelClass} top-1/2 left-2 -translate-y-1/2`}>
+        Light
+      </span>
+      <span className={`${labelClass} top-1/2 right-2 -translate-y-1/2`}>
+        Black
+      </span>
+      <span className={`${labelClass} top-2 left-1/2 -translate-x-1/2`}>
+        Wide
+      </span>
+      <span className={`${labelClass} bottom-2 left-1/2 -translate-x-1/2`}>
+        Narrow
+      </span>
     </div>
   );
 }
@@ -94,13 +77,7 @@ export function VariableFontAxesExample() {
         aria-label="Variable font weight and width"
         className={EXAMPLE_PLANE_CLASS_NAME}
       >
-        <GridLayer />
-        <CornerLabels
-          bottomLeft="Light / narrow"
-          bottomRight="Black / narrow"
-          topLeft="Light / wide"
-          topRight="Black / wide"
-        />
+        <AxisLabels />
         <span
           aria-hidden="true"
           className="absolute inset-0 flex items-center justify-center text-7xl leading-none text-white/18"
