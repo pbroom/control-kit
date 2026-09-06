@@ -28,23 +28,41 @@ function PlaneExampleFrame({
   );
 }
 
-function AxisLabels() {
-  const labelClass =
-    'absolute rounded bg-black/35 px-1.5 py-1 text-[9px] font-medium tracking-wide text-white/70 backdrop-blur-sm';
+function AxisLabels({ axes }: { axes: ReturnType<typeof toFontAxes> }) {
+  const sampleClass =
+    'absolute text-4xl leading-none text-white/30 select-none';
+
+  const sampleStyle = (weight: number, width: number) => ({
+    fontVariationSettings: `'wght' ${weight}, 'wdth' ${width}`,
+    fontWeight: weight,
+    transform: `scaleX(${width / 100})`,
+  });
 
   return (
     <div aria-hidden="true" className="absolute inset-0">
-      <span className={`${labelClass} top-1/2 left-2 -translate-y-1/2`}>
-        Light
+      <span
+        className={`${sampleClass} top-1/2 left-3 -translate-y-1/2`}
+        style={sampleStyle(100, axes.width)}
+      >
+        W
       </span>
-      <span className={`${labelClass} top-1/2 right-2 -translate-y-1/2`}>
-        Black
+      <span
+        className={`${sampleClass} top-1/2 right-3 -translate-y-1/2`}
+        style={sampleStyle(900, axes.width)}
+      >
+        W
       </span>
-      <span className={`${labelClass} top-2 left-1/2 -translate-x-1/2`}>
-        Wide
+      <span
+        className={`${sampleClass} top-3 left-1/2 -translate-x-1/2`}
+        style={sampleStyle(axes.weight, 125)}
+      >
+        W
       </span>
-      <span className={`${labelClass} bottom-2 left-1/2 -translate-x-1/2`}>
-        Narrow
+      <span
+        className={`${sampleClass} bottom-3 left-1/2 -translate-x-1/2`}
+        style={sampleStyle(axes.weight, 75)}
+      >
+        W
       </span>
     </div>
   );
@@ -77,7 +95,7 @@ export function VariableFontAxesExample() {
         aria-label="Variable font weight and width"
         className={EXAMPLE_PLANE_CLASS_NAME}
       >
-        <AxisLabels />
+        <AxisLabels axes={axes} />
         <span
           aria-hidden="true"
           className="absolute inset-0 flex items-center justify-center text-7xl leading-none text-white/18"
