@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Plane, PlaneThumb, type PlaneValue } from 'control-kit';
+import { Plane, PlaneThumb, Slider, type PlaneValue } from 'control-kit';
 
 type MeshStop = { x: number; y: number; color: string };
 
@@ -573,14 +573,13 @@ export function MeshGradientExample() {
                 {Math.round(flow * 100)}
               </span>
             </span>
-            <input
+            <Slider
               aria-label="Flow"
-              type="range"
-              min="0"
-              max="100"
+              min={0}
+              max={100}
               value={Math.round(flow * 100)}
-              onChange={(event) => setFlow(Number(event.target.value) / 100)}
-              className="h-1 w-full cursor-pointer accent-[#ccc4f5]"
+              onValueChange={(value) => setFlow(value / 100)}
+              className="[--ck-accent:#ccc4f5]"
             />
           </label>
           <label className="flex min-w-0 flex-col gap-2 text-[11px] text-white/65">
@@ -590,14 +589,13 @@ export function MeshGradientExample() {
                 {Math.round(grain * 100)}
               </span>
             </span>
-            <input
+            <Slider
               aria-label="Grain"
-              type="range"
-              min="0"
-              max="100"
+              min={0}
+              max={100}
               value={Math.round(grain * 100)}
-              onChange={(event) => setGrain(Number(event.target.value) / 100)}
-              className="h-1 w-full cursor-pointer accent-[#ccc4f5]"
+              onValueChange={(value) => setGrain(value / 100)}
+              className="[--ck-accent:#ccc4f5]"
             />
           </label>
         </div>

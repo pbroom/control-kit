@@ -279,9 +279,10 @@ test('renders the focused Plane examples with executable source', async ({
     await toneSliders.evaluateAll((sliders) =>
       sliders.every(
         (slider) =>
-          slider instanceof HTMLInputElement &&
-          slider.type === 'range' &&
-          slider.getAttribute('aria-orientation') === 'horizontal',
+          slider.matches('[data-color-value-slider][data-slot="slider"]') &&
+          slider
+            .querySelector('[data-slot="slider-thumb"] input[type="range"]')
+            ?.getAttribute('aria-orientation') === 'horizontal',
       ),
     ),
   ).toBe(true);

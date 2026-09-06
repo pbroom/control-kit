@@ -1464,7 +1464,7 @@ a {
   }
 }
 
-.ck-slider-v2:focus-visible {
+.ck-slider-v2:focus-within {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }

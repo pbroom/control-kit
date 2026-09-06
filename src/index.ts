@@ -123,3 +123,6 @@ export type {
   MultiInputSegmentModel,
   MultiInputValues,
 } from './multi-input-control.js';
+
+export { Slider, ColorValueSlider } from './slider.js';
+export type { SliderProps, ColorValueSliderProps } from './slider.js';

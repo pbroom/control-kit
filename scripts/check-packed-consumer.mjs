@@ -119,6 +119,25 @@ try {
   await expect(page).toHaveTitle('Control Kit package consumer');
   await expect(page.locator('vite-error-overlay')).toHaveCount(0);
 
+  const flow = page.getByRole('slider', { name: 'Flow', exact: true });
+  await flow.press('ArrowRight');
+  await expect(flow).toHaveValue('51');
+  const saturation = page.getByRole('slider', {
+    name: 'Saturation',
+    exact: true,
+  });
+  await saturation.press('End');
+  await expect(saturation).toHaveValue('100');
+  await expect(
+    page.locator('[data-color-value-slider] [data-slot="slider-track"]'),
+  ).toHaveCSS(
+    'background-image',
+    'linear-gradient(to right, rgb(128, 128, 128), rgb(255, 0, 0))',
+  );
+  await expect(
+    page.locator('[data-color-value-slider] [data-slot="slider-thumb"]'),
+  ).toHaveCSS('width', '14px');
+
   const channel = page.getByRole('textbox', { name: 'Color channel' });
   await channel.focus();
   await channel.press('ArrowUp');
@@ -205,7 +224,7 @@ try {
   );
   assert.deepEqual(errors, []);
   console.log(
-    `${gitInstall ? 'Git-installed' : 'Packed'} consumer passed: ESM/CJS, types, channel input, Tooltip, ToggleGroup and Tailwind themes.`,
+    `${gitInstall ? 'Git-installed' : 'Packed'} consumer passed: ESM/CJS, types, sliders, channel input, Tooltip, ToggleGroup and Tailwind themes.`,
   );
 } finally {
   await browser?.close();

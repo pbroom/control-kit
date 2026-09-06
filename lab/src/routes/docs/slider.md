@@ -1,6 +1,6 @@
 # Slider
 
-A composed one-dimensional color-channel control. Color Kit owns its interaction and color state; Control Kit uses the component in its Lab and documentation.
+A composed one-dimensional color-channel control. Control Kit supplies the shared Base UI slider foundation; the Color Kit adapter supplies color-channel state and markers.
 
 <!-- demo:basic -->
 
@@ -8,9 +8,9 @@ A composed one-dimensional color-channel control. Color Kit owns its interaction
 
 ### Manual
 
-`ColorSlider` is owned by Color Kit and is not exported from `control-kit`. The Lab runs the Color Kit source directly.
+`ColorSlider` is owned by Color Kit and is not exported from `control-kit`. The Lab uses a local Color Kit adapter composed over `ColorValueSlider` from `control-kit`.
 
-1. Copy the Color Kit [`ColorSlider` source](https://github.com/pbroom/color-kit/blob/main/packages/react/src/color-slider.tsx) and its shared dependencies into your project.
+1. Install `control-kit` and its `@base-ui/react` peer, then copy the Lab [`ColorSlider` adapter](https://github.com/pbroom/control-kit/blob/main/lab/src/vendor/color-kit/react/color-slider.tsx) and its shared Color Kit dependencies into your project.
 2. Update the `color-kit/react` import path to match your project setup.
 3. Import `ColorSlider` as shown below.
 
@@ -34,7 +34,26 @@ function LightnessSlider() {
 }
 ```
 
-The root renders a focusable `div` with slider semantics. Its first child is the positioned thumb. Rails, gradients, markers, and thumb styling remain consumer-owned.
+The root contains a Base UI control and thumb. Base UI supplies the hidden range input used for keyboard and assistive-technology access. Rails, gradients, markers, and thumb styling remain consumer-owned.
+
+## Shared numeric sliders
+
+Use `Slider` from `control-kit` for a numeric value. Use `ColorValueSlider` for a numeric color control with a gradient supplied by the application. Both use the same Base UI interaction and accessible input; the color adapter omits the filled indicator.
+
+```tsx
+import { ColorValueSlider, Slider } from 'control-kit';
+
+<Slider aria-label="Flow" defaultValue={50} min={0} max={100} />;
+<ColorValueSlider
+  aria-label="Saturation"
+  defaultValue={50}
+  min={0}
+  max={100}
+  trackProps={{ style: { background: 'linear-gradient(to right, gray, red)' } }}
+/>;
+```
+
+Both components accept a single numeric `value` or `defaultValue`, `onValueChange`, `onValueCommitted`, `min`, `max`, `step`, `largeStep`, `disabled`, and `orientation`. Style parts with `controlProps`, `trackProps`, and `thumbProps`. Set `unstyled` to retain interaction and positioning while supplying all rail and thumb visuals. Accessible label and value-text props on the root are forwarded to the thumb input.
 
 ## Examples
 
@@ -66,16 +85,16 @@ Style the root directly and target the generated thumb with `data-color-slider-t
 
 ### ColorSlider
 
-Controls one color channel and renders a focusable `div` with slider semantics.
+Controls one color channel through the shared Base UI slider foundation.
 
 <!-- props:color-slider -->
 
-`ColorSlider` accepts native `div` styling and semantic props except `onChange`. Its pointer and keyboard handlers remain component-owned.
+`ColorSlider` accepts native `div` styling and semantic props except `onChange` and `defaultValue`. Base UI owns pointer capture and positioning; the color adapter supplies channel keyboard steps.
 
 ## Accessibility
 
-The root has slider semantics, reports the active channel range and value, and exposes the matching `aria-orientation`. Arrow keys move one percent of the range; Shift + Arrow moves ten percent. Values clamp to the active range.
+The thumb input has slider semantics, reports the active channel range and value, and exposes the matching `aria-orientation`. Arrow keys move one percent of the range; Shift + Arrow moves ten percent. Home and End select the range endpoints. Values clamp to the active range.
 
 ## Source
 
-[Implementation](https://github.com/pbroom/color-kit/blob/main/packages/react/src/color-slider.tsx) · [Color API](https://github.com/pbroom/color-kit/blob/main/packages/driver/src/color-slider.ts) · [Color Kit issues](https://github.com/pbroom/color-kit/issues)
+[Implementation](https://github.com/pbroom/control-kit/blob/main/lab/src/vendor/color-kit/react/color-slider.tsx) · [Color API](https://github.com/pbroom/color-kit/blob/main/packages/driver/src/color-slider.ts) · [Color Kit issues](https://github.com/pbroom/color-kit/issues)
