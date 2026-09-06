@@ -62,11 +62,6 @@ const PLANE_EXAMPLE_GROUPS: readonly PlaneExampleGroup[] = [
         title: 'Image pan and focal point',
       },
       {
-        file: 'background-position',
-        exportName: 'BackgroundPositionExample',
-        title: 'Background-position',
-      },
-      {
         file: 'gradient-origin',
         exportName: 'GradientOriginExample',
         title: 'Gradient center/origin',

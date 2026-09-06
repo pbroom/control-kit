@@ -6,7 +6,6 @@ const FOCUSED_PLANE_EXAMPLE_TITLES = [
   'Color grading controls — Circular controls (3-way color adjuster)',
   'Mesh gradient',
   'Image pan and focal point',
-  'Background-position',
   'Gradient center/origin',
   'Pattern/texture offset',
   'Drop-shadow offset',
@@ -78,9 +77,9 @@ test('renders the focused Plane examples with executable source', async ({
   );
 
   const gallery = page.locator('[data-plane-examples-gallery]');
-  await expect(gallery).toHaveAttribute('data-plane-examples-count', '38');
+  await expect(gallery).toHaveAttribute('data-plane-examples-count', '37');
   await expect(gallery.locator('h3')).toHaveText(FOCUSED_PLANE_EXAMPLE_TITLES);
-  await expect(gallery.locator('[data-docs-example]')).toHaveCount(38);
+  await expect(gallery.locator('[data-docs-example]')).toHaveCount(37);
   expect(
     await gallery
       .locator('[data-docs-example]')
@@ -99,10 +98,10 @@ test('renders the focused Plane examples with executable source', async ({
       ),
     ),
   ).toBe(true);
-  await expect(gallery.locator('[data-docs-example-source]')).toHaveCount(38);
+  await expect(gallery.locator('[data-docs-example-source]')).toHaveCount(37);
   await expect(
     gallery.getByRole('button', { name: 'Show code', exact: true }),
-  ).toHaveCount(38);
+  ).toHaveCount(37);
 
   const firstExample = gallery.locator('[data-docs-example]').first();
   const firstPlane = firstExample.locator('[data-slot="plane"]');
@@ -532,6 +531,9 @@ test('uses compact Plane example outline labels without changing anchors', async
     'href',
     '#image-pan-and-focal-point',
   );
+  await expect(
+    outline.getByRole('link', { name: 'Background-position', exact: true }),
+  ).toHaveCount(0);
   await expect(
     page.getByRole('heading', {
       name: 'Image pan and focal point',
