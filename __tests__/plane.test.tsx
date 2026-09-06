@@ -92,6 +92,7 @@ type MultiThumbConfig = {
   defaultValue?: PlaneValue;
   disabled?: boolean;
   readOnly?: boolean;
+  pressBehavior?: PlaneThumbProps['pressBehavior'];
   onValueChange?: PlaneThumbProps['onValueChange'];
   onValueCommit?: PlaneThumbProps['onValueCommit'];
 };
@@ -122,6 +123,7 @@ function mountMultiPlane(
               defaultValue={thumb.defaultValue}
               disabled={thumb.disabled}
               readOnly={thumb.readOnly}
+              pressBehavior={thumb.pressBehavior}
               onValueChange={thumb.onValueChange}
               onValueCommit={thumb.onValueCommit}
             />
@@ -297,6 +299,322 @@ describe('Plane', () => {
     expect(onValueCommit.mock.lastCall?.[1].originalEvent).toBeInstanceOf(
       PointerEvent,
     );
+  });
+
+  it('preserves the grab offset for relative drags and includes movement on release', () => {
+    const onValueChange = vi.fn();
+    const onValueCommit = vi.fn();
+    const { container, plane } = mountPlane({
+      dragBehavior: 'relative',
+      onValueChange,
+      onValueCommit,
+    });
+    const thumb = container.querySelector(
+      '[data-slot="plane-thumb"]',
+    ) as HTMLElement;
+
+    act(() => pointer(plane, 'pointerdown', { clientX: 110, clientY: 70 }));
+    expect(onValueChange).not.toHaveBeenCalled();
+    expect(thumb.style.left).toBe('25%');
+    expect(thumb.style.top).toBe('25%');
+    expect(thumb.hasAttribute('data-dragging')).toBe(true);
+
+    act(() => pointer(plane, 'pointermove', { clientX: 135, clientY: 95 }));
+    expect(onValueChange).toHaveBeenLastCalledWith(
+      { x: 0.375, y: 0.5 },
+      details({ interaction: 'pointer', reason: 'plane-press' }),
+    );
+    act(() => pointer(plane, 'pointerup', { clientX: 160, clientY: 120 }));
+    expect(onValueCommit).toHaveBeenCalledExactlyOnceWith(
+      { x: 0.5, y: 0.25 },
+      details({ interaction: 'pointer', reason: 'plane-press' }),
+    );
+    expect(thumb.style.left).toBe('50%');
+    expect(thumb.style.top).toBe('75%');
+    expect(plane.hasAttribute('data-dragging')).toBe(false);
+  });
+
+  it('uses raw relative pointer distance outside the bounds and returns without drift', () => {
+    const onValueChange = vi.fn();
+    const { plane } = mountPlane({ dragBehavior: 'relative', onValueChange });
+
+    act(() => pointer(plane, 'pointerdown', { clientX: 110, clientY: 70 }));
+    act(() => pointer(plane, 'pointermove', { clientX: 410, clientY: 270 }));
+    expect(onValueChange.mock.lastCall?.[0]).toEqual({ x: 1, y: 0 });
+    act(() => pointer(plane, 'pointermove', { clientX: 135, clientY: 95 }));
+    expect(onValueChange.mock.lastCall?.[0]).toEqual({ x: 0.375, y: 0.5 });
+    act(() => pointer(plane, 'pointermove', { clientX: -190, clientY: -130 }));
+    expect(onValueChange.mock.lastCall?.[0]).toEqual({ x: 0, y: 1 });
+    act(() => pointer(plane, 'pointerup', { clientX: 110, clientY: 70 }));
+    expect(onValueChange.mock.lastCall?.[0]).toEqual({ x: 0.25, y: 0.75 });
+  });
+
+  it('preserves a raw grab point outside the plane on an overflowing thumb', () => {
+    const onValueChange = vi.fn();
+    const { container, plane } = mountPlane({
+      dragBehavior: 'relative',
+      onValueChange,
+    });
+    const thumb = container.querySelector(
+      '[data-slot="plane-thumb"]',
+    ) as HTMLElement;
+
+    act(() => pointer(thumb, 'pointerdown', { clientX: 260, clientY: -30 }));
+    expect(onValueChange).not.toHaveBeenCalled();
+    act(() => pointer(plane, 'pointerup', { clientX: 235, clientY: -5 }));
+    expect(onValueChange).toHaveBeenLastCalledWith(
+      { x: 0.125, y: 0.5 },
+      details({ reason: 'thumb-drag' }),
+    );
+  });
+
+  it('keeps relative deltas anchored to the gesture when controlled values update', () => {
+    const onValueChange = vi.fn();
+    const onValueCommit = vi.fn();
+    const props = {
+      dragBehavior: 'relative' as const,
+      value: { x: 0.25, y: 0.75 },
+      onValueChange,
+      onValueCommit,
+    };
+    const { container, plane, render } = mountPlane(props);
+    const thumb = container.querySelector(
+      '[data-slot="plane-thumb"]',
+    ) as HTMLElement;
+
+    act(() => pointer(thumb, 'pointerdown', { clientX: 65, clientY: 50 }));
+    expect(onValueChange).not.toHaveBeenCalled();
+    act(() => pointer(plane, 'pointermove', { clientX: 90, clientY: 75 }));
+    expect(onValueChange.mock.lastCall?.[0]).toEqual({ x: 0.375, y: 0.5 });
+    expect(thumb.style.left).toBe('25%');
+    render({ ...props, value: { x: 0.375, y: 0.5 } });
+    expect(thumb.style.left).toBe('37.5%');
+    act(() => pointer(plane, 'pointerup', { clientX: 115, clientY: 100 }));
+    expect(onValueCommit).toHaveBeenCalledExactlyOnceWith(
+      { x: 0.5, y: 0.25 },
+      details({ reason: 'thumb-drag' }),
+    );
+  });
+
+  it.each(['pointerup', 'pointercancel'] as const)(
+    'starts a relative gesture silently from the rendered controlled value before %s',
+    (endEvent) => {
+      const onValueChange = vi.fn();
+      const onValueCommit = vi.fn();
+      const { container, plane } = mountPlane({
+        dragBehavior: 'relative',
+        value: { x: 0.25, y: 0.75 },
+        onValueChange,
+        onValueCommit,
+      });
+      const thumb = container.querySelector(
+        '[data-slot="plane-thumb"]',
+      ) as HTMLElement;
+      const xAxis = thumb.querySelector('[data-plane-axis="x"]')!;
+      act(() => {
+        (xAxis as HTMLElement).focus();
+        key(xAxis, 'keydown', 'ArrowRight');
+      });
+      expect(onValueChange.mock.lastCall?.[0]).toEqual({ x: 0.26, y: 0.75 });
+      expect(onValueCommit).not.toHaveBeenCalled();
+      expect(thumb.style.left).toBe('25%');
+      onValueChange.mockClear();
+
+      act(() => pointer(thumb, 'pointerdown', { clientX: 65, clientY: 50 }));
+      expect(onValueChange).not.toHaveBeenCalled();
+      act(() => pointer(plane, endEvent, { clientX: 65, clientY: 50 }));
+      expect(onValueChange).not.toHaveBeenCalled();
+      expect(onValueCommit).toHaveBeenCalledExactlyOnceWith(
+        { x: 0.25, y: 0.75 },
+        details({ interaction: 'pointer', reason: 'thumb-drag' }),
+      );
+      expect(plane.hasAttribute('data-dragging')).toBe(false);
+    },
+  );
+
+  it('locks relative nearest selection for the gesture as another thumb becomes closer', () => {
+    const firstChange = vi.fn();
+    const secondChange = vi.fn();
+    const { getThumb, plane } = mountMultiPlane(
+      [
+        {
+          id: 'first',
+          defaultValue: { x: 0.25, y: 0.5 },
+          onValueChange: firstChange,
+        },
+        {
+          id: 'second',
+          defaultValue: { x: 0.75, y: 0.5 },
+          onValueChange: secondChange,
+        },
+      ],
+      { pressBehavior: 'nearest', dragBehavior: 'relative' },
+    );
+
+    act(() => pointer(plane, 'pointerdown', { clientX: 70, clientY: 70 }));
+    expect(firstChange).not.toHaveBeenCalled();
+    expect(getThumb('first').hasAttribute('data-dragging')).toBe(true);
+    act(() => pointer(plane, 'pointerup', { clientX: 170, clientY: 70 }));
+    expect(firstChange.mock.lastCall?.[0]).toEqual({ x: 0.75, y: 0.5 });
+    expect(secondChange).not.toHaveBeenCalled();
+  });
+
+  it('excludes direct-only thumbs from nearest selection but retains direct and keyboard control', () => {
+    const focalChange = vi.fn();
+    const backgroundChange = vi.fn();
+    const { getThumb, plane } = mountMultiPlane(
+      [
+        {
+          id: 'focal',
+          defaultValue: { x: 0.25, y: 0.75 },
+          pressBehavior: 'none',
+          onValueChange: focalChange,
+        },
+        {
+          id: 'background',
+          defaultValue: { x: 0.75, y: 0.25 },
+          onValueChange: backgroundChange,
+        },
+      ],
+      { pressBehavior: 'nearest', dragBehavior: 'relative' },
+    );
+
+    act(() => pointer(plane, 'pointerdown', { clientX: 65, clientY: 45 }));
+    expect(getThumb('background').hasAttribute('data-dragging')).toBe(true);
+    act(() => pointer(plane, 'pointerup', { clientX: 90, clientY: 45 }));
+    expect(backgroundChange.mock.lastCall?.[0]).toEqual({ x: 0.875, y: 0.25 });
+    expect(focalChange).not.toHaveBeenCalled();
+
+    const focal = getThumb('focal');
+    act(() => pointer(focal, 'pointerdown', { clientX: 65, clientY: 45 }));
+    expect(focalChange).not.toHaveBeenCalled();
+    expect(focal.hasAttribute('data-dragging')).toBe(true);
+    act(() => pointer(plane, 'pointerup', { clientX: 90, clientY: 70 }));
+    expect(focalChange.mock.lastCall?.[0]).toEqual({ x: 0.375, y: 0.5 });
+    expect(backgroundChange).toHaveBeenCalledOnce();
+    const xAxis = focal.querySelector('[data-plane-axis="x"]')!;
+    act(() => {
+      key(xAxis, 'keydown', 'ArrowRight');
+      key(xAxis, 'keyup', 'ArrowRight');
+    });
+    expect(focalChange.mock.lastCall?.[0]).toEqual({ x: 0.385, y: 0.5 });
+    expect(focalChange.mock.lastCall?.[1]).toEqual(
+      details({ interaction: 'keyboard' }),
+    );
+  });
+
+  it.each(['auto', 'nearest'] as const)(
+    'ignores empty %s presses when every thumb opts out',
+    (pressBehavior) => {
+      const onValueChange = vi.fn();
+      const { plane } = mountPlane(
+        { pressBehavior, onValueChange },
+        { pressBehavior: 'none' },
+      );
+      act(() => pointer(plane, 'pointerdown', { clientX: 110, clientY: 70 }));
+      act(() => pointer(plane, 'pointerup', { clientX: 160, clientY: 95 }));
+      expect(onValueChange).not.toHaveBeenCalled();
+      expect(plane.setPointerCapture).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(['disabled', 'readOnly'] as const)(
+    'does not retarget a direct-only %s thumb to the background',
+    (restriction) => {
+      const blockedChange = vi.fn();
+      const backgroundChange = vi.fn();
+      const { getThumb, plane } = mountMultiPlane(
+        [
+          {
+            id: 'blocked',
+            defaultValue: { x: 0.25, y: 0.75 },
+            pressBehavior: 'none',
+            [restriction]: true,
+            onValueChange: blockedChange,
+          },
+          {
+            id: 'background',
+            defaultValue: { x: 0.75, y: 0.25 },
+            onValueChange: backgroundChange,
+          },
+        ],
+        { pressBehavior: 'nearest', dragBehavior: 'relative' },
+      );
+      act(() =>
+        pointer(getThumb('blocked'), 'pointerdown', {
+          clientX: 60,
+          clientY: 45,
+        }),
+      );
+      act(() => pointer(plane, 'pointerup', { clientX: 85, clientY: 70 }));
+      expect(blockedChange).not.toHaveBeenCalled();
+      expect(backgroundChange).not.toHaveBeenCalled();
+      expect(plane.setPointerCapture).not.toHaveBeenCalled();
+    },
+  );
+
+  it('clears the relative anchor on cancellation before the next gesture', () => {
+    const onValueChange = vi.fn();
+    const onValueCommit = vi.fn();
+    const { plane } = mountPlane({
+      dragBehavior: 'relative',
+      onValueChange,
+      onValueCommit,
+    });
+    act(() => pointer(plane, 'pointerdown', { clientX: 110, clientY: 70 }));
+    act(() => pointer(plane, 'pointermove', { clientX: 135, clientY: 95 }));
+    act(() => pointer(plane, 'pointercancel', { clientX: 400, clientY: 300 }));
+    expect(plane.hasAttribute('data-dragging')).toBe(false);
+    expect(onValueCommit.mock.lastCall?.[0]).toEqual({ x: 0.375, y: 0.5 });
+    const changeCount = onValueChange.mock.calls.length;
+    act(() => pointer(plane, 'pointermove', { clientX: 190, clientY: 110 }));
+    expect(onValueChange).toHaveBeenCalledTimes(changeCount);
+    act(() => pointer(plane, 'pointerdown', { clientX: 60, clientY: 45 }));
+    expect(onValueChange).toHaveBeenCalledTimes(changeCount);
+    act(() => pointer(plane, 'pointerup', { clientX: 35, clientY: 20 }));
+    expect(onValueCommit.mock.lastCall?.[0]).toEqual({ x: 0.25, y: 0.75 });
+  });
+
+  it('uses the actual relative thumb position for hover during capture and release', () => {
+    const { container, plane } = mountPlane({ dragBehavior: 'relative' });
+    const thumb = container.querySelector(
+      '[data-slot="plane-thumb"]',
+    ) as HTMLElement;
+    vi.spyOn(thumb, 'getBoundingClientRect').mockReturnValue({
+      left: 50,
+      top: 35,
+      width: 20,
+      height: 20,
+      right: 70,
+      bottom: 55,
+      x: 50,
+      y: 35,
+      toJSON: () => ({}),
+    });
+    act(() =>
+      pointer(plane, 'pointerdown', {
+        clientX: 110,
+        clientY: 70,
+        pointerType: 'mouse',
+      }),
+    );
+    expect(thumb.hasAttribute('data-hovered')).toBe(false);
+    act(() =>
+      pointer(plane, 'pointermove', {
+        clientX: 135,
+        clientY: 95,
+        pointerType: 'mouse',
+      }),
+    );
+    expect(thumb.hasAttribute('data-hovered')).toBe(false);
+    act(() =>
+      pointer(plane, 'pointerup', {
+        clientX: 160,
+        clientY: 95,
+        pointerType: 'mouse',
+      }),
+    );
+    expect(thumb.hasAttribute('data-hovered')).toBe(false);
   });
 
   it('ignores other pointers during a drag', () => {

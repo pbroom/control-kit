@@ -5,6 +5,7 @@ const FOCUSED_PLANE_EXAMPLE_TITLES = [
   'Saturation × brightness/value',
   'Color grading controls — Circular controls (3-way color adjuster)',
   'Mesh gradient',
+  'Image pan and focal point',
   'Background-position',
   'Gradient center/origin',
   'Pattern/texture offset',
@@ -77,9 +78,9 @@ test('renders the focused Plane examples with executable source', async ({
   );
 
   const gallery = page.locator('[data-plane-examples-gallery]');
-  await expect(gallery).toHaveAttribute('data-plane-examples-count', '37');
+  await expect(gallery).toHaveAttribute('data-plane-examples-count', '38');
   await expect(gallery.locator('h3')).toHaveText(FOCUSED_PLANE_EXAMPLE_TITLES);
-  await expect(gallery.locator('[data-docs-example]')).toHaveCount(37);
+  await expect(gallery.locator('[data-docs-example]')).toHaveCount(38);
   expect(
     await gallery
       .locator('[data-docs-example]')
@@ -98,10 +99,10 @@ test('renders the focused Plane examples with executable source', async ({
       ),
     ),
   ).toBe(true);
-  await expect(gallery.locator('[data-docs-example-source]')).toHaveCount(37);
+  await expect(gallery.locator('[data-docs-example-source]')).toHaveCount(38);
   await expect(
     gallery.getByRole('button', { name: 'Show code', exact: true }),
-  ).toHaveCount(37);
+  ).toHaveCount(38);
 
   const firstExample = gallery.locator('[data-docs-example]').first();
   const firstPlane = firstExample.locator('[data-slot="plane"]');
@@ -792,14 +793,14 @@ test('routes between Plane docs and Lab and exposes tabs only on documented page
   await expect(
     page.getByRole('heading', { name: 'API reference', exact: true }),
   ).toBeVisible();
-  await expect(page.locator('pre[data-language="tsx"]')).toHaveCount(5);
+  await expect(page.locator('pre[data-language="tsx"]')).toHaveCount(6);
   const codeBlocks = page.locator('[data-docs-code-block]');
   const copyButtons = page.getByRole('button', {
     name: 'Copy code',
     exact: true,
   });
-  await expect(codeBlocks).toHaveCount(5);
-  await expect(copyButtons).toHaveCount(5);
+  await expect(codeBlocks).toHaveCount(6);
+  await expect(copyButtons).toHaveCount(6);
   expect(
     await codeBlocks.evaluateAll((blocks) =>
       blocks.every((block) => block.classList.contains('not-typeset')),

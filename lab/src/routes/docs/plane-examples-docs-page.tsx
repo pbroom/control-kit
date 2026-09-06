@@ -51,6 +51,11 @@ const PLANE_EXAMPLE_GROUPS = [
     title: 'Position and alignment',
     examples: [
       {
+        file: 'image-pan-and-focal-point',
+        exportName: 'ImagePanAndFocalPointExample',
+        title: 'Image pan and focal point',
+      },
+      {
         file: 'background-position',
         exportName: 'BackgroundPositionExample',
         title: 'Background-position',
@@ -324,7 +329,10 @@ function PlaneExamplesGallery() {
   return (
     <div
       className="flex flex-col gap-16"
-      data-plane-examples-count="37"
+      data-plane-examples-count={PLANE_EXAMPLE_GROUPS.reduce(
+        (count, group) => count + group.examples.length,
+        0,
+      )}
       data-plane-examples-gallery
     >
       {PLANE_EXAMPLE_GROUPS.map((group) => (

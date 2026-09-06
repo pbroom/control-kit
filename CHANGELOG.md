@@ -8,6 +8,11 @@ the package adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `Plane dragBehavior="relative"` preserves the grabbed offset while dragging.
+  `PlaneThumb pressBehavior="none"` opts out of empty-space selection while
+  keeping direct dragging and keyboard controls. An image-pan and focal-point
+  example demonstrates both options together.
+
 - `Plane` and `PlaneThumb` primitives for composable normalized two-dimensional
   interaction with pointer, keyboard, and accessible axis controls.
 - Normalized mouse and pen hover reporting for `Plane`, plus `data-hovered` and
