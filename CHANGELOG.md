@@ -8,6 +8,10 @@ the package adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Reworked the Mesh gradient example with continuous Oklab color blending,
+  curved flow, six draggable color points, editable palettes, grain controls,
+  and a software rendering fallback.
+
 - `Plane dragBehavior="relative"` preserves the grabbed offset while dragging.
   `PlaneThumb pressBehavior="none"` opts out of empty-space selection while
   keeping direct dragging and keyboard controls. An image-pan and focal-point
