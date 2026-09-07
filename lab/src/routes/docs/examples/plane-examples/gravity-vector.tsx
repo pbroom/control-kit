@@ -38,7 +38,7 @@ export type GravitySimulation = {
 };
 
 const EXAMPLE_PLANE_CLASS_NAME =
-  'relative size-[188px] touch-none overflow-hidden rounded-full border border-white/12 bg-[#11131a] max-sm:size-[200px]';
+  'relative size-[188px] touch-none overflow-hidden rounded-full border border-white/12 bg-[#11131a] p-0 [background-origin:border-box] max-sm:size-[200px]';
 const EXAMPLE_THUMB_CLASS_NAME =
   'size-6 border-2 border-white bg-indigo-500 shadow-[0_2px_12px_rgba(0,0,0,0.5)]';
 

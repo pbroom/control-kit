@@ -16,7 +16,7 @@ function center(bounds: {
   };
 }
 
-test('all three color wheels use quarter-distance relative dragging without changing keyboard steps', async ({
+test('all three color wheels use quarter-distance relative dragging', async ({
   page,
 }) => {
   const errors: string[] = [];
@@ -115,6 +115,25 @@ test('all three color wheels use quarter-distance relative dragging without chan
       0,
     );
   }
+
+  expect(errors).toEqual([]);
+});
+
+test('color wheel keyboard movement keeps its configured step', async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  page.on('console', (message) => {
+    if (message.type() === 'error') errors.push(message.text());
+  });
+
+  await page.goto('/docs/plane-examples#three-way-color-adjuster');
+  const example = page.getByRole('figure', {
+    name: EXAMPLE_NAME,
+    exact: true,
+  });
+  await example.scrollIntoViewIfNeeded();
 
   const highlightsPlane = example.getByRole('group', {
     name: 'Highlights color balance',

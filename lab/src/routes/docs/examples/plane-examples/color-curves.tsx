@@ -309,7 +309,7 @@ export function ColorCurvesExample() {
             ref={planeRef}
             aria-label="Color curves control"
             pressBehavior="none"
-            className="aspect-square w-full rounded-[3px] bg-[#303030]"
+            className="aspect-square w-full rounded-[3px] bg-[#303030] p-0 [background-origin:border-box]"
             onPointerDown={(event) => {
               if (
                 event.button !== 0 ||

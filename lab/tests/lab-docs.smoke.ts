@@ -40,12 +40,22 @@ const FOCUSED_PLANE_EXAMPLE_TITLES = [
   'Importance × urgency',
   'Literal ↔ creative × concise ↔ detailed',
 ] as const;
+const COLOR_CURVES_PHOTO = '**/photo-1771246918298-3795d3bb27a7*';
+const COLOR_CURVES_PHOTO_FIXTURE =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512"><defs><linearGradient id="tone"><stop stop-color="#202020"/><stop offset="1" stop-color="#e0e0e0"/></linearGradient></defs><rect width="512" height="512" fill="url(#tone)"/></svg>';
 
 test('renders the focused Plane examples with executable source', async ({
   page,
 }) => {
+  test.setTimeout(60_000);
   const browserErrors = await collectBrowserErrors(page);
-  await page.route('https://images.unsplash.com/**', (route) => route.abort());
+  await page.route(COLOR_CURVES_PHOTO, (route) =>
+    route.fulfill({
+      contentType: 'image/svg+xml',
+      body: COLOR_CURVES_PHOTO_FIXTURE,
+      headers: { 'access-control-allow-origin': '*' },
+    }),
+  );
 
   await page.goto('/lab/plane-examples');
   await expect(page).toHaveURL(/\/docs\/plane-examples$/);

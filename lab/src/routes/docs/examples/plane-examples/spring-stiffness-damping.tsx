@@ -328,7 +328,7 @@ export function SpringStiffnessDampingExample() {
             </span>
             <Plane
               aria-label="Spring stiffness and damping"
-              className="relative size-[174px] touch-none rounded-2xl border border-white/12 bg-[#16171a] shadow-[inset_0_1px_0_rgb(255_255_255/0.03)]"
+              className="relative size-[174px] touch-none rounded-2xl border border-white/12 bg-[#16171a] p-0 [background-origin:border-box] shadow-[inset_0_1px_0_rgb(255_255_255/0.03)]"
               data-spring-plane
             >
               <div

@@ -174,6 +174,7 @@ const PLANE_EXAMPLE_GROUPS: readonly PlaneExampleGroup[] = [
         file: 'filter-cutoff-resonance',
         exportName: 'FilterCutoffResonanceExample',
         title: 'Filter cutoff × resonance',
+        outlineTitle: 'Filter / resonance',
       },
       {
         file: 'timbre-morph',

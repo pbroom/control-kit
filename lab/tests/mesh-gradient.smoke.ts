@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { expect, test, type Locator } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import { collectBrowserErrors } from './lab-smoke-utils.js';
 
 // Compare the rendered gradient itself, excluding movable point overlays.
@@ -10,31 +10,34 @@ async function gradientHash(canvas: Locator) {
   return createHash('sha256').update(image).digest('hex');
 }
 
-test('renders and edits the mesh through pointer, keyboard, and appearance controls', async ({
-  page,
-}) => {
-  const errors = await collectBrowserErrors(page);
+async function openMeshExample(page: Page) {
   await page.goto('/docs/plane-examples#mesh-gradient');
   const example = page.getByRole('figure', {
     name: 'Mesh gradient demo',
     exact: true,
   });
+  const canvas = example.locator('canvas[data-mesh-gradient]');
+  await expect(canvas).toHaveAttribute('data-renderer', 'webgl');
+  await canvas.scrollIntoViewIfNeeded();
+  return { canvas, example };
+}
+
+test('renders and edits the mesh through pointer, keyboard, and appearance controls', async ({
+  page,
+}) => {
+  const errors = await collectBrowserErrors(page);
+  const { canvas, example } = await openMeshExample(page);
   const plane = example.getByRole('group', {
     name: 'Mesh gradient control points',
     exact: true,
   });
-  const canvas = example.locator('canvas[data-mesh-gradient]');
   const axis = example.getByRole('slider', {
     name: /Color 3(?: mesh point)? horizontal position/,
   });
-  await expect(canvas).toHaveAttribute('data-renderer', 'webgl');
-  await canvas.scrollIntoViewIfNeeded();
   const initial = await gradientHash(canvas);
-  const initialPosition = await axis.inputValue();
   const colorTrigger = example.getByRole('button', {
     name: /Edit selected point color/,
   });
-  const initialColor = (await colorTrigger.textContent())!.trim();
 
   await axis.press('End');
   await expect(axis).toHaveValue('1');
@@ -80,6 +83,38 @@ test('renders and edits the mesh through pointer, keyboard, and appearance contr
     await example.getByRole('slider', { name, exact: true }).press('End');
     await expect.poll(() => gradientHash(canvas)).not.toBe(before);
   }
+  await expect(page.locator('vite-error-overlay')).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test('restores the mesh and redraws it after WebGL context recovery', async ({
+  page,
+}) => {
+  const errors = await collectBrowserErrors(page);
+  const { canvas, example } = await openMeshExample(page);
+  const axis = example.getByRole('slider', {
+    name: /Color 3(?: mesh point)? horizontal position/,
+  });
+  const colorTrigger = example.getByRole('button', {
+    name: /Edit selected point color/,
+  });
+  const thumb = example.locator('[data-slot="plane-thumb"]').nth(2);
+  const initial = await gradientHash(canvas);
+  const initialPosition = await axis.inputValue();
+  const initialColor = (await colorTrigger.textContent())!.trim();
+
+  await axis.press('End');
+  await expect(axis).toHaveValue('1');
+  await colorTrigger.click();
+  const colorPicker = page.getByRole('dialog', {
+    name: 'Selected point color',
+  });
+  await colorPicker.getByRole('textbox', { name: 'Hex color' }).fill('#ff0000');
+  await page.keyboard.press('Escape');
+  await expect(colorPicker).toBeHidden();
+  await expect(colorTrigger).not.toContainText(initialColor);
+  await expect.poll(() => gradientHash(canvas)).not.toBe(initial);
+
   await example
     .getByRole('button', { name: 'Hide points', exact: true })
     .click();
@@ -135,14 +170,7 @@ test('keeps the Plane color picker synchronized, keyboard accessible, and in the
   page,
 }) => {
   const errors = await collectBrowserErrors(page);
-  await page.goto('/docs/plane-examples#mesh-gradient');
-  const example = page.getByRole('figure', {
-    name: 'Mesh gradient demo',
-    exact: true,
-  });
-  const canvas = example.locator('canvas[data-mesh-gradient]');
-  await expect(canvas).toHaveAttribute('data-renderer', 'webgl');
-  await canvas.scrollIntoViewIfNeeded();
+  const { canvas, example } = await openMeshExample(page);
   const trigger = example.getByRole('button', {
     name: /Edit selected point color/,
   });
@@ -200,6 +228,26 @@ test('keeps the Plane color picker synchronized, keyboard accessible, and in the
   await saturation.press('ArrowRight');
   await value.press('End');
   await expect.poll(() => gradientHash(canvas)).not.toBe(beforeKeyboard);
+  expect(errors).toEqual([]);
+});
+
+test('validates picker values and applies point and palette selections', async ({
+  page,
+}) => {
+  const errors = await collectBrowserErrors(page);
+  const { example } = await openMeshExample(page);
+  const trigger = example.getByRole('button', {
+    name: /Edit selected point color/,
+  });
+  await trigger.click();
+  const picker = page.getByRole('dialog', { name: 'Selected point color' });
+  const hex = picker.getByRole('textbox', { name: 'Hex color' });
+  const hue = picker.getByRole('slider', { name: 'Hue', exact: true });
+  const saturation = picker.getByRole('slider', {
+    name: 'Saturation',
+    exact: true,
+  });
+  const value = picker.getByRole('slider', { name: 'Value', exact: true });
 
   await hex.fill('#808080');
   await expect(trigger).toContainText('#808080');
@@ -238,8 +286,9 @@ test('keeps the Plane color picker synchronized, keyboard accessible, and in the
   await expect(trigger).toContainText('#10246E');
   await trigger.click();
   await expect(hex).toHaveValue('#10246E');
-  await example.getByRole('button', { name: 'Ember', exact: true }).click();
+  await page.keyboard.press('Escape');
   await expect(picker).toBeHidden();
+  await example.getByRole('button', { name: 'Ember', exact: true }).click();
   await expect(trigger).toContainText('#FF986B');
   await trigger.click();
   await expect(hex).toHaveValue('#FF986B');
