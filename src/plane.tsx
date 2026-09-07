@@ -51,6 +51,7 @@ export type PlaneProps = Omit<
   readOnly?: boolean;
   pressBehavior?: PlanePressBehavior;
   dragBehavior?: PlaneDragBehavior;
+  dragSensitivity?: number;
   onHoverValueChange?: (
     value: PlaneValue | null,
     details: PlaneHoverValueChangeDetails,
@@ -277,6 +278,7 @@ export function Plane({
   readOnly = false,
   pressBehavior = 'auto',
   dragBehavior = 'absolute',
+  dragSensitivity = 1,
   className,
   children,
   ref,
@@ -306,6 +308,7 @@ export function Plane({
   const relativeDragOriginRef = React.useRef<{
     point: PlanePoint;
     value: PlaneValue;
+    sensitivity: number;
   } | null>(null);
 
   function getPointerValue(point: PlanePoint, bounds: PlaneBounds): PlaneValue {
@@ -318,12 +321,14 @@ export function Plane({
       x:
         origin.value.x +
         (bounds.width > 0
-          ? (point.clientX - origin.point.clientX) / bounds.width
+          ? ((point.clientX - origin.point.clientX) / bounds.width) *
+            origin.sensitivity
           : 0),
       y:
         origin.value.y -
         (bounds.height > 0
-          ? (point.clientY - origin.point.clientY) / bounds.height
+          ? ((point.clientY - origin.point.clientY) / bounds.height) *
+            origin.sensitivity
           : 0),
     });
   }
@@ -601,6 +606,10 @@ export function Plane({
               ? {
                   point: { clientX: event.clientX, clientY: event.clientY },
                   value: registration.beginRelativeDrag(),
+                  sensitivity:
+                    Number.isFinite(dragSensitivity) && dragSensitivity >= 0
+                      ? dragSensitivity
+                      : 1,
                 }
               : null;
           activePointerThumbSizeRef.current = thumbSize;

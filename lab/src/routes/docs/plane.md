@@ -62,6 +62,8 @@ Set `pressBehavior="nearest"` to select the visually nearest eligible thumb on a
 
 Set `dragBehavior="relative"` on `Plane` to preserve the selected thumb's offset from the pointer. Pressing does not change its value; dragging moves it by the pointer's distance, normalized to the plane bounds. The selected thumb stays locked for the gesture, and its resulting coordinates remain clamped from `0` to `1`. The default, `dragBehavior="absolute"`, places the selected thumb at the pointer on press and during dragging.
 
+Set `dragSensitivity` to scale relative pointer movement. The default `1` follows the pointer at full speed; `0.25` moves the thumb one quarter of the pointer's drag distance for finer control. The scale is fixed when each gesture begins, so controlled updates do not accumulate rounding drift. Non-finite and negative values fall back to `1`.
+
 Selection and movement are independent. For image panning with a directly draggable focal point, make the focal point opt out of empty-space selection:
 
 ```tsx

@@ -27,6 +27,14 @@ const PLANE_PROPS = [
       'Absolute movement places the selected thumb at the pointer. Relative movement preserves its starting offset and applies the pointer drag distance.',
   },
   {
+    name: 'dragSensitivity',
+    shortType: 'number',
+    type: 'number | undefined',
+    defaultValue: '1',
+    description:
+      'Scales pointer distance during relative dragging. Smaller values provide finer control.',
+  },
+  {
     name: 'onHoverValueChange',
     shortType: 'function',
     type: '(value: PlaneValue | null, details: PlaneHoverValueChangeDetails) => void',
