@@ -105,6 +105,8 @@ export type {
   PlaneInteraction,
   PlanePoint,
   PlanePressBehavior,
+  PlaneDragBehavior,
+  PlaneThumbPressBehavior,
   PlaneProps,
   PlaneThumbProps,
   PlaneThumbContextValue,

@@ -8,11 +8,13 @@ type ExampleModule = Record<string, ComponentType>;
 type PlaneExampleDefinition = {
   exportName: string;
   file: string;
+  outlineTitle?: string;
   title: string;
 };
 
 type PlaneExampleGroup = {
   examples: readonly PlaneExampleDefinition[];
+  outlineTitle?: string;
   title: string;
 };
 
@@ -25,18 +27,20 @@ const exampleSources = import.meta.glob<string>(
   { eager: true, import: 'default', query: '?raw' },
 );
 
-const PLANE_EXAMPLE_GROUPS = [
+const PLANE_EXAMPLE_GROUPS: readonly PlaneExampleGroup[] = [
   {
     title: 'Color',
     examples: [
       {
         file: 'saturation-value',
         exportName: 'SaturationValueExample',
+        outlineTitle: 'Saturation / value',
         title: 'Saturation × brightness/value',
       },
       {
         file: 'three-way-color-adjuster',
         exportName: 'ThreeWayColorAdjusterExample',
+        outlineTitle: '3-way color grading',
         title:
           'Color grading controls — Circular controls (3-way color adjuster)',
       },
@@ -49,7 +53,14 @@ const PLANE_EXAMPLE_GROUPS = [
   },
   {
     title: 'Position and alignment',
+    outlineTitle: 'Position',
     examples: [
+      {
+        file: 'image-pan-and-focal-point',
+        exportName: 'ImagePanAndFocalPointExample',
+        outlineTitle: 'Image pan / focal point',
+        title: 'Image pan and focal point',
+      },
       {
         file: 'background-position',
         exportName: 'BackgroundPositionExample',
@@ -78,6 +89,7 @@ const PLANE_EXAMPLE_GROUPS = [
       {
         file: 'container-anchor',
         exportName: 'ContainerAnchorExample',
+        outlineTitle: 'Container anchor',
         title: 'Anchor point inside a container',
       },
     ],
@@ -88,6 +100,7 @@ const PLANE_EXAMPLE_GROUPS = [
       {
         file: 'variable-font-axes',
         exportName: 'VariableFontAxesExample',
+        outlineTitle: 'Variable font axes',
         title: 'Variable-font axis pairs, e.g. weight × width',
       },
       {
@@ -99,30 +112,36 @@ const PLANE_EXAMPLE_GROUPS = [
   },
   {
     title: 'Animation and motion',
+    outlineTitle: 'Motion',
     examples: [
       {
         file: 'bezier-control-point',
         exportName: 'BezierControlPointExample',
+        outlineTitle: 'Bezier editor',
         title: 'Bezier control-point editor',
       },
       {
         file: 'spring-stiffness-damping',
         exportName: 'SpringStiffnessDampingExample',
+        outlineTitle: 'Spring / damping',
         title: 'Spring stiffness × damping',
       },
       {
         file: 'motion-direction-intensity',
         exportName: 'MotionDirectionIntensityExample',
+        outlineTitle: 'Direction / intensity',
         title: 'Motion direction/intensity',
       },
     ],
   },
   {
     title: 'Physics and simulation',
+    outlineTitle: 'Physics',
     examples: [
       {
         file: 'force-direction-magnitude',
         exportName: 'ForceDirectionMagnitudeExample',
+        outlineTitle: 'Force vector',
         title: 'Force direction and magnitude',
       },
       {
@@ -143,6 +162,7 @@ const PLANE_EXAMPLE_GROUPS = [
       {
         file: 'particle-emitter',
         exportName: 'ParticleEmitterExample',
+        outlineTitle: 'Particle direction',
         title: 'Particle emitter direction/spread',
       },
     ],
@@ -163,11 +183,13 @@ const PLANE_EXAMPLE_GROUPS = [
       {
         file: 'timbre-morph',
         exportName: 'TimbreMorphExample',
+        outlineTitle: 'Timbre morph',
         title: 'Timbre morphing between parameters',
       },
       {
         file: 'spatial-audio',
         exportName: 'SpatialAudioExample',
+        outlineTitle: 'Spatial audio',
         title: 'Spatial-audio source positioning',
       },
     ],
@@ -184,30 +206,36 @@ const PLANE_EXAMPLE_GROUPS = [
   },
   {
     title: 'Data visualization',
+    outlineTitle: 'Data viz',
     examples: [
       {
         file: 'four-corner-interpolation',
         exportName: 'FourCornerInterpolationExample',
+        outlineTitle: '4-corner interpolation',
         title: 'Choosing an interpolation point between four states',
       },
     ],
   },
   {
     title: 'Search and recommendation tuning',
+    outlineTitle: 'Search tuning',
     examples: [
       {
         file: 'recommendation-matrix',
         exportName: 'RecommendationMatrixExample',
+        outlineTitle: 'Recommendation matrix',
         title: 'Familiar ↔ novel × safe ↔ adventurous',
       },
     ],
   },
   {
     title: 'Design-system and visual styling',
+    outlineTitle: 'Visual styling',
     examples: [
       {
         file: 'radius-border-width',
         exportName: 'RadiusBorderWidthExample',
+        outlineTitle: 'Radius / border',
         title: 'Border radius × border width',
       },
       {
@@ -224,10 +252,12 @@ const PLANE_EXAMPLE_GROUPS = [
   },
   {
     title: 'Canvas and diagramming',
+    outlineTitle: 'Canvas',
     examples: [
       {
         file: 'minimap-viewport',
         exportName: 'MinimapViewportExample',
+        outlineTitle: 'Minimap position',
         title: 'Minimap viewport position',
       },
       {
@@ -239,16 +269,19 @@ const PLANE_EXAMPLE_GROUPS = [
   },
   {
     title: 'Maps and geospatial',
+    outlineTitle: 'Maps',
     examples: [
       {
         file: 'floor-plan-position',
         exportName: 'FloorPlanPositionExample',
+        outlineTitle: 'Floor-plan position',
         title: 'Relative position within a floor plan',
       },
     ],
   },
   {
     title: '3D tools represented in 2D',
+    outlineTitle: '3D tools',
     examples: [
       {
         file: 'light-direction',
@@ -258,6 +291,7 @@ const PLANE_EXAMPLE_GROUPS = [
       {
         file: 'camera-orbit',
         exportName: 'CameraOrbitExample',
+        outlineTitle: 'Camera orbit',
         title: 'Camera orbit: azimuth × elevation',
       },
     ],
@@ -274,6 +308,7 @@ const PLANE_EXAMPLE_GROUPS = [
   },
   {
     title: 'Business and prioritization',
+    outlineTitle: 'Prioritization',
     examples: [
       {
         file: 'importance-urgency',
@@ -284,15 +319,17 @@ const PLANE_EXAMPLE_GROUPS = [
   },
   {
     title: 'AI and generative controls',
+    outlineTitle: 'AI controls',
     examples: [
       {
         file: 'creative-detail',
         exportName: 'CreativeDetailExample',
+        outlineTitle: 'Creative / detail',
         title: 'Literal ↔ creative × concise ↔ detailed',
       },
     ],
   },
-] as const satisfies readonly PlaneExampleGroup[];
+] as const;
 
 function getExampleModulePath(file: string) {
   return `./examples/plane-examples/${file}.tsx`;
@@ -324,7 +361,10 @@ function PlaneExamplesGallery() {
   return (
     <div
       className="flex flex-col gap-16"
-      data-plane-examples-count="37"
+      data-plane-examples-count={PLANE_EXAMPLE_GROUPS.reduce(
+        (count, group) => count + group.examples.length,
+        0,
+      )}
       data-plane-examples-gallery
     >
       {PLANE_EXAMPLE_GROUPS.map((group) => (
@@ -335,6 +375,7 @@ function PlaneExamplesGallery() {
         >
           <h2
             className="m-0 font-[var(--font-brand)] text-[21px] leading-tight font-semibold tracking-[-0.02em] text-white"
+            data-docs-outline-label={group.outlineTitle}
             id={`plane-examples-${group.title.toLowerCase().replaceAll(/[^a-z0-9]+/g, '-')}`}
           >
             {group.title}
@@ -345,7 +386,10 @@ function PlaneExamplesGallery() {
 
               return (
                 <div className="flex flex-col gap-3" key={example.file}>
-                  <h3 className="m-0 text-base font-medium text-white/88">
+                  <h3
+                    className="m-0 text-base font-medium text-white/88"
+                    data-docs-outline-label={example.outlineTitle}
+                  >
                     {example.title}
                   </h3>
                   <DocsExample

@@ -35,6 +35,8 @@ export type PlaneBounds = {
 };
 
 export type PlanePressBehavior = 'auto' | 'none' | 'nearest';
+export type PlaneDragBehavior = 'absolute' | 'relative';
+export type PlaneThumbPressBehavior = 'inherit' | 'none';
 
 export type PlaneHoverValueChangeDetails = {
   pointerType: string;
@@ -48,6 +50,7 @@ export type PlaneProps = Omit<
   disabled?: boolean;
   readOnly?: boolean;
   pressBehavior?: PlanePressBehavior;
+  dragBehavior?: PlaneDragBehavior;
   onHoverValueChange?: (
     value: PlaneValue | null,
     details: PlaneHoverValueChangeDetails,
@@ -59,6 +62,7 @@ export type PlaneThumbProps = Omit<
   'defaultValue' | 'onChange'
 > & {
   thumbId?: string;
+  pressBehavior?: PlaneThumbPressBehavior;
   value?: PlaneValue;
   defaultValue?: PlaneValue;
   onValueChange?: (value: PlaneValue, details: PlaneValueChangeDetails) => void;
@@ -100,9 +104,11 @@ type PlaneValueChangeSource = Pick<
 type PlaneThumbRegistration = {
   key: string;
   getValue: () => PlaneValue;
+  beginRelativeDrag: () => PlaneValue;
   getHoverSize: () => { width: number; height: number };
   isControlled: () => boolean;
   isInteractive: () => boolean;
+  acceptsPlanePress: () => boolean;
   publishValue: (value: PlaneValue, source: PlaneValueChangeSource) => boolean;
   commitPointerValue: (source: PlaneValueChangeSource) => void;
   focus: () => void;
@@ -241,19 +247,14 @@ function planeBoundsContainPoint(point: PlanePoint, bounds: PlaneBounds) {
   );
 }
 
-function pointOverClampedThumb(
+function pointOverPositionedThumb(
   point: PlanePoint,
   bounds: PlaneBounds,
   thumbSize: { width: number; height: number },
+  value: PlaneValue,
 ) {
-  const thumbCenterX = Math.min(
-    bounds.left + bounds.width,
-    Math.max(bounds.left, point.clientX),
-  );
-  const thumbCenterY = Math.min(
-    bounds.top + bounds.height,
-    Math.max(bounds.top, point.clientY),
-  );
+  const thumbCenterX = bounds.left + value.x * bounds.width;
+  const thumbCenterY = bounds.top + (1 - value.y) * bounds.height;
 
   return (
     Math.abs(point.clientX - thumbCenterX) <= thumbSize.width / 2 &&
@@ -275,6 +276,7 @@ export function Plane({
   disabled = false,
   readOnly = false,
   pressBehavior = 'auto',
+  dragBehavior = 'absolute',
   className,
   children,
   ref,
@@ -301,6 +303,31 @@ export function Plane({
   const activeThumbKeyRef = React.useRef<string | null>(null);
   const activePointerIdRef = React.useRef<number | null>(null);
   const activePointerBoundsRef = React.useRef<PlaneBounds | null>(null);
+  const relativeDragOriginRef = React.useRef<{
+    point: PlanePoint;
+    value: PlaneValue;
+  } | null>(null);
+
+  function getPointerValue(point: PlanePoint, bounds: PlaneBounds): PlaneValue {
+    const origin = relativeDragOriginRef.current;
+    if (!origin) return getPlaneValueFromPoint(point, bounds);
+
+    // Keep the raw pointer delta so moving outside the plane and back does not
+    // discard the grab offset. Only the resulting thumb position is clamped.
+    return clampPlaneValue({
+      x:
+        origin.value.x +
+        (bounds.width > 0
+          ? (point.clientX - origin.point.clientX) / bounds.width
+          : 0),
+      y:
+        origin.value.y -
+        (bounds.height > 0
+          ? (point.clientY - origin.point.clientY) / bounds.height
+          : 0),
+    });
+  }
+
   const activePointerThumbSizeRef = React.useRef<{
     width: number;
     height: number;
@@ -341,6 +368,7 @@ export function Plane({
 
       activePointerIdRef.current = null;
       activePointerBoundsRef.current = null;
+      relativeDragOriginRef.current = null;
       activePointerThumbSizeRef.current = null;
       activePointerReasonRef.current = null;
       activeThumbKeyRef.current = null;
@@ -547,14 +575,15 @@ export function Plane({
             const registrations = Array.from(thumbsRef.current.values());
             if (
               registrations.length === 1 &&
-              registrations[0].isInteractive()
+              registrations[0].isInteractive() &&
+              registrations[0].acceptsPlanePress()
             ) {
               registration = registrations[0];
               reason = 'plane-press';
             }
           } else if (pressBehavior === 'nearest') {
             const registrations = Array.from(thumbsRef.current.values()).filter(
-              (thumb) => thumb.isInteractive(),
+              (thumb) => thumb.isInteractive() && thumb.acceptsPlanePress(),
             );
             registration = getNearestThumb(registrations, event, readBounds());
             reason = 'plane-press';
@@ -567,16 +596,26 @@ export function Plane({
           event.preventDefault();
           activePointerIdRef.current = event.pointerId;
           activePointerBoundsRef.current = bounds;
+          relativeDragOriginRef.current =
+            dragBehavior === 'relative'
+              ? {
+                  point: { clientX: event.clientX, clientY: event.clientY },
+                  value: registration.beginRelativeDrag(),
+                }
+              : null;
           activePointerThumbSizeRef.current = thumbSize;
           activePointerReasonRef.current = reason;
           activeThumbKeyRef.current = registration.key;
           setActiveThumbKey(registration.key);
           event.currentTarget.setPointerCapture(event.pointerId);
-          registration.publishValue(getPlaneValueFromPoint(event, bounds), {
-            interaction: 'pointer',
-            reason,
-            originalEvent: event.nativeEvent,
-          });
+          const nextValue = getPointerValue(event, bounds);
+          if (!relativeDragOriginRef.current) {
+            registration.publishValue(nextValue, {
+              interaction: 'pointer',
+              reason,
+              originalEvent: event.nativeEvent,
+            });
+          }
           if (registration.isControlled()) {
             registration.capturePointerHover(
               event.pointerId,
@@ -592,7 +631,7 @@ export function Plane({
             registration.syncPointerHover(
               event.pointerId,
               event.pointerType,
-              pointOverClampedThumb(event, bounds, thumbSize),
+              pointOverPositionedThumb(event, bounds, thumbSize, nextValue),
               true,
             );
           }
@@ -617,7 +656,8 @@ export function Plane({
             : undefined;
           if (bounds && registration?.isInteractive()) {
             const reason = activePointerReasonRef.current ?? 'thumb-drag';
-            registration.publishValue(getPlaneValueFromPoint(event, bounds), {
+            const nextValue = getPointerValue(event, bounds);
+            registration.publishValue(nextValue, {
               interaction: 'pointer',
               reason,
               originalEvent: event.nativeEvent,
@@ -635,7 +675,7 @@ export function Plane({
                 registration.syncPointerHover(
                   event.pointerId,
                   event.pointerType,
-                  pointOverClampedThumb(event, bounds, thumbSize),
+                  pointOverPositionedThumb(event, bounds, thumbSize, nextValue),
                   true,
                 );
               }
@@ -662,8 +702,9 @@ export function Plane({
           );
           const bounds = activePointerBoundsRef.current;
           const reason = activePointerReasonRef.current ?? 'thumb-drag';
-          if (canPublish && bounds && registration) {
-            registration.publishValue(getPlaneValueFromPoint(event, bounds), {
+          const nextValue = bounds ? getPointerValue(event, bounds) : null;
+          if (canPublish && nextValue && registration) {
+            registration.publishValue(nextValue, {
               interaction: 'pointer',
               reason,
               originalEvent: event.nativeEvent,
@@ -680,7 +721,12 @@ export function Plane({
             registration.syncPointerHover(
               event.pointerId,
               event.pointerType,
-              pointOverClampedThumb(event, bounds, thumbSize),
+              pointOverPositionedThumb(
+                event,
+                bounds,
+                thumbSize,
+                canPublish && nextValue ? nextValue : registration.getValue(),
+              ),
               false,
             );
           }
@@ -859,6 +905,7 @@ function getKeyAxis(axis: PlaneAxis, key: string): PlaneAxis | null {
 
 export function PlaneThumb({
   thumbId,
+  pressBehavior = 'inherit',
   value: controlledValue,
   defaultValue = DEFAULT_VALUE,
   onValueChange,
@@ -1186,11 +1233,19 @@ export function PlaneThumb({
     [isControlled, onValueCommit, renderedValue, thumbId],
   );
 
+  const beginRelativeDrag = () => {
+    // A controlled consumer may not have accepted a previous keyboard change.
+    // Start from the visible position without emitting a change on press.
+    interactionValueRef.current = renderedValue;
+    return renderedValue;
+  };
+
   const registrationRef = React.useRef<PlaneThumbRegistration | null>(null);
   if (!registrationRef.current) {
     registrationRef.current = {
       key: internalKey,
       getValue: () => renderedValue,
+      beginRelativeDrag,
       getHoverSize: () => {
         const bounds = thumbRef.current?.getBoundingClientRect();
         return {
@@ -1200,6 +1255,7 @@ export function PlaneThumb({
       },
       isControlled: () => isControlled,
       isInteractive: () => !isDisabled && !isReadOnly,
+      acceptsPlanePress: () => pressBehavior !== 'none',
       publishValue,
       commitPointerValue,
       focus: () => {
@@ -1270,8 +1326,10 @@ export function PlaneThumb({
 
   const registration = registrationRef.current;
   registration.getValue = () => renderedValue;
+  registration.beginRelativeDrag = beginRelativeDrag;
   registration.isControlled = () => isControlled;
   registration.isInteractive = () => !isDisabled && !isReadOnly;
+  registration.acceptsPlanePress = () => pressBehavior !== 'none';
   registration.publishValue = publishValue;
   registration.commitPointerValue = commitPointerValue;
 

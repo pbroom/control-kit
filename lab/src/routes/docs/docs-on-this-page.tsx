@@ -33,10 +33,12 @@ function collectOutlineItems(article: HTMLElement) {
   ).flatMap<DocsOutlineItem>((heading) => {
     if (heading.closest('[data-docs-example]')) return [];
 
-    const label = heading.textContent?.trim();
-    if (!label) return [];
+    const headingLabel = heading.textContent?.trim();
+    if (!headingLabel) return [];
 
-    const baseId = heading.id || slugifyHeading(label);
+    const label = heading.dataset.docsOutlineLabel?.trim() || headingLabel;
+
+    const baseId = heading.id || slugifyHeading(headingLabel);
     let id = baseId;
     let suffix = 2;
 

@@ -19,6 +19,14 @@ const PLANE_PROPS = [
     description: 'Controls what happens when empty plane space is pressed.',
   },
   {
+    name: 'dragBehavior',
+    shortType: "'absolute' | 'relative'",
+    type: 'PlaneDragBehavior | undefined',
+    defaultValue: "'absolute'",
+    description:
+      'Absolute movement places the selected thumb at the pointer. Relative movement preserves its starting offset and applies the pointer drag distance.',
+  },
+  {
     name: 'onHoverValueChange',
     shortType: 'function',
     type: '(value: PlaneValue | null, details: PlaneHoverValueChangeDetails) => void',
@@ -64,6 +72,14 @@ const PLANE_PROPS = [
 ] satisfies readonly PropReference[];
 
 const PLANE_THUMB_PROPS = [
+  {
+    name: 'pressBehavior',
+    shortType: "'inherit' | 'none'",
+    type: 'PlaneThumbPressBehavior | undefined',
+    defaultValue: "'inherit'",
+    description:
+      'Inherit makes the thumb eligible for empty-space presses. None requires a direct press while preserving keyboard interaction.',
+  },
   {
     name: 'thumbId',
     shortType: 'string',

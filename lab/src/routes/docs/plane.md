@@ -52,11 +52,32 @@ const [value, setValue] = React.useState({ x: 0.5, y: 0.5 });
 
 ## Multiple thumbs
 
-Render a `PlaneThumb` for each independently controlled position. Direct presses always move the pressed thumb. With multiple thumbs, pressing empty plane space does nothing by default.
+Render a `PlaneThumb` for each independently controlled position. Direct presses always select the pressed thumb. With multiple thumbs, pressing empty plane space does nothing by default.
 
-Set `pressBehavior="nearest"` to move the visually nearest interactive thumb to an empty-space press. Distance is measured in rendered pixels. Disabled and read-only thumbs are excluded.
+Set `pressBehavior="nearest"` to select the visually nearest eligible thumb on an empty-space press. Distance is measured in rendered pixels. Disabled and read-only thumbs, and thumbs with `pressBehavior="none"`, are excluded. A direct press still selects an enabled thumb with `pressBehavior="none"`.
 
 <!-- demo:multiple -->
+
+## Drag without jumping
+
+Set `dragBehavior="relative"` on `Plane` to preserve the selected thumb's offset from the pointer. Pressing does not change its value; dragging moves it by the pointer's distance, normalized to the plane bounds. The selected thumb stays locked for the gesture, and its resulting coordinates remain clamped from `0` to `1`. The default, `dragBehavior="absolute"`, places the selected thumb at the pointer on press and during dragging.
+
+Selection and movement are independent. For image panning with a directly draggable focal point, make the focal point opt out of empty-space selection:
+
+```tsx
+<Plane pressBehavior="nearest" dragBehavior="relative">
+  <PlaneThumb aria-label="Image pan" defaultValue={{ x: 0.5, y: 0.5 }} />
+  <PlaneThumb
+    aria-label="Focal point"
+    pressBehavior="none"
+    defaultValue={{ x: 0.7, y: 0.65 }}
+  />
+</Plane>
+```
+
+Pressing anywhere except the focal point selects the image-pan thumb, the only eligible nearest candidate. Pressing the focal point selects it directly. Neither thumb jumps on press, and both retain their keyboard controls. Thumb dimensions continue to describe the visible hit area; no oversized background thumb is needed.
+
+[Try image panning and focal-point dragging](/docs/plane-examples#image-pan-and-focal-point).
 
 ## Form
 
@@ -83,7 +104,7 @@ Groups the visual layers and routes pointer interaction. `PlaneProps` includes n
 
 <!-- props:plane -->
 
-`pressBehavior="auto"` moves the only thumb when empty plane space is pressed. It does nothing when multiple thumbs are present. `pressBehavior="none"` disables empty-space movement, and `pressBehavior="nearest"` moves the visually nearest interactive thumb.
+`pressBehavior="auto"` selects the only thumb when empty plane space is pressed, provided it is interactive and has not opted out. It does nothing when multiple thumbs are present, even if only one is eligible. `pressBehavior="none"` disables empty-space selection, and `pressBehavior="nearest"` selects the visually nearest eligible thumb.
 
 The root captures the primary pointer for a drag and measures its bounds once at the start. Changing the root to `disabled` or `readOnly` during a drag ends the interaction without committing. Native pointer handlers run before Plane's internal handling, so calling `preventDefault()` cancels the corresponding internal step.
 
@@ -174,6 +195,8 @@ Converts viewport coordinates and element bounds to a clamped Cartesian `PlaneVa
 | `PlanePoint`                   | `{ clientX: number; clientY: number }`.                                                 |
 | `PlaneBounds`                  | `{ left: number; top: number; width: number; height: number }`.                         |
 | `PlanePressBehavior`           | `'auto' \| 'none' \| 'nearest'`.                                                        |
+| `PlaneDragBehavior`            | `'absolute' \| 'relative'`.                                                             |
+| `PlaneThumbPressBehavior`      | `'inherit' \| 'none'`.                                                                  |
 | `PlaneContextValue`            | The root `disabled`, `readOnly`, and `dragging` state.                                  |
 | `PlaneThumbContextValue`       | The thumb's value, interaction, hover, focus, `disabled`, and `readOnly` states.        |
 | `PlaneProps`                   | Native `div` props plus root interaction options.                                       |
