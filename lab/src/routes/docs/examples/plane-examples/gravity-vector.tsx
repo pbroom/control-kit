@@ -12,6 +12,7 @@ const GRAVITY_ACCELERATION = 520;
 const WALL_RESTITUTION = 0.84;
 const BALL_RESTITUTION = 0.92;
 const TAU = Math.PI * 2;
+export const GRAVITY_BALL_COUNT = 16;
 const BALL_COLORS = [
   '#e0e7ff',
   '#c7d2fe',
@@ -59,10 +60,6 @@ function projectToCircle(value: PlaneValue): PlaneValue {
   if (length <= 1) return value;
 
   return { x: 0.5 + x / length / 2, y: 0.5 + y / length / 2 };
-}
-
-export function getBallCount(magnitude: number) {
-  return 1 + Math.round(7 * Math.min(1, Math.max(0, magnitude)));
 }
 
 function hexagonVertices(angle: number) {
@@ -150,30 +147,43 @@ function spawnBall(
   };
 }
 
-export function reconcileBallCount(
-  balls: readonly PhysicsBall[],
-  count: number,
-  angle: number,
-) {
-  const targetCount = Math.min(8, Math.max(1, Math.round(count)));
-  const nextBalls = balls.slice(0, targetCount).map((ball) => ({ ...ball }));
-  while (nextBalls.length < targetCount) {
-    nextBalls.push(spawnBall(nextBalls.length, nextBalls, angle));
+function spawnBalls(angle: number) {
+  const balls: PhysicsBall[] = [];
+  while (balls.length < GRAVITY_BALL_COUNT) {
+    balls.push(spawnBall(balls.length, balls, angle));
   }
-  return nextBalls;
+  return balls;
 }
 
-export function createGravitySimulation(count: number): GravitySimulation {
+export function createGravitySimulation(): GravitySimulation {
   return {
     accumulator: 0,
     angle: 0,
-    balls: reconcileBallCount([], count, 0),
+    balls: spawnBalls(0),
   };
 }
 
-function resetInvalidBall(ball: PhysicsBall, index: number) {
+function resetInvalidBall(
+  ball: PhysicsBall,
+  index: number,
+  balls: readonly PhysicsBall[],
+  angle: number,
+) {
   if ([ball.x, ball.y, ball.vx, ball.vy].every(Number.isFinite)) return;
-  Object.assign(ball, spawnBall(index, [], 0));
+  Object.assign(
+    ball,
+    spawnBall(
+      index,
+      balls.filter(
+        (candidate) =>
+          candidate !== ball &&
+          [candidate.x, candidate.y, candidate.vx, candidate.vy].every(
+            Number.isFinite,
+          ),
+      ),
+      angle,
+    ),
+  );
 }
 
 function resolveBallCollisions(balls: PhysicsBall[]) {
@@ -258,7 +268,7 @@ function stepPhysics(
 
   for (let index = 0; index < simulation.balls.length; index += 1) {
     const ball = simulation.balls[index];
-    resetInvalidBall(ball, index);
+    resetInvalidBall(ball, index, simulation.balls, simulation.angle);
     ball.vx += gravity.x * GRAVITY_ACCELERATION * FIXED_STEP;
     ball.vy += gravity.y * GRAVITY_ACCELERATION * FIXED_STEP;
     const damping = Math.pow(0.999, FIXED_STEP * 120);
@@ -378,30 +388,13 @@ function useReducedMotion() {
   return reducedMotion;
 }
 
-function RotatingHexagon({
-  ballCount,
-  gravity,
-}: {
-  ballCount: number;
-  gravity: Point;
-}) {
+function RotatingHexagon({ gravity }: { gravity: Point }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const simulationRef = useRef(createGravitySimulation(ballCount));
+  const simulationRef = useRef(createGravitySimulation());
   const gravityRef = useRef(gravity);
-  const drawRef = useRef<(() => void) | null>(null);
   const reducedMotion = useReducedMotion();
 
   gravityRef.current = gravity;
-
-  useEffect(() => {
-    const simulation = simulationRef.current;
-    simulation.balls = reconcileBallCount(
-      simulation.balls,
-      ballCount,
-      simulation.angle,
-    );
-    drawRef.current?.();
-  }, [ballCount, gravity.x, gravity.y]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -412,7 +405,6 @@ function RotatingHexagon({
     let intersecting = true;
 
     const draw = () => drawSimulation(canvas, simulationRef.current);
-    drawRef.current = draw;
 
     const stop = () => {
       if (animationFrame !== null) cancelAnimationFrame(animationFrame);
@@ -467,7 +459,6 @@ function RotatingHexagon({
 
     return () => {
       stop();
-      drawRef.current = null;
       intersectionObserver.disconnect();
       resizeObserver.disconnect();
       document.removeEventListener('visibilitychange', onVisibilityChange);
@@ -477,15 +468,15 @@ function RotatingHexagon({
   return (
     <div className="relative aspect-square w-full max-w-[300px] overflow-hidden rounded-2xl border border-white/10 bg-[#0b0c10] shadow-[inset_0_1px_0_rgb(255_255_255/0.035)] max-sm:max-w-[270px]">
       <canvas
-        aria-label={`${ballCount} ${ballCount === 1 ? 'ball' : 'balls'} bouncing inside a rotating hexagon`}
+        aria-label={`${GRAVITY_BALL_COUNT} balls bouncing inside a rotating hexagon`}
         className="block size-full"
-        data-ball-count={ballCount}
+        data-ball-count={GRAVITY_BALL_COUNT}
         data-motion={reducedMotion ? 'paused' : 'running'}
         ref={canvasRef}
         role="img"
       />
       <div className="pointer-events-none absolute top-3 left-3 rounded-full border border-white/10 bg-black/30 px-2.5 py-1 font-mono text-[10px] text-white/65 backdrop-blur-sm">
-        {ballCount} {ballCount === 1 ? 'ball' : 'balls'}
+        {GRAVITY_BALL_COUNT} balls
       </div>
       {reducedMotion ? (
         <div className="pointer-events-none absolute right-3 bottom-3 rounded-full border border-white/10 bg-black/40 px-2.5 py-1 text-[10px] text-white/55 backdrop-blur-sm">
@@ -519,24 +510,19 @@ const initialValue: PlaneValue = { x: 0.5, y: 0.12 };
 
 function formatGravity(value: PlaneValue) {
   const vector = toCenteredVector(value);
-  const ballCount = getBallCount(vector.magnitude);
-  return `${Math.round(vector.angle)} degree gravity, ${Math.round(vector.magnitude * 100)} percent strength, ${ballCount} ${ballCount === 1 ? 'ball' : 'balls'}`;
+  return `${Math.round(vector.angle)} degree gravity, ${Math.round(vector.magnitude * 100)} percent strength`;
 }
 
 export function GravityVectorExample() {
   const [value, setValue] = useState(initialValue);
   const vector = toCenteredVector(value);
-  const ballCount = getBallCount(vector.magnitude);
 
   return (
     <ExampleFrame
-      readout={`${ballCount} ${ballCount === 1 ? 'ball' : 'balls'} · ${Math.round(vector.magnitude * 100)}% gravity · ${vector.x.toFixed(2)}g X · ${vector.y.toFixed(2)}g Y`}
+      readout={`${Math.round(vector.magnitude * 100)}% gravity · ${vector.x.toFixed(2)}g X · ${vector.y.toFixed(2)}g Y`}
     >
       <div className="flex w-full items-center justify-center gap-8 max-sm:flex-col max-sm:gap-6">
-        <RotatingHexagon
-          ballCount={ballCount}
-          gravity={{ x: vector.x, y: vector.y }}
-        />
+        <RotatingHexagon gravity={{ x: vector.x, y: vector.y }} />
         <div className="flex shrink-0 flex-col items-center gap-3">
           <Plane
             aria-label="Gravity vector"
@@ -588,10 +574,6 @@ export function GravityVectorExample() {
               />
             </PlaneThumb>
           </Plane>
-          <div className="flex w-full items-center justify-between font-mono text-[9px] uppercase tracking-[0.08em] text-white/30">
-            <span>Center · 1</span>
-            <span>Edge · 8</span>
-          </div>
         </div>
       </div>
     </ExampleFrame>
