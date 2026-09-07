@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { Plus } from 'lucide-react';
-import { Plane, PlaneThumb, type PlaneValue } from 'control-kit';
+import {
+  ColorValueSlider,
+  Plane,
+  PlaneThumb,
+  type PlaneValue,
+} from 'control-kit';
 
 type Tone = {
   label: 'Highlights' | 'Midtones' | 'Shadows';
@@ -306,28 +311,22 @@ function ToneSlider({
   value: number;
 }) {
   return (
-    <label className="relative block h-6 w-full">
-      <span className="sr-only">{label}</span>
-      <span
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-1/2 h-[3px] -translate-y-1/2 rounded-full"
-        data-tone-slider-track={kind}
-        style={{ background: trackBackground }}
-      />
-      <input
-        aria-label={label}
-        aria-orientation="horizontal"
-        aria-valuetext={`${value}%`}
-        className="absolute inset-0 m-0 h-6 w-full cursor-ew-resize appearance-none bg-transparent outline-none focus-visible:ring-2 focus-visible:ring-[#ff535b]/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#111113] [&::-moz-range-thumb]:size-[14px] [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border [&::-moz-range-thumb]:border-black/20 [&::-moz-range-thumb]:bg-[#d0d0d0] [&::-moz-range-thumb]:shadow-[0_1px_3px_rgb(0_0_0/0.45)] [&::-moz-range-track]:h-6 [&::-moz-range-track]:bg-transparent [&::-webkit-slider-runnable-track]:h-6 [&::-webkit-slider-runnable-track]:bg-transparent [&::-webkit-slider-thumb]:mt-[5px] [&::-webkit-slider-thumb]:size-[14px] [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-black/20 [&::-webkit-slider-thumb]:bg-[#d0d0d0] [&::-webkit-slider-thumb]:shadow-[0_1px_3px_rgb(0_0_0/0.45)]"
-        data-tone-slider={kind}
-        max={100}
-        min={0}
-        onChange={(event) => onChange(Number(event.currentTarget.value))}
-        step={1}
-        type="range"
-        value={value}
-      />
-    </label>
+    <ColorValueSlider
+      aria-label={label}
+      aria-valuetext={`${value}%`}
+      className="h-6 w-full [--ck-accent:#ff535b] [--ck-foreground:#d0d0d0]"
+      data-tone-slider={kind}
+      min={0}
+      max={100}
+      step={1}
+      value={value}
+      onValueChange={onChange}
+      thumbAlignment="edge"
+      trackProps={{
+        style: { background: trackBackground, height: 3 },
+        'data-tone-slider-track': kind,
+      }}
+    />
   );
 }
 

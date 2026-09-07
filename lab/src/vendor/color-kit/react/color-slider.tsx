@@ -1,15 +1,12 @@
 import {
   useRef,
-  useCallback,
-  useState,
   useEffect,
   useMemo,
-  type PointerEvent as ReactPointerEvent,
-  type KeyboardEvent as ReactKeyboardEvent,
   forwardRef,
   type HTMLAttributes,
 } from 'react';
 import { useSelector } from '@legendapp/state/react';
+import { ColorValueSlider, type SliderProps } from 'control-kit';
 import type { Color } from '@color-kit/core';
 import { useOptionalColorContext } from './context.js';
 import {
@@ -17,7 +14,6 @@ import {
   colorFromColorSliderPosition,
   getColorSliderLabel,
   getColorSliderThumbPosition,
-  normalizeColorSliderPointer,
   resolveColorSliderRange,
   type ColorSliderChannel,
   type ColorSliderOrientation,
@@ -28,23 +24,9 @@ import {
   type ColorSliderContextValue,
 } from './color-slider-context.js';
 
-interface PointerSnapshot {
-  clientX: number;
-  clientY: number;
-}
-
-function getSliderPositionInset(element: HTMLElement): number {
-  const rawInset = getComputedStyle(element)
-    .getPropertyValue('--ck-slider-position-inset')
-    .trim();
-  const inset = Number.parseFloat(rawInset);
-
-  return Number.isFinite(inset) ? inset : 0;
-}
-
 export interface ColorSliderProps extends Omit<
   HTMLAttributes<HTMLDivElement>,
-  'onChange'
+  'onChange' | 'defaultValue'
 > {
   /**
    * Which color channel the slider controls.
@@ -76,22 +58,7 @@ export interface ColorSliderProps extends Omit<
   maxPointerRate?: number;
 }
 
-/**
- * A 1D color slider for a single color channel.
- *
- * Renders as a plain `<div>` with a draggable thumb (`<div>`).
- * Completely unstyled -- use data attributes and CSS to style it.
- *
- * Data attributes on the root:
- * - `[data-color-slider]` - always present
- * - `[data-channel]` - the channel name (l, c, h, alpha)
- * - `[data-orientation]` - horizontal or vertical
- * - `[data-dragging]` - present while the user is dragging
- *
- * Data attributes on the thumb (first child):
- * - `[data-color-slider-thumb]` - always present
- * - `[data-value]` - normalized position (0-1)
- */
+/** Color Kit channel state and markers, composed over Control Kit's Base UI slider. */
 export const ColorSlider = forwardRef<HTMLDivElement, ColorSliderProps>(
   function ColorSlider(
     {
@@ -102,6 +69,7 @@ export const ColorSlider = forwardRef<HTMLDivElement, ColorSliderProps>(
       onChangeRequested: onChangeRequestedProp,
       dragEpsilon = 0.0005,
       maxPointerRate = 60,
+      children,
       ...props
     },
     ref,
@@ -110,9 +78,19 @@ export const ColorSlider = forwardRef<HTMLDivElement, ColorSliderProps>(
     const contextRequested = useSelector(
       () => context?.state$.requested.get() ?? null,
     );
-
     const requested = requestedProp ?? contextRequested;
     const setRequested = onChangeRequestedProp ?? context?.setRequested;
+    const frameRef = useRef<number | null>(null);
+    const pendingRef = useRef<number | null>(null);
+    const lastCommitRef = useRef(0);
+    const commitRef = useRef<(value: number) => void>(() => {});
+
+    useEffect(
+      () => () => {
+        if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
+      },
+      [],
+    );
 
     if (!requested || !setRequested) {
       throw new Error(
@@ -120,290 +98,126 @@ export const ColorSlider = forwardRef<HTMLDivElement, ColorSliderProps>(
       );
     }
 
-    const sliderRef = useRef<HTMLDivElement>(null);
-
-    const [isDragging, setIsDragging] = useState(false);
-    const isDraggingRef = useRef(false);
-
-    const pointerFrameRef = useRef<number | null>(null);
-    const pendingPointerRef = useRef<PointerSnapshot | null>(null);
-    const processPendingPointerRef = useRef<(frameTime: number) => void>(
-      () => {},
-    );
-    const lastPointerCommitTsRef = useRef(0);
-
     const r = resolveColorSliderRange(channel, range);
-
     const norm = getColorSliderThumbPosition(requested, channel, r);
-    const lastCommittedNormRef = useRef(norm);
-
-    useEffect(() => {
-      lastCommittedNormRef.current = norm;
-    }, [norm]);
-
-    const resolvePointerNorm = useCallback(
-      (clientX: number, clientY: number): number | null => {
-        const element = sliderRef.current;
-        if (!element) return null;
-
-        const rect = element.getBoundingClientRect();
-        const positionInset = getSliderPositionInset(element);
-
-        return normalizeColorSliderPointer(
-          orientation,
-          orientation === 'horizontal' ? clientX : clientY,
-          orientation === 'horizontal' ? rect.left : rect.top,
-          orientation === 'horizontal' ? rect.width : rect.height,
-          positionInset,
-        );
-      },
-      [orientation],
-    );
-
-    const commitNorm = useCallback(
-      (nextNorm: number, interaction: 'pointer' | 'keyboard') => {
-        const nextColor = colorFromColorSliderPosition(
-          requested,
-          channel,
-          nextNorm,
-          r,
-        );
-
-        setRequested(nextColor, {
-          changedChannel: channel,
-          interaction,
-        });
-      },
-      [channel, requested, r, setRequested],
-    );
-
-    const stopPointerFrame = useCallback(() => {
-      if (pointerFrameRef.current !== null) {
-        cancelAnimationFrame(pointerFrameRef.current);
-        pointerFrameRef.current = null;
-      }
-      pendingPointerRef.current = null;
-    }, []);
-
-    const schedulePendingPointerFrame = useCallback(() => {
-      pointerFrameRef.current = requestAnimationFrame((frameTime: number) => {
-        processPendingPointerRef.current(frameTime);
-      });
-    }, []);
-
-    const processPendingPointer = useCallback(
-      (frameTime: number) => {
-        pointerFrameRef.current = null;
-
-        if (!isDraggingRef.current) {
-          pendingPointerRef.current = null;
-          return;
-        }
-
-        const pending = pendingPointerRef.current;
-        if (!pending) {
-          return;
-        }
-
-        const clampedRate = Math.max(1, maxPointerRate);
-        const minFrameDelta = 1000 / clampedRate;
-
-        if (
-          lastPointerCommitTsRef.current > 0 &&
-          frameTime >= lastPointerCommitTsRef.current &&
-          frameTime - lastPointerCommitTsRef.current < minFrameDelta
-        ) {
-          schedulePendingPointerFrame();
-          return;
-        }
-
-        pendingPointerRef.current = null;
-
-        const nextNorm = resolvePointerNorm(pending.clientX, pending.clientY);
-        if (nextNorm === null) {
-          return;
-        }
-
-        if (Math.abs(nextNorm - lastCommittedNormRef.current) >= dragEpsilon) {
-          commitNorm(nextNorm, 'pointer');
-          lastCommittedNormRef.current = nextNorm;
-          lastPointerCommitTsRef.current = frameTime;
-        }
-
-        if (pendingPointerRef.current) {
-          schedulePendingPointerFrame();
-        }
-      },
-      [
-        commitNorm,
-        dragEpsilon,
-        maxPointerRate,
-        resolvePointerNorm,
-        schedulePendingPointerFrame,
-      ],
-    );
-
-    useEffect(() => {
-      processPendingPointerRef.current = processPendingPointer;
-    }, [processPendingPointer]);
-
-    const queuePointerUpdate = useCallback(
-      (clientX: number, clientY: number) => {
-        pendingPointerRef.current = { clientX, clientY };
-        if (pointerFrameRef.current === null) {
-          schedulePendingPointerFrame();
-        }
-      },
-      [schedulePendingPointerFrame],
-    );
-
-    const beginDragging = useCallback(() => {
-      setIsDragging(true);
-      isDraggingRef.current = true;
-    }, []);
-
-    const endDragging = useCallback(() => {
-      setIsDragging(false);
-      isDraggingRef.current = false;
-      stopPointerFrame();
-    }, [stopPointerFrame]);
-
-    const onPointerDown = useCallback(
-      (event: ReactPointerEvent) => {
-        event.preventDefault();
-        beginDragging();
-
-        event.currentTarget.setPointerCapture(event.pointerId);
-
-        const nextNorm = resolvePointerNorm(event.clientX, event.clientY);
-        if (nextNorm === null) {
-          return;
-        }
-
-        commitNorm(nextNorm, 'pointer');
-        lastCommittedNormRef.current = nextNorm;
-        lastPointerCommitTsRef.current = performance.now();
-      },
-      [beginDragging, commitNorm, resolvePointerNorm],
-    );
-
-    const onPointerMove = useCallback(
-      (event: ReactPointerEvent) => {
-        if (!isDraggingRef.current) return;
-        queuePointerUpdate(event.clientX, event.clientY);
-      },
-      [queuePointerUpdate],
-    );
-
-    const onKeyDown = useCallback(
-      (event: ReactKeyboardEvent) => {
-        const step = event.shiftKey ? 0.1 : 0.01;
-        const newColor: Color | null = colorFromColorSliderKey(
-          requested,
-          channel,
-          event.key,
-          step,
-          r,
-        );
-
-        if (newColor) {
-          event.preventDefault();
-          setRequested(newColor, {
-            changedChannel: channel,
-            interaction: 'keyboard',
-          });
-        }
-      },
-      [channel, requested, r, setRequested],
-    );
-
-    const setRootRef = useCallback(
-      (node: HTMLDivElement | null) => {
-        sliderRef.current = node;
-
-        if (typeof ref === 'function') {
-          ref(node);
-          return;
-        }
-
-        if (ref) {
-          ref.current = node;
-        }
-      },
-      [ref],
-    );
-
-    useEffect(() => {
-      return () => {
-        stopPointerFrame();
-      };
-    }, [stopPointerFrame]);
-
-    const isHorizontal = orientation === 'horizontal';
-    const defaultLabel = `${getColorSliderLabel(channel)} slider`;
-    const sliderPositionInset = 'var(--ck-slider-position-inset, 0px)';
-    const sliderPositionSpan = `calc(100% - (${sliderPositionInset} * 2))`;
-
+    const span = r[1] - r[0];
     const contextValue = useMemo<ColorSliderContextValue>(
-      () => ({
-        channel,
-        orientation,
-        range: r,
-        requested,
-        thumbNorm: norm,
-      }),
+      () => ({ channel, orientation, range: r, requested, thumbNorm: norm }),
       [channel, orientation, requested, r, norm],
     );
 
+    // Throttle color computation only; Base UI owns pointer capture and coordinates.
+    commitRef.current = (value) => {
+      const nextNorm = (value - r[0]) / span;
+      if (Math.abs(nextNorm - norm) < dragEpsilon) return;
+      setRequested(
+        colorFromColorSliderPosition(requested, channel, nextNorm, r),
+        {
+          changedChannel: channel,
+          interaction: 'pointer',
+        },
+      );
+    };
+    const flush = (time: number) => {
+      if (time - lastCommitRef.current < 1000 / Math.max(1, maxPointerRate)) {
+        frameRef.current = requestAnimationFrame(flush);
+        return;
+      }
+      frameRef.current = null;
+      const value = pendingRef.current;
+      pendingRef.current = null;
+      if (value !== null) commitRef.current(value);
+      lastCommitRef.current = time;
+    };
+    const onValueChange: SliderProps['onValueChange'] = (value, details) => {
+      if (details.reason === 'drag') {
+        pendingRef.current = value;
+        if (frameRef.current === null)
+          frameRef.current = requestAnimationFrame(flush);
+      } else {
+        setRequested(
+          colorFromColorSliderPosition(
+            requested,
+            channel,
+            (value - r[0]) / span,
+            r,
+          ),
+          {
+            changedChannel: channel,
+            interaction:
+              details.reason === 'keyboard' || details.reason === 'input-change'
+                ? 'keyboard'
+                : 'pointer',
+          },
+        );
+      }
+    };
+    const inset = 'var(--ck-slider-position-inset, 0px)';
     return (
       <ColorSliderContext.Provider value={contextValue}>
-        <div
+        <ColorValueSlider
           {...props}
-          ref={setRootRef}
+          ref={ref}
+          unstyled
           data-color-slider=""
           data-channel={channel}
-          data-orientation={orientation}
-          data-dragging={isDragging || undefined}
-          role="slider"
-          aria-label={props['aria-label'] ?? defaultLabel}
-          aria-valuemin={r[0]}
-          aria-valuemax={r[1]}
-          aria-valuenow={requested[channel]}
-          aria-orientation={orientation}
-          tabIndex={0}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={endDragging}
-          onPointerCancel={endDragging}
-          onLostPointerCapture={endDragging}
-          onKeyDown={onKeyDown}
-          style={{
-            position: 'relative',
-            touchAction: 'none',
-            ...props.style,
+          orientation={orientation}
+          aria-label={
+            props['aria-label'] ?? `${getColorSliderLabel(channel)} slider`
+          }
+          min={r[0]}
+          max={r[1]}
+          step={span / 10000}
+          largeStep={span / 10}
+          value={requested[channel]}
+          onValueChange={onValueChange}
+          onValueCommitted={(value, details) => {
+            if (frameRef.current !== null)
+              cancelAnimationFrame(frameRef.current);
+            frameRef.current = null;
+            pendingRef.current = null;
+            if (details.reason === 'drag') {
+              setRequested(
+                colorFromColorSliderPosition(
+                  requested,
+                  channel,
+                  (value - r[0]) / span,
+                  r,
+                ),
+                {
+                  changedChannel: channel,
+                  interaction: 'pointer',
+                },
+              );
+            }
+          }}
+          controlProps={{
+            style:
+              orientation === 'horizontal'
+                ? { left: inset, right: inset }
+                : { top: inset, bottom: inset },
+          }}
+          thumbProps={{
+            'data-value': norm.toFixed(4),
+            onKeyDown: (event) => {
+              const next = colorFromColorSliderKey(
+                requested,
+                channel,
+                event.key,
+                event.shiftKey ? 0.1 : 0.01,
+                r,
+              );
+              if (!next) return;
+              event.preventDefault();
+              setRequested(next, {
+                changedChannel: channel,
+                interaction: 'keyboard',
+              });
+            },
           }}
         >
-          <div
-            data-color-slider-thumb=""
-            data-value={norm.toFixed(4)}
-            style={{
-              position: 'absolute',
-              ...(isHorizontal
-                ? {
-                    left: `calc(${sliderPositionInset} + (${sliderPositionSpan} * ${norm}))`,
-                    top: '50%',
-                    transform: 'translate(-50%, -50%)',
-                  }
-                : {
-                    left: '50%',
-                    top: `calc(${sliderPositionInset} + (${sliderPositionSpan} * ${1 - norm}))`,
-                    transform: 'translate(-50%, -50%)',
-                  }),
-              pointerEvents: 'none',
-            }}
-          />
-          {props.children}
-        </div>
+          {children}
+        </ColorValueSlider>
       </ColorSliderContext.Provider>
     );
   },

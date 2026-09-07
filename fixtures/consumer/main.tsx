@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
+  ColorValueSlider,
+  Slider,
   ToggleGroup,
   ToggleGroupItem,
   Tooltip,
@@ -64,6 +66,14 @@ function Consumer() {
   return (
     <main style={{ padding: 80 }}>
       <ChannelInput />
+      <Slider aria-label="Flow" defaultValue={50} />
+      <ColorValueSlider
+        aria-label="Saturation"
+        defaultValue={25}
+        trackProps={{
+          style: { background: 'linear-gradient(to right, gray, red)' },
+        }}
+      />
       <ToggleGroup type="single" defaultValue="rgb" aria-label="Color model">
         <ToggleGroupItem value="rgb">RGB</ToggleGroupItem>
         <ToggleGroupItem value="hsl">HSL</ToggleGroupItem>
