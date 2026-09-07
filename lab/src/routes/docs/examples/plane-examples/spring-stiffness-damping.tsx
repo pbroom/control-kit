@@ -331,9 +331,12 @@ export function SpringStiffnessDampingExample() {
               className="relative size-[174px] touch-none rounded-2xl border border-white/12 bg-[#16171a] shadow-[inset_0_1px_0_rgb(255_255_255/0.03)]"
               data-spring-plane
             >
-              <div aria-hidden="true" className="absolute inset-0">
+              <div
+                aria-hidden="true"
+                className="absolute inset-0 overflow-hidden rounded-[inherit]"
+              >
                 <div
-                  className="size-full overflow-hidden rounded-[inherit]"
+                  className="size-full"
                   style={{
                     backgroundImage:
                       'linear-gradient(to right, rgb(255 255 255 / 0.075) 1px, transparent 1px), linear-gradient(to bottom, rgb(255 255 255 / 0.075) 1px, transparent 1px)',

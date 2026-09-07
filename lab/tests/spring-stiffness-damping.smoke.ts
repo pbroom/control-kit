@@ -14,10 +14,16 @@ async function openSpringExample(page: Page) {
 async function setPlaneValue(page: Page, plane: Locator, x: number, y: number) {
   const bounds = await plane.boundingBox();
   if (!bounds) throw new Error('The spring plane has no bounds.');
-  await page.mouse.click(
+  // Drag the thumb so pointer capture can reach values beyond rounded corners.
+  const thumb = await plane.locator('[data-slot="plane-thumb"]').boundingBox();
+  if (!thumb) throw new Error('The spring thumb has no bounds.');
+  await page.mouse.move(thumb.x + thumb.width / 2, thumb.y + thumb.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(
     bounds.x + bounds.width * x,
     bounds.y + bounds.height * (1 - y),
   );
+  await page.mouse.up();
 }
 
 test('spring plane updates a finite physical response by drag and keyboard', async ({
@@ -90,6 +96,18 @@ test('spring thumb remains visible and interactive at every plane edge', async (
     name: 'Spring damping',
     exact: true,
   });
+
+  const grid = plane.locator(':scope > [aria-hidden="true"]');
+  const planeRadius = await plane.evaluate(
+    (element) => getComputedStyle(element).borderRadius,
+  );
+  expect(parseFloat(planeRadius)).toBeGreaterThan(0);
+  await expect(grid).toHaveCSS('border-radius', planeRadius);
+  await expect(grid).toHaveCSS('overflow-x', 'hidden');
+  await expect(grid).toHaveCSS('overflow-y', 'hidden');
+  await expect(plane).toHaveCSS('overflow-x', 'visible');
+  await expect(plane).toHaveCSS('overflow-y', 'visible');
+  await expect(grid.locator('[data-slot="plane-thumb"]')).toHaveCount(0);
 
   await stiffness.focus();
   await stiffness.press('Home');
