@@ -99,14 +99,16 @@ const PLANE_THUMB_PROPS = [
     name: 'value',
     shortType: 'PlaneValue',
     type: 'PlaneValue | undefined',
-    description: 'The controlled normalized position.',
+    description:
+      'The controlled plane position, or signed parent-relative offset for a nested thumb.',
   },
   {
     name: 'defaultValue',
     shortType: 'PlaneValue',
     type: 'PlaneValue | undefined',
-    defaultValue: '{ x: 0.5, y: 0.5 }',
-    description: 'The initial uncontrolled position. Coordinates are clamped.',
+    defaultValue: 'Top-level: { x: 0.5, y: 0.5 }; nested: { x: 0, y: 0 }',
+    description:
+      'The initial uncontrolled position. Top-level coordinates clamp to 0–1; nested offsets clamp to -1–1 in plane units.',
   },
   {
     name: 'onValueChange',
@@ -205,6 +207,89 @@ const PLANE_THUMB_PROPS = [
   },
 ] satisfies readonly PropReference[];
 
+const PLANE_ATTACHMENT_PROPS = [
+  {
+    name: 'side',
+    shortType:
+      "'top' | 'bottom' | 'left' | 'right' | 'inline-start' | 'inline-end'",
+    type: 'Popover.Positioner.Props["side"]',
+    defaultValue: "'right'",
+    description:
+      'Preferred side of the parent thumb. Collision handling may flip it.',
+  },
+  {
+    name: 'align',
+    shortType: "'start' | 'center' | 'end'",
+    type: 'Popover.Positioner.Props["align"]',
+    defaultValue: "'center'",
+    description: 'Alignment along the selected side.',
+  },
+  {
+    name: 'sideOffset',
+    shortType: 'number | function',
+    type: 'Popover.Positioner.Props["sideOffset"]',
+    defaultValue: '8',
+    description: 'Distance from the thumb in pixels.',
+  },
+  {
+    name: 'alignOffset',
+    shortType: 'number | function',
+    type: 'Popover.Positioner.Props["alignOffset"]',
+    defaultValue: '0',
+    description: 'Offset along the alignment axis in pixels.',
+  },
+  {
+    name: 'collisionBoundary',
+    shortType: 'Boundary',
+    type: 'Popover.Positioner.Props["collisionBoundary"]',
+    defaultValue: 'clipping ancestors',
+    description: 'Boundary used to detect collisions with the attachment.',
+  },
+  {
+    name: 'collisionPadding',
+    shortType: 'number | object',
+    type: 'Popover.Positioner.Props["collisionPadding"]',
+    defaultValue: '8',
+    description: 'Space to preserve inside the collision boundary.',
+  },
+  {
+    name: 'collisionAvoidance',
+    shortType: 'object',
+    type: 'Popover.Positioner.Props["collisionAvoidance"]',
+    defaultValue: "{ side: 'flip', align: 'shift' }",
+    description: 'Controls how placement responds to collisions.',
+  },
+  {
+    name: 'positionMethod',
+    shortType: "'absolute' | 'fixed'",
+    type: 'Popover.Positioner.Props["positionMethod"]',
+    defaultValue: "'absolute'",
+    description: 'CSS positioning method for the attachment.',
+  },
+  {
+    name: 'portal',
+    shortType: 'boolean',
+    type: 'boolean | undefined',
+    defaultValue: 'true',
+    description: 'Portals the attachment so it can escape plane clipping.',
+  },
+  {
+    name: 'container',
+    shortType: 'HTMLElement | ShadowRoot | ref',
+    type: 'Popover.Portal.Props["container"]',
+    defaultValue: 'document.body',
+    description: 'Portal destination. Only applies when portal is true.',
+  },
+  {
+    name: 'visibility',
+    shortType: "'always' | 'hover' | 'focus-within'",
+    type: "'always' | 'hover' | 'focus-within' | undefined",
+    defaultValue: "'always'",
+    description:
+      'Shows continuously, while hovered or focused within, or only while focused within. Includes the attachment content.',
+  },
+] satisfies readonly PropReference[];
+
 export function PlaneDocsPage() {
   return (
     <MarkdownDocsPage
@@ -222,6 +307,12 @@ export function PlaneDocsPage() {
         'props:plane': <PropReferenceTable name="Plane" props={PLANE_PROPS} />,
         'props:plane-thumb': (
           <PropReferenceTable name="PlaneThumb" props={PLANE_THUMB_PROPS} />
+        ),
+        'props:plane-attachment': (
+          <PropReferenceTable
+            name="PlaneAttachment"
+            props={PLANE_ATTACHMENT_PROPS}
+          />
         ),
       }}
       source={planeDocs}

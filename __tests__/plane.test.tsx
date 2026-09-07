@@ -198,7 +198,12 @@ function PlaneThumbStateProbe() {
   return (
     <output data-testid="thumb-state">
       {JSON.stringify({
-        ...state,
+        hovered: state.hovered,
+        dragging: state.dragging,
+        focused: state.focused,
+        focusVisible: state.focusVisible,
+        disabled: state.disabled,
+        readOnly: state.readOnly,
         value: `${state.value.x},${state.value.y}`,
       })}
     </output>
@@ -251,6 +256,32 @@ describe('Plane helpers', () => {
 });
 
 describe('Plane', () => {
+  it.each([-1, 0])(
+    'keeps plane presses working when the root is focusable (%s)',
+    (tabIndex) => {
+      const onValueChange = vi.fn();
+      const { plane } = mountPlane({ tabIndex, onValueChange });
+      act(() => pointer(plane, 'pointerdown', { clientX: 150, clientY: 80 }));
+      act(() => pointer(plane, 'pointerup', { clientX: 150, clientY: 80 }));
+      expect(onValueChange).toHaveBeenCalledWith(
+        { x: 0.7, y: 0.4 },
+        expect.anything(),
+      );
+    },
+  );
+
+  it('does not treat a focusable ancestor outside the plane as an attached control', () => {
+    const onValueChange = vi.fn();
+    const { plane, container } = mountPlane({ onValueChange });
+    container.tabIndex = 0;
+    act(() => pointer(plane, 'pointerdown', { clientX: 150, clientY: 80 }));
+    act(() => pointer(plane, 'pointerup', { clientX: 150, clientY: 80 }));
+    expect(onValueChange).toHaveBeenCalledWith(
+      { x: 0.7, y: 0.4 },
+      expect.anything(),
+    );
+  });
+
   it('renders arbitrary children and positions an uncontrolled thumb', () => {
     const { container, plane } = mountPlane();
     const thumb = container.querySelector(
@@ -2287,5 +2318,258 @@ describe('Plane', () => {
     act(() => pointer(plane, 'pointerdown', { clientX: 110, clientY: 70 }));
 
     expect(ref).not.toHaveBeenCalled();
+  });
+});
+
+describe('nested PlaneThumb', () => {
+  function mountNested({
+    controlled = false,
+    relative = false,
+    nearest = false,
+  } = {}) {
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    mountedRoots.push(root);
+    const parentChange = vi.fn();
+    const childChange = vi.fn();
+    const childCommit = vi.fn();
+    function Fixture() {
+      const [center, setCenter] = useState({ x: 0.4, y: 0.6 });
+      const [offset, setOffset] = useState({ x: -0.2, y: 0.1 });
+      return (
+        <form>
+          <Plane
+            dragBehavior={relative ? 'relative' : 'absolute'}
+            pressBehavior={nearest ? 'nearest' : 'auto'}
+          >
+            <PlaneThumb
+              thumbId="parent"
+              value={center}
+              onValueChange={(value) => {
+                parentChange(value);
+                setCenter(value);
+              }}
+            >
+              <button type="button">Options</button>
+              <label>
+                Name
+                <input aria-label="Name" defaultValue="Gradient" />
+              </label>
+              <div style={{ position: 'relative', width: 3, height: 7 }}>
+                <PlaneThumb
+                  thumbId="child"
+                  {...(controlled
+                    ? { value: offset }
+                    : { defaultValue: { x: -0.2, y: 0.1 } })}
+                  xName="offsetX"
+                  yName="offsetY"
+                  onValueChange={(value) => {
+                    childChange(value);
+                    setOffset(value);
+                  }}
+                  onValueCommit={childCommit}
+                >
+                  <PlaneThumb
+                    thumbId="grandchild"
+                    defaultValue={{ x: 0.1, y: -0.3 }}
+                  />
+                </PlaneThumb>
+              </div>
+            </PlaneThumb>
+          </Plane>
+        </form>
+      );
+    }
+    act(() => root.render(<Fixture />));
+    const plane = container.querySelector('[data-slot="plane"]') as HTMLElement;
+    vi.spyOn(plane, 'getBoundingClientRect').mockReturnValue({
+      left: 10,
+      top: 20,
+      width: 200,
+      height: 100,
+      right: 210,
+      bottom: 120,
+      x: 10,
+      y: 20,
+      toJSON: () => ({}),
+    });
+    const thumb = (id: string) =>
+      container.querySelector(`[data-thumb-id="${id}"]`) as HTMLElement;
+    const axis = (id: string, name = 'x') =>
+      thumb(id).querySelector(
+        `:scope > [data-plane-axis="${name}"]`,
+      ) as HTMLInputElement;
+    return {
+      container,
+      plane,
+      thumb,
+      axis,
+      parentChange,
+      childChange,
+      childCommit,
+    };
+  }
+
+  it('composes multiple offsets in plane units independently of DOM wrappers', () => {
+    const { plane, thumb, axis, container } = mountNested();
+    expect(thumb('child').parentElement).toBe(plane);
+    expect(thumb('grandchild').parentElement).toBe(plane);
+    expect(parseFloat(thumb('child').style.left)).toBeCloseTo(20);
+    expect(parseFloat(thumb('child').style.top)).toBeCloseTo(30);
+    expect(parseFloat(thumb('grandchild').style.left)).toBeCloseTo(30);
+    expect(parseFloat(thumb('grandchild').style.top)).toBeCloseTo(60);
+    expect(axis('child').min).toBe('-1');
+    expect(axis('parent').min).toBe('0');
+    expect(new FormData(container.querySelector('form')!).get('offsetX')).toBe(
+      '-0.2',
+    );
+  });
+
+  it.each([false, true])(
+    'moves a parent without mutating descendant offsets (controlled child: %s)',
+    (controlled) => {
+      const { plane, thumb, axis, childChange } = mountNested({ controlled });
+      act(() =>
+        pointer(thumb('parent'), 'pointerdown', { clientX: 210, clientY: 120 }),
+      );
+      act(() => pointer(plane, 'pointerup', { clientX: 210, clientY: 120 }));
+      expect(axis('child').value).toBe('-0.2');
+      expect(axis('grandchild').value).toBe('0.1');
+      expect(childChange).not.toHaveBeenCalled();
+      expect(parseFloat(thumb('child').style.left)).toBeCloseTo(80);
+      expect(parseFloat(thumb('grandchild').style.top)).toBeCloseTo(120);
+    },
+  );
+
+  it.each([false, true])(
+    'drags only the deepest handle and publishes local offsets (controlled child: %s)',
+    (controlled) => {
+      const { plane, thumb, axis, parentChange, childChange, childCommit } =
+        mountNested({ controlled });
+      act(() =>
+        pointer(thumb('child'), 'pointerdown', { clientX: 110, clientY: 80 }),
+      );
+      act(() => pointer(plane, 'pointermove', { clientX: -70, clientY: 150 }));
+      act(() => pointer(plane, 'pointerup', { clientX: -70, clientY: 150 }));
+      expect(parentChange).not.toHaveBeenCalled();
+      expect(childChange.mock.lastCall![0].x).toBeCloseTo(-0.8);
+      expect(childChange.mock.lastCall![0].y).toBeCloseTo(-0.9);
+      expect(childCommit.mock.lastCall![0].x).toBeCloseTo(-0.8);
+      expect(Number(axis('child').value)).toBeCloseTo(-0.8);
+      expect(document.activeElement).toBe(axis('child'));
+      expect(thumb('parent').hasAttribute('data-focused')).toBe(false);
+    },
+  );
+
+  it('uses world coordinates to choose the nearest nested handle', () => {
+    const { plane, parentChange, childChange } = mountNested({ nearest: true });
+    act(() => pointer(plane, 'pointerdown', { clientX: 52, clientY: 51 }));
+    act(() => pointer(plane, 'pointerup', { clientX: 52, clientY: 51 }));
+    expect(parentChange).not.toHaveBeenCalled();
+    expect(childChange).toHaveBeenCalled();
+    expect(childChange.mock.lastCall![0].x).toBeCloseTo(-0.19);
+  });
+
+  it('keeps relative pointer deltas in plane units and clamps only the local offset', () => {
+    const { plane, thumb, axis, childChange } = mountNested({ relative: true });
+    act(() =>
+      pointer(thumb('child'), 'pointerdown', { clientX: 55, clientY: 53 }),
+    );
+    expect(childChange).not.toHaveBeenCalled();
+    act(() => pointer(plane, 'pointermove', { clientX: 75, clientY: 43 }));
+    expect(Number(axis('child').value)).toBeCloseTo(-0.1);
+    expect(Number(axis('child', 'y').value)).toBeCloseTo(0.2);
+    act(() => pointer(plane, 'pointerup', { clientX: 600, clientY: -600 }));
+    expect(axis('child').value).toBe('1');
+    expect(axis('child', 'y').value).toBe('1');
+  });
+
+  it('scopes keyboard movement, Home/End and commits to the nested thumb', () => {
+    const { axis, parentChange, childChange, childCommit } = mountNested({
+      controlled: true,
+    });
+    act(() => axis('child').focus());
+    act(() => key(axis('child'), 'keydown', 'ArrowLeft'));
+    act(() => key(axis('child'), 'keyup', 'ArrowLeft'));
+    expect(childChange.mock.lastCall![0].x).toBeCloseTo(-0.21);
+    expect(parentChange).not.toHaveBeenCalled();
+    act(() => key(axis('child'), 'keydown', 'Home'));
+    act(() => key(axis('child'), 'keyup', 'Home'));
+    expect(axis('child').value).toBe('-1');
+    expect(childCommit.mock.lastCall![0].x).toBe(-1);
+    act(() => key(axis('child'), 'keydown', 'End'));
+    act(() => key(axis('child'), 'keyup', 'End'));
+    expect(axis('child').value).toBe('1');
+  });
+
+  it('leaves ordinary interactive children independent of plane gestures and keyboard', () => {
+    const { container, plane, parentChange, childChange, axis } = mountNested({
+      nearest: true,
+    });
+    const input = container.querySelector(
+      '[aria-label="Name"]',
+    ) as HTMLInputElement;
+    const button = container.querySelector('button')!;
+    act(() =>
+      pointer(container.querySelector('label')!, 'pointerdown', {
+        clientX: 100,
+        clientY: 70,
+      }),
+    );
+    act(() => pointer(button, 'pointerdown', { clientX: 100, clientY: 70 }));
+    act(() => pointer(input, 'pointerdown', { clientX: 100, clientY: 70 }));
+    act(() => input.focus());
+    const event = key(input, 'keydown', 'ArrowRight');
+    expect(event.defaultPrevented).toBe(false);
+    expect(parentChange).not.toHaveBeenCalled();
+    expect(childChange).not.toHaveBeenCalled();
+    expect(plane.hasAttribute('data-dragging')).toBe(false);
+    expect(axis('parent').value).toBe('0.4');
+  });
+
+  it('routes grandchild pointer and keyboard input independently through two parents', () => {
+    const { plane, thumb, axis, parentChange, childChange } = mountNested();
+    act(() =>
+      pointer(thumb('grandchild'), 'pointerdown', { clientX: 90, clientY: 40 }),
+    );
+    act(() => pointer(plane, 'pointerup', { clientX: 90, clientY: 40 }));
+    expect(Number(axis('grandchild').value)).toBeCloseTo(0.2);
+    expect(Number(axis('grandchild', 'y').value)).toBeCloseTo(0.1);
+    expect(document.activeElement).toBe(axis('grandchild'));
+    act(() => key(axis('grandchild'), 'keydown', 'ArrowLeft'));
+    act(() => key(axis('grandchild'), 'keyup', 'ArrowLeft'));
+    expect(Number(axis('grandchild').value)).toBeCloseTo(0.19);
+    expect(parentChange).not.toHaveBeenCalled();
+    expect(childChange).not.toHaveBeenCalled();
+  });
+
+  it('uses the same padding-box coordinates as CSS even with a border and scaling', () => {
+    const { plane, thumb, axis } = mountNested();
+    Object.defineProperties(plane, {
+      offsetWidth: { value: 100 },
+      offsetHeight: { value: 50 },
+      clientWidth: { value: 96 },
+      clientHeight: { value: 46 },
+      clientLeft: { value: 2 },
+      clientTop: { value: 2 },
+    });
+    // Bounding box is 200 x 100, so border widths are doubled on screen.
+    act(() =>
+      pointer(thumb('child'), 'pointerdown', { clientX: 14, clientY: 24 }),
+    );
+    act(() => pointer(plane, 'pointerup', { clientX: 14, clientY: 24 }));
+    expect(Number(axis('child').value)).toBeCloseTo(-0.4);
+    expect(Number(axis('child', 'y').value)).toBeCloseTo(0.4);
+  });
+
+  it('resets nested signed form values without resetting their coordinate system', () => {
+    const { container, axis } = mountNested();
+    act(() => axis('child').focus());
+    act(() => key(axis('child'), 'keydown', 'Home'));
+    act(() => key(axis('child'), 'keyup', 'Home'));
+    act(() => container.querySelector('form')!.reset());
+    expect(axis('child').value).toBe('-0.2');
+    expect(axis('child', 'y').value).toBe('0.1');
   });
 });

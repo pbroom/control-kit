@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { createPortal } from 'react-dom';
 import { getPrimitiveModifiedStep } from './primitive-value-input-helpers.js';
 import { cn } from './utils.js';
 
@@ -64,7 +65,10 @@ export type PlaneThumbProps = Omit<
 > & {
   thumbId?: string;
   pressBehavior?: PlaneThumbPressBehavior;
+  /** Root thumbs use [0, 1] plane coordinates; nested thumbs use [-1, 1]
+   * offsets from their parent, measured in plane widths and heights. */
   value?: PlaneValue;
+  /** Defaults to the plane center, or {x: 0, y: 0} for a nested thumb. */
   defaultValue?: PlaneValue;
   onValueChange?: (value: PlaneValue, details: PlaneValueChangeDetails) => void;
   onValueCommit?: (value: PlaneValue, details: PlaneValueChangeDetails) => void;
@@ -89,6 +93,10 @@ export type PlaneContextValue = {
 
 export type PlaneThumbContextValue = {
   value: PlaneValue;
+  /** Position in the containing plane, including all parent offsets. */
+  worldValue: PlaneValue;
+  element: HTMLDivElement | null;
+  focusedWithin: boolean;
   hovered: boolean;
   dragging: boolean;
   focused: boolean;
@@ -105,6 +113,7 @@ type PlaneValueChangeSource = Pick<
 type PlaneThumbRegistration = {
   key: string;
   getValue: () => PlaneValue;
+  constrainWorldValue: (value: PlaneValue) => PlaneValue;
   beginRelativeDrag: () => PlaneValue;
   getHoverSize: () => { width: number; height: number };
   isControlled: () => boolean;
@@ -130,6 +139,7 @@ type PlaneThumbRegistration = {
 };
 
 type InternalPlaneContextValue = PlaneContextValue & {
+  element: HTMLDivElement | null;
   activeThumbKey: string | null;
   registerThumb: (registration: PlaneThumbRegistration) => () => void;
   cancelThumbInteraction: (thumbKey: string) => void;
@@ -239,6 +249,24 @@ function getNearestThumb(
   return nearest;
 }
 
+// Absolute percentage positioning uses the padding box, excluding the border.
+// Match that coordinate space for pointer input, including CSS scaling.
+function getPlaneBounds(element: HTMLElement): PlaneBounds {
+  const bounds = element.getBoundingClientRect();
+  const scaleX =
+    element.offsetWidth > 0 ? bounds.width / element.offsetWidth : 1;
+  const scaleY =
+    element.offsetHeight > 0 ? bounds.height / element.offsetHeight : 1;
+  return {
+    left: bounds.left + element.clientLeft * scaleX,
+    top: bounds.top + element.clientTop * scaleY,
+    width:
+      element.offsetWidth > 0 ? element.clientWidth * scaleX : bounds.width,
+    height:
+      element.offsetHeight > 0 ? element.clientHeight * scaleY : bounds.height,
+  };
+}
+
 function planeBoundsContainPoint(point: PlanePoint, bounds: PlaneBounds) {
   return (
     point.clientX >= bounds.left &&
@@ -301,6 +329,7 @@ export function Plane({
     null,
   );
   const rootRef = React.useRef<HTMLDivElement | null>(null);
+  const [element, setElement] = React.useState<HTMLDivElement | null>(null);
   const thumbsRef = React.useRef(new Map<string, PlaneThumbRegistration>());
   const activeThumbKeyRef = React.useRef<string | null>(null);
   const activePointerIdRef = React.useRef<number | null>(null);
@@ -313,11 +342,18 @@ export function Plane({
 
   function getPointerValue(point: PlanePoint, bounds: PlaneBounds): PlaneValue {
     const origin = relativeDragOriginRef.current;
-    if (!origin) return getPlaneValueFromPoint(point, bounds);
+    if (!origin)
+      return {
+        x: bounds.width > 0 ? (point.clientX - bounds.left) / bounds.width : 0,
+        y:
+          bounds.height > 0
+            ? 1 - (point.clientY - bounds.top) / bounds.height
+            : 0,
+      };
 
     // Keep the raw pointer delta so moving outside the plane and back does not
     // discard the grab offset. Only the resulting thumb position is clamped.
-    return clampPlaneValue({
+    return {
       x:
         origin.value.x +
         (bounds.width > 0
@@ -330,7 +366,7 @@ export function Plane({
           ? ((point.clientY - origin.point.clientY) / bounds.height) *
             origin.sensitivity
           : 0),
-    });
+    };
   }
 
   const activePointerThumbSizeRef = React.useRef<{
@@ -350,6 +386,7 @@ export function Plane({
   const setRootRef = React.useCallback(
     (node: HTMLDivElement | null) => {
       rootRef.current = node;
+      setElement(node);
       assignRef(ref, node);
     },
     [ref],
@@ -443,8 +480,7 @@ export function Plane({
 
       const bounds =
         hoverPointerBoundsRef.current ??
-        (hoverPointerBoundsRef.current =
-          event.currentTarget.getBoundingClientRect());
+        (hoverPointerBoundsRef.current = getPlaneBounds(event.currentTarget));
       const value = getPlaneValueFromPoint(event, bounds);
       if (!planeBoundsContainPoint(event, bounds)) {
         hoverPointersRef.current.delete(event.pointerId);
@@ -506,6 +542,7 @@ export function Plane({
 
   const context = React.useMemo<InternalPlaneContextValue>(
     () => ({
+      element,
       disabled,
       readOnly,
       dragging: activeThumbKey !== null,
@@ -513,7 +550,14 @@ export function Plane({
       registerThumb,
       cancelThumbInteraction,
     }),
-    [activeThumbKey, cancelThumbInteraction, disabled, readOnly, registerThumb],
+    [
+      element,
+      activeThumbKey,
+      cancelThumbInteraction,
+      disabled,
+      readOnly,
+      registerThumb,
+    ],
   );
 
   return (
@@ -530,7 +574,7 @@ export function Plane({
         data-disabled={disabled || undefined}
         data-readonly={readOnly || undefined}
         className={cn(
-          'relative touch-none select-none outline-none data-[disabled]:cursor-not-allowed data-[readonly]:cursor-default',
+          'relative overflow-visible touch-none select-none outline-none data-[disabled]:cursor-not-allowed data-[readonly]:cursor-default',
           className,
         )}
         onFocus={(event) => {
@@ -545,6 +589,13 @@ export function Plane({
         }}
         onPointerDown={(event) => {
           onPointerDown?.(event);
+          // React portals bubble through their logical parents. Only pointer
+          // targets physically belonging to this plane can begin a drag.
+          if (
+            !(event.target instanceof Element) ||
+            event.target.closest('[data-slot="plane"]') !== event.currentTarget
+          )
+            return;
           if (
             event.defaultPrevented ||
             disabled ||
@@ -559,6 +610,20 @@ export function Plane({
             event.target instanceof Element
               ? event.target.closest<HTMLElement>('[data-plane-thumb-key]')
               : null;
+          // Native controls and attached UI keep their own pointer behavior.
+          if (event.target instanceof Element) {
+            const control = event.target.closest(
+              'button, input, select, textarea, label, a[href], summary, [contenteditable]:not([contenteditable="false"]), [role="button"], [role="textbox"], [role="combobox"], [data-plane-attachment], [tabindex]',
+            );
+            if (
+              control &&
+              control !== event.currentTarget &&
+              event.currentTarget.contains(control) &&
+              control !== directThumb &&
+              (!directThumb || directThumb.contains(control))
+            )
+              return;
+          }
           let registration: PlaneThumbRegistration | null = null;
           let reason: Extract<
             PlaneValueChangeReason,
@@ -566,7 +631,7 @@ export function Plane({
           > = 'thumb-drag';
           let bounds: PlaneBounds | null = null;
           const readBounds = () => {
-            bounds ??= event.currentTarget.getBoundingClientRect();
+            bounds ??= getPlaneBounds(event.currentTarget);
             return bounds;
           };
 
@@ -617,7 +682,9 @@ export function Plane({
           activeThumbKeyRef.current = registration.key;
           setActiveThumbKey(registration.key);
           event.currentTarget.setPointerCapture(event.pointerId);
-          const nextValue = getPointerValue(event, bounds);
+          const nextValue = registration.constrainWorldValue(
+            getPointerValue(event, bounds),
+          );
           if (!relativeDragOriginRef.current) {
             registration.publishValue(nextValue, {
               interaction: 'pointer',
@@ -665,7 +732,9 @@ export function Plane({
             : undefined;
           if (bounds && registration?.isInteractive()) {
             const reason = activePointerReasonRef.current ?? 'thumb-drag';
-            const nextValue = getPointerValue(event, bounds);
+            const nextValue = registration.constrainWorldValue(
+              getPointerValue(event, bounds),
+            );
             registration.publishValue(nextValue, {
               interaction: 'pointer',
               reason,
@@ -810,7 +879,9 @@ export function Plane({
           }
         }}
       >
-        {children}
+        <PlaneThumbContext.Provider value={null}>
+          {children}
+        </PlaneThumbContext.Provider>
       </div>
     </PlaneContext.Provider>
   );
@@ -840,7 +911,7 @@ function getArrowChordValue(
   keys: ReadonlySet<PlaneArrowKey>,
   amount: number,
 ) {
-  return clampPlaneValue({
+  return {
     x:
       value.x +
       (keys.has('ArrowRight') ? amount : 0) -
@@ -849,7 +920,7 @@ function getArrowChordValue(
       value.y +
       (keys.has('ArrowUp') ? amount : 0) -
       (keys.has('ArrowDown') ? amount : 0),
-  });
+  };
 }
 
 function getAxisKeyValue(
@@ -861,6 +932,7 @@ function getAxisKeyValue(
   largeStep: number,
   altKey: boolean,
   shiftKey: boolean,
+  minimum: number,
 ): PlaneValue | null {
   const amount = getPrimitiveModifiedStep(shiftKey, altKey, {
     fineStep: smallStep,
@@ -870,7 +942,7 @@ function getAxisKeyValue(
   });
   const nextValue = { ...value };
 
-  if (key === 'Home') nextValue[axis] = 0;
+  if (key === 'Home') nextValue[axis] = minimum;
   else if (key === 'End') nextValue[axis] = 1;
   else if (key === 'ArrowLeft') nextValue.x -= amount;
   else if (key === 'ArrowRight') nextValue.x += amount;
@@ -880,7 +952,7 @@ function getAxisKeyValue(
   else if (key === 'PageUp') nextValue[axis] += largeStep;
   else return null;
 
-  return clampPlaneValue(nextValue);
+  return nextValue;
 }
 
 function getArrowStep(
@@ -916,7 +988,7 @@ export function PlaneThumb({
   thumbId,
   pressBehavior = 'inherit',
   value: controlledValue,
-  defaultValue = DEFAULT_VALUE,
+  defaultValue: defaultValueProp,
   onValueChange,
   onValueCommit,
   disabled = false,
@@ -945,10 +1017,25 @@ export function PlaneThumb({
   ...props
 }: PlaneThumbProps) {
   const context = useInternalPlaneContext();
+  const parentThumb = React.useContext(PlaneThumbContext);
+  const minimum = parentThumb ? -1 : 0;
+  const normalizeValue = React.useCallback(
+    (value: PlaneValue): PlaneValue => ({
+      x: Number.isFinite(value.x) ? Math.min(1, Math.max(minimum, value.x)) : 0,
+      y: Number.isFinite(value.y) ? Math.min(1, Math.max(minimum, value.y)) : 0,
+    }),
+    [minimum],
+  );
+  const defaultValue =
+    defaultValueProp ?? (parentThumb ? { x: 0, y: 0 } : DEFAULT_VALUE);
+  const parentX = parentThumb?.worldValue.x ?? 0;
+  const parentY = parentThumb?.worldValue.y ?? 0;
   const internalKey = React.useId();
   const [uncontrolledValue, setUncontrolledValue] = React.useState(() =>
-    clampPlaneValue(defaultValue),
+    normalizeValue(defaultValue),
   );
+  const [element, setElement] = React.useState<HTMLDivElement | null>(null);
+  const [focusedWithin, setFocusedWithin] = React.useState(false);
   const [focused, setFocused] = React.useState(false);
   const [focusVisible, setFocusVisible] = React.useState(false);
   const [hovered, setHovered] = React.useState(false);
@@ -972,16 +1059,19 @@ export function PlaneThumb({
   const sourceValue = isControlled ? controlledValue : uncontrolledValue;
   const defaultValueRef = React.useRef(defaultValue);
   defaultValueRef.current = defaultValue;
-  const renderedX = clampCoordinate(sourceValue.x);
-  const renderedY = clampCoordinate(sourceValue.y);
+  const { x: renderedX, y: renderedY } = normalizeValue(sourceValue);
   const renderedValue = React.useMemo(
     () => ({ x: renderedX, y: renderedY }),
     [renderedX, renderedY],
   );
+  const worldValue = React.useMemo(
+    () => ({ x: parentX + renderedX, y: parentY + renderedY }),
+    [parentX, parentY, renderedX, renderedY],
+  );
   const interactionValueRef = React.useRef(renderedValue);
   const isDragging = context.activeThumbKey === internalKey;
-  const isDisabled = context.disabled || disabled;
-  const isReadOnly = context.readOnly || readOnly;
+  const isDisabled = context.disabled || parentThumb?.disabled || disabled;
+  const isReadOnly = context.readOnly || parentThumb?.readOnly || readOnly;
   const { cancelThumbInteraction, registerThumb } = context;
   const normalizedSmallStep = normalizePlaneStep(smallStep, DEFAULT_SMALL_STEP);
   const normalizedStep = normalizePlaneStep(step, DEFAULT_STEP);
@@ -1006,6 +1096,7 @@ export function PlaneThumb({
   const setThumbRef = React.useCallback(
     (node: HTMLDivElement | null) => {
       thumbRef.current = node;
+      setElement(node);
       assignRef(ref, node);
     },
     [ref],
@@ -1091,13 +1182,13 @@ export function PlaneThumb({
     if (isControlled) return;
 
     const input = thumbRef.current?.querySelector<HTMLInputElement>(
-      '[data-plane-axis="x"]',
+      ':scope > [data-plane-axis="x"]',
     );
     const ownerForm = input?.form;
     if (!ownerForm) return;
 
     const handleReset = () => {
-      const resetValue = clampPlaneValue(defaultValueRef.current);
+      const resetValue = normalizeValue(defaultValueRef.current);
       keyboardDirtyRef.current = false;
       keyboardOriginalEventRef.current = undefined;
       cancelArrowRepeat();
@@ -1116,6 +1207,7 @@ export function PlaneThumb({
     form,
     internalKey,
     isControlled,
+    normalizeValue,
   ]);
 
   React.useEffect(() => {
@@ -1146,7 +1238,7 @@ export function PlaneThumb({
   const publishValue = React.useCallback(
     (nextValue: PlaneValue, source: PlaneValueChangeSource) => {
       if (isDisabled || isReadOnly) return false;
-      const normalizedValue = clampPlaneValue(nextValue);
+      const normalizedValue = normalizeValue(nextValue);
 
       if (planeValuesEqual(normalizedValue, interactionValueRef.current)) {
         return false;
@@ -1157,7 +1249,14 @@ export function PlaneThumb({
       onValueChange?.(normalizedValue, getValueChangeDetails(source, thumbId));
       return true;
     },
-    [isControlled, isDisabled, isReadOnly, onValueChange, thumbId],
+    [
+      isControlled,
+      isDisabled,
+      isReadOnly,
+      normalizeValue,
+      onValueChange,
+      thumbId,
+    ],
   );
 
   const setKeyboardValue = React.useCallback(
@@ -1246,14 +1345,15 @@ export function PlaneThumb({
     // A controlled consumer may not have accepted a previous keyboard change.
     // Start from the visible position without emitting a change on press.
     interactionValueRef.current = renderedValue;
-    return renderedValue;
+    return worldValue;
   };
 
   const registrationRef = React.useRef<PlaneThumbRegistration | null>(null);
   if (!registrationRef.current) {
     registrationRef.current = {
       key: internalKey,
-      getValue: () => renderedValue,
+      getValue: () => worldValue,
+      constrainWorldValue: (value) => value,
       beginRelativeDrag,
       getHoverSize: () => {
         const bounds = thumbRef.current?.getBoundingClientRect();
@@ -1269,7 +1369,7 @@ export function PlaneThumb({
       commitPointerValue,
       focus: () => {
         const input = thumbRef.current?.querySelector<HTMLInputElement>(
-          '[data-plane-axis="x"]',
+          ':scope > [data-plane-axis="x"]',
         );
         cancelArrowRepeat();
         pressedArrowKeysRef.current.clear();
@@ -1334,17 +1434,28 @@ export function PlaneThumb({
   }
 
   const registration = registrationRef.current;
-  registration.getValue = () => renderedValue;
+  registration.getValue = () => worldValue;
+  registration.constrainWorldValue = (value) => {
+    const local = normalizeValue({
+      x: value.x - parentX,
+      y: value.y - parentY,
+    });
+    return { x: parentX + local.x, y: parentY + local.y };
+  };
   registration.beginRelativeDrag = beginRelativeDrag;
   registration.isControlled = () => isControlled;
   registration.isInteractive = () => !isDisabled && !isReadOnly;
   registration.acceptsPlanePress = () => pressBehavior !== 'none';
-  registration.publishValue = publishValue;
+  registration.publishValue = (value, source) =>
+    publishValue({ x: value.x - parentX, y: value.y - parentY }, source);
   registration.commitPointerValue = commitPointerValue;
 
   const thumbContext = React.useMemo<PlaneThumbContextValue>(
     () => ({
       value: renderedValue,
+      worldValue,
+      element,
+      focusedWithin,
       hovered,
       dragging: isDragging,
       focused,
@@ -1355,6 +1466,9 @@ export function PlaneThumb({
     [
       focusVisible,
       focused,
+      focusedWithin,
+      element,
+      worldValue,
       hovered,
       isDisabled,
       isDragging,
@@ -1373,7 +1487,7 @@ export function PlaneThumb({
       data-plane-axis={axis}
       className="sr-only"
       type="range"
-      min={0}
+      min={minimum}
       max={1}
       step="any"
       tabIndex={tabbableAxis === axis ? 0 : -1}
@@ -1401,7 +1515,7 @@ export function PlaneThumb({
     />
   );
 
-  return (
+  const thumb = (
     <div
       {...props}
       ref={setThumbRef}
@@ -1419,13 +1533,18 @@ export function PlaneThumb({
         className,
       )}
       style={{
-        left: `${renderedValue.x * 100}%`,
-        top: `${(1 - renderedValue.y) * 100}%`,
+        left: `${worldValue.x * 100}%`,
+        top: `${(1 - worldValue.y) * 100}%`,
         ...style,
       }}
       onPointerEnter={(event) => {
         onPointerEnter?.(event);
-        if (!event.defaultPrevented) addHoverPointer(event);
+        if (
+          !event.defaultPrevented &&
+          event.target instanceof Element &&
+          event.target.closest('[data-plane-thumb-key]') === event.currentTarget
+        )
+          addHoverPointer(event);
       }}
       onPointerLeave={(event) => {
         onPointerLeave?.(event);
@@ -1438,11 +1557,23 @@ export function PlaneThumb({
       onFocusCapture={(event) => {
         onFocusCapture?.(event);
         if (!event.defaultPrevented) {
+          setFocusedWithin(true);
+          if (
+            !(event.target instanceof Element) ||
+            event.target.closest('[data-plane-thumb-key]') !==
+              event.currentTarget
+          )
+            return;
           const axis =
             event.target instanceof HTMLElement
               ? event.target.dataset.planeAxis
               : undefined;
-          if (axis === 'x' || axis === 'y') setTabbableAxis(axis);
+          if (axis !== 'x' && axis !== 'y') {
+            setFocused(false);
+            setFocusVisible(false);
+            return;
+          }
+          setTabbableAxis(axis);
           setFocused(true);
           setFocusVisible(
             !pointerFocusRef.current && event.target.matches(':focus-visible'),
@@ -1451,10 +1582,15 @@ export function PlaneThumb({
       }}
       onBlurCapture={(event) => {
         onBlurCapture?.(event);
-        if (
-          !event.defaultPrevented &&
-          !event.currentTarget.contains(event.relatedTarget)
-        ) {
+        if (event.defaultPrevented) return;
+        if (!event.currentTarget.contains(event.relatedTarget))
+          setFocusedWithin(false);
+        const next = event.relatedTarget;
+        const nextOwnAxis =
+          next instanceof HTMLElement &&
+          next.closest('[data-plane-thumb-key]') === event.currentTarget &&
+          (next.dataset.planeAxis === 'x' || next.dataset.planeAxis === 'y');
+        if (!nextOwnAxis) {
           setFocused(false);
           setFocusVisible(false);
           cancelArrowRepeat();
@@ -1464,6 +1600,11 @@ export function PlaneThumb({
         }
       }}
       onKeyDown={(event) => {
+        if (
+          !(event.target instanceof Element) ||
+          event.target.closest('[data-plane-thumb-key]') !== event.currentTarget
+        )
+          return;
         onKeyDown?.(event);
         if (event.defaultPrevented) return;
         const sourceAxis =
@@ -1520,6 +1661,7 @@ export function PlaneThumb({
             normalizedLargeStep,
             event.altKey,
             event.shiftKey,
+            minimum,
           );
         }
         if (!nextValue) return;
@@ -1530,7 +1672,7 @@ export function PlaneThumb({
           setTabbableAxis(targetAxis);
           event.currentTarget
             .querySelector<HTMLInputElement>(
-              `[data-plane-axis="${targetAxis}"]`,
+              ` :scope > [data-plane-axis="${targetAxis}"]`,
             )
             ?.focus({ preventScroll: true });
         }
@@ -1538,6 +1680,11 @@ export function PlaneThumb({
         setKeyboardValue(nextValue, 'keyboard', event.nativeEvent);
       }}
       onKeyUp={(event) => {
+        if (
+          !(event.target instanceof Element) ||
+          event.target.closest('[data-plane-thumb-key]') !== event.currentTarget
+        )
+          return;
         onKeyUp?.(event);
         const arrowKey = isPlaneArrowKey(event.key) ? event.key : null;
         if (arrowKey) pressedArrowKeysRef.current.delete(arrowKey);
@@ -1565,10 +1712,13 @@ export function PlaneThumb({
       }}
     >
       <PlaneThumbContext.Provider value={thumbContext}>
-        {children}
         {renderAxisInput('x', resolvedXAriaLabel)}
         {renderAxisInput('y', resolvedYAriaLabel)}
+        {children}
       </PlaneThumbContext.Provider>
     </div>
   );
+  return parentThumb && context.element
+    ? createPortal(thumb, context.element)
+    : thumb;
 }
