@@ -4,7 +4,10 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import '../../../../../__tests__/helpers/dom-polyfills.js';
-import { GravityVectorExample } from './plane-examples/gravity-vector.js';
+import {
+  GravityVectorExample,
+  GRAVITY_BALL_COUNT,
+} from './plane-examples/gravity-vector.js';
 
 (
   globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }
@@ -157,7 +160,7 @@ describe('GravityVectorExample', () => {
       Number(plane.querySelector('line')?.getAttribute('y2')),
     ).toBeLessThan(50);
     runFrames(600);
-    expect(meanLatestBallY(8)).toBeGreaterThan(40);
+    expect(meanLatestBallY(GRAVITY_BALL_COUNT)).toBeGreaterThan(40);
 
     act(() => {
       pointer(plane, 'pointerdown', 120);
@@ -167,6 +170,60 @@ describe('GravityVectorExample', () => {
       Number(plane.querySelector('line')?.getAttribute('y2')),
     ).toBeGreaterThan(50);
     runFrames(1_200);
-    expect(meanLatestBallY(8)).toBeLessThan(-40);
+    expect(meanLatestBallY(GRAVITY_BALL_COUNT)).toBeLessThan(-40);
+  });
+
+  it('keeps all sixteen balls at the center, edges, and after keyboard input', () => {
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    mountedRoots.push(root);
+
+    act(() => root.render(<GravityVectorExample />));
+
+    const plane = container.querySelector(
+      '[role="group"][aria-label="Gravity vector"]',
+    ) as HTMLElement;
+    const canvas = container.querySelector('canvas') as HTMLCanvasElement;
+    vi.spyOn(plane, 'getBoundingClientRect').mockReturnValue({
+      left: 10,
+      top: 20,
+      width: 200,
+      height: 100,
+      right: 210,
+      bottom: 120,
+      x: 10,
+      y: 20,
+      toJSON: () => ({}),
+    });
+
+    expect(canvas.dataset.ballCount).toBe(String(GRAVITY_BALL_COUNT));
+    expect(canvas.getAttribute('aria-label')).toContain('16 balls');
+
+    for (const clientY of [70, 20, 120]) {
+      act(() => {
+        pointer(plane, 'pointerdown', clientY);
+        pointer(plane, 'pointerup', clientY);
+      });
+      runFrames(2);
+      expect(canvas.dataset.ballCount).toBe(String(GRAVITY_BALL_COUNT));
+      expect(arcCalls.slice(-GRAVITY_BALL_COUNT)).toHaveLength(
+        GRAVITY_BALL_COUNT,
+      );
+    }
+
+    const gravityY = container.querySelector(
+      'input[aria-label="Gravity Y"]',
+    ) as HTMLElement;
+    act(() => {
+      gravityY.dispatchEvent(
+        new KeyboardEvent('keydown', { bubbles: true, key: 'ArrowUp' }),
+      );
+    });
+    runFrames(2);
+    expect(canvas.dataset.ballCount).toBe(String(GRAVITY_BALL_COUNT));
+    expect(container.textContent).not.toContain('Center · 1');
+    expect(container.textContent).not.toContain('Edge · 8');
+    expect(container.textContent).not.toContain('one to eight balls');
   });
 });
