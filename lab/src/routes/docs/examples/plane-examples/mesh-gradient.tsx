@@ -1,5 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
-import { Plane, PlaneThumb, Slider, type PlaneValue } from 'control-kit';
+import { Popover } from '@base-ui/react/popover';
+import { useEffect, useId, useRef, useState } from 'react';
+import {
+  ColorValueSlider,
+  Plane,
+  PlaneThumb,
+  Slider,
+  type PlaneValue,
+} from 'control-kit';
 
 type MeshStop = { x: number; y: number; color: string };
 
@@ -319,6 +326,71 @@ function createMeshRenderer(
 }
 
 type MeshPoint = { color: string; value: PlaneValue };
+type HsvColor = { h: number; s: number; v: number };
+
+const SIX_DIGIT_HEX = /^#[0-9a-f]{6}$/i;
+
+function normalizeHex(value: string) {
+  const prefixed = value.startsWith('#') ? value : `#${value}`;
+  return SIX_DIGIT_HEX.test(prefixed) ? prefixed.toLowerCase() : null;
+}
+
+function hexToHsv(hex: string): HsvColor {
+  const value = Number.parseInt(hex.slice(1), 16);
+  const red = ((value >> 16) & 255) / 255;
+  const green = ((value >> 8) & 255) / 255;
+  const blue = (value & 255) / 255;
+  const maximum = Math.max(red, green, blue);
+  const minimum = Math.min(red, green, blue);
+  const delta = maximum - minimum;
+  let hue = 0;
+
+  if (delta > 0) {
+    if (maximum === red) {
+      hue = 60 * (((green - blue) / delta) % 6);
+    } else if (maximum === green) {
+      hue = 60 * ((blue - red) / delta + 2);
+    } else {
+      hue = 60 * ((red - green) / delta + 4);
+    }
+  }
+
+  return {
+    h: (hue + 360) % 360,
+    s: maximum === 0 ? 0 : (delta / maximum) * 100,
+    v: maximum * 100,
+  };
+}
+
+function hsvToHex({ h, s, v }: HsvColor) {
+  const hue = ((h % 360) + 360) % 360;
+  const saturation = clamp(s / 100);
+  const value = clamp(v / 100);
+  const chroma = value * saturation;
+  const section = hue / 60;
+  const secondary = chroma * (1 - Math.abs((section % 2) - 1));
+  const offset = value - chroma;
+  const channels =
+    section < 1
+      ? [chroma, secondary, 0]
+      : section < 2
+        ? [secondary, chroma, 0]
+        : section < 3
+          ? [0, chroma, secondary]
+          : section < 4
+            ? [0, secondary, chroma]
+            : section < 5
+              ? [secondary, 0, chroma]
+              : [chroma, 0, secondary];
+
+  return `#${channels
+    .map((channel) =>
+      Math.round((channel + offset) * 255)
+        .toString(16)
+        .padStart(2, '0'),
+    )
+    .join('')}`;
+}
 
 const palettes = [
   {
@@ -348,6 +420,190 @@ function pointsForPalette(index: number): MeshPoint[] {
     color,
     value: { ...initialPositions[i] },
   }));
+}
+
+function huesForPalette(index: number) {
+  return palettes[index].colors.map((color) => hexToHsv(color).h);
+}
+
+function saturationsForPalette(index: number) {
+  return palettes[index].colors.map((color) => hexToHsv(color).s);
+}
+
+function MeshColorPicker({
+  color,
+  hue,
+  saturation,
+  onChange,
+}: {
+  color: string;
+  hue: number;
+  saturation: number;
+  onChange: (color: string, hue: number, saturation: number) => void;
+}) {
+  const [draft, setDraft] = useState(color.toUpperCase());
+  const [invalid, setInvalid] = useState(false);
+  const errorId = useId();
+  const hsv = hexToHsv(color);
+
+  useEffect(() => {
+    setDraft(color.toUpperCase());
+    setInvalid(false);
+  }, [color]);
+
+  const displayedSaturation = hsv.v > 0 ? hsv.s : saturation;
+
+  const updateFromHsv = (
+    next: HsvColor,
+    retainedHue = next.h,
+    retainedSaturation = next.s,
+  ) => {
+    onChange(hsvToHex(next), retainedHue, retainedSaturation);
+  };
+
+  const updateDraft = (value: string) => {
+    setDraft(value);
+    const normalized = normalizeHex(value);
+    setInvalid(normalized === null);
+    if (!normalized) return;
+    const next = hexToHsv(normalized);
+    updateFromHsv(
+      next,
+      next.s > 0 ? next.h : hue,
+      next.v > 0 ? next.s : saturation,
+    );
+  };
+
+  return (
+    <Popover.Root>
+      <Popover.Trigger
+        render={
+          <button
+            type="button"
+            aria-label={`Edit selected point color ${color.toUpperCase()}`}
+            className="flex cursor-pointer items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 font-mono text-xs text-white/80 outline-none hover:border-white/20 focus-visible:ring-2 focus-visible:ring-white/80"
+          >
+            <span
+              aria-hidden="true"
+              className="size-3 rounded-sm"
+              style={{ backgroundColor: color }}
+            />
+            {color.toUpperCase()}
+          </button>
+        }
+      />
+      <Popover.Portal>
+        <Popover.Positioner
+          align="end"
+          className="z-[80]"
+          collisionAvoidance={{
+            side: 'flip',
+            align: 'shift',
+            fallbackAxisSide: 'end',
+          }}
+          collisionPadding={12}
+          sideOffset={8}
+        >
+          <Popover.Popup
+            data-mesh-color-picker=""
+            className="z-[80] flex max-h-[var(--available-height)] flex-col gap-4 overflow-auto rounded-xl border border-white/12 bg-[#242426] p-4 text-[#ededf0] shadow-[0_16px_40px_rgb(0_0_0/0.45)] outline-none"
+            style={{ width: 'min(17rem, calc(100vw - 1.5rem))' }}
+          >
+            <div className="flex flex-col gap-1">
+              <Popover.Title className="text-sm font-medium text-white/90">
+                Selected point color
+              </Popover.Title>
+              <Popover.Description className="text-[11px] text-white/50">
+                Adjust saturation, value, hue, or enter a hex color.
+              </Popover.Description>
+            </div>
+            <Plane
+              aria-label="Selected color saturation and value"
+              className="relative aspect-square w-full touch-none rounded-lg border border-white/15 [background-origin:border-box] max-sm:aspect-auto max-sm:h-[190px]"
+              style={{
+                backgroundColor: `hsl(${hue} 100% 50%)`,
+                backgroundImage:
+                  'linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, transparent)',
+              }}
+            >
+              <PlaneThumb
+                className="size-4 border-2 border-white bg-transparent shadow-[0_1px_5px_rgb(0_0_0/0.65)]"
+                getAriaValueText={(value) =>
+                  `${Math.round(value.x * 100)}% saturation, ${Math.round(value.y * 100)}% value`
+                }
+                onValueChange={(value) =>
+                  updateFromHsv(
+                    { h: hue, s: value.x * 100, v: value.y * 100 },
+                    hue,
+                  )
+                }
+                value={{ x: displayedSaturation / 100, y: hsv.v / 100 }}
+                xAriaLabel="Saturation"
+                yAriaLabel="Value"
+              />
+            </Plane>
+            <label className="flex flex-col gap-2 text-[11px] text-white/65">
+              <span className="flex items-center justify-between gap-3">
+                Hue
+                <span className="tabular-nums text-white/45">
+                  {Math.round(hue)}°
+                </span>
+              </span>
+              <ColorValueSlider
+                aria-label="Hue"
+                aria-valuetext={`${Math.round(hue)} degrees`}
+                className="[--ck-accent:#fff] [--ck-foreground:#fff]"
+                max={360}
+                min={0}
+                onValueChange={(nextHue) =>
+                  updateFromHsv(
+                    { ...hsv, h: nextHue, s: displayedSaturation },
+                    nextHue,
+                    displayedSaturation,
+                  )
+                }
+                step={1}
+                thumbAlignment="edge"
+                trackProps={{
+                  className: 'h-2.5',
+                  style: {
+                    background:
+                      'linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)',
+                  },
+                }}
+                value={hue}
+              />
+            </label>
+            <label className="flex flex-col gap-2 text-[11px] text-white/65">
+              Hex
+              <input
+                aria-describedby={invalid ? errorId : undefined}
+                aria-invalid={invalid || undefined}
+                aria-label="Hex color"
+                autoComplete="off"
+                className="h-9 rounded-md border border-white/12 bg-white/6 px-3 font-mono text-sm uppercase text-white outline-none focus:border-white/35 aria-invalid:border-red-400 aria-invalid:ring-1 aria-invalid:ring-red-400"
+                maxLength={7}
+                onBlur={() => {
+                  if (!invalid) return;
+                  setDraft(color.toUpperCase());
+                  setInvalid(false);
+                }}
+                onChange={(event) => updateDraft(event.target.value)}
+                spellCheck={false}
+                type="text"
+                value={draft}
+              />
+              {invalid && (
+                <span id={errorId} role="alert" className="text-red-300">
+                  Enter a six-digit hex color.
+                </span>
+              )}
+            </label>
+          </Popover.Popup>
+        </Popover.Positioner>
+      </Popover.Portal>
+    </Popover.Root>
+  );
 }
 
 function MeshCanvas({
@@ -445,11 +701,17 @@ export function MeshGradientExample() {
   const [flow, setFlow] = useState(0.65);
   const [grain, setGrain] = useState(0.12);
   const [showPoints, setShowPoints] = useState(true);
+  const [pointHues, setPointHues] = useState(() => huesForPalette(0));
+  const [pointSaturations, setPointSaturations] = useState(() =>
+    saturationsForPalette(0),
+  );
   const activePoint = points[activeIndex];
 
   const reset = (index: number) => {
     setPaletteIndex(index);
     setPoints(pointsForPalette(index));
+    setPointHues(huesForPalette(index));
+    setPointSaturations(saturationsForPalette(index));
     setActiveIndex(2);
     setFlow(0.65);
     setGrain(0.12);
@@ -460,9 +722,25 @@ export function MeshGradientExample() {
       current.map((point, i) => (i === index ? { ...point, ...patch } : point)),
     );
   };
+  const updatePointColor = (
+    index: number,
+    color: string,
+    hue: number,
+    saturation: number,
+  ) => {
+    updatePoint(index, { color });
+    setPointHues((current) =>
+      current.map((currentHue, i) => (i === index ? hue : currentHue)),
+    );
+    setPointSaturations((current) =>
+      current.map((currentSaturation, i) =>
+        i === index ? saturation : currentSaturation,
+      ),
+    );
+  };
 
   return (
-    <div className="flex w-full flex-col items-center gap-5 bg-[#111112] p-6 text-[#ededf0] max-sm:gap-4 max-sm:p-4">
+    <div className="isolate flex w-full flex-col items-center gap-5 bg-[#111112] p-6 text-[#ededf0] max-sm:gap-4 max-sm:p-4">
       <div className="flex w-full max-w-[520px] flex-wrap items-center justify-between gap-3">
         <div
           className="flex gap-1 rounded-lg bg-white/5 p-1"
@@ -547,23 +825,14 @@ export function MeshGradientExample() {
               </button>
             ))}
           </div>
-          <label className="relative flex cursor-pointer items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 font-mono text-xs text-white/80 focus-within:ring-2 focus-within:ring-white/80">
-            <span
-              aria-hidden="true"
-              className="size-3 rounded-sm"
-              style={{ backgroundColor: activePoint.color }}
-            />
-            {activePoint.color.toUpperCase()}
-            <input
-              type="color"
-              aria-label="Selected point color"
-              value={activePoint.color}
-              onChange={(event) =>
-                updatePoint(activeIndex, { color: event.target.value })
-              }
-              className="absolute inset-0 size-full cursor-pointer opacity-0"
-            />
-          </label>
+          <MeshColorPicker
+            color={activePoint.color}
+            hue={pointHues[activeIndex]}
+            saturation={pointSaturations[activeIndex]}
+            onChange={(color, hue, saturation) =>
+              updatePointColor(activeIndex, color, hue, saturation)
+            }
+          />
         </div>
         <div className="grid grid-cols-2 gap-6 max-sm:gap-4">
           <label className="flex min-w-0 flex-col gap-2 text-[11px] text-white/65">

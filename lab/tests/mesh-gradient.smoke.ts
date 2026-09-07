@@ -31,9 +31,10 @@ test('renders and edits the mesh through pointer, keyboard, and appearance contr
   await canvas.scrollIntoViewIfNeeded();
   const initial = await gradientHash(canvas);
   const initialPosition = await axis.inputValue();
-  const initialColor = await example
-    .getByLabel('Selected point color')
-    .inputValue();
+  const colorTrigger = example.getByRole('button', {
+    name: /Edit selected point color/,
+  });
+  const initialColor = (await colorTrigger.textContent())!.trim();
 
   await axis.press('End');
   await expect(axis).toHaveValue('1');
@@ -62,8 +63,17 @@ test('renders and edits the mesh through pointer, keyboard, and appearance contr
     await expect.poll(() => gradientHash(canvas)).not.toBe(before);
   }
   const beforeColor = await gradientHash(canvas);
-  await example.getByLabel('Selected point color').fill('#ff0000');
+  await colorTrigger.click();
+  const colorPicker = page.getByRole('dialog', {
+    name: 'Selected point color',
+  });
+  const hex = colorPicker.getByRole('textbox', { name: 'Hex color' });
+  await hex.fill('#ff0000');
+  await expect(colorTrigger).toContainText('#FF0000');
   await expect.poll(() => gradientHash(canvas)).not.toBe(beforeColor);
+  await page.keyboard.press('Escape');
+  await expect(colorPicker).toBeHidden();
+  await expect(colorTrigger).toBeFocused();
 
   for (const name of ['Flow', 'Grain']) {
     const before = await gradientHash(canvas);
@@ -85,9 +95,7 @@ test('renders and edits the mesh through pointer, keyboard, and appearance contr
     .getByRole('button', { name: 'Reset mesh', exact: true })
     .click();
   await expect(axis).toHaveValue(initialPosition);
-  await expect(example.getByLabel('Selected point color')).toHaveValue(
-    initialColor,
-  );
+  await expect(colorTrigger).toContainText(initialColor);
   await expect.poll(() => gradientHash(canvas)).toBe(initial);
 
   expect(
@@ -120,6 +128,126 @@ test('renders and edits the mesh through pointer, keyboard, and appearance contr
   await expect(canvas).toHaveAttribute('data-renderer', 'webgl');
   await expect.poll(() => gradientHash(canvas)).toBe(beforeLoss);
   await expect(page.locator('vite-error-overlay')).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test('keeps the Plane color picker synchronized, keyboard accessible, and in the viewport', async ({
+  page,
+}) => {
+  const errors = await collectBrowserErrors(page);
+  await page.goto('/docs/plane-examples#mesh-gradient');
+  const example = page.getByRole('figure', {
+    name: 'Mesh gradient demo',
+    exact: true,
+  });
+  const canvas = example.locator('canvas[data-mesh-gradient]');
+  await expect(canvas).toHaveAttribute('data-renderer', 'webgl');
+  await canvas.scrollIntoViewIfNeeded();
+  const trigger = example.getByRole('button', {
+    name: /Edit selected point color/,
+  });
+  await expect(example.locator('input[type="color"]')).toHaveCount(0);
+  await trigger.click();
+
+  const picker = page.getByRole('dialog', { name: 'Selected point color' });
+  const hex = picker.getByRole('textbox', { name: 'Hex color' });
+  const hue = picker.getByRole('slider', { name: 'Hue', exact: true });
+  const saturation = picker.getByRole('slider', {
+    name: 'Saturation',
+    exact: true,
+  });
+  const value = picker.getByRole('slider', { name: 'Value', exact: true });
+  await expect(picker).toBeVisible();
+  const pickerBounds = (await picker.boundingBox())!;
+  const viewport = page.viewportSize()!;
+  expect(pickerBounds.x).toBeGreaterThanOrEqual(0);
+  expect(pickerBounds.y).toBeGreaterThanOrEqual(0);
+  expect(pickerBounds.x + pickerBounds.width).toBeLessThanOrEqual(
+    viewport.width,
+  );
+  expect(pickerBounds.y + pickerBounds.height).toBeLessThanOrEqual(
+    viewport.height,
+  );
+
+  const pointAxis = example.getByRole('slider', {
+    name: /Color 3(?: mesh point)? horizontal position/,
+  });
+  const pointPosition = await pointAxis.inputValue();
+  const beforePlane = await gradientHash(canvas);
+  const planeBounds = (await picker
+    .getByRole('group', { name: 'Selected color saturation and value' })
+    .boundingBox())!;
+  await page.mouse.move(
+    planeBounds.x + planeBounds.width * 0.25,
+    planeBounds.y + planeBounds.height * 0.25,
+  );
+  await page.mouse.down();
+  await page.mouse.move(
+    planeBounds.x + planeBounds.width * 0.75,
+    planeBounds.y + planeBounds.height * 0.75,
+    { steps: 4 },
+  );
+  await page.mouse.up();
+  await expect(pointAxis).toHaveValue(pointPosition);
+  await expect.poll(() => gradientHash(canvas)).not.toBe(beforePlane);
+
+  const beforeHue = await gradientHash(canvas);
+  await hue.press('Home');
+  await expect.poll(() => gradientHash(canvas)).not.toBe(beforeHue);
+
+  const beforeKeyboard = await gradientHash(canvas);
+  await saturation.press('Home');
+  await saturation.press('ArrowRight');
+  await value.press('End');
+  await expect.poll(() => gradientHash(canvas)).not.toBe(beforeKeyboard);
+
+  await hex.fill('#808080');
+  await expect(trigger).toContainText('#808080');
+  await hue.press('Home');
+  await hue.press('ArrowRight');
+  await expect(trigger).toContainText('#808080');
+  await saturation.press('End');
+  await expect(trigger).not.toContainText('#808080');
+
+  await hex.fill('#ff0000');
+  await expect(saturation).toHaveValue('1');
+  await value.press('Home');
+  await expect(trigger).toContainText('#000000');
+  await expect(saturation).toHaveValue('1');
+  await value.press('ArrowUp');
+  await expect(trigger).not.toContainText('#000000');
+  await expect(saturation).toHaveValue('1');
+
+  const validColor = (await trigger.textContent())!.trim();
+  await hex.fill('#zzzzzz');
+  await expect(hex).toHaveAttribute('aria-invalid', 'true');
+  await expect(picker.getByRole('alert')).toHaveText(
+    'Enter a six-digit hex color.',
+  );
+  await expect(trigger).toContainText(validColor);
+  await hex.fill('#00ff00');
+  await expect(hex).not.toHaveAttribute('aria-invalid', 'true');
+  await expect(trigger).toContainText('#00FF00');
+  await expect(hue).toHaveValue('120');
+
+  await page.keyboard.press('Escape');
+  await expect(trigger).toBeFocused();
+  await example
+    .getByRole('button', { name: 'Select color 1', exact: true })
+    .click();
+  await expect(trigger).toContainText('#10246E');
+  await trigger.click();
+  await expect(hex).toHaveValue('#10246E');
+  await example.getByRole('button', { name: 'Ember', exact: true }).click();
+  await expect(picker).toBeHidden();
+  await expect(trigger).toContainText('#FF986B');
+  await trigger.click();
+  await expect(hex).toHaveValue('#FF986B');
+
+  await example
+    .getByRole('button', { name: 'Hide points', exact: true })
+    .click();
+  await expect(picker).toBeHidden();
   expect(errors).toEqual([]);
 });
 
