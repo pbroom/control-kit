@@ -58,24 +58,26 @@ function parseBezier(value: string | null) {
   return values!;
 }
 
-test('uses Control Fields and renders the 12 × 12 orange Bezier editor', async ({
-  page,
-}) => {
-  const browserErrors = await collectBrowserErrors(page);
+async function openBezierExample(page: Page) {
   await page.goto('/docs/plane-examples');
-
   const example = page.getByRole('figure', {
     name: EXAMPLE_NAME,
     exact: true,
   });
   await example.scrollIntoViewIfNeeded();
+  return example;
+}
+
+test('uses Control Fields and renders the 12 × 12 orange Bezier editor', async ({
+  page,
+}) => {
+  const browserErrors = await collectBrowserErrors(page);
+  const example = await openBezierExample(page);
 
   const curve = example.locator('[data-bezier-curve]');
   const value = example.locator('[data-bezier-value]');
   const plane = example.locator('[data-slot="plane"]');
   const controlFields = example.locator('[data-slot="control-field"]');
-  const preview = example.locator('[data-bezier-preview]');
-  const previewSquare = example.locator('[data-bezier-preview-square]');
 
   await expect(plane.locator('[data-slot="plane-thumb"]')).toHaveCount(2);
   await expect(controlFields).toHaveCount(4);
@@ -122,20 +124,26 @@ test('uses Control Fields and renders the 12 × 12 orange Bezier editor', async 
   );
   expect(planeBounds!.width).toBeLessThanOrEqual(360);
 
+  const exampleBounds = await example.boundingBox();
+  const controlsBounds = await controlFields.last().boundingBox();
+  expect(exampleBounds).not.toBeNull();
+  expect(controlsBounds).not.toBeNull();
+  expect(controlsBounds!.x + controlsBounds!.width).toBeLessThanOrEqual(
+    exampleBounds!.x + exampleBounds!.width + 1,
+  );
+  expect(browserErrors).toEqual([]);
+});
+
+test('updates the Bezier curve through keyboard and Control Field scrubbing', async ({
+  page,
+}) => {
+  const browserErrors = await collectBrowserErrors(page);
+  const example = await openBezierExample(page);
+  const curve = example.locator('[data-bezier-curve]');
+  const value = example.locator('[data-bezier-value]');
+
   const x1 = example.getByRole('textbox', {
     name: 'x1 Bezier value',
-    exact: true,
-  });
-  const y1 = example.getByRole('textbox', {
-    name: 'y1 Bezier value',
-    exact: true,
-  });
-  const x2 = example.getByRole('textbox', {
-    name: 'x2 Bezier value',
-    exact: true,
-  });
-  const y2 = example.getByRole('textbox', {
-    name: 'y2 Bezier value',
     exact: true,
   });
 
@@ -167,6 +175,34 @@ test('uses Control Fields and renders the 12 × 12 orange Bezier editor', async 
   );
   await expect(curve).not.toHaveAttribute('d', curveBeforeScrub ?? '');
   await page.mouse.up();
+  expect(browserErrors).toEqual([]);
+});
+
+test('clamps Control Field values and applies them to the curve preview', async ({
+  page,
+}) => {
+  const browserErrors = await collectBrowserErrors(page);
+  const example = await openBezierExample(page);
+  const curve = example.locator('[data-bezier-curve]');
+  const value = example.locator('[data-bezier-value]');
+  const preview = example.locator('[data-bezier-preview]');
+  const previewSquare = example.locator('[data-bezier-preview-square]');
+  const x1 = example.getByRole('textbox', {
+    name: 'x1 Bezier value',
+    exact: true,
+  });
+  const y1 = example.getByRole('textbox', {
+    name: 'y1 Bezier value',
+    exact: true,
+  });
+  const x2 = example.getByRole('textbox', {
+    name: 'x2 Bezier value',
+    exact: true,
+  });
+  const y2 = example.getByRole('textbox', {
+    name: 'y2 Bezier value',
+    exact: true,
+  });
 
   await replaceControlFieldValue(x1, '0');
   await replaceControlFieldValue(y1, '0');
@@ -204,13 +240,6 @@ test('uses Control Fields and renders the 12 × 12 orange Bezier editor', async 
   await expect(previewSquare).toHaveAttribute('data-replay', '1');
   await expect(previewSquare).toHaveCSS('animation-name', 'ck-bezier-preview');
 
-  const exampleBounds = await example.boundingBox();
-  const controlsBounds = await controlFields.last().boundingBox();
-  expect(exampleBounds).not.toBeNull();
-  expect(controlsBounds).not.toBeNull();
-  expect(controlsBounds!.x + controlsBounds!.width).toBeLessThanOrEqual(
-    exampleBounds!.x + exampleBounds!.width + 1,
-  );
   expect(browserErrors).toEqual([]);
 });
 

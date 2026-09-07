@@ -188,7 +188,7 @@ export function BezierControlPointExample() {
         <div className="w-full max-w-[384px] rounded-xl border border-white/10 bg-[#111214] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]">
           <Plane
             aria-label="Cubic Bezier control points"
-            className="relative aspect-square w-full touch-none overflow-visible"
+            className="relative aspect-square w-full touch-none overflow-visible p-0 [background-origin:border-box]"
             pressBehavior="nearest"
           >
             <svg
