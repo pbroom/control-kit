@@ -146,6 +146,7 @@ test('stretches, launches inward, bounces, settles, and supports recapture', asy
 
   await page.mouse.up();
   await expect(plane).toHaveAttribute('data-slingshot-state', 'flying');
+  await expect(plane.getByRole('slider').first()).toBeFocused();
   await expect(outline).toHaveAttribute('data-bend', '0');
   await expect
     .poll(async () =>
@@ -191,6 +192,81 @@ test('stretches, launches inward, bounces, settles, and supports recapture', asy
   expect(browserErrors).toEqual([]);
 });
 
+for (const pause of ['hidden', 'offscreen'] as const) {
+  test(`active flight pauses while ${pause}, resumes, and settles`, async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      testInfo.project.name === 'mobile',
+      'Covered in the desktop lifecycle pass.',
+    );
+    const { browserErrors, plane } = await openSlingshot(page);
+    await pullPastRightEdge(page, plane);
+    await page.mouse.up();
+    await expect(plane).toHaveAttribute('data-slingshot-state', 'flying');
+
+    if (pause === 'hidden') {
+      await page.evaluate(() => {
+        Object.defineProperty(document, 'visibilityState', {
+          configurable: true,
+          value: 'hidden',
+        });
+        document.dispatchEvent(new Event('visibilitychange'));
+      });
+    } else {
+      await plane.evaluate(
+        (node) =>
+          new Promise<void>((resolve) => {
+            const observer = new IntersectionObserver(([entry]) => {
+              if (entry.isIntersecting) return;
+              observer.disconnect();
+              resolve();
+            });
+            observer.observe(node);
+            (node as HTMLElement).style.transform = 'translateY(-5000px)';
+          }),
+      );
+    }
+    const axes = plane.getByRole('slider');
+    const pausedValue = await axes.evaluateAll((nodes) =>
+      nodes.map((node) => (node as HTMLInputElement).value),
+    );
+    await page.waitForTimeout(300);
+    await expect(plane).toHaveAttribute('data-slingshot-state', 'flying');
+    expect(
+      await axes.evaluateAll((nodes) =>
+        nodes.map((node) => (node as HTMLInputElement).value),
+      ),
+    ).toEqual(pausedValue);
+
+    if (pause === 'hidden') {
+      await page.evaluate(() => {
+        Object.defineProperty(document, 'visibilityState', {
+          configurable: true,
+          value: 'visible',
+        });
+        document.dispatchEvent(new Event('visibilitychange'));
+      });
+    } else {
+      await plane.evaluate((node) => {
+        (node as HTMLElement).style.removeProperty('transform');
+      });
+      await plane.scrollIntoViewIfNeeded();
+    }
+    await expect
+      .poll(() =>
+        axes.evaluateAll((nodes) =>
+          nodes.map((node) => (node as HTMLInputElement).value),
+        ),
+      )
+      .not.toEqual(pausedValue);
+    await expect(plane).toHaveAttribute('data-slingshot-state', 'rest', {
+      timeout: 7_000,
+    });
+    expect(browserErrors).toEqual([]);
+  });
+}
+
 test('pointer cancellation releases tension without launching', async ({
   page,
 }) => {
@@ -230,12 +306,17 @@ test('keyboard remains standard and reduced motion skips the flight', async ({
     .toBeLessThan(initialValue);
   await expect(plane).toHaveAttribute('data-slingshot-state', 'rest');
 
+  await horizontalAxis.evaluate((node) => (node as HTMLElement).blur());
   await pullPastRightEdge(page, plane);
   await page.mouse.up();
   await expect(plane).toHaveAttribute('data-slingshot-state', 'rest');
+  await expect(horizontalAxis).toBeFocused();
   await expect
     .poll(async () => Number(await horizontalAxis.inputValue()))
     .toBeLessThan(0.9);
+  const releasedValue = Number(await horizontalAxis.inputValue());
+  await page.keyboard.press('ArrowLeft');
+  expect(Number(await horizontalAxis.inputValue())).toBeLessThan(releasedValue);
   await page.waitForTimeout(150);
   await expect(plane).toHaveAttribute('data-slingshot-state', 'rest');
   expect(browserErrors).toEqual([]);

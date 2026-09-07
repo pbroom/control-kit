@@ -55,11 +55,9 @@ type Motion = {
 
 function ExampleFrame({
   children,
-  description,
   readout,
 }: {
   children: ReactNode;
-  description: string;
   readout: ReactNode;
 }) {
   return (
@@ -69,7 +67,6 @@ function ExampleFrame({
         <output className="font-mono text-[11px] text-white/72">
           {readout}
         </output>
-        <p className="m-0 text-xs leading-5 text-white/42">{description}</p>
       </div>
     </div>
   );
@@ -391,6 +388,9 @@ export function ForceDirectionMagnitudeExample() {
     if (releasedPull && releasedPull.distance >= MIN_LAUNCH_PULL) {
       event.preventDefault();
       launch(releasedPull);
+      planeRef.current
+        ?.querySelector<HTMLInputElement>('[data-plane-axis="x"]')
+        ?.focus({ preventScroll: true });
     } else {
       setDemoState('rest');
     }
@@ -425,7 +425,6 @@ export function ForceDirectionMagnitudeExample() {
 
   return (
     <ExampleFrame
-      description="Pull past an edge and release. The color puck ricochets to a semi-random choice; press anywhere to catch it."
       readout={
         <span className="inline-flex items-center gap-2">
           <span
