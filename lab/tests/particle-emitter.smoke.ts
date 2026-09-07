@@ -235,6 +235,58 @@ test('reduced motion keeps a deterministic static preview with no animation loop
   expect(errors).toEqual([]);
 });
 
+test('keeps hidden resize callbacks paused and resumes when visible', async ({
+  page,
+}) => {
+  const example = await openEmitterExample(page);
+  const canvas = example.locator('[data-emitter-canvas]');
+  const hiddenResize = await canvas.evaluate(async (node) => {
+    const context = (node as HTMLCanvasElement).getContext('2d');
+    if (!context) throw new Error('The emitter canvas has no 2D context.');
+    Object.defineProperty(document, 'hidden', {
+      configurable: true,
+      value: true,
+    });
+    document.dispatchEvent(new Event('visibilitychange'));
+    const originalClearRect = context.clearRect;
+    let redraws = 0;
+    context.clearRect = (...args: Parameters<typeof originalClearRect>) => {
+      redraws += 1;
+      originalClearRect.apply(context, args);
+    };
+    try {
+      await new Promise<void>((resolve) => {
+        const observer = new ResizeObserver(() => {
+          observer.disconnect();
+          resolve();
+        });
+        observer.observe(node);
+        (node as HTMLElement).style.width = '180px';
+      });
+      return { redraws, state: node.getAttribute('data-emitter-state') };
+    } finally {
+      context.clearRect = originalClearRect;
+    }
+  });
+  expect(hiddenResize).toEqual({ redraws: 0, state: 'hidden' });
+  const pausedFrames = await numberAttribute(
+    canvas,
+    'data-emitter-frame-count',
+  );
+  await canvas.evaluate((node) => {
+    Object.defineProperty(document, 'hidden', {
+      configurable: true,
+      value: false,
+    });
+    (node as HTMLElement).style.removeProperty('width');
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await expect(canvas).toHaveAttribute('data-emitter-state', 'running');
+  await expect
+    .poll(() => numberAttribute(canvas, 'data-emitter-frame-count'))
+    .toBeGreaterThan(pausedFrames);
+});
+
 test('pauses offscreen and disposes its frame on unmount', async ({
   page,
 }, testInfo) => {

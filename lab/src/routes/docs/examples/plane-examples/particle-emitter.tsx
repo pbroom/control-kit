@@ -467,9 +467,10 @@ function ParticleEmitter({ emitter }: { emitter: EmitterVector }) {
         else start();
       } else stop('offscreen');
     });
-    const resizeObserver = new ResizeObserver(() =>
-      draw(reducedMotion ? 'static' : isIntersecting ? 'running' : 'offscreen'),
-    );
+    const resizeObserver = new ResizeObserver(() => {
+      if (document.hidden) return;
+      draw(reducedMotion ? 'static' : isIntersecting ? 'running' : 'offscreen');
+    });
 
     intersectionObserver.observe(canvas);
     resizeObserver.observe(canvas);
