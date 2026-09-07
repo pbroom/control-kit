@@ -40,7 +40,7 @@ const FOCUSED_PLANE_EXAMPLE_TITLES = [
   'Importance × urgency',
   'Literal ↔ creative × concise ↔ detailed',
 ] as const;
-const COLOR_CURVES_PHOTO = '**/photo-1771246918298-3795d3bb27a7*';
+const COLOR_CURVES_PHOTO = '**/color-curves-portrait.jpg';
 const COLOR_CURVES_PHOTO_FIXTURE =
   '<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512"><defs><linearGradient id="tone"><stop stop-color="#202020"/><stop offset="1" stop-color="#e0e0e0"/></linearGradient></defs><rect width="512" height="512" fill="url(#tone)"/></svg>';
 
@@ -49,13 +49,15 @@ test('renders the focused Plane examples with executable source', async ({
 }) => {
   test.setTimeout(60_000);
   const browserErrors = await collectBrowserErrors(page);
-  await page.route(COLOR_CURVES_PHOTO, (route) =>
-    route.fulfill({
+  let photoFixtureRequests = 0;
+  await page.route(COLOR_CURVES_PHOTO, (route) => {
+    photoFixtureRequests += 1;
+    return route.fulfill({
       contentType: 'image/svg+xml',
       body: COLOR_CURVES_PHOTO_FIXTURE,
       headers: { 'access-control-allow-origin': '*' },
-    }),
-  );
+    });
+  });
 
   await page.goto('/lab/plane-examples');
   await expect(page).toHaveURL(/\/docs\/plane-examples$/);
@@ -67,6 +69,7 @@ test('renders the focused Plane examples with executable source', async ({
     .click();
   await expect(page).toHaveURL(/\/docs\/plane-examples$/);
 
+  photoFixtureRequests = 0;
   await page.goto('/docs/plane-examples');
 
   await expect(page).toHaveURL(/\/docs\/plane-examples$/);
@@ -86,6 +89,12 @@ test('renders the focused Plane examples with executable source', async ({
   expect(navigationSections.indexOf('Examples')).toBeLessThan(
     navigationSections.indexOf('Primitives'),
   );
+
+  await expect(page.locator('canvas[data-photo-state]')).toHaveAttribute(
+    'data-photo-state',
+    'ready',
+  );
+  expect(photoFixtureRequests).toBeGreaterThan(0);
 
   const gallery = page.locator('[data-plane-examples-gallery]');
   await expect(gallery).toHaveAttribute('data-plane-examples-count', '37');
