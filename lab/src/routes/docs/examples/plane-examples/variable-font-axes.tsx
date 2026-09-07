@@ -39,25 +39,25 @@ function AxisLabels({ axes }: { axes: ReturnType<typeof toFontAxes> }) {
     <div aria-hidden="true" className="absolute inset-0">
       <span
         className={`${sampleClass} top-1/2 left-3 -translate-y-1/2`}
-        style={sampleStyle(100, axes.width)}
+        style={sampleStyle(axes.weight, 75)}
       >
         W
       </span>
       <span
         className={`${sampleClass} top-1/2 right-3 -translate-y-1/2`}
-        style={sampleStyle(900, axes.width)}
-      >
-        W
-      </span>
-      <span
-        className={`${sampleClass} top-3 left-1/2 -translate-x-1/2`}
         style={sampleStyle(axes.weight, 125)}
       >
         W
       </span>
       <span
+        className={`${sampleClass} top-3 left-1/2 -translate-x-1/2`}
+        style={sampleStyle(900, axes.width)}
+      >
+        W
+      </span>
+      <span
         className={`${sampleClass} bottom-3 left-1/2 -translate-x-1/2`}
-        style={sampleStyle(axes.weight, 75)}
+        style={sampleStyle(100, axes.width)}
       >
         W
       </span>
@@ -65,12 +65,12 @@ function AxisLabels({ axes }: { axes: ReturnType<typeof toFontAxes> }) {
   );
 }
 
-const initialValue: PlaneValue = { x: 0.64, y: 0.48 };
+const initialValue: PlaneValue = { x: 0.48, y: 0.64 };
 
 function toFontAxes(value: PlaneValue) {
   return {
-    weight: Math.round(100 + value.x * 800),
-    width: Math.round(75 + value.y * 50),
+    weight: Math.round(100 + value.y * 800),
+    width: Math.round(75 + value.x * 50),
   };
 }
 
@@ -106,8 +106,8 @@ export function VariableFontAxesExample() {
           getAriaValueText={formatFontAxes}
           onValueChange={setValue}
           value={value}
-          xAriaLabel="Font weight"
-          yAriaLabel="Font width"
+          xAriaLabel="Font width"
+          yAriaLabel="Font weight"
         />
       </Plane>
     </PlaneExampleFrame>
