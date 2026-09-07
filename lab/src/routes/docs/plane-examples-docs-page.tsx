@@ -64,7 +64,7 @@ const PLANE_EXAMPLE_GROUPS: readonly PlaneExampleGroup[] = [
       {
         file: 'gradient-origin',
         exportName: 'GradientOriginExample',
-        title: 'Gradient center/origin',
+        title: 'Gradient origin + radius',
       },
       {
         file: 'pattern-offset',

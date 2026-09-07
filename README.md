@@ -133,10 +133,19 @@ export function PositionControl({
 }
 ```
 
-Coordinates are clamped to `0..1`, with X increasing left-to-right and Y
+Top-level coordinates are clamped to `0..1`, with X increasing left-to-right and Y
 increasing bottom-to-top. Arrow keys move the focused axis; Alt/Option uses
 `smallStep`, and Shift uses `largeStep`. For precise pointer adjustment, use
 `dragBehavior="relative"` with a `dragSensitivity` below `1`.
+
+Nest a `PlaneThumb` inside another to position it relative to its parent. Nested
+values are signed offsets in plane units (`-1..1` per axis), defaulting to
+`{ x: 0, y: 0 }`. Parent movement carries its children while preserving their
+offsets, including beyond the plane edges. Child interaction changes only the
+child's value.
+
+Ordinary child buttons and fields work directly inside a thumb. Add the optional
+`PlaneAttachment` for collision-aware positioning and portaling of attached UI.
 
 ## Development
 
