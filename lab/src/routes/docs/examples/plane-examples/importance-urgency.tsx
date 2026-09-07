@@ -57,9 +57,6 @@ export function ImportanceUrgencyExample() {
         <output className="font-mono text-[11px] text-white/72">
           {describePriority(value)}
         </output>
-        <p className="m-0 text-xs leading-5 text-white/42">
-          Position work by importance and urgency to expose priority.
-        </p>
       </div>
     </div>
   );

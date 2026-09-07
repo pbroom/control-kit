@@ -48,10 +48,6 @@ export function CreativeDetailExample() {
         <output className="font-mono text-[11px] text-white/72">
           {describeGeneration(value)}
         </output>
-        <p className="m-0 text-xs leading-5 text-white/42">
-          Tune a generative result from literal to creative and concise to
-          detailed.
-        </p>
       </div>
     </div>
   );

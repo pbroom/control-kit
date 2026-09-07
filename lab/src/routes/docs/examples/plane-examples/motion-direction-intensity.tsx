@@ -432,9 +432,6 @@ export function MotionDirectionIntensityExample() {
                 ? 'Stopped · 0% intensity'
                 : `${Math.round(motion.angle)}° · ${formatPercent(motion.magnitude)} intensity`}
             </output>
-            <p className="m-0 text-xs leading-5 text-white/42">
-              Distance from center sets speed; angle sets direction.
-            </p>
           </div>
         </div>
       </div>

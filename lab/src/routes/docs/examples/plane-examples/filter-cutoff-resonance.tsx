@@ -8,11 +8,9 @@ const EXAMPLE_THUMB_CLASS_NAME =
 
 function ExampleFrame({
   children,
-  description,
   readout,
 }: {
   children: ReactNode;
-  description: string;
   readout: ReactNode;
 }) {
   return (
@@ -22,7 +20,6 @@ function ExampleFrame({
         <output className="font-mono text-[11px] text-white/72">
           {readout}
         </output>
-        <p className="m-0 text-xs leading-5 text-white/42">{description}</p>
       </div>
     </div>
   );
@@ -65,7 +62,6 @@ export function FilterCutoffResonanceExample() {
 
   return (
     <ExampleFrame
-      description="Cutoff sweeps horizontally while resonance raises the filter peak."
       readout={`${getCutoff(value).toLocaleString()} Hz · Q ${(0.5 + value.y * 19.5).toFixed(1)}`}
     >
       <Plane

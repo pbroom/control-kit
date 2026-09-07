@@ -48,9 +48,6 @@ export function RecommendationMatrixExample() {
         <output className="font-mono text-[11px] text-white/72">
           {describeRecommendation(value)}
         </output>
-        <p className="m-0 text-xs leading-5 text-white/42">
-          Tune discovery along two independent recommendation dimensions.
-        </p>
       </div>
     </div>
   );

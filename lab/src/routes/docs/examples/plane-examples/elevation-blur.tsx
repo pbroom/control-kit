@@ -58,9 +58,6 @@ export function ElevationBlurExample() {
         <output className="font-mono text-[11px] text-white/72">
           Elevation {elevation}px · Blur {blur}px
         </output>
-        <p className="m-0 text-xs leading-5 text-white/42">
-          Balance a surface's apparent height against shadow softness.
-        </p>
       </div>
     </div>
   );

@@ -6,11 +6,9 @@ const EXAMPLE_PLANE_CLASS_NAME =
 
 function ExampleFrame({
   children,
-  description,
   readout,
 }: {
   children: ReactNode;
-  description: string;
   readout: ReactNode;
 }) {
   return (
@@ -20,7 +18,6 @@ function ExampleFrame({
         <output className="font-mono text-[11px] text-white/72">
           {readout}
         </output>
-        <p className="m-0 text-xs leading-5 text-white/42">{description}</p>
       </div>
     </div>
   );
@@ -43,7 +40,6 @@ export function SpatialAudioExample() {
 
   return (
     <ExampleFrame
-      description="Place a sound source around the listener in a top-down room."
       readout={`Pan ${pan >= 0 ? 'R' : 'L'} ${Math.abs(pan).toFixed(2)} · Depth ${depth.toFixed(2)}`}
     >
       <Plane

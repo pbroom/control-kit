@@ -8,11 +8,9 @@ const EXAMPLE_THUMB_CLASS_NAME =
 
 function ExampleFrame({
   children,
-  description,
   readout,
 }: {
   children: ReactNode;
-  description: string;
   readout: ReactNode;
 }) {
   return (
@@ -22,7 +20,6 @@ function ExampleFrame({
         <output className="font-mono text-[11px] text-white/72">
           {readout}
         </output>
-        <p className="m-0 text-xs leading-5 text-white/42">{description}</p>
       </div>
     </div>
   );
@@ -74,7 +71,6 @@ export function FourCornerInterpolationExample() {
 
   return (
     <ExampleFrame
-      description="Bilinear weights blend all four corner states at once."
       readout={`${strongest[0]} leads at ${formatPercent(strongest[1])}`}
     >
       <Plane

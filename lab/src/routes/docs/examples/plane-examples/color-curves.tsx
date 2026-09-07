@@ -476,10 +476,6 @@ export function ColorCurvesExample() {
             ? `Input ${Math.round(selected.x * 100)}% · Output ${Math.round(selected.y * 100)}%`
             : `${channel} curve`}
         </output>
-        <p className="m-0 max-w-[420px] text-xs leading-5 text-white/42">
-          Click the curve to add a point. Drag to adjust. ⌘/Ctrl-click to
-          remove, or press Delete / Backspace with a handle visibly focused.
-        </p>
         <p className="m-0 text-[10px] text-white/35">
           Photo by{' '}
           <a

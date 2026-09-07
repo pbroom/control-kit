@@ -37,11 +37,9 @@ type SynthEngine = {
 
 function ExampleFrame({
   children,
-  description,
   readout,
 }: {
   children: ReactNode;
-  description: string;
   readout: ReactNode;
 }) {
   return (
@@ -51,7 +49,6 @@ function ExampleFrame({
         <output className="font-mono text-[11px] text-white/72">
           {readout}
         </output>
-        <p className="m-0 text-xs leading-5 text-white/42">{description}</p>
       </div>
     </div>
   );
@@ -542,7 +539,6 @@ export function XySynthPadExample() {
 
   return (
     <ExampleFrame
-      description="A looping synth plays through the dot waveform. Brightness shapes its harmonics and filter; modulation controls movement."
       readout={`Brightness ${formatPercent(value.x)} · Mod ${formatPercent(value.y)}`}
     >
       <div

@@ -369,12 +369,6 @@ export function BezierControlPointExample() {
           </button>
         </div>
       </div>
-
-      <p className="m-0 max-w-[420px] text-center text-xs leading-5 text-white/42">
-        Drag either handle. Hold Shift to snap its tangent to a 90° axis, or
-        enter exact values before replaying the rotation. Y values are limited
-        to the visible −0.25–1.25 range.
-      </p>
     </div>
   );
 }
