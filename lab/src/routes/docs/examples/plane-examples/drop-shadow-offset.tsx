@@ -28,33 +28,18 @@ function PlaneExampleFrame({
   );
 }
 
-function GridLayer({ subdivisions = 4 }: { subdivisions?: number }) {
-  const step = 100 / subdivisions;
-  return (
-    <div
-      aria-hidden="true"
-      className="absolute inset-0"
-      style={{
-        backgroundImage:
-          'linear-gradient(to right, rgb(17 24 39 / 0.08) 1px, transparent 1px), linear-gradient(to bottom, rgb(17 24 39 / 0.08) 1px, transparent 1px)',
-        backgroundSize: `${step}% ${step}%`,
-      }}
-    />
-  );
-}
-
 const initialValue: PlaneValue = { x: 0.66, y: 0.34 };
 
 function toShadowOffset(value: PlaneValue) {
   return {
-    x: Math.round((value.x - 0.5) * 72),
-    y: Math.round((0.5 - value.y) * 72),
+    x: Math.round((0.5 - value.x) * 72),
+    y: Math.round((value.y - 0.5) * 72),
   };
 }
 
-function formatShadowOffset(value: PlaneValue) {
+function formatLightSource(value: PlaneValue) {
   const offset = toShadowOffset(value);
-  return `Shadow offset ${offset.x} pixels horizontally, ${offset.y} pixels vertically`;
+  return `Light source ${Math.round(value.x * 100)}% from left, ${Math.round(value.y * 100)}% from bottom; shadow offset ${offset.x} pixels horizontally, ${offset.y} pixels vertically`;
 }
 
 export function DropShadowOffsetExample() {
@@ -63,16 +48,16 @@ export function DropShadowOffsetExample() {
 
   return (
     <PlaneExampleFrame
-      description="Position a drop shadow relative to its source object."
-      readout={`drop-shadow(${offset.x}px ${offset.y}px 12px)`}
+      description="Move the light source to cast the shadow in the opposite direction."
+      readout={`light ${Math.round(value.x * 100)}% left · ${Math.round(value.y * 100)}% bottom → drop-shadow(${offset.x}px ${offset.y}px 12px)`}
     >
       <Plane
         aria-label="Drop shadow offset"
         className={EXAMPLE_PLANE_CLASS_NAME}
       >
-        <GridLayer />
         <div
           aria-hidden="true"
+          data-shadow-object
           className="absolute top-1/2 left-1/2 size-20 -translate-1/2 rounded-2xl bg-gradient-to-br from-white to-white/75"
           style={{
             filter: `drop-shadow(${offset.x}px ${offset.y}px 12px rgb(0 0 0 / 0.75))`,
@@ -80,11 +65,11 @@ export function DropShadowOffsetExample() {
         />
         <PlaneThumb
           className={EXAMPLE_THUMB_CLASS_NAME}
-          getAriaValueText={formatShadowOffset}
+          getAriaValueText={formatLightSource}
           onValueChange={setValue}
           value={value}
-          xAriaLabel="Horizontal shadow offset"
-          yAriaLabel="Vertical shadow offset"
+          xAriaLabel="Horizontal light position"
+          yAriaLabel="Vertical light position"
         />
       </Plane>
     </PlaneExampleFrame>

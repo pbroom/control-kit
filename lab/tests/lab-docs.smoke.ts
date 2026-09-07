@@ -170,21 +170,31 @@ test('renders the focused Plane examples with executable source', async ({
     exact: true,
   });
   const dropShadowPlane = dropShadowExample.locator('[data-slot="plane"]');
-  const horizontalShadowAxis = dropShadowExample.getByRole('slider', {
-    name: 'Horizontal shadow offset',
+  const horizontalLightAxis = dropShadowExample.getByRole('slider', {
+    name: 'Horizontal light position',
     exact: true,
   });
+  const verticalLightAxis = dropShadowExample.getByRole('slider', {
+    name: 'Vertical light position',
+    exact: true,
+  });
+  const shadowObject = dropShadowPlane.locator('[data-shadow-object]');
   await expect(dropShadowPlane).toHaveCSS(
     'background-color',
     'rgb(230, 232, 236)',
   );
-  const initialShadowReadout = await dropShadowExample
-    .locator('output')
-    .textContent();
-  await horizontalShadowAxis.focus();
-  await horizontalShadowAxis.press('ArrowLeft');
-  await expect(dropShadowExample.locator('output')).not.toHaveText(
-    initialShadowReadout ?? '',
+  await expect(dropShadowPlane).toHaveCSS('background-image', 'none');
+  await horizontalLightAxis.focus();
+  await horizontalLightAxis.press('End');
+  await expect(shadowObject).toHaveCSS(
+    'filter',
+    /drop-shadow\(rgba\(0, 0, 0, 0\.75\) -36px -12px 12px\)/,
+  );
+  await verticalLightAxis.focus();
+  await verticalLightAxis.press('End');
+  await expect(shadowObject).toHaveCSS(
+    'filter',
+    /drop-shadow\(rgba\(0, 0, 0, 0\.75\) -36px 36px 12px\)/,
   );
 
   const threeWayExample = gallery.getByRole('figure', {
