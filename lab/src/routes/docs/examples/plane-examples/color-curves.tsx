@@ -1,12 +1,11 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Plane, PlaneThumb, type PlaneValue } from 'control-kit';
+import PHOTO_URL from './color-curves-portrait.jpg';
 
 type CurvePoint = PlaneValue & { id: string };
 type Channel = 'RGB' | 'Red' | 'Green' | 'Blue';
 type Curves = Record<Channel, CurvePoint[]>;
 const CHANNELS: Channel[] = ['RGB', 'Red', 'Green', 'Blue'];
-const PHOTO_URL =
-  'https://images.unsplash.com/photo-1771246918298-3795d3bb27a7?auto=format&fit=crop&w=768&h=768&q=85';
 const PHOTO_SIZE = 512;
 const POINT_GAP = 1 / 1024;
 const clamp = (value: number) => Math.max(0, Math.min(1, value));
@@ -130,6 +129,7 @@ export function ColorCurvesExample() {
   );
   const [focusId, setFocusId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState('black');
+  const [keyboardFocusId, setKeyboardFocusId] = useState<string | null>(null);
   const [retry, setRetry] = useState(0);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const planeRef = useRef<HTMLDivElement>(null);
@@ -214,6 +214,27 @@ export function ColorCurvesExample() {
       ?.focus();
     setFocusId(null);
   }, [focusId]);
+
+  function movePoint(id: string, next: (current: CurvePoint) => PlaneValue) {
+    setCurves((current) => ({
+      ...current,
+      [channel]: current[channel].map((item, index, all) => {
+        if (item.id !== id) return item;
+        const value = next(item);
+        return {
+          ...item,
+          x: Math.max(
+            index ? all[index - 1].x + POINT_GAP : 0,
+            Math.min(
+              index < all.length - 1 ? all[index + 1].x - POINT_GAP : 1,
+              value.x,
+            ),
+          ),
+          y: clamp(value.y),
+        };
+      }),
+    }));
+  }
 
   function removePoint(id: string) {
     if (points.length <= 2) return;
@@ -357,36 +378,23 @@ export function ColorCurvesExample() {
                 key={`${channel}-${point.id}`}
                 thumbId={point.id}
                 value={point}
-                className="size-3 border-0 bg-[#ccc] shadow-none"
+                className="size-3 border-0 bg-[#ccc] shadow-none data-[curve-keyboard-focus]:ring-2 data-[curve-keyboard-focus]:ring-[color:var(--ck-accent,#0d99ff)]/70 data-[curve-keyboard-focus]:ring-offset-2 data-[curve-keyboard-focus]:ring-offset-[color:var(--ck-surface-content,#1f1f1f)]"
                 xAriaLabel={`Point ${index + 1} input tone`}
                 yAriaLabel={`Point ${index + 1} output tone`}
                 getAriaValueText={(value) =>
                   `${Math.round(value.x * 100)}% input, ${Math.round(value.y * 100)}% output`
                 }
                 onFocusCapture={() => setSelectedId(point.id)}
-                onValueChange={(value) =>
-                  setCurves((current) => ({
-                    ...current,
-                    [channel]: current[channel].map((item, i, all) =>
-                      item.id === point.id
-                        ? {
-                            ...item,
-                            x: Math.max(
-                              i ? all[i - 1].x + POINT_GAP : 0,
-                              Math.min(
-                                i < all.length - 1
-                                  ? all[i + 1].x - POINT_GAP
-                                  : 1,
-                                value.x,
-                              ),
-                            ),
-                            y: clamp(value.y),
-                          }
-                        : item,
-                    ),
-                  }))
+                onValueChange={(value) => movePoint(point.id, () => value)}
+                data-curve-keyboard-focus={
+                  keyboardFocusId === point.id || undefined
                 }
+                onBlurCapture={(event) => {
+                  if (!event.currentTarget.contains(event.relatedTarget))
+                    setKeyboardFocusId(null);
+                }}
                 onPointerDown={(event) => {
+                  setKeyboardFocusId(null);
                   if (event.metaKey || event.ctrlKey) {
                     event.preventDefault();
                     event.stopPropagation();
@@ -394,11 +402,68 @@ export function ColorCurvesExample() {
                   }
                 }}
                 onKeyDown={(event) => {
-                  if (event.key !== 'Delete' && event.key !== 'Backspace')
+                  if (event.key === 'Delete' || event.key === 'Backspace') {
+                    event.preventDefault();
+                    if (
+                      keyboardFocusId === point.id ||
+                      event.currentTarget.hasAttribute('data-focus-visible')
+                    )
+                      removePoint(point.id);
                     return;
+                  }
+                  const sourceAxis = (event.target as HTMLElement).dataset
+                    .planeAxis;
+                  if (sourceAxis !== 'x' && sourceAxis !== 'y') return;
+                  const key = event.key;
+                  const axis =
+                    key === 'ArrowLeft' || key === 'ArrowRight'
+                      ? 'x'
+                      : key === 'ArrowDown' || key === 'ArrowUp'
+                        ? 'y'
+                        : sourceAxis;
+                  if (
+                    ![
+                      'ArrowLeft',
+                      'ArrowRight',
+                      'ArrowDown',
+                      'ArrowUp',
+                      'Home',
+                      'End',
+                      'PageDown',
+                      'PageUp',
+                    ].includes(key)
+                  )
+                    return;
+                  // Use the accepted curve point for every key, including repeats:
+                  // PlaneThumb's pending value cannot know our neighbor constraints.
                   event.preventDefault();
-                  if (event.currentTarget.hasAttribute('data-focus-visible'))
-                    removePoint(point.id);
+                  setKeyboardFocusId(point.id);
+                  event.currentTarget
+                    .querySelector<HTMLInputElement>(
+                      `[data-plane-axis="${axis}"]`,
+                    )
+                    ?.focus({ preventScroll: true });
+                  const amount = key.startsWith('Page')
+                    ? 0.1
+                    : event.altKey
+                      ? 0.001
+                      : event.shiftKey
+                        ? 0.1
+                        : 0.01;
+                  movePoint(point.id, (current) => ({
+                    ...current,
+                    [axis]:
+                      key === 'Home'
+                        ? 0
+                        : key === 'End'
+                          ? 1
+                          : current[axis] +
+                            (['ArrowLeft', 'ArrowDown', 'PageDown'].includes(
+                              key,
+                            )
+                              ? -amount
+                              : amount),
+                  }));
                 }}
               />
             ))}

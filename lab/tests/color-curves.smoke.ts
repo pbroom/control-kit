@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-const PHOTO = '**/photo-1771246918298-3795d3bb27a7*';
+const PHOTO = '**/color-curves-portrait.jpg';
 const fixture =
   '<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512"><defs><linearGradient id="tone"><stop stop-color="#202020"/><stop offset="1" stop-color="#e0e0e0"/></linearGradient></defs><rect width="512" height="512" fill="url(#tone)"/></svg>';
 
@@ -110,11 +110,37 @@ test('photo loading failure offers a working retry', async ({ page }) => {
   ).toBeVisible();
   await page.unroute(PHOTO);
   await page.route(PHOTO, (route) =>
-    route.fulfill({ contentType: 'image/svg+xml', body: fixture }),
+    route.fulfill({
+      contentType: 'image/svg+xml',
+      body: fixture,
+      headers: { 'access-control-allow-origin': '*' },
+    }),
   );
   await frame.getByRole('button', { name: 'Retry', exact: true }).click();
   await expect(frame.locator('canvas')).toHaveAttribute(
     'data-photo-state',
     'ready',
   );
+});
+
+test('bundled portrait remains editable when remote image hosts are unavailable', async ({
+  page,
+}) => {
+  await page.route('https://images.unsplash.com/**', (route) => route.abort());
+  await page.goto('/docs/plane-examples#color-curves');
+  const plane = page.getByRole('group', {
+    name: 'Color curves control',
+    exact: true,
+  });
+  const frame = page.locator('figure').filter({ has: plane });
+  const photo = frame.locator('canvas');
+  await expect(photo).toHaveAttribute('data-photo-state', 'ready');
+  await plane.scrollIntoViewIfNeeded();
+  const pixels = () =>
+    photo.evaluate((canvas: HTMLCanvasElement) => canvas.toDataURL());
+  const original = await pixels();
+  const high = plane.locator('[data-thumb-id="white"]').locator('input').last();
+  await high.focus();
+  await high.press('ArrowDown');
+  await expect.poll(pixels).not.toEqual(original);
 });
