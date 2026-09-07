@@ -169,6 +169,12 @@ test('renders the focused Plane examples with executable source', async ({
     name: 'Drop-shadow offset demo',
     exact: true,
   });
+  await expect(
+    dropShadowExample.getByText(
+      'Move the light source to cast the shadow in the opposite direction.',
+      { exact: true },
+    ),
+  ).toHaveCount(0);
   const dropShadowPlane = dropShadowExample.locator('[data-slot="plane"]');
   const horizontalLightAxis = dropShadowExample.getByRole('slider', {
     name: 'Horizontal light position',
@@ -187,14 +193,14 @@ test('renders the focused Plane examples with executable source', async ({
   await horizontalLightAxis.focus();
   await horizontalLightAxis.press('End');
   await expect(shadowObject).toHaveCSS(
-    'filter',
-    /drop-shadow\(rgba\(0, 0, 0, 0\.75\) -36px -12px 12px\)/,
+    'box-shadow',
+    /rgba\(25, 29, 37, 0\.16\) -14px -5px 4px 0px.*?rgba\(25, 29, 37, 0\.12\) -25px -8px 10px 0px.*?rgba\(25, 29, 37, 0\.08\) -36px -12px 22px 0px/,
   );
   await verticalLightAxis.focus();
   await verticalLightAxis.press('End');
   await expect(shadowObject).toHaveCSS(
-    'filter',
-    /drop-shadow\(rgba\(0, 0, 0, 0\.75\) -36px 36px 12px\)/,
+    'box-shadow',
+    /rgba\(25, 29, 37, 0\.16\) -14px 14px 4px 0px.*?rgba\(25, 29, 37, 0\.12\) -25px 25px 10px 0px.*?rgba\(25, 29, 37, 0\.08\) -36px 36px 22px 0px/,
   );
 
   const threeWayExample = gallery.getByRole('figure', {
