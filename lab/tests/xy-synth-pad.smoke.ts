@@ -37,6 +37,7 @@ test('dot grid is the waveform and its palette blends both Plane axes', async ({
   const plane = example.locator('[data-synth-plane]');
   const visualizer = example.locator('[data-synth-visualizer]');
 
+  await expect(plane).toHaveCSS('background-origin', 'border-box');
   await expect(visualizer).toHaveCSS('pointer-events', 'none');
   await expect(visualizer).toHaveAttribute('data-synth-idle-radius', '0.520');
   expect(
@@ -259,6 +260,17 @@ test('offscreen work pauses and unmount closes the audio context', async ({
 }) => {
   await page.addInitScript(() => {
     const originalClose = AudioContext.prototype.close;
+    const originalResume = AudioContext.prototype.resume;
+    Object.defineProperty(window, '__synthResumeCalls', {
+      configurable: true,
+      value: 0,
+      writable: true,
+    });
+    AudioContext.prototype.resume = function resume() {
+      const state = window as typeof window & { __synthResumeCalls: number };
+      state.__synthResumeCalls += 1;
+      return originalResume.call(this);
+    };
     Object.defineProperty(window, '__synthClosedContexts', {
       configurable: true,
       value: 0,
@@ -295,6 +307,44 @@ test('offscreen work pauses and unmount closes the audio context', async ({
   expect(await readNumber(visualizer, 'data-synth-render-count')).toBe(
     pausedCount,
   );
+
+  const resumeCalls = await page.evaluate(
+    () =>
+      (window as typeof window & { __synthResumeCalls: number })
+        .__synthResumeCalls,
+  );
+  const brightness = example.getByRole('slider', {
+    name: 'Timbre brightness',
+    exact: true,
+  });
+  await brightness.evaluate((node) =>
+    (node as HTMLElement).focus({ preventScroll: true }),
+  );
+  const beforeBrightness = Number(await brightness.inputValue());
+  await page.keyboard.press('ArrowRight');
+  expect(Number(await brightness.inputValue())).toBeGreaterThan(
+    beforeBrightness,
+  );
+  await expect(interfaceRoot).toHaveAttribute(
+    'data-synth-audio-state',
+    'suspended',
+  );
+  expect(
+    await page.evaluate(
+      () =>
+        (window as typeof window & { __synthResumeCalls: number })
+          .__synthResumeCalls,
+    ),
+  ).toBe(resumeCalls);
+
+  await example.scrollIntoViewIfNeeded();
+  await expect(interfaceRoot).toHaveAttribute(
+    'data-synth-audio-state',
+    'running',
+  );
+  await expect
+    .poll(() => readNumber(visualizer, 'data-synth-render-count'))
+    .toBeGreaterThan(pausedCount);
 
   await page.getByRole('link', { name: 'Plane', exact: true }).click();
   await expect

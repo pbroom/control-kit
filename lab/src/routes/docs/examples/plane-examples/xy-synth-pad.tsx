@@ -9,7 +9,7 @@ import {
 import { Plane, PlaneThumb, Slider, type PlaneValue } from 'control-kit';
 
 const EXAMPLE_PLANE_CLASS_NAME =
-  'relative size-[240px] touch-none overflow-hidden rounded-2xl border border-white/12 bg-[#111216] max-sm:size-[220px]';
+  'relative size-[240px] touch-none overflow-hidden rounded-2xl border border-white/12 [background-origin:border-box] bg-[#111216] max-sm:size-[220px]';
 const EXAMPLE_THUMB_CLASS_NAME =
   'z-20 size-6 border-2 border-white bg-[#16171b] shadow-[0_2px_12px_rgba(0,0,0,0.65),0_0_0_1px_rgba(255,255,255,0.15)]';
 const GRID_SIZE = 21;
@@ -462,12 +462,15 @@ export function XySynthPadExample() {
   const audioPromiseRef = useRef<Promise<void> | null>(null);
   const interfaceRef = useRef<HTMLDivElement>(null);
   const mountedRef = useRef(true);
+  const isIntersectingRef = useRef(true);
   const valueRef = useRef(value);
   const volumeRef = useRef(volume);
   valueRef.current = value;
   volumeRef.current = volume;
 
   const activateAudio = useCallback(() => {
+    if (!mountedRef.current || document.hidden || !isIntersectingRef.current)
+      return;
     if (audioPromiseRef.current) return audioPromiseRef.current;
     audioPromiseRef.current = (async () => {
       let engine = engineRef.current;
@@ -510,15 +513,15 @@ export function XySynthPadExample() {
   useEffect(() => {
     mountedRef.current = true;
     const root = interfaceRef.current;
-    let isIntersecting = true;
     const syncAudioActivity = () => {
       const engine = engineRef.current;
       if (!engine) return;
-      if (document.hidden || !isIntersecting) void engine.context.suspend();
+      if (document.hidden || !isIntersectingRef.current)
+        void engine.context.suspend();
       else void engine.context.resume();
     };
     const observer = new IntersectionObserver(([entry]) => {
-      isIntersecting = entry?.isIntersecting ?? false;
+      isIntersectingRef.current = entry?.isIntersecting ?? false;
       syncAudioActivity();
     });
     if (root) observer.observe(root);
