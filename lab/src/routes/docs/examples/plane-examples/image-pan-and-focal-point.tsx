@@ -82,10 +82,6 @@ export function ImagePanAndFocalPointExample() {
           Focus {Math.round(focalPoint.x * 100)} /{' '}
           {Math.round(focalPoint.y * 100)}
         </output>
-        <p className="m-0 text-xs leading-5 text-white/60">
-          Drag the image to reframe. Grab the peach point to move focus. Both
-          stay where you grabbed them—nothing jumps to the cursor.
-        </p>
         <a
           className="text-[9px] text-white/45 underline decoration-white/25 underline-offset-2"
           href="https://unsplash.com/photos/mountains-and-a-lake-reflecting-the-beautiful-landscape-kblRqsIVebw"

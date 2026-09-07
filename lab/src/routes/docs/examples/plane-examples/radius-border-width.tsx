@@ -60,9 +60,6 @@ export function RadiusBorderWidthExample() {
         <output className="font-mono text-[11px] text-white/72">
           Radius {radius}px · Border {borderWidth}px
         </output>
-        <p className="m-0 text-xs leading-5 text-white/42">
-          Explore how corner softness and outline weight work together.
-        </p>
       </div>
     </div>
   );

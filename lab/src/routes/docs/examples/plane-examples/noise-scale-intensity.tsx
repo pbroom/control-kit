@@ -50,9 +50,6 @@ export function NoiseScaleIntensityExample() {
         <output className="font-mono text-[11px] text-white/72">
           Scale {scale}px · Intensity {formatPercent(value.y)}
         </output>
-        <p className="m-0 text-xs leading-5 text-white/42">
-          Shape a procedural texture by changing its grain and strength.
-        </p>
       </div>
     </div>
   );

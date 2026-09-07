@@ -8,11 +8,9 @@ const EXAMPLE_THUMB_CLASS_NAME =
 
 function ExampleFrame({
   children,
-  description,
   readout,
 }: {
   children: ReactNode;
-  description: string;
   readout: ReactNode;
 }) {
   return (
@@ -22,7 +20,6 @@ function ExampleFrame({
         <output className="font-mono text-[11px] text-white/72">
           {readout}
         </output>
-        <p className="m-0 text-xs leading-5 text-white/42">{description}</p>
       </div>
     </div>
   );
@@ -72,7 +69,6 @@ export function TimbreMorphExample() {
 
   return (
     <ExampleFrame
-      description="Every point blends continuously between four timbral characters."
       readout={`Morph ${formatPercent(value.x)} · ${formatPercent(value.y)}`}
     >
       <Plane

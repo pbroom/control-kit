@@ -55,9 +55,6 @@ export function CanvasPanExample() {
         <output className="font-mono text-[11px] text-white/72">
           Pan X {offsetX}px · Y {-offsetY}px
         </output>
-        <p className="m-0 text-xs leading-5 text-white/42">
-          Pan an infinite canvas while keeping the viewport fixed.
-        </p>
       </div>
     </div>
   );

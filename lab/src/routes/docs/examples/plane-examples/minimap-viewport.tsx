@@ -44,9 +44,6 @@ export function MinimapViewportExample() {
         <output className="font-mono text-[11px] text-white/72">
           {describeViewport(value)}
         </output>
-        <p className="m-0 text-xs leading-5 text-white/42">
-          Move the visible window through a larger diagram from its minimap.
-        </p>
       </div>
     </div>
   );

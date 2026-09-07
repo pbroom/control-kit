@@ -8,11 +8,9 @@ const EXAMPLE_THUMB_CLASS_NAME =
 
 function PlaneExampleFrame({
   children,
-  description,
   readout,
 }: {
   children: ReactNode;
-  description: string;
   readout: ReactNode;
 }) {
   return (
@@ -22,7 +20,6 @@ function PlaneExampleFrame({
         <output className="font-mono text-[11px] text-white/72">
           {readout}
         </output>
-        <p className="m-0 text-xs leading-5 text-white/42">{description}</p>
       </div>
     </div>
   );
@@ -62,10 +59,7 @@ export function PatternOffsetExample() {
   const offset = toOffset(value);
 
   return (
-    <PlaneExampleFrame
-      description="Translate a repeating texture along both axes."
-      readout={`offset ${offset.x}px · ${offset.y}px`}
-    >
+    <PlaneExampleFrame readout={`offset ${offset.x}px · ${offset.y}px`}>
       <Plane
         aria-label="Pattern offset"
         className={EXAMPLE_PLANE_CLASS_NAME}

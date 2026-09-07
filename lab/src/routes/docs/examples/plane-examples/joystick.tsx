@@ -6,11 +6,9 @@ const EXAMPLE_PLANE_CLASS_NAME =
 
 function ExampleFrame({
   children,
-  description,
   readout,
 }: {
   children: ReactNode;
-  description: string;
   readout: ReactNode;
 }) {
   return (
@@ -20,7 +18,6 @@ function ExampleFrame({
         <output className="font-mono text-[11px] text-white/72">
           {readout}
         </output>
-        <p className="m-0 text-xs leading-5 text-white/42">{description}</p>
       </div>
     </div>
   );
@@ -62,7 +59,6 @@ export function JoystickExample() {
 
   return (
     <ExampleFrame
-      description="A circular constraint turns Plane into a two-axis joystick."
       readout={`X ${vector.x.toFixed(2)} · Y ${vector.y.toFixed(2)}`}
     >
       <Plane

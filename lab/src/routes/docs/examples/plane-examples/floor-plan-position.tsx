@@ -55,9 +55,6 @@ export function FloorPlanPositionExample() {
         <output className="font-mono text-[11px] text-white/72">
           {describeLocation(value)}
         </output>
-        <p className="m-0 text-xs leading-5 text-white/42">
-          Place a device or point of interest within a bounded floor plan.
-        </p>
       </div>
     </div>
   );

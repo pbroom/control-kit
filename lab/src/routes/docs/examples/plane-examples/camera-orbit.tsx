@@ -67,9 +67,6 @@ export function CameraOrbitExample() {
         <output className="font-mono text-[11px] text-white/72">
           Azimuth {azimuth}° · Elevation {elevation}°
         </output>
-        <p className="m-0 text-xs leading-5 text-white/42">
-          Orbit a camera around a subject with azimuth and elevation.
-        </p>
       </div>
     </div>
   );

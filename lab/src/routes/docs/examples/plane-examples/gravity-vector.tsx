@@ -498,11 +498,9 @@ function RotatingHexagon({
 
 function ExampleFrame({
   children,
-  description,
   readout,
 }: {
   children: ReactNode;
-  description: string;
   readout: ReactNode;
 }) {
   return (
@@ -512,7 +510,6 @@ function ExampleFrame({
         <output className="font-mono text-[11px] text-white/72">
           {readout}
         </output>
-        <p className="m-0 text-xs leading-5 text-white/42">{description}</p>
       </div>
     </div>
   );
@@ -533,7 +530,6 @@ export function GravityVectorExample() {
 
   return (
     <ExampleFrame
-      description="Angle sets gravity; distance from center sets one to eight balls."
       readout={`${ballCount} ${ballCount === 1 ? 'ball' : 'balls'} · ${Math.round(vector.magnitude * 100)}% gravity · ${vector.x.toFixed(2)}g X · ${vector.y.toFixed(2)}g Y`}
     >
       <div className="flex w-full items-center justify-center gap-8 max-sm:flex-col max-sm:gap-6">

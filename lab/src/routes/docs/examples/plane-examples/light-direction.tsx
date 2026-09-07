@@ -68,9 +68,6 @@ export function LightDirectionExample() {
         <output className="font-mono text-[11px] text-white/72">
           {describeLight(value)}
         </output>
-        <p className="m-0 text-xs leading-5 text-white/42">
-          Aim a directional light; distance from center controls strength.
-        </p>
       </div>
     </div>
   );

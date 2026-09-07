@@ -42,11 +42,9 @@ type ParticleSimulation = {
 
 function ExampleFrame({
   children,
-  description,
   readout,
 }: {
   children: ReactNode;
-  description: string;
   readout: ReactNode;
 }) {
   return (
@@ -56,7 +54,6 @@ function ExampleFrame({
         <output className="font-mono text-[11px] text-white/72">
           {readout}
         </output>
-        <p className="m-0 text-xs leading-5 text-white/42">{description}</p>
       </div>
     </div>
   );
@@ -530,7 +527,6 @@ export function ParticleEmitterExample() {
 
   return (
     <ExampleFrame
-      description="Angle aims the emitter; radius widens its particle cone."
       readout={`${Math.round(emitter.angle)}° · ${Math.round(emitter.spread)}° spread`}
     >
       <Plane

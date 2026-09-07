@@ -56,9 +56,6 @@ export function PitchYawExample() {
         <output className="font-mono text-[11px] text-white/72">
           Pitch {pitch}° · Yaw {yaw}°
         </output>
-        <p className="m-0 text-xs leading-5 text-white/42">
-          Aim a view or game camera with pitch and yaw.
-        </p>
       </div>
     </div>
   );
