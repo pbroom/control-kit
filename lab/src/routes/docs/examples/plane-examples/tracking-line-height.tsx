@@ -4,7 +4,7 @@ import { Plane, PlaneThumb, type PlaneValue } from 'control-kit';
 const EXAMPLE_PLANE_CLASS_NAME =
   'relative size-[240px] touch-none overflow-hidden rounded-2xl border border-white/12 [background-origin:border-box] bg-[#171718] max-sm:size-[220px]';
 const EXAMPLE_THUMB_CLASS_NAME =
-  'size-6 border-2 border-white bg-[#171718] shadow-[0_2px_10px_rgba(0,0,0,0.45)]';
+  "size-6 border-0 bg-transparent shadow-none transition-opacity data-[dragging]:opacity-20 after:absolute after:top-1/2 after:left-1/2 after:size-4 after:-translate-x-1/2 after:-translate-y-1/2 after:rounded-full after:border-2 after:border-white after:bg-white after:shadow-sm after:content-['']";
 
 function PlaneExampleFrame({
   children,
@@ -25,21 +25,6 @@ function PlaneExampleFrame({
         <p className="m-0 text-xs leading-5 text-white/42">{description}</p>
       </div>
     </div>
-  );
-}
-
-function GridLayer({ subdivisions = 4 }: { subdivisions?: number }) {
-  const step = 100 / subdivisions;
-  return (
-    <div
-      aria-hidden="true"
-      className="absolute inset-0"
-      style={{
-        backgroundImage:
-          'linear-gradient(to right, rgb(255 255 255 / 0.08) 1px, transparent 1px), linear-gradient(to bottom, rgb(255 255 255 / 0.08) 1px, transparent 1px)',
-        backgroundSize: `${step}% ${step}%`,
-      }}
-    />
   );
 }
 
@@ -70,7 +55,6 @@ export function TrackingLineHeightExample() {
         aria-label="Tracking and line height"
         className={EXAMPLE_PLANE_CLASS_NAME}
       >
-        <GridLayer />
         <p
           aria-hidden="true"
           className="absolute inset-8 m-0 flex items-center text-[13px] text-white/55"
