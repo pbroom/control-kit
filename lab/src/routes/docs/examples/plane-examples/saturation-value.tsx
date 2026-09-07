@@ -8,11 +8,9 @@ const EXAMPLE_THUMB_CLASS_NAME =
 
 function PlaneExampleFrame({
   children,
-  description,
   readout,
 }: {
   children: ReactNode;
-  description: string;
   readout: ReactNode;
 }) {
   return (
@@ -20,7 +18,6 @@ function PlaneExampleFrame({
       {children}
       <div className="flex max-w-[300px] flex-col items-center gap-1.5 text-center">
         <output className="text-[11px] text-white/72">{readout}</output>
-        <p className="m-0 text-xs leading-5 text-white/42">{description}</p>
       </div>
     </div>
   );
@@ -43,7 +40,6 @@ export function SaturationValueExample() {
 
   return (
     <PlaneExampleFrame
-      description="Choose saturation horizontally and brightness vertically."
       readout={`S ${formatPercent(value.x)} V ${formatPercent(value.y)}`}
     >
       <Plane

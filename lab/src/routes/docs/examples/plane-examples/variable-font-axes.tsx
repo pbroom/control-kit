@@ -8,11 +8,9 @@ const EXAMPLE_THUMB_CLASS_NAME =
 
 function PlaneExampleFrame({
   children,
-  description,
   readout,
 }: {
   children: ReactNode;
-  description: string;
   readout: ReactNode;
 }) {
   return (
@@ -22,7 +20,6 @@ function PlaneExampleFrame({
         <output className="font-mono text-[11px] text-white/72">
           {readout}
         </output>
-        <p className="m-0 text-xs leading-5 text-white/42">{description}</p>
       </div>
     </div>
   );
@@ -30,7 +27,7 @@ function PlaneExampleFrame({
 
 function AxisLabels({ axes }: { axes: ReturnType<typeof toFontAxes> }) {
   const sampleClass =
-    'absolute text-4xl leading-none text-white/30 select-none';
+    'absolute text-[0.9rem] leading-none text-white/30 select-none';
 
   const sampleStyle = (weight: number, width: number) => ({
     fontVariationSettings: `'wght' ${weight}, 'wdth' ${width}`,
@@ -87,10 +84,7 @@ export function VariableFontAxesExample() {
   const axes = toFontAxes(value);
 
   return (
-    <PlaneExampleFrame
-      description="Explore two variable-font axes as one connected design space."
-      readout={`wght ${axes.weight} · wdth ${axes.width}`}
-    >
+    <PlaneExampleFrame readout={`wght ${axes.weight} · wdth ${axes.width}`}>
       <Plane
         aria-label="Variable font weight and width"
         className={EXAMPLE_PLANE_CLASS_NAME}

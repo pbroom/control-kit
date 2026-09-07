@@ -8,11 +8,9 @@ const EXAMPLE_THUMB_CLASS_NAME =
 
 function PlaneExampleFrame({
   children,
-  description,
   readout,
 }: {
   children: ReactNode;
-  description: string;
   readout: ReactNode;
 }) {
   return (
@@ -22,7 +20,6 @@ function PlaneExampleFrame({
         <output className="font-mono text-[11px] text-white/72">
           {readout}
         </output>
-        <p className="m-0 text-xs leading-5 text-white/42">{description}</p>
       </div>
     </div>
   );
@@ -48,7 +45,6 @@ export function TrackingLineHeightExample() {
 
   return (
     <PlaneExampleFrame
-      description="Tune horizontal character spacing and vertical reading rhythm together."
       readout={`tracking ${typography.tracking.toFixed(2)}em · leading ${typography.lineHeight.toFixed(2)}`}
     >
       <Plane
