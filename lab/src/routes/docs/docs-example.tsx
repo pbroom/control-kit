@@ -20,7 +20,7 @@ export function DocsExample({
 
   return (
     <div
-      className="overflow-hidden rounded-[20px] border border-white/10 bg-[#111112]"
+      className="overflow-clip rounded-[20px] border border-white/10 bg-[#111112]"
       data-docs-example
     >
       <figure aria-label={`${label} demo`} data-docs-example-preview>
@@ -52,9 +52,10 @@ export function DocsExample({
           <div
             className={
               expanded
-                ? 'flex justify-center border-t border-white/10 p-2'
+                ? 'sticky bottom-0 z-10 flex justify-center bg-[#111112] p-2'
                 : 'absolute inset-x-0 bottom-0 flex justify-center bg-linear-to-t from-[#111112] via-[#111112]/95 to-transparent pt-12 pb-2'
             }
+            data-docs-example-footer
           >
             <Button
               aria-controls={sourceId}

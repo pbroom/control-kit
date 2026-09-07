@@ -487,7 +487,7 @@ function LabPageFrameContent({
 
   const docsView = (
     <div
-      className="relative min-h-screen min-w-0 overflow-x-hidden overflow-y-auto overscroll-contain lg:h-full lg:min-h-0"
+      className="relative min-h-screen min-w-0 overflow-x-clip overscroll-contain lg:h-full lg:min-h-0 lg:overflow-x-hidden lg:overflow-y-auto"
       data-docs-page-scroll
     >
       <PagesPanel
