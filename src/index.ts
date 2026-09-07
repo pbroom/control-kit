@@ -98,6 +98,8 @@ export {
   usePlaneContext,
   usePlaneThumbContext,
 } from './plane.js';
+export { PlaneAttachment } from './plane-attachment.js';
+export type { PlaneAttachmentProps } from './plane-attachment.js';
 export type {
   PlaneBounds,
   PlaneContextValue,
