@@ -182,7 +182,7 @@ test('renders the focused Plane examples with executable source', async ({
       naturalWidth: image.naturalWidth,
       sameOrigin: new URL(image.currentSrc).origin === window.location.origin,
     })),
-  ).toEqual({ complete: true, naturalWidth: 1200, sameOrigin: true });
+  ).toEqual({ complete: true, naturalWidth: 1440, sameOrigin: true });
 
   const dropShadowExample = gallery.getByRole('figure', {
     name: 'Drop-shadow offset demo',
