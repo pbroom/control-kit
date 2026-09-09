@@ -24,7 +24,7 @@ export function GradientOriginExample() {
         aria-label="Radial gradient origin and radius"
         pressBehavior="nearest"
         dragBehavior="relative"
-        className="relative size-[280px] touch-none rounded-2xl border border-white/12 bg-[#111827] p-0 [background-origin:border-box] max-sm:size-[240px] [&:is(:hover,:has([data-focus-visible])):not(:active):not([data-dragging])_circle]:opacity-100"
+        className="relative size-[280px] touch-none rounded-2xl border border-white/12 bg-[#111827] p-0 [background-origin:border-box] max-sm:size-[240px] [&:has([data-thumb-id=gradient-radius]:is(:hover,[data-focus-visible])):not(:active):not([data-dragging])_circle]:opacity-100"
       >
         <div
           aria-hidden="true"
