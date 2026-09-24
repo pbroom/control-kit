@@ -41,13 +41,17 @@ export {
   ControlFieldRoot,
   ControlFieldScrubArea,
   ControlFieldScrubAreaCursor,
+  getControlFieldInteraction,
 } from './control-field.js';
 export type {
   ControlFieldAffixProps,
+  ControlFieldArrowKeys,
   ControlFieldBoundaryBehavior,
   ControlFieldCustomEventDetails,
   ControlFieldCustomReason,
   ControlFieldInputProps,
+  ControlFieldInteraction,
+  ControlFieldInvalidCommitDetails,
   ControlFieldRootProps,
   ControlFieldValueChangeDetails,
   ControlFieldValueCommitDetails,

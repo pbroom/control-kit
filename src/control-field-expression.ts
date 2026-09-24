@@ -1,7 +1,12 @@
 export interface ControlFieldExpressionContext {
+  /** The field's current numeric value (or `0` when empty). */
   currentValue: number;
+  /** The value when the field gained focus; relative edits start here. */
+  startValue?: number;
   min?: number;
   max?: number;
+  /** `[min, max]` when both bounds are defined. */
+  range?: [number, number];
 }
 
 export type ControlFieldExpressionResolver = (
