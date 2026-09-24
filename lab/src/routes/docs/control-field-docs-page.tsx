@@ -35,14 +35,21 @@ const ROOT_PROPS = [
     type: '(value: number | null, details: ControlFieldValueChangeDetails) => void',
     shortType: 'function',
     description:
-      'Called whenever an interaction or expression changes the value.',
+      'Called for every value change, including each parseable keystroke. Put expensive work in onValueCommitted.',
   },
   {
     name: 'onValueCommitted',
     type: '(value: number | null, details: ControlFieldValueCommitDetails) => void',
     shortType: 'function',
     description:
-      'Called when an interaction or expression commits its final value.',
+      'Called once per committed edit: Enter or blur after typing, each key step, an expression, a button press, or a scrub release.',
+  },
+  {
+    name: 'onInvalidCommit',
+    type: '(text: string, details: ControlFieldInvalidCommitDetails) => void',
+    shortType: 'function',
+    description:
+      'Called when Enter or blur tries to commit text that does not parse. Enter keeps the draft editable; blur restores the value.',
   },
   {
     name: 'expressionResolver',
@@ -50,22 +57,59 @@ const ROOT_PROPS = [
     shortType: 'function | null',
     defaultValue: 'resolveControlFieldExpression',
     description:
-      'Resolves a non-numeric draft. Set to null for numeric-only entry.',
+      'Resolves a non-numeric draft. Receives the current value, the last committed value (startValue), and the range. Set to null for numeric-only entry.',
   },
   {
     name: 'pageStep',
     type: 'number | undefined',
     shortType: 'number',
-    defaultValue: '10',
+    defaultValue: 'largeStep',
     description: 'The amount added or removed by Page Up and Page Down.',
   },
   {
     name: 'boundaryBehavior',
-    type: "'clamp' | 'wrap' | undefined",
-    shortType: "'clamp' | 'wrap'",
+    type: "'clamp' | 'wrap' | 'free' | undefined",
+    shortType: "'clamp' | 'wrap' | 'free'",
     defaultValue: "'clamp'",
     description:
-      'Clamps interactive changes to the bounds or cycles them across the range.',
+      'Clamps changes to the bounds, cycles them across the range, or lets typed, keyboard, and scrub values leave the range while min and max still describe it.',
+  },
+  {
+    name: 'precision',
+    type: 'number | undefined',
+    shortType: 'number',
+    description:
+      'Fraction digits shown when format is not set. Only the display is rounded; values keep full precision.',
+  },
+  {
+    name: 'trimTrailingZeros',
+    type: 'boolean | undefined',
+    shortType: 'boolean',
+    defaultValue: 'true',
+    description: 'Drops trailing zeros from the precision-derived format.',
+  },
+  {
+    name: 'selectOnFocus',
+    type: 'boolean | undefined',
+    shortType: 'boolean',
+    defaultValue: 'false',
+    description: 'Selects the input text when it receives focus.',
+  },
+  {
+    name: 'commitOnBlur',
+    type: 'boolean | undefined',
+    shortType: 'boolean',
+    defaultValue: 'true',
+    description:
+      'Commits typed text on blur. When false, blur restores the last committed value.',
+  },
+  {
+    name: 'arrowKeys',
+    type: "'vertical' | 'both' | undefined",
+    shortType: "'vertical' | 'both'",
+    defaultValue: "'vertical'",
+    description:
+      'Steps with Up and Down only, or also with Right and Left. Vertical keeps horizontal arrows for the caret.',
   },
   {
     name: 'min',
@@ -101,7 +145,8 @@ const ROOT_PROPS = [
     name: 'format',
     type: 'Intl.NumberFormatOptions | undefined',
     shortType: 'Intl.NumberFormatOptions',
-    description: 'Formats the value displayed by the input.',
+    description:
+      'Formats the value displayed by the input. Overrides precision. Rounding options round typed values on commit but never controlled, stepped, or scrubbed values.',
   },
   {
     name: 'locale',
@@ -143,45 +188,63 @@ const GROUP_PROPS = [
 
 const SCRUB_AREA_PROPS = [
   {
-    name: 'direction',
-    type: "'horizontal' | 'vertical' | undefined",
-    shortType: "'horizontal' | 'vertical'",
-    defaultValue: "'horizontal'",
-    description: 'Sets the pointer movement direction used for scrubbing.',
-  },
-  {
-    name: 'pixelSensitivity',
+    name: 'pixelsPerStep',
     type: 'number | undefined',
-    defaultValue: '2',
-    description:
-      'Sets how many pointer pixels are required for each value step.',
+    defaultValue: '1',
+    description: 'Horizontal pointer pixels per step of movement.',
   },
   {
-    name: 'teleportDistance',
+    name: 'stepDistance',
     type: 'number | undefined',
     description:
-      'Loops the pointer after it moves this far from the scrub area center.',
+      'Moves in whole steps, one per stepDistance pixels. Overrides pixelsPerStep.',
   },
   {
-    name: 'render',
-    type: 'React.ReactElement | ((props, state) => React.ReactElement) | undefined',
-    shortType: 'ReactElement | function',
-    description: 'Replaces the rendered span while preserving scrub behavior.',
+    name: 'threshold',
+    type: 'number | undefined',
+    defaultValue: '1',
+    description: 'Pointer pixels required before scrubbing starts.',
+  },
+  {
+    name: 'commitThreshold',
+    type: 'number | undefined',
+    defaultValue: '0',
+    description:
+      'Minimum value change between onValueChange calls while dragging. The final value is always published on release.',
+  },
+  {
+    name: 'maxCommitRate',
+    type: 'number | undefined',
+    description: 'Maximum onValueChange calls per second while dragging.',
+  },
+  {
+    name: 'pointerLock',
+    type: 'boolean | undefined',
+    defaultValue: 'false',
+    description:
+      'Locks the pointer while scrubbing so drags are not limited by the screen edge. Falls back to ordinary tracking when unavailable.',
+  },
+  {
+    name: 'onScrubbingChange',
+    type: '((isScrubbing: boolean) => void) | undefined',
+    shortType: 'function',
+    description: 'Reports when scrubbing starts and ends.',
+  },
+  {
+    name: 'className',
+    type: 'string | ((state: ControlFieldScrubAreaState) => string | undefined) | undefined',
+    shortType: 'string | function',
+    description: 'Adds classes to the scrub target.',
   },
 ] satisfies readonly PropReference[];
 
 const SCRUB_CURSOR_PROPS = [
   {
     name: 'className',
-    type: 'string | ((state: NumberField.ScrubAreaCursor.State) => string | undefined) | undefined',
+    type: 'string | ((state: ControlFieldScrubAreaState) => string) | undefined',
     shortType: 'string | function',
-    description: 'Adds classes to the optional scrub cursor.',
-  },
-  {
-    name: 'render',
-    type: 'React.ReactElement | ((props, state) => React.ReactElement) | undefined',
-    shortType: 'ReactElement | function',
-    description: 'Replaces the rendered span while preserving cursor state.',
+    description:
+      'Deprecated. The part renders nothing and ignores its props; remove it from compositions.',
   },
 ] satisfies readonly PropReference[];
 

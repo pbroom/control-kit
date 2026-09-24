@@ -268,7 +268,7 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
     ),
   },
   input: {
-    label: 'Input Primitive (Legacy)',
+    label: 'Control Input',
     primitiveStructure: primitiveStructure(
       'PrimitiveValueInput',
       'A compact field shell with a value cell, focus ring, and optional scrub handle arranged on one horizontal control plane.',

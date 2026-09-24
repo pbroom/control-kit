@@ -159,7 +159,7 @@ interface ControlFieldContextValue {
   inputRef: React.RefObject<HTMLInputElement | null>;
   draftRef: React.RefObject<ControlFieldDraft>;
   blurGateRef: React.RefObject<boolean>;
-  focusValueRef: React.RefObject<number | null>;
+  revertValueRef: React.RefObject<number | null | undefined>;
   valueRef: React.RefObject<number | null>;
   setTextDirty: (dirty: boolean) => void;
   roundTypedValue: (value: number) => number;
@@ -414,7 +414,10 @@ export const ControlFieldRoot = React.forwardRef<
     value: null,
   });
   const blurGateRef = React.useRef(false);
-  const focusValueRef = React.useRef<number | null>(null);
+  // The value Escape (and blur with commitOnBlur={false}) restores, and the
+  // start value for relative expressions: set on focus and on every commit.
+  // `undefined` until the input has been focused.
+  const revertValueRef = React.useRef<number | null | undefined>(undefined);
   const textDirtyRef = React.useRef(false);
   const [textDirty, setTextDirtyState] = React.useState(false);
   const [isScrubbing, setScrubbing] = React.useState(false);
@@ -473,7 +476,9 @@ export const ControlFieldRoot = React.forwardRef<
       event: Event,
       expression?: string,
     ) => {
-      onValueCommitted?.(normalize(nextValue), { reason, event, expression });
+      const normalized = normalize(nextValue);
+      revertValueRef.current = normalized;
+      onValueCommitted?.(normalized, { reason, event, expression });
     },
     [normalize, onValueCommitted],
   );
@@ -501,6 +506,7 @@ export const ControlFieldRoot = React.forwardRef<
       const details = createCustomChangeDetails(reason, event, expression);
       const { canceled } = publishValue(cleaned, details);
       if (!canceled && commit) {
+        revertValueRef.current = normalized;
         onValueCommitted?.(normalized, { reason, event, expression });
       }
       return !canceled;
@@ -520,7 +526,7 @@ export const ControlFieldRoot = React.forwardRef<
       displayFormat,
       draftRef,
       expressionResolver,
-      focusValueRef,
+      revertValueRef,
       inputRef,
       isScrubbing,
       largeStep: Math.abs(largeStep),
@@ -621,7 +627,9 @@ export const ControlFieldRoot = React.forwardRef<
           ) {
             return;
           }
-          onValueCommitted?.(normalize(nextValue), details);
+          const normalized = normalize(nextValue);
+          revertValueRef.current = normalized;
+          onValueCommitted?.(normalized, details);
         }}
         {...props}
       />
@@ -639,9 +647,10 @@ export interface ControlFieldInputProps extends Omit<
 function expressionMayStart(key: string, permissive: boolean) {
   if (key.length !== 1) return false;
   if (/[+*/^()]/.test(key)) return true;
-  // Custom resolvers may accept units or symbols (`%`, `deg`), so let any
-  // non-numeric character through for them to judge.
-  return permissive && !/[\d.,\-−\s]/.test(key);
+  // Custom resolvers may accept units or symbols (`%`, `deg`) and may treat
+  // a leading minus as relative, so let any non-numeric character through
+  // for them to judge.
+  return permissive && !/[\d.,\s]/.test(key);
 }
 
 function expressionIsPresent(value: string, permissive: boolean) {
@@ -649,7 +658,7 @@ function expressionIsPresent(value: string, permissive: boolean) {
   if (!trimmed) return false;
   if (/^(?:current|value|x)\b/i.test(trimmed)) return true;
   if (/^[+*/]/.test(trimmed)) return true;
-  if (permissive && /[^\d\s.,+\-−eE]/.test(trimmed)) return true;
+  if (permissive && /^[-−]|[^\d\s.,+\-−eE]/.test(trimmed)) return true;
   const withoutScientificExponent = trimmed.replace(/[eE][+-]?\d+/g, '');
   return /[+*/^()]|[+-]/.test(withoutScientificExponent.slice(1));
 }
@@ -715,13 +724,14 @@ export const ControlFieldInput = React.forwardRef<
     context.setTextDirty(false);
   }, [context]);
 
-  /** Restores the value the field had when it gained focus. */
+  /** Restores the value from focus or the last commit. */
   const revertDraft = React.useCallback(
     (reason: ControlFieldCustomReason, event: Event) => {
-      const focusValue = context.focusValueRef.current;
+      const revertValue = context.revertValueRef.current;
       clearDrafts();
-      if (focusValue === null && context.valueRef.current === null) return;
-      context.changeValue(focusValue, reason, event, {
+      if (revertValue === undefined) return;
+      if (revertValue === null && context.valueRef.current === null) return;
+      context.changeValue(revertValue, reason, event, {
         commit: false,
         skipUnchanged: true,
       });
@@ -734,7 +744,7 @@ export const ControlFieldInput = React.forwardRef<
       if (expressionDraftRef.current === null || !context.expressionResolver)
         return true;
 
-      const start = context.focusValueRef.current ?? context.value ?? 0;
+      const start = context.revertValueRef.current ?? context.value ?? 0;
       const resolved = context.expressionResolver(expressionDraftRef.current, {
         currentValue: context.value ?? 0,
         startValue: start,
@@ -866,7 +876,7 @@ export const ControlFieldInput = React.forwardRef<
         if (event.defaultPrevented) return;
 
         context.blurGateRef.current = false;
-        context.focusValueRef.current = context.value;
+        context.revertValueRef.current = context.value;
         context.draftRef.current = {
           text: event.currentTarget.value,
           parsed: true,
@@ -958,12 +968,8 @@ export const ControlFieldInput = React.forwardRef<
           if (event.key === 'Escape') {
             event.preventDefault();
             preventBaseUIHandler(event);
-            setExpressionDraft(null);
-            setExpressionInvalid(false);
-            if (legacyKeys) {
-              revertDraft('keyboard', event.nativeEvent);
-              event.currentTarget.blur();
-            }
+            revertDraft('keyboard', event.nativeEvent);
+            if (legacyKeys) event.currentTarget.blur();
             return;
           }
           if (event.key !== 'Tab') preventBaseUIHandler(event);

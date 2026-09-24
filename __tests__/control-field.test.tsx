@@ -498,7 +498,7 @@ describe('ControlField text entry', () => {
     expect(input.value).toBe('25');
   });
 
-  it('restores the focus value on Escape', () => {
+  it('restores the last committed value on Escape', () => {
     const onValueChange = vi.fn();
     const onValueCommitted = vi.fn();
     const { input } = mountControlledField({ onValueChange, onValueCommitted });
@@ -513,6 +513,26 @@ describe('ControlField text entry', () => {
     expect(onValueChange).toHaveBeenLastCalledWith(42, expect.anything());
     act(() => input.blur());
     expect(onValueCommitted).not.toHaveBeenCalled();
+  });
+
+  it('moves the Escape and expression baseline to each commit', () => {
+    const { input } = mountControlledField();
+
+    act(() => {
+      input.focus();
+      changeInputValue(input, '10');
+    });
+    pressKey(input, 'Enter');
+    pressKey(input, 'ArrowUp');
+    expect(input.value).toBe('11');
+
+    act(() => changeInputValue(input, '99'));
+    pressKey(input, 'Escape');
+    expect(input.value).toBe('11');
+
+    act(() => changeInputValue(input, '* 2'));
+    pressKey(input, 'Enter');
+    expect(input.value).toBe('22');
   });
 
   it('discards drafts on blur when commitOnBlur is false', () => {

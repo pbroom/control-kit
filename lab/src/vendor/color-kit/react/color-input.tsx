@@ -1,10 +1,18 @@
-import { forwardRef, useCallback, useMemo, type HTMLAttributes } from 'react';
+import {
+  forwardRef,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  type HTMLAttributes,
+} from 'react';
 import { useSelector } from '@legendapp/state/react';
 import type { Color } from '@color-kit/core';
 import {
-  usePrimitiveValueInput,
-  type PrimitiveExpressionParser,
-  type PrimitiveValueChangeDetails,
+  ControlField,
+  getControlFieldInteraction,
+  type ControlFieldExpressionResolver,
+  type ControlFieldInteraction,
 } from 'control-kit';
 import { useOptionalColorContext } from './context.js';
 import {
@@ -19,7 +27,6 @@ import {
   resolveColorInputRange,
   resolveColorInputSteps,
   resolveColorInputWrap,
-  type ColorInputPrimitiveExpressionOptions,
   type HslColorInputChannel,
   type OklchColorInputChannel,
   type RgbColorInputChannel,
@@ -82,10 +89,22 @@ export type ColorInputProps =
 
 const SCRUB_DRAG_START_THRESHOLD_PX = 2;
 
+// Per-keystroke and blur-time changes stay inside the field; typed text is
+// applied once, from the Enter/blur commit.
+const TYPING_REASONS = new Set<string>([
+  'input-change',
+  'input-clear',
+  'input-paste',
+  'input-blur',
+  'none',
+]);
+
 /**
  * A headless value input that edits one channel in oklch/rgb/hsl.
  *
- * Supports text entry, expression parsing, keyboard stepping, and left-edge scrub dragging.
+ * Built on control-kit `ControlField` parts. Supports text entry, color-kit
+ * expressions (`%` of range, `deg`, relative `+ - * /`), keyboard stepping,
+ * and left-edge scrub dragging.
  */
 export const ColorInput = forwardRef<HTMLDivElement, ColorInputProps>(
   function ColorInput(
@@ -109,6 +128,8 @@ export const ColorInput = forwardRef<HTMLDivElement, ColorInputProps>(
       maxScrubRate = 120,
       precision,
       onInvalidCommit,
+      // A text `defaultValue` has no meaning for a numeric channel input.
+      defaultValue: _defaultValue,
       ...props
     },
     ref,
@@ -166,18 +187,21 @@ export const ColorInput = forwardRef<HTMLDivElement, ColorInputProps>(
       [channel, model],
     );
 
-    const parseExpression = useCallback<PrimitiveExpressionParser>(
-      (draft: string, options: ColorInputPrimitiveExpressionOptions) =>
-        parseColorInputExpression(draft, {
-          currentValue: options.currentValue,
-          range: options.range,
-          allowExpressions: options.allowExpressions,
+    // color-kit grammar: `%` of range, `deg`, and relative leading operators
+    // (including `-`), evaluated from the value the field had on focus.
+    const expressionResolver = useCallback<ControlFieldExpressionResolver>(
+      (text, resolverContext) =>
+        parseColorInputExpression(text, {
+          currentValue:
+            resolverContext.startValue ?? resolverContext.currentValue,
+          range: resolvedRange,
+          allowExpressions,
         }),
-      [],
+      [allowExpressions, resolvedRange],
     );
 
-    const handlePrimitiveValueChange = useCallback(
-      (nextValue: number, details: PrimitiveValueChangeDetails) => {
+    const applyChannelValue = useCallback(
+      (nextValue: number, interaction: ControlFieldInteraction) => {
         const nextColor = colorFromColorInputChannelValue(
           requested,
           model,
@@ -185,67 +209,51 @@ export const ColorInput = forwardRef<HTMLDivElement, ColorInputProps>(
           nextValue,
         );
         setRequested(nextColor, {
-          interaction: details.interaction,
+          interaction,
           ...(changedChannel ? { changedChannel } : {}),
         });
       },
       [changedChannel, channel, model, requested, setRequested],
     );
 
-    const {
-      inputRef,
-      inputProps,
-      scrubHandleRef,
-      scrubHandleProps,
-      isDraftValid,
-      isEditing,
-      isScrubbing,
-    } = usePrimitiveValueInput({
-      value: channelValue,
-      onValueChange: handlePrimitiveValueChange,
-      min: resolvedRange[0],
-      max: resolvedRange[1],
-      wrapMode: resolvedWrap ? 'wrap' : 'clamp',
-      step: resolvedSteps.step,
-      fineStep: resolvedSteps.fineStep,
-      coarseStep: resolvedSteps.coarseStep,
-      pageStep: resolvedSteps.pageStep,
-      precision: resolvedPrecision,
-      autoTrim: true,
-      allowExpressions,
-      parseExpression,
-      selectAllOnFocus,
-      commitOnBlur,
-      scrubEnabled: true,
-      scrubPixelsPerStep,
-      scrubThreshold: SCRUB_DRAG_START_THRESHOLD_PX,
-      scrubCommitThreshold: dragEpsilon,
-      scrubMaxCommitRate: maxScrubRate,
-      pointerLockEnabled: true,
-      horizontalArrowKeysMoveCaret: false,
-      disabled: false,
-      readOnly: false,
-      onInvalidCommit,
-    });
-
-    const setRootRef = useCallback(
-      (node: HTMLDivElement | null) => {
-        if (typeof ref === 'function') {
-          ref(node);
-          return;
-        }
-
-        if (ref) {
-          ref.current = node;
-        }
-      },
-      [ref],
-    );
+    const typedRef = useRef(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const [isScrubbing, setIsScrubbing] = useState(false);
+    const [isDraftValid, setIsDraftValid] = useState(true);
 
     return (
-      <div
+      <ControlField.Root
         {...props}
-        ref={setRootRef}
+        ref={ref}
+        value={channelValue}
+        min={resolvedRange[0]}
+        max={resolvedRange[1]}
+        boundaryBehavior={resolvedWrap ? 'wrap' : 'clamp'}
+        step={resolvedSteps.step}
+        smallStep={resolvedSteps.fineStep}
+        largeStep={resolvedSteps.coarseStep}
+        pageStep={resolvedSteps.pageStep}
+        precision={resolvedPrecision}
+        expressionResolver={expressionResolver}
+        selectOnFocus={selectAllOnFocus}
+        commitOnBlur={commitOnBlur}
+        arrowKeys="both"
+        onValueChange={(nextValue, details) => {
+          if (nextValue === null || TYPING_REASONS.has(details.reason)) return;
+          typedRef.current = false;
+          setIsDraftValid(true);
+          applyChannelValue(nextValue, getControlFieldInteraction(details));
+        }}
+        onValueCommitted={(nextValue) => {
+          if (!typedRef.current || nextValue === null) return;
+          typedRef.current = false;
+          setIsDraftValid(true);
+          applyChannelValue(nextValue, 'text-input');
+        }}
+        onInvalidCommit={(text) => {
+          setIsDraftValid(false);
+          onInvalidCommit?.(text);
+        }}
         data-color-input=""
         data-model={model}
         data-channel={channel}
@@ -261,10 +269,15 @@ export const ColorInput = forwardRef<HTMLDivElement, ColorInputProps>(
           ...props.style,
         }}
       >
-        <div
-          ref={scrubHandleRef}
+        <ControlField.ScrubArea
           data-color-input-scrub-handle=""
           aria-hidden="true"
+          pixelsPerStep={scrubPixelsPerStep}
+          threshold={SCRUB_DRAG_START_THRESHOLD_PX}
+          commitThreshold={dragEpsilon}
+          maxCommitRate={maxScrubRate}
+          pointerLock
+          onScrubbingChange={setIsScrubbing}
           style={{
             width: `${Math.max(0, scrubHandleSize)}px`,
             height: `${Math.max(0, scrubHandleSize)}px`,
@@ -276,29 +289,24 @@ export const ColorInput = forwardRef<HTMLDivElement, ColorInputProps>(
             touchAction: 'none',
             userSelect: 'none',
           }}
-          {...scrubHandleProps}
         >
           {channelGlyph}
-        </div>
-        <input
-          ref={inputRef}
-          type="text"
-          role="spinbutton"
+        </ControlField.ScrubArea>
+        <ControlField.Input
           aria-label={props['aria-label'] ?? `${channelLabel} value`}
-          aria-valuemin={resolvedRange[0]}
-          aria-valuemax={resolvedRange[1]}
-          aria-valuenow={channelValue}
           aria-valuetext={`${formatColorInputChannelValue(
             channelValue,
             resolvedPrecision,
           )} ${channelLabel}`}
           inputMode="decimal"
-          spellCheck={false}
-          autoComplete="off"
           style={{ flex: 1, minWidth: 0 }}
-          {...inputProps}
+          onChange={() => {
+            typedRef.current = true;
+          }}
+          onFocus={() => setIsEditing(true)}
+          onBlur={() => setIsEditing(false)}
         />
-      </div>
+      </ControlField.Root>
     );
   },
 );

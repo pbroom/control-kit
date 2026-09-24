@@ -1,6 +1,6 @@
 # Control Field
 
-A composable value control built on Base UI Field and Number Field. Control Field keeps native number-field behavior while adding arithmetic expressions, Page stepping, and optional cyclic bounds.
+The numeric input primitive for Control Kit, built on Base UI Field and Number Field. Control Field keeps Base UI's number-field semantics and adds modifier-aware keyboard stepping, arithmetic expressions, precise pointer scrubbing, and clamp, wrap, or free bounds. For a ready-made compact input, use the [Control Input](/docs/input-primitive) preset.
 
 <!-- demo:basic -->
 
@@ -57,6 +57,12 @@ import { ControlField } from 'control-kit';
 
 Wrap the control in Base UI `Field.Root` when the interface needs a visible label, description, validation, or error message.
 
+### Changes and commits
+
+`onValueChange` fires for every change, including each parseable keystroke, so previews can follow typing. `onValueCommitted` fires once per finished edit: Enter or blur after typing, each keyboard step, an expression, a stepper press, or a scrub release. Put expensive work, history entries, and network requests in `onValueCommitted`. `getControlFieldInteraction(details)` maps either callback's details to `'text-input'`, `'keyboard'`, or `'pointer'`.
+
+Escape restores the last committed value. Set `commitOnBlur={false}` to make blur behave like Escape. `onInvalidCommit` reports text that cannot be committed.
+
 ## Examples
 
 ### Expressions
@@ -69,13 +75,13 @@ Pass `expressionResolver={null}` to keep Base UI's numeric-only input, or supply
 
 ### Step sizes and boundaries
 
-Set `smallStep`, `step`, `largeStep`, and `pageStep` to give precision modifiers and Page keys meaningful increments. Use `boundaryBehavior="wrap"` for cyclic values such as angles.
+Set `smallStep`, `step`, `largeStep`, and `pageStep` to give precision modifiers and Page keys meaningful increments. Alt/Option uses `smallStep` and Shift uses `largeStep` for arrow keys and scrubbing alike. Use `boundaryBehavior="wrap"` for cyclic values such as angles, or `"free"` to let values leave the range while `min` and `max` still describe it. Set `arrowKeys="both"` to also step with Left and Right.
 
 <!-- demo:stepping -->
 
 ### Formatting and affixes
 
-Use Base UI's `format` and `locale` props for locale-aware display. Compose `ControlField.Affix` when a short unit should occupy a fixed position in the control.
+Use `precision` (with `trimTrailingZeros`) for fixed fraction digits, or Base UI's `format` and `locale` props for locale-aware display. Display rounding never changes a controlled, stepped, or scrubbed value, so fine steps accumulate even when the display shows fewer digits. Compose `ControlField.Affix` when a short unit should occupy a fixed position in the control.
 
 <!-- demo:formatting -->
 
@@ -99,7 +105,7 @@ Groups every part and owns the value, number formatting, stepping, form state, e
 
 <!-- props:control-field-root -->
 
-When `boundaryBehavior="wrap"`, Control Field normalizes changes itself and omits native `min` and `max` constraints from Base UI so stepping and scrubbing can cross the boundary. The root also forwards native `div` props and the remaining Base UI Number Field Root contract.
+When `boundaryBehavior="wrap"`, Control Field normalizes changes itself and omits native `min` and `max` constraints from Base UI so stepping and scrubbing can cross the boundary. With `"free"`, `min` and `max` remain on the form input. The root sets `data-scrubbing` while a scrub is active and forwards native `div` props and the remaining Base UI Number Field Root contract.
 
 ### ControlField.Group
 
@@ -111,19 +117,17 @@ The group forwards native `div` props.
 
 ### ControlField.ScrubArea
 
-Renders the leading pointer target used to drag the value.
+Renders the pointer target used to drag the value. Movement below `threshold` never starts a drag; changing Shift or Alt mid-drag keeps the movement already made; clamped values respond immediately when the drag reverses; and the input's text selection survives the gesture. `onValueCommitted` fires once on release.
 
 <!-- props:control-field-scrub-area -->
 
-The scrub area forwards native `span` props.
+The scrub area sets `data-scrubbing`, `data-disabled`, and `data-readonly`, and forwards native `span` props. Pointer lock is off by default; enable `pointerLock` only where unbounded drags are expected.
 
 ### ControlField.ScrubAreaCursor
 
-Renders an optional cursor that follows Base UI's pointer-lock scrubbing state.
+Deprecated. The scrub area no longer renders a virtual cursor, so this part renders nothing. Remove it from compositions; it will be removed in a future release.
 
 <!-- props:control-field-scrub-area-cursor -->
-
-The scrub cursor forwards native `span` props.
 
 ### ControlField.Input
 
@@ -185,11 +189,13 @@ See the [Base UI Number Field API](https://base-ui.com/react/components/number-f
 
 ## Accessibility
 
-Base UI owns keyboard stepping, validation, form serialization, disabled and read-only behavior, and scrub semantics. Give `ControlField.Input` an accessible name directly when the compact control stands alone. Use `ControlField.Label` inside a Base UI `Field.Root` when a visible label is part of the composition. Page Up and Page Down use `pageStep`; Home and End move to finite bounds. Expressions use the same text input and commit model rather than creating a second focus target.
+The input keeps Base UI Number Field semantics: a text input described as a number field, with Base UI owning validation, form serialization, and disabled and read-only behavior. Give `ControlField.Input` an accessible name directly when the compact control stands alone. Use `ControlField.Label` inside a Base UI `Field.Root` when a visible label is part of the composition.
 
-## Legacy input
+Up and Down Arrow step by `step`; Alt/Option uses `smallStep` and Shift uses `largeStep`. Page Up and Page Down use `pageStep`; Home and End move to finite bounds. Left and Right keep caret behavior unless `arrowKeys="both"`. Enter commits typed text in place and Escape restores the last committed value. Expressions use the same text input and commit model rather than creating a second focus target. The scrub area is a pointer affordance; every value operation remains available from the input.
 
-`PrimitiveValueInput` remains available while Control Field is evaluated. New work should prefer Control Field unless it depends on the legacy component's custom scrub publication policy, pointer-lock opt-out, or monolithic visual props.
+## Presets and migration
+
+[`ControlInput`](/docs/input-primitive) composes Root, Group, ScrubArea, Input, and Affix into a compact input with sizes, density, a unit, and a scrub handle. `MultiInputControl` arranges several Control Inputs in one row. `PrimitiveValueInput` is deprecated and now renders `ControlInput`; see the migration table on the Control Input page.
 
 ## Source
 

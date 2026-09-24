@@ -19,7 +19,7 @@ import {
   alternateAxis,
   getOklchSliderRail,
   normalizeAxes,
-  parsePrimitiveExpression,
+  labExpressionResolver,
   useColor,
   type ColorAreaAxes,
   type ColorAreaChannel,
@@ -220,7 +220,7 @@ function renderColorPlaneProperties(controller: ColorPlaneLabPageController) {
             config={DEFAULT_MULTI_INPUT_CONFIG}
             fields={COLOR_PLANE_MULTI_INPUT_FIELDS}
             onFieldChange={controller.setColorPlaneMultiInputFieldValue}
-            parseExpression={parsePrimitiveExpression}
+            expressionResolver={labExpressionResolver}
             showLeadingLabels
           />
         </div>

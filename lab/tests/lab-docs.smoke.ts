@@ -1292,7 +1292,7 @@ test('renders and exercises the documented primitive and component pages', async
     },
     {
       slug: 'input-primitive',
-      heading: 'Input Primitive',
+      heading: 'Control Input',
       lab: '/lab/input-primitive',
       apiHeading: 'API reference',
       exampleCount: 1,

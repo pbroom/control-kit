@@ -6,7 +6,7 @@ import {
   TextConfigField,
   ToggleButtonPlaygroundStage,
   ToggleField,
-  type PrimitiveDensity,
+  type ControlInputDensity,
   type ToggleButtonContent,
   type ToggleButtonInteractionState,
   type ToggleButtonSelectionState,
@@ -20,7 +20,7 @@ function useToggleButtonLabPageController() {
   const [interactionState, setInteractionState] =
     useState<ToggleButtonInteractionState>('default');
   const [disabled, setDisabled] = useState(false);
-  const [density, setDensity] = useState<PrimitiveDensity>('compact');
+  const [density, setDensity] = useState<ControlInputDensity>('compact');
   const [content, setContent] = useState<ToggleButtonContent>('iconOnly');
   const [label, setLabel] = useState('Favorite');
 
