@@ -115,6 +115,8 @@ export function useScrubGesture<TElement extends HTMLElement = HTMLElement>({
   const lastScrubCommitTsRef = useRef(0);
   const processPendingScrubRef = useRef<(frameTime: number) => void>(() => {});
   const lastEventRef = useRef<Event | undefined>(undefined);
+  const lockedElementRef = useRef<TElement | null>(null);
+  const reportedScrubbingRef = useRef(false);
   const [isScrubbing, setIsScrubbing] = useState(false);
 
   useEffect(() => {
@@ -411,6 +413,7 @@ export function useScrubGesture<TElement extends HTMLElement = HTMLElement>({
       pendingScrubRef.current = null;
       event.currentTarget.setPointerCapture?.(event.pointerId);
       if (pointerLock) {
+        lockedElementRef.current = event.currentTarget;
         try {
           const lockRequest =
             event.currentTarget.requestPointerLock?.() as Promise<void> | void;
@@ -515,14 +518,42 @@ export function useScrubGesture<TElement extends HTMLElement = HTMLElement>({
   useEffect(() => {
     onScrubbingChangeRef.current = onScrubbingChange;
   }, [onScrubbingChange]);
-  const hasReportedScrubbingRef = useRef(false);
+  // Report transitions only; comparing against the last report keeps
+  // StrictMode's repeated effects from announcing `false` on mount.
   useEffect(() => {
-    if (!hasReportedScrubbingRef.current) {
-      hasReportedScrubbingRef.current = true;
-      return;
-    }
+    if (reportedScrubbingRef.current === isScrubbing) return;
+    reportedScrubbingRef.current = isScrubbing;
     onScrubbingChangeRef.current?.(isScrubbing);
   }, [isScrubbing]);
+
+  // Unmounting mid-gesture ends it: report scrubbing off, commit the value
+  // reached so far, and release pointer lock.
+  useEffect(
+    () => () => {
+      if (activePointerIdRef.current === null) return;
+      const moved = hasDragStartedRef.current;
+      activePointerIdRef.current = null;
+      hasDragStartedRef.current = false;
+      pendingScrubRef.current = null;
+      const locked = lockedElementRef.current;
+      lockedElementRef.current = null;
+      if (locked && document.pointerLockElement === locked) {
+        document.exitPointerLock?.();
+      }
+      if (reportedScrubbingRef.current) {
+        reportedScrubbingRef.current = false;
+        onScrubbingChangeRef.current?.(false);
+      }
+      if (moved) {
+        onScrubEndRef.current?.({
+          value: scrubCurrentValueRef.current,
+          moved,
+          event: lastEventRef.current,
+        });
+      }
+    },
+    [],
+  );
 
   return {
     handleRef,

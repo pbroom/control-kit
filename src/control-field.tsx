@@ -162,6 +162,12 @@ interface ControlFieldContextValue {
   revertValueRef: React.RefObject<number | null | undefined>;
   valueRef: React.RefObject<number | null>;
   setTextDirty: (dirty: boolean) => void;
+  /** True while Control Field pushes its visible text into Base UI. */
+  syncingTextRef: React.RefObject<boolean>;
+  /** Registered by the input: drops any expression draft. */
+  resetExpressionRef: React.RefObject<(() => void) | null>;
+  /** Drops typed and expression drafts after a non-text value change. */
+  discardDrafts: () => void;
   roundTypedValue: (value: number) => number;
   changeValue: (
     value: number | null,
@@ -425,6 +431,12 @@ export const ControlFieldRoot = React.forwardRef<
     textDirtyRef.current = dirty;
     setTextDirtyState(dirty);
   }, []);
+  const syncingTextRef = React.useRef(false);
+  const resetExpressionRef = React.useRef<(() => void) | null>(null);
+  const discardDrafts = React.useCallback(() => {
+    resetExpressionRef.current?.();
+    if (textDirtyRef.current) setTextDirty(false);
+  }, [setTextDirty]);
 
   const displayFormat = React.useMemo(
     () =>
@@ -523,6 +535,7 @@ export const ControlFieldRoot = React.forwardRef<
       commitOnBlur,
       commitValue,
       disabled,
+      discardDrafts,
       displayFormat,
       draftRef,
       expressionResolver,
@@ -536,12 +549,14 @@ export const ControlFieldRoot = React.forwardRef<
       onInvalidCommit,
       pageStep: Math.abs(pageStep ?? largeStep),
       readOnly,
+      resetExpressionRef,
       roundTypedValue,
       selectOnFocus,
       setScrubbing,
       setTextDirty,
       smallStep: Math.abs(smallStep),
       step: Math.abs(numericStep),
+      syncingTextRef,
       textDirty,
       textDirtyRef,
       value,
@@ -554,6 +569,7 @@ export const ControlFieldRoot = React.forwardRef<
       commitOnBlur,
       commitValue,
       disabled,
+      discardDrafts,
       displayFormat,
       expressionResolver,
       isScrubbing,
@@ -593,12 +609,29 @@ export const ControlFieldRoot = React.forwardRef<
         value={value}
         onValueChange={(nextValue, details) => {
           const { reason } = details;
+          if (syncingTextRef.current) {
+            // Base UI parsing the text Control Field pushed into it.
+            details.cancel();
+            return;
+          }
           if (
             blurGateRef.current &&
             isFocusEvent(details.event) &&
             (reason === 'input-blur' || reason === 'input-clear')
           ) {
-            // Control Field commits typed text itself on blur.
+            // Control Field commits typed text itself on blur. Base UI's
+            // change is swallowed rather than canceled so its Field
+            // validation still runs; the value stays controlled.
+            return;
+          }
+          if (
+            (reason === 'increment-press' || reason === 'decrement-press') &&
+            details.direction === undefined &&
+            !textDirtyRef.current &&
+            valueRef.current !== null
+          ) {
+            // Base UI re-parses the (display-rounded) text before a stepper
+            // press. With no typed draft, step from the exact value instead.
             details.cancel();
             return;
           }
@@ -613,8 +646,8 @@ export const ControlFieldRoot = React.forwardRef<
               value: normalize(nextValue),
             };
             if (!textDirtyRef.current) setTextDirty(true);
-          } else if (textDirtyRef.current) {
-            setTextDirty(false);
+          } else if (details.direction !== undefined) {
+            discardDrafts();
           }
           publishValue(nextValue, details);
         }}
@@ -665,6 +698,49 @@ function expressionIsPresent(value: string, permissive: boolean) {
 
 function preventBaseUIHandler(event: PreventableBaseUIEvent) {
   event.preventBaseUIHandler?.();
+}
+
+/**
+ * Pushes `text` into Base UI's input state through the native value setter
+ * and an `input` event, keeping the input's selection. Base UI's keydown,
+ * paste, stepper, and blur handlers read that state, so it must match the
+ * text Control Field shows.
+ */
+function syncBaseUIText(
+  input: HTMLInputElement,
+  text: string,
+  syncingRef: React.RefObject<boolean>,
+) {
+  const focused = document.activeElement === input;
+  const selection = focused
+    ? {
+        start: input.selectionStart,
+        end: input.selectionEnd,
+        direction: input.selectionDirection,
+      }
+    : null;
+  const setValue = Object.getOwnPropertyDescriptor(
+    HTMLInputElement.prototype,
+    'value',
+  )?.set;
+  syncingRef.current = true;
+  try {
+    // The DOM usually already shows `text`; move React's value tracker off
+    // it first so the input event reaches Base UI's change handler.
+    input.value = `${text}\u0000`;
+    setValue?.call(input, text);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  } finally {
+    syncingRef.current = false;
+  }
+  if (selection && selection.start !== null && selection.end !== null) {
+    const length = input.value.length;
+    input.setSelectionRange(
+      Math.min(selection.start, length),
+      Math.min(selection.end, length),
+      selection.direction ?? undefined,
+    );
+  }
 }
 
 function assignRef<T>(ref: React.Ref<T> | undefined, node: T | null) {
@@ -723,6 +799,36 @@ export const ControlFieldInput = React.forwardRef<
     setTextInvalid(false);
     context.setTextDirty(false);
   }, [context]);
+
+  // Scrub, stepper, and wheel changes discard a pending expression so a later
+  // blur cannot apply it to the new value.
+  const { resetExpressionRef } = context;
+  React.useLayoutEffect(() => {
+    resetExpressionRef.current = () => {
+      setExpressionDraft(null);
+      setExpressionInvalid(false);
+    };
+    return () => {
+      resetExpressionRef.current = null;
+    };
+  }, [resetExpressionRef, setExpressionDraft]);
+
+  // Keep Base UI's text equal to the formatted value whenever no draft is
+  // being edited (after key steps, commits, reverts, scrubs, and external
+  // value changes). Runs after every render; it is a no-op once in sync.
+  const baseUITextRef = React.useRef<string | null>(null);
+  React.useLayoutEffect(() => {
+    if (expressionDraft !== null || context.textDirty) return;
+    const input = context.inputRef.current;
+    if (!input) return;
+    const text = formatDisplayValue(
+      context.value,
+      context.locale,
+      context.displayFormat,
+    );
+    if (baseUITextRef.current === text) return;
+    syncBaseUIText(input, text, context.syncingTextRef);
+  });
 
   /** Restores the value from focus or the last commit. */
   const revertDraft = React.useCallback(
@@ -796,14 +902,21 @@ export const ControlFieldInput = React.forwardRef<
       const committed =
         draft.value === null ? null : context.roundTypedValue(draft.value);
       if (!Object.is(committed, context.valueRef.current)) {
-        context.changeValue(committed, reason, event, { commit: false });
+        const applied = context.changeValue(committed, reason, event, {
+          commit: false,
+        });
+        if (!applied) {
+          // The change was canceled: nothing is committed.
+          revertDraft(reason, event);
+          return true;
+        }
       }
       context.commitValue(committed, reason, event);
       setTextInvalid(false);
       context.setTextDirty(false);
       return true;
     },
-    [context],
+    [context, revertDraft],
   );
 
   const handleStepKey = (
@@ -925,6 +1038,7 @@ export const ControlFieldInput = React.forwardRef<
         }
       }}
       onChange={(event) => {
+        if (context.syncingTextRef.current) return;
         onChange?.(event);
         if (event.defaultPrevented) return;
 
@@ -1047,6 +1161,8 @@ export const ControlFieldInput = React.forwardRef<
         context.setTextDirty(true);
       }}
       render={(baseProps, state) => {
+        baseUITextRef.current =
+          typeof baseProps.value === 'string' ? baseProps.value : null;
         // While the user edits text, Base UI's text is authoritative. At rest
         // Control Field formats the value itself so stepping, scrubbing, and
         // controlled values are never rounded by the display format.
@@ -1166,7 +1282,7 @@ export const ControlFieldScrubArea = React.forwardRef<
   ref,
 ) {
   const context = useControlFieldContext();
-  const { changeValue, commitValue, setScrubbing, setTextDirty } = context;
+  const { changeValue, commitValue, discardDrafts, setScrubbing } = context;
   const normalize = React.useCallback(
     (nextValue: number) =>
       normalizeValue(
@@ -1182,9 +1298,9 @@ export const ControlFieldScrubArea = React.forwardRef<
       changeValue(nextValue, 'scrub', event ?? new Event('pointermove'), {
         commit: false,
       });
-      setTextDirty(false);
+      discardDrafts();
     },
-    [changeValue, setTextDirty],
+    [changeValue, discardDrafts],
   );
   const handleScrubEnd = React.useCallback(
     ({
