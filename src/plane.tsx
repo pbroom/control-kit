@@ -139,7 +139,6 @@ type PlaneThumbRegistration = {
 };
 
 type InternalPlaneContextValue = PlaneContextValue & {
-  element: HTMLDivElement | null;
   activeThumbKey: string | null;
   registerThumb: (registration: PlaneThumbRegistration) => () => void;
   cancelThumbInteraction: (thumbKey: string) => void;
@@ -155,6 +154,16 @@ const PlaneContext = React.createContext<InternalPlaneContextValue | null>(
 const PlaneThumbContext = React.createContext<PlaneThumbContextValue | null>(
   null,
 );
+// Nested thumbs render outside their parent's element so their percentage
+// positions resolve against the plane. Each parent owns a `display: contents`
+// container placed directly after its own element, so descendants keep the
+// logical (JSX) order in the DOM and therefore in sequential focus order.
+type NestedThumbSlotContextValue = {
+  container: HTMLDivElement | null;
+  register: () => () => void;
+};
+const NestedThumbSlotContext =
+  React.createContext<NestedThumbSlotContextValue | null>(null);
 
 function clampCoordinate(value: number) {
   if (!Number.isFinite(value)) return 0;
@@ -329,7 +338,6 @@ export function Plane({
     null,
   );
   const rootRef = React.useRef<HTMLDivElement | null>(null);
-  const [element, setElement] = React.useState<HTMLDivElement | null>(null);
   const thumbsRef = React.useRef(new Map<string, PlaneThumbRegistration>());
   const activeThumbKeyRef = React.useRef<string | null>(null);
   const activePointerIdRef = React.useRef<number | null>(null);
@@ -386,7 +394,6 @@ export function Plane({
   const setRootRef = React.useCallback(
     (node: HTMLDivElement | null) => {
       rootRef.current = node;
-      setElement(node);
       assignRef(ref, node);
     },
     [ref],
@@ -542,7 +549,6 @@ export function Plane({
 
   const context = React.useMemo<InternalPlaneContextValue>(
     () => ({
-      element,
       disabled,
       readOnly,
       dragging: activeThumbKey !== null,
@@ -550,14 +556,7 @@ export function Plane({
       registerThumb,
       cancelThumbInteraction,
     }),
-    [
-      element,
-      activeThumbKey,
-      cancelThumbInteraction,
-      disabled,
-      readOnly,
-      registerThumb,
-    ],
+    [activeThumbKey, cancelThumbInteraction, disabled, readOnly, registerThumb],
   );
 
   return (
@@ -682,11 +681,13 @@ export function Plane({
           activeThumbKeyRef.current = registration.key;
           setActiveThumbKey(registration.key);
           event.currentTarget.setPointerCapture(event.pointerId);
-          const nextValue = registration.constrainWorldValue(
-            getPointerValue(event, bounds),
-          );
+          // Publish the raw pointer value; the thumb clamps it in its own
+          // local space, avoiding world/local round-trip rounding. Hover
+          // checks use the clamped position the thumb actually renders at.
+          const pointerValue = getPointerValue(event, bounds);
+          const nextValue = registration.constrainWorldValue(pointerValue);
           if (!relativeDragOriginRef.current) {
-            registration.publishValue(nextValue, {
+            registration.publishValue(pointerValue, {
               interaction: 'pointer',
               reason,
               originalEvent: event.nativeEvent,
@@ -732,10 +733,9 @@ export function Plane({
             : undefined;
           if (bounds && registration?.isInteractive()) {
             const reason = activePointerReasonRef.current ?? 'thumb-drag';
-            const nextValue = registration.constrainWorldValue(
-              getPointerValue(event, bounds),
-            );
-            registration.publishValue(nextValue, {
+            const pointerValue = getPointerValue(event, bounds);
+            const nextValue = registration.constrainWorldValue(pointerValue);
+            registration.publishValue(pointerValue, {
               interaction: 'pointer',
               reason,
               originalEvent: event.nativeEvent,
@@ -780,9 +780,15 @@ export function Plane({
           );
           const bounds = activePointerBoundsRef.current;
           const reason = activePointerReasonRef.current ?? 'thumb-drag';
-          const nextValue = bounds ? getPointerValue(event, bounds) : null;
-          if (canPublish && nextValue && registration) {
-            registration.publishValue(nextValue, {
+          const pointerValue = bounds ? getPointerValue(event, bounds) : null;
+          // Reconcile hover against the clamped position the thumb renders at,
+          // not the raw pointer, which may lie outside the thumb's range.
+          const nextValue =
+            pointerValue && registration
+              ? registration.constrainWorldValue(pointerValue)
+              : null;
+          if (canPublish && pointerValue && registration) {
+            registration.publishValue(pointerValue, {
               interaction: 'pointer',
               reason,
               originalEvent: event.nativeEvent,
@@ -880,7 +886,9 @@ export function Plane({
         }}
       >
         <PlaneThumbContext.Provider value={null}>
-          {children}
+          <NestedThumbSlotContext.Provider value={null}>
+            {children}
+          </NestedThumbSlotContext.Provider>
         </PlaneThumbContext.Provider>
       </div>
     </PlaneContext.Provider>
@@ -903,6 +911,13 @@ function isPlaneArrowKey(key: string): key is PlaneArrowKey {
     key === 'ArrowRight' ||
     key === 'ArrowDown' ||
     key === 'ArrowUp'
+  );
+}
+
+function isOwnThumbEvent(event: React.SyntheticEvent<HTMLElement>) {
+  return (
+    event.target instanceof Element &&
+    event.target.closest('[data-plane-thumb-key]') === event.currentTarget
   );
 }
 
@@ -1018,6 +1033,23 @@ export function PlaneThumb({
 }: PlaneThumbProps) {
   const context = useInternalPlaneContext();
   const parentThumb = React.useContext(PlaneThumbContext);
+  const parentSlot = React.useContext(NestedThumbSlotContext);
+  const [nestedSlotElement, setNestedSlotElement] =
+    React.useState<HTMLDivElement | null>(null);
+  const [nestedThumbCount, setNestedThumbCount] = React.useState(0);
+  const registerNestedThumb = React.useCallback(() => {
+    setNestedThumbCount((count) => count + 1);
+    return () => setNestedThumbCount((count) => count - 1);
+  }, []);
+  const nestedSlot = React.useMemo<NestedThumbSlotContextValue>(
+    () => ({ container: nestedSlotElement, register: registerNestedThumb }),
+    [nestedSlotElement, registerNestedThumb],
+  );
+  const registerWithParentSlot = parentThumb ? parentSlot?.register : undefined;
+  React.useLayoutEffect(
+    () => registerWithParentSlot?.(),
+    [registerWithParentSlot],
+  );
   const minimum = parentThumb ? -1 : 0;
   const normalizeValue = React.useCallback(
     (value: PlaneValue): PlaneValue => ({
@@ -1600,13 +1632,10 @@ export function PlaneThumb({
         }
       }}
       onKeyDown={(event) => {
-        if (
-          !(event.target instanceof Element) ||
-          event.target.closest('[data-plane-thumb-key]') !== event.currentTarget
-        )
-          return;
         onKeyDown?.(event);
-        if (event.defaultPrevented) return;
+        // Consumer handlers see bubbled events from child controls and nested
+        // thumbs; only this thumb's own axes drive its keyboard behavior.
+        if (event.defaultPrevented || !isOwnThumbEvent(event)) return;
         const sourceAxis =
           event.target instanceof HTMLElement
             ? event.target.dataset.planeAxis
@@ -1680,12 +1709,8 @@ export function PlaneThumb({
         setKeyboardValue(nextValue, 'keyboard', event.nativeEvent);
       }}
       onKeyUp={(event) => {
-        if (
-          !(event.target instanceof Element) ||
-          event.target.closest('[data-plane-thumb-key]') !== event.currentTarget
-        )
-          return;
         onKeyUp?.(event);
+        if (!isOwnThumbEvent(event)) return;
         const arrowKey = isPlaneArrowKey(event.key) ? event.key : null;
         if (arrowKey) pressedArrowKeysRef.current.delete(arrowKey);
         if (event.key === 'Alt' || event.key === 'Shift') {
@@ -1712,13 +1737,26 @@ export function PlaneThumb({
       }}
     >
       <PlaneThumbContext.Provider value={thumbContext}>
-        {renderAxisInput('x', resolvedXAriaLabel)}
-        {renderAxisInput('y', resolvedYAriaLabel)}
-        {children}
+        <NestedThumbSlotContext.Provider value={nestedSlot}>
+          {renderAxisInput('x', resolvedXAriaLabel)}
+          {renderAxisInput('y', resolvedYAriaLabel)}
+          {children}
+        </NestedThumbSlotContext.Provider>
       </PlaneThumbContext.Provider>
     </div>
   );
-  return parentThumb && context.element
-    ? createPortal(thumb, context.element)
-    : thumb;
+  const rendered = (
+    <>
+      {thumb}
+      {nestedThumbCount > 0 ? (
+        <div
+          ref={setNestedSlotElement}
+          data-slot="plane-thumb-nested"
+          style={{ display: 'contents' }}
+        />
+      ) : null}
+    </>
+  );
+  const portalContainer = parentThumb ? parentSlot?.container : null;
+  return portalContainer ? createPortal(rendered, portalContainer) : rendered;
 }

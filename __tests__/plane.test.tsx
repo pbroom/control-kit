@@ -2413,8 +2413,14 @@ describe('nested PlaneThumb', () => {
 
   it('composes multiple offsets in plane units independently of DOM wrappers', () => {
     const { plane, thumb, axis, container } = mountNested();
-    expect(thumb('child').parentElement).toBe(plane);
-    expect(thumb('grandchild').parentElement).toBe(plane);
+    const childSlot = thumb('child').parentElement!;
+    expect(childSlot.dataset.slot).toBe('plane-thumb-nested');
+    expect(childSlot.parentElement).toBe(plane);
+    expect(childSlot.previousElementSibling).toBe(thumb('parent'));
+    const grandchildSlot = thumb('grandchild').parentElement!;
+    expect(grandchildSlot.dataset.slot).toBe('plane-thumb-nested');
+    expect(grandchildSlot.parentElement).toBe(childSlot);
+    expect(grandchildSlot.previousElementSibling).toBe(thumb('child'));
     expect(parseFloat(thumb('child').style.left)).toBeCloseTo(20);
     expect(parseFloat(thumb('child').style.top)).toBeCloseTo(30);
     expect(parseFloat(thumb('grandchild').style.left)).toBeCloseTo(30);
@@ -2571,5 +2577,119 @@ describe('nested PlaneThumb', () => {
     act(() => container.querySelector('form')!.reset());
     expect(axis('child').value).toBe('-0.2');
     expect(axis('child', 'y').value).toBe('0.1');
+  });
+
+  it('reconciles release hover against the clamped nested position', () => {
+    const { plane, thumb, axis } = mountNested();
+    vi.spyOn(thumb('child'), 'getBoundingClientRect').mockReturnValue(
+      new DOMRect(0, 0, 20, 20),
+    );
+    act(() =>
+      pointer(thumb('child'), 'pointerdown', {
+        clientX: 50,
+        clientY: 50,
+        pointerType: 'mouse',
+      }),
+    );
+    // Far beyond the child's local [-1, 1] range: the raw pointer position
+    // would place an imaginary thumb under the pointer.
+    act(() =>
+      pointer(plane, 'pointerup', {
+        clientX: 600,
+        clientY: -600,
+        pointerType: 'mouse',
+      }),
+    );
+    expect(axis('child').value).toBe('1');
+    expect(axis('child', 'y').value).toBe('1');
+    expect(thumb('child').hasAttribute('data-hovered')).toBe(false);
+  });
+
+  it('keeps nested thumbs in logical tab order before later top-level thumbs', () => {
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    mountedRoots.push(root);
+    act(() =>
+      root.render(
+        <Plane>
+          <PlaneThumb thumbId="a">
+            <PlaneThumb thumbId="a-child">
+              <PlaneThumb thumbId="a-grandchild" />
+            </PlaneThumb>
+            <PlaneThumb thumbId="a-child-2" />
+          </PlaneThumb>
+          <PlaneThumb thumbId="b">
+            <PlaneThumb thumbId="b-child" />
+          </PlaneThumb>
+          <PlaneThumb thumbId="c" />
+        </Plane>,
+      ),
+    );
+    const order = Array.from(
+      container.querySelectorAll<HTMLInputElement>(
+        'input[data-plane-axis][tabindex="0"]',
+      ),
+      (input) => input.closest<HTMLElement>('[data-thumb-id]')!.dataset.thumbId,
+    );
+    expect(order).toEqual([
+      'a',
+      'a-child',
+      'a-grandchild',
+      'a-child-2',
+      'b',
+      'b-child',
+      'c',
+    ]);
+  });
+
+  it('forwards child-originated key events to consumer handlers without moving the parent', () => {
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    mountedRoots.push(root);
+    const onKeyDown = vi.fn();
+    const onKeyUp = vi.fn();
+    const parentChange = vi.fn();
+    act(() =>
+      root.render(
+        <Plane>
+          <PlaneThumb
+            thumbId="parent"
+            onKeyDown={onKeyDown}
+            onKeyUp={onKeyUp}
+            onValueChange={parentChange}
+          >
+            <input aria-label="Name" />
+            <PlaneThumb thumbId="child" />
+          </PlaneThumb>
+        </Plane>,
+      ),
+    );
+    const input = container.querySelector(
+      '[aria-label="Name"]',
+    ) as HTMLInputElement;
+    const childAxis = container.querySelector(
+      '[data-thumb-id="child"] > [data-plane-axis="x"]',
+    ) as HTMLInputElement;
+
+    act(() => input.focus());
+    const inputDown = key(input, 'keydown', 'ArrowRight');
+    act(() => key(input, 'keyup', 'ArrowRight'));
+    expect(inputDown.defaultPrevented).toBe(false);
+    act(() => childAxis.focus());
+    act(() => key(childAxis, 'keydown', 'ArrowRight'));
+    act(() => key(childAxis, 'keyup', 'ArrowRight'));
+
+    expect(onKeyDown.mock.calls.map(([event]) => event.target)).toEqual([
+      input,
+      childAxis,
+    ]);
+    expect(onKeyUp.mock.calls.map(([event]) => event.target)).toEqual([
+      input,
+      childAxis,
+    ]);
+    expect(parentChange).not.toHaveBeenCalled();
+    expect(Number(childAxis.value)).toBeCloseTo(0.01);
   });
 });
