@@ -53,6 +53,9 @@ export type {
   ControlFieldInteraction,
   ControlFieldInvalidCommitDetails,
   ControlFieldRootProps,
+  ControlFieldScrubAreaCursorProps,
+  ControlFieldScrubAreaProps,
+  ControlFieldScrubAreaState,
   ControlFieldValueChangeDetails,
   ControlFieldValueCommitDetails,
 } from './control-field.js';

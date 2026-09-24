@@ -10,6 +10,7 @@ import {
   getControlFieldInteraction,
   resolveControlFieldExpression,
   type ControlFieldRootProps,
+  type ControlFieldScrubAreaProps,
 } from '../src/index.js';
 import './helpers/dom-polyfills.js';
 
@@ -670,6 +671,455 @@ describe('ControlField format rounding', () => {
 
     expect(onValueCommitted).toHaveBeenLastCalledWith(12.4, expect.anything());
     expect(input.value).toBe('12.4');
+  });
+});
+
+function mountScrubField(
+  rootProps: Partial<ControlFieldRootProps> = {},
+  scrubProps: Partial<ControlFieldScrubAreaProps> = {},
+  { accept = false, initialValue = 42 } = {},
+) {
+  const container = document.createElement('div');
+  document.body.append(container);
+  const root = createRoot(container);
+  mountedRoots.push(root);
+
+  function Harness() {
+    const [value, setValue] = React.useState<number | null>(initialValue);
+    return (
+      <ControlField.Root
+        {...rootProps}
+        value={value}
+        onValueChange={(nextValue, details) => {
+          if (accept) setValue(nextValue);
+          rootProps.onValueChange?.(nextValue, details);
+        }}
+      >
+        <ControlField.Group>
+          <ControlField.ScrubArea {...scrubProps}>V</ControlField.ScrubArea>
+          <ControlField.Input aria-label="Amount" />
+        </ControlField.Group>
+      </ControlField.Root>
+    );
+  }
+
+  act(() => {
+    root.render(<Harness />);
+  });
+
+  const handle = container.querySelector(
+    '[data-slot="control-field-scrub-area"]',
+  ) as HTMLSpanElement;
+  handle.setPointerCapture = vi.fn();
+  return { container, handle };
+}
+
+function firePointer(
+  target: EventTarget,
+  type:
+    | 'pointerdown'
+    | 'pointermove'
+    | 'pointerup'
+    | 'pointercancel'
+    | 'lostpointercapture',
+  init: {
+    pointerId: number;
+    clientX: number;
+    button?: number;
+    shiftKey?: boolean;
+    altKey?: boolean;
+  },
+) {
+  act(() => {
+    target.dispatchEvent(
+      new PointerEvent(type, {
+        bubbles: true,
+        cancelable: true,
+        pointerId: init.pointerId,
+        clientX: init.clientX,
+        button: init.button ?? 0,
+        shiftKey: init.shiftKey ?? false,
+        altKey: init.altKey ?? false,
+      }),
+    );
+  });
+}
+
+function mockAnimationFrames() {
+  const frameCallbacks = new Map<number, FrameRequestCallback>();
+  let nextFrameId = 1;
+  vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+    const frameId = nextFrameId++;
+    frameCallbacks.set(frameId, callback);
+    return frameId;
+  });
+  vi.spyOn(window, 'cancelAnimationFrame').mockImplementation((frameId) => {
+    frameCallbacks.delete(frameId);
+  });
+  return (frameTime: number) => {
+    const next = frameCallbacks.entries().next().value;
+    expect(next).toBeDefined();
+    const [frameId, callback] = next as [number, FrameRequestCallback];
+    frameCallbacks.delete(frameId);
+    act(() => callback(frameTime));
+  };
+}
+
+const scrubReason = expect.objectContaining({ reason: 'scrub' });
+
+describe('ControlField.ScrubArea', () => {
+  it('scrubs through document pointer events and commits once on release', () => {
+    const onValueChange = vi.fn();
+    const onValueCommitted = vi.fn();
+    const { container, handle } = mountScrubField(
+      { onValueChange, onValueCommitted },
+      {},
+      { accept: true },
+    );
+
+    firePointer(handle, 'pointerdown', { pointerId: 1, clientX: 0 });
+    firePointer(document, 'pointermove', { pointerId: 1, clientX: 10 });
+    firePointer(document, 'pointermove', { pointerId: 1, clientX: 20 });
+
+    expect(onValueChange).toHaveBeenCalledTimes(2);
+    expect(onValueChange).toHaveBeenLastCalledWith(62, scrubReason);
+    expect(getControlFieldInteraction(onValueChange.mock.calls[1][1])).toBe(
+      'pointer',
+    );
+    expect(onValueCommitted).not.toHaveBeenCalled();
+    expect(
+      container
+        .querySelector('[data-slot="control-field"]')
+        ?.hasAttribute('data-scrubbing'),
+    ).toBe(true);
+    expect(
+      container
+        .querySelector('[data-slot="control-field-group"]')
+        ?.hasAttribute('data-scrubbing'),
+    ).toBe(true);
+
+    firePointer(document, 'pointerup', { pointerId: 1, clientX: 20 });
+
+    expect(onValueCommitted).toHaveBeenCalledTimes(1);
+    expect(onValueCommitted).toHaveBeenLastCalledWith(62, scrubReason);
+    expect(
+      container
+        .querySelector('[data-slot="control-field"]')
+        ?.hasAttribute('data-scrubbing'),
+    ).toBe(false);
+  });
+
+  it('does not commit a press without movement', () => {
+    const onValueCommitted = vi.fn();
+    const { handle } = mountScrubField({ onValueCommitted });
+
+    firePointer(handle, 'pointerdown', { pointerId: 1, clientX: 0 });
+    firePointer(document, 'pointerup', { pointerId: 1, clientX: 0 });
+
+    expect(onValueCommitted).not.toHaveBeenCalled();
+  });
+
+  it('reports scrubbing state changes', () => {
+    const onScrubbingChange = vi.fn();
+    const { handle } = mountScrubField({}, { onScrubbingChange });
+
+    firePointer(handle, 'pointerdown', { pointerId: 1, clientX: 0 });
+    firePointer(document, 'pointermove', { pointerId: 1, clientX: 5 });
+    firePointer(document, 'pointerup', { pointerId: 1, clientX: 5 });
+
+    expect(onScrubbingChange.mock.calls).toEqual([[true], [false]]);
+  });
+
+  it('steps discretely with stepDistance', () => {
+    const onValueChange = vi.fn();
+    const { handle } = mountScrubField(
+      { onValueChange, step: 0.1, smallStep: 0.01, largeStep: 1 },
+      { stepDistance: 2 },
+    );
+
+    firePointer(handle, 'pointerdown', { pointerId: 4, clientX: 0 });
+    firePointer(document, 'pointermove', { pointerId: 4, clientX: 1 });
+    expect(onValueChange).not.toHaveBeenCalled();
+    firePointer(document, 'pointermove', { pointerId: 4, clientX: 2 });
+    expect(onValueChange).toHaveBeenLastCalledWith(42.1, scrubReason);
+    firePointer(document, 'pointermove', { pointerId: 4, clientX: 3 });
+    expect(onValueChange).toHaveBeenCalledTimes(1);
+    firePointer(document, 'pointermove', { pointerId: 4, clientX: 4 });
+    expect(onValueChange).toHaveBeenLastCalledWith(42.2, scrubReason);
+  });
+
+  it('does not skip steps for fractional stepDistance values', () => {
+    const onValueChange = vi.fn();
+    const { handle } = mountScrubField(
+      { onValueChange, step: 0.1, smallStep: 0.01, largeStep: 1 },
+      { stepDistance: 1.5 },
+    );
+
+    firePointer(handle, 'pointerdown', { pointerId: 5, clientX: 0 });
+    firePointer(document, 'pointermove', { pointerId: 5, clientX: 2.4 });
+    expect(onValueChange).toHaveBeenLastCalledWith(42.1, scrubReason);
+    firePointer(document, 'pointermove', { pointerId: 5, clientX: 2.6 });
+    expect(onValueChange).toHaveBeenCalledTimes(1);
+    firePointer(document, 'pointermove', { pointerId: 5, clientX: 3 });
+    expect(onValueChange).toHaveBeenLastCalledWith(42.2, scrubReason);
+  });
+
+  it('defers updates until the max commit rate frame budget elapses', () => {
+    const flushFrame = mockAnimationFrames();
+    const onValueChange = vi.fn();
+    const { handle } = mountScrubField(
+      { onValueChange },
+      { maxCommitRate: 10 },
+    );
+
+    firePointer(handle, 'pointerdown', { pointerId: 8, clientX: 0 });
+    firePointer(document, 'pointermove', { pointerId: 8, clientX: 5 });
+    expect(onValueChange).not.toHaveBeenCalled();
+
+    flushFrame(16);
+    expect(onValueChange).toHaveBeenLastCalledWith(47, scrubReason);
+
+    firePointer(document, 'pointermove', { pointerId: 8, clientX: 8 });
+    flushFrame(40);
+    expect(onValueChange).toHaveBeenCalledTimes(1);
+    flushFrame(116);
+    expect(onValueChange).toHaveBeenLastCalledWith(50, scrubReason);
+  });
+
+  it('accumulates locked pointer movement across frames and release', () => {
+    const flushFrame = mockAnimationFrames();
+    const moveLockedPointer = (
+      movementX: number,
+      altKey = false,
+      shiftKey = false,
+    ) => {
+      const event = new MouseEvent('mousemove', {
+        bubbles: true,
+        altKey,
+        shiftKey,
+      });
+      Object.defineProperty(event, 'movementX', { value: movementX });
+      act(() => document.dispatchEvent(event));
+    };
+    const onValueChange = vi.fn();
+    const onValueCommitted = vi.fn();
+    const { handle } = mountScrubField(
+      { onValueChange, onValueCommitted },
+      { pointerLock: true, maxCommitRate: 10 },
+      { accept: true },
+    );
+    handle.requestPointerLock = vi.fn();
+    const originalPointerLock = Object.getOwnPropertyDescriptor(
+      document,
+      'pointerLockElement',
+    );
+    Object.defineProperty(document, 'pointerLockElement', {
+      configurable: true,
+      get: () => handle,
+    });
+    try {
+      firePointer(handle, 'pointerdown', { pointerId: 8, clientX: 0 });
+      expect(handle.requestPointerLock).toHaveBeenCalled();
+      moveLockedPointer(5);
+      moveLockedPointer(5);
+      moveLockedPointer(5);
+      expect(onValueChange).not.toHaveBeenCalled();
+      flushFrame(16);
+      expect(onValueChange).toHaveBeenLastCalledWith(57, scrubReason);
+
+      moveLockedPointer(2, true);
+      moveLockedPointer(3, true);
+      flushFrame(40);
+      expect(onValueChange).toHaveBeenCalledTimes(1);
+      flushFrame(116);
+      expect(onValueChange).toHaveBeenLastCalledWith(57.5, scrubReason);
+
+      moveLockedPointer(5);
+      moveLockedPointer(5, true);
+      moveLockedPointer(2, false, true);
+      moveLockedPointer(5, true);
+      moveLockedPointer(1);
+      flushFrame(140);
+      expect(onValueChange).toHaveBeenCalledTimes(2);
+      flushFrame(216);
+      expect(onValueChange).toHaveBeenLastCalledWith(84.5, scrubReason);
+
+      moveLockedPointer(4, true);
+      moveLockedPointer(1, true);
+      firePointer(document, 'pointerup', { pointerId: 8, clientX: 0 });
+      expect(onValueChange).toHaveBeenCalledTimes(4);
+      expect(onValueChange).toHaveBeenLastCalledWith(85, scrubReason);
+      expect(onValueCommitted).toHaveBeenCalledTimes(1);
+      expect(onValueCommitted).toHaveBeenLastCalledWith(85, scrubReason);
+    } finally {
+      if (originalPointerLock) {
+        Object.defineProperty(
+          document,
+          'pointerLockElement',
+          originalPointerLock,
+        );
+      } else {
+        Reflect.deleteProperty(document, 'pointerLockElement');
+      }
+    }
+  });
+
+  it.each([false, true])(
+    'preserves pending modifier segments with a frame after each move: %s',
+    (flushEachMove) => {
+      const flushFrame = mockAnimationFrames();
+      const onValueChange = vi.fn();
+      const { handle } = mountScrubField(
+        { onValueChange },
+        { maxCommitRate: 10 },
+        { accept: true },
+      );
+      firePointer(handle, 'pointerdown', { pointerId: 9, clientX: 0 });
+
+      const moves = [
+        { clientX: 5, altKey: false, shiftKey: false },
+        { clientX: 10, altKey: true, shiftKey: false },
+        { clientX: 12, altKey: false, shiftKey: true },
+        { clientX: 17, altKey: true, shiftKey: false },
+        { clientX: 18, altKey: false, shiftKey: false },
+      ];
+      for (const [index, move] of moves.entries()) {
+        firePointer(document, 'pointermove', { pointerId: 9, ...move });
+        if (flushEachMove) flushFrame(16 + index * 100);
+        else expect(onValueChange).not.toHaveBeenCalled();
+      }
+      if (!flushEachMove) flushFrame(16);
+      expect(onValueChange).toHaveBeenLastCalledWith(69, scrubReason);
+      expect(onValueChange).toHaveBeenCalledTimes(
+        flushEachMove ? moves.length : 1,
+      );
+      firePointer(document, 'pointerup', { pointerId: 9, clientX: 18 });
+    },
+  );
+
+  it('holds updates below the commit threshold until release or cancel', () => {
+    const onValueChange = vi.fn();
+    const onValueCommitted = vi.fn();
+    const { handle } = mountScrubField(
+      { onValueChange, onValueCommitted },
+      { commitThreshold: 5 },
+    );
+
+    firePointer(handle, 'pointerdown', { pointerId: 6, clientX: 0 });
+    firePointer(document, 'pointermove', { pointerId: 6, clientX: 4 });
+    expect(onValueChange).not.toHaveBeenCalled();
+    firePointer(document, 'pointermove', { pointerId: 6, clientX: 5 });
+    expect(onValueChange).toHaveBeenLastCalledWith(47, scrubReason);
+    firePointer(document, 'pointermove', { pointerId: 6, clientX: 7 });
+    expect(onValueChange).toHaveBeenCalledTimes(1);
+
+    firePointer(document, 'pointercancel', { pointerId: 6, clientX: 7 });
+    expect(onValueChange).toHaveBeenCalledTimes(2);
+    expect(onValueChange).toHaveBeenLastCalledWith(49, scrubReason);
+    expect(onValueCommitted).toHaveBeenCalledTimes(1);
+    expect(onValueCommitted).toHaveBeenLastCalledWith(49, scrubReason);
+  });
+
+  it('ends scrubbing when the handle loses pointer capture', () => {
+    const onValueChange = vi.fn();
+    const { handle } = mountScrubField(
+      { onValueChange },
+      { commitThreshold: 5 },
+    );
+
+    firePointer(handle, 'pointerdown', { pointerId: 9, clientX: 0 });
+    firePointer(document, 'pointermove', { pointerId: 9, clientX: 5 });
+    firePointer(document, 'pointermove', { pointerId: 9, clientX: 7 });
+    expect(onValueChange).toHaveBeenCalledTimes(1);
+
+    firePointer(handle, 'lostpointercapture', { pointerId: 9, clientX: 7 });
+    expect(onValueChange).toHaveBeenCalledTimes(2);
+    expect(onValueChange).toHaveBeenLastCalledWith(49, scrubReason);
+
+    firePointer(document, 'pointermove', { pointerId: 9, clientX: 12 });
+    expect(onValueChange).toHaveBeenCalledTimes(2);
+  });
+
+  it('falls back to document dragging when pointer lock throws', () => {
+    const onValueChange = vi.fn();
+    const { handle } = mountScrubField(
+      { onValueChange },
+      { pointerLock: true },
+    );
+    handle.requestPointerLock = vi.fn(() => {
+      throw new Error('Pointer lock unavailable');
+    }) as HTMLSpanElement['requestPointerLock'];
+
+    firePointer(handle, 'pointerdown', { pointerId: 2, clientX: 0 });
+    firePointer(document, 'pointermove', { pointerId: 2, clientX: 12 });
+
+    expect(onValueChange).toHaveBeenLastCalledWith(54, scrubReason);
+  });
+
+  it('does not request pointer lock by default', () => {
+    const { handle } = mountScrubField();
+    handle.requestPointerLock = vi.fn();
+
+    firePointer(handle, 'pointerdown', { pointerId: 2, clientX: 0 });
+
+    expect(handle.requestPointerLock).not.toHaveBeenCalled();
+    firePointer(document, 'pointerup', { pointerId: 2, clientX: 0 });
+  });
+
+  it('rebases scrub movement at clamp boundaries', () => {
+    const onValueChange = vi.fn();
+    const { handle } = mountScrubField(
+      { onValueChange, min: 0, max: 100 },
+      {},
+      { initialValue: 95 },
+    );
+
+    firePointer(handle, 'pointerdown', { pointerId: 3, clientX: 0 });
+    firePointer(document, 'pointermove', { pointerId: 3, clientX: 10 });
+    expect(onValueChange).toHaveBeenLastCalledWith(100, scrubReason);
+    firePointer(document, 'pointermove', { pointerId: 3, clientX: 9 });
+    expect(onValueChange).toHaveBeenLastCalledWith(99, scrubReason);
+  });
+
+  it('wraps scrub values across the range', () => {
+    const onValueChange = vi.fn();
+    const { handle } = mountScrubField(
+      { onValueChange, min: 0, max: 360, boundaryBehavior: 'wrap' },
+      {},
+      { initialValue: 355 },
+    );
+
+    firePointer(handle, 'pointerdown', { pointerId: 3, clientX: 0 });
+    firePointer(document, 'pointermove', { pointerId: 3, clientX: 10 });
+    expect(onValueChange).toHaveBeenLastCalledWith(5, scrubReason);
+  });
+
+  it('does not scrub when disabled or read-only', () => {
+    const onValueChange = vi.fn();
+    const { handle: disabledHandle } = mountScrubField({
+      onValueChange,
+      disabled: true,
+    });
+    firePointer(disabledHandle, 'pointerdown', { pointerId: 8, clientX: 0 });
+    firePointer(document, 'pointermove', { pointerId: 8, clientX: 20 });
+
+    const { handle: readOnlyHandle } = mountScrubField({
+      onValueChange,
+      readOnly: true,
+    });
+    firePointer(readOnlyHandle, 'pointerdown', { pointerId: 9, clientX: 0 });
+    firePointer(document, 'pointermove', { pointerId: 9, clientX: 20 });
+
+    expect(onValueChange).not.toHaveBeenCalled();
+    expect(disabledHandle.hasAttribute('data-disabled')).toBe(true);
+  });
+
+  it('renders the deprecated ScrubAreaCursor as nothing', () => {
+    const container = mountControlField();
+    expect(
+      container.querySelector('[data-slot="control-field-scrub-area"]')
+        ?.children.length,
+    ).toBe(1);
   });
 });
 

@@ -5,6 +5,7 @@ import {
   resolveControlFieldExpression,
   type ControlFieldExpressionResolver,
 } from './control-field-expression.js';
+import { useScrubGesture } from './use-scrub-gesture.js';
 import { cn } from './utils.js';
 
 type PreventableBaseUIEvent = {
@@ -151,6 +152,8 @@ interface ControlFieldContextValue {
   smallStep: number;
   step: number;
   textDirty: boolean;
+  isScrubbing: boolean;
+  setScrubbing: (isScrubbing: boolean) => void;
   value: number | null;
   inputRef: React.RefObject<HTMLInputElement | null>;
   draftRef: React.RefObject<ControlFieldDraft>;
@@ -413,6 +416,7 @@ export const ControlFieldRoot = React.forwardRef<
   const focusValueRef = React.useRef<number | null>(null);
   const textDirtyRef = React.useRef(false);
   const [textDirty, setTextDirtyState] = React.useState(false);
+  const [isScrubbing, setScrubbing] = React.useState(false);
   const setTextDirty = React.useCallback((dirty: boolean) => {
     textDirtyRef.current = dirty;
     setTextDirtyState(dirty);
@@ -517,6 +521,7 @@ export const ControlFieldRoot = React.forwardRef<
       expressionResolver,
       focusValueRef,
       inputRef,
+      isScrubbing,
       largeStep: Math.abs(largeStep),
       locale,
       max,
@@ -526,6 +531,7 @@ export const ControlFieldRoot = React.forwardRef<
       readOnly,
       roundTypedValue,
       selectOnFocus,
+      setScrubbing,
       setTextDirty,
       smallStep: Math.abs(smallStep),
       step: Math.abs(numericStep),
@@ -542,6 +548,7 @@ export const ControlFieldRoot = React.forwardRef<
       disabled,
       displayFormat,
       expressionResolver,
+      isScrubbing,
       largeStep,
       locale,
       max,
@@ -564,6 +571,7 @@ export const ControlFieldRoot = React.forwardRef<
       <NumberField.Root
         ref={ref}
         data-slot="control-field"
+        data-scrubbing={isScrubbing ? '' : undefined}
         min={boundaryBehavior === 'wrap' ? undefined : min}
         max={boundaryBehavior === 'wrap' ? undefined : max}
         allowOutOfRange={boundaryBehavior === 'free' || undefined}
@@ -1048,11 +1056,13 @@ export const ControlFieldGroup = React.forwardRef<
   NumberField.Group.Props
 >(function ControlFieldGroup(props, ref) {
   const { className, ...groupProps } = props;
+  const context = useControlFieldContext();
   return (
     <NumberField.Group
       ref={ref}
       {...groupProps}
       data-slot="control-field-group"
+      data-scrubbing={context.isScrubbing ? '' : undefined}
       className={(state) =>
         cn(
           'relative box-border flex h-6 min-h-6 w-full min-w-0 items-center rounded-[4px] border border-transparent bg-[var(--ck-surface,#383838)] p-0 font-sans text-[11px] leading-4 text-[color:var(--ck-foreground,#fff)] transition-colors [&:hover:not(:focus-within)]:border-[color:var(--ck-border,#4c4c4c)] focus-within:border-[color:var(--ck-border-focus,#5288db)] data-[invalid]:border-[color:var(--ck-border-invalid,#ff4e4e)] data-[scrubbing]:border-[color:var(--ck-border-scrub,#97c1ef)] data-[disabled]:opacity-45',
@@ -1063,42 +1073,202 @@ export const ControlFieldGroup = React.forwardRef<
   );
 });
 
+export interface ControlFieldScrubAreaState {
+  scrubbing: boolean;
+  disabled: boolean;
+  readOnly: boolean;
+}
+
+export interface ControlFieldScrubAreaProps extends Omit<
+  React.HTMLAttributes<HTMLSpanElement>,
+  'className'
+> {
+  className?:
+    | string
+    | ((state: ControlFieldScrubAreaState) => string | undefined);
+  /**
+   * Horizontal pixels per `step` of movement.
+   * @default 1
+   */
+  pixelsPerStep?: number;
+  /**
+   * Move in whole steps: each `stepDistance` pixels adds one step. Overrides
+   * `pixelsPerStep` when set.
+   */
+  stepDistance?: number;
+  /**
+   * Pixels the pointer must travel before scrubbing starts.
+   * @default 1
+   */
+  threshold?: number;
+  /**
+   * Minimum value change between `onValueChange` calls while dragging. The
+   * final value is always published on release.
+   * @default 0
+   */
+  commitThreshold?: number;
+  /** Maximum `onValueChange` calls per second while dragging. */
+  maxCommitRate?: number;
+  /**
+   * Lock the pointer while scrubbing so drags are not limited by the screen
+   * edge. Falls back to ordinary pointer tracking when unavailable.
+   * @default false
+   */
+  pointerLock?: boolean;
+  onScrubbingChange?: (isScrubbing: boolean) => void;
+}
+
+/**
+ * Horizontal drag target that scrubs the field value. Shift scrubs by
+ * `largeStep`, Alt by `smallStep`; changing modifiers mid-drag keeps the
+ * movement already made. `onValueCommitted` fires once on release.
+ */
 export const ControlFieldScrubArea = React.forwardRef<
   HTMLSpanElement,
-  NumberField.ScrubArea.Props
->(function ControlFieldScrubArea(props, ref) {
-  const { className, ...scrubAreaProps } = props;
-  return (
-    <NumberField.ScrubArea
-      ref={ref}
-      {...scrubAreaProps}
-      data-slot="control-field-scrub-area"
-      className={(state) =>
-        cn(
-          'flex h-full w-6 shrink-0 cursor-ew-resize touch-none select-none items-center justify-center font-medium tabular-nums text-[color:var(--ck-foreground,#fff)]/55 data-[disabled]:cursor-not-allowed data-[disabled]:opacity-45',
-          typeof className === 'function' ? className(state) : className,
-        )
+  ControlFieldScrubAreaProps
+>(function ControlFieldScrubArea(
+  {
+    className,
+    commitThreshold,
+    maxCommitRate,
+    onPointerDown,
+    onLostPointerCapture,
+    onScrubbingChange,
+    pixelsPerStep = 1,
+    pointerLock = false,
+    stepDistance,
+    threshold = 1,
+    ...props
+  },
+  ref,
+) {
+  const context = useControlFieldContext();
+  const { changeValue, commitValue, setScrubbing, setTextDirty } = context;
+  const normalize = React.useCallback(
+    (nextValue: number) =>
+      normalizeValue(
+        nextValue,
+        context.min,
+        context.max,
+        context.boundaryBehavior,
+      ) ?? nextValue,
+    [context.boundaryBehavior, context.max, context.min],
+  );
+  const handleScrubValue = React.useCallback(
+    (nextValue: number, event: Event | undefined) => {
+      changeValue(nextValue, 'scrub', event ?? new Event('pointermove'), {
+        commit: false,
+      });
+      setTextDirty(false);
+    },
+    [changeValue, setTextDirty],
+  );
+  const handleScrubEnd = React.useCallback(
+    ({
+      value,
+      moved,
+      event,
+    }: {
+      value: number;
+      moved: boolean;
+      event: Event | undefined;
+    }) => {
+      if (moved) {
+        commitValue(value, 'scrub', event ?? new Event('pointerup'));
       }
+    },
+    [commitValue],
+  );
+  const handleScrubbingChange = React.useCallback(
+    (isScrubbing: boolean) => {
+      setScrubbing(isScrubbing);
+      onScrubbingChange?.(isScrubbing);
+    },
+    [onScrubbingChange, setScrubbing],
+  );
+  const scrub = useScrubGesture<HTMLSpanElement>({
+    value: context.value ?? 0,
+    onValueChange: handleScrubValue,
+    onScrubEnd: handleScrubEnd,
+    onScrubbingChange: handleScrubbingChange,
+    normalize,
+    rebaseAtBoundary: context.boundaryBehavior === 'clamp',
+    step: context.step,
+    smallStep: context.smallStep,
+    largeStep: context.largeStep,
+    pixelsPerStep,
+    stepDistance,
+    threshold,
+    commitThreshold,
+    maxCommitRate,
+    pointerLock,
+    enabled: !context.disabled && !context.readOnly,
+    inputRef: context.inputRef,
+  });
+
+  const { restoreSelection } = scrub;
+  React.useLayoutEffect(() => {
+    restoreSelection();
+  }, [context.value, restoreSelection]);
+
+  const setRef = React.useCallback(
+    (node: HTMLSpanElement | null) => {
+      scrub.handleRef.current = node;
+      assignRef(ref, node);
+    },
+    [ref, scrub.handleRef],
+  );
+
+  const state: ControlFieldScrubAreaState = {
+    scrubbing: scrub.isScrubbing,
+    disabled: context.disabled,
+    readOnly: context.readOnly,
+  };
+
+  return (
+    <span
+      role="presentation"
+      {...props}
+      ref={setRef}
+      data-slot="control-field-scrub-area"
+      data-scrubbing={scrub.isScrubbing ? '' : undefined}
+      data-disabled={context.disabled ? '' : undefined}
+      data-readonly={context.readOnly ? '' : undefined}
+      className={cn(
+        'flex h-full w-6 shrink-0 cursor-ew-resize touch-none select-none items-center justify-center font-medium tabular-nums text-[color:var(--ck-foreground,#fff)]/55 data-[disabled]:cursor-not-allowed data-[disabled]:opacity-45',
+        typeof className === 'function' ? className(state) : className,
+      )}
+      onPointerDown={(event) => {
+        onPointerDown?.(event);
+        if (event.defaultPrevented) return;
+        // A Field-level `disabled` reaches the input but not this context.
+        if (context.inputRef.current?.disabled) return;
+        scrub.handleProps.onPointerDown(event);
+      }}
+      onLostPointerCapture={(event) => {
+        onLostPointerCapture?.(event);
+        scrub.handleProps.onLostPointerCapture(event);
+      }}
     />
   );
 });
 
+export interface ControlFieldScrubAreaCursorProps extends Omit<
+  React.HTMLAttributes<HTMLSpanElement>,
+  'className'
+> {
+  className?: string | ((state: ControlFieldScrubAreaState) => string);
+}
+
+/**
+ * @deprecated The scrub area no longer renders a virtual cursor. This part
+ * renders nothing and will be removed in a future release.
+ */
 export const ControlFieldScrubAreaCursor = React.forwardRef<
   HTMLSpanElement,
-  NumberField.ScrubAreaCursor.Props
->(function ControlFieldScrubAreaCursor({ className, ...props }, ref) {
-  return (
-    <NumberField.ScrubAreaCursor
-      ref={ref}
-      {...props}
-      className={(state) =>
-        cn(
-          'drop-shadow-sm',
-          typeof className === 'function' ? className(state) : className,
-        )
-      }
-    />
-  );
+  ControlFieldScrubAreaCursorProps
+>(function ControlFieldScrubAreaCursor() {
+  return null;
 });
 
 export interface ControlFieldAffixProps extends React.HTMLAttributes<HTMLSpanElement> {}
