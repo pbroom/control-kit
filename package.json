@@ -21,16 +21,21 @@
         "default": "./dist/index.cjs"
       }
     },
+    "./theme.css": "./styles/theme.css",
+    "./tailwind.css": "./styles/tailwind.css",
     "./package.json": "./package.json"
   },
   "files": [
     "dist",
     "src",
+    "styles",
     "LICENSE",
     "README.md",
     "CHANGELOG.md"
   ],
-  "sideEffects": false,
+  "sideEffects": [
+    "*.css"
+  ],
   "scripts": {
     "build": "tsup",
     "clean": "rm -rf dist",

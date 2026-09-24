@@ -54,11 +54,26 @@ before replacing a pinned Git revision or released version.
 
 ## Tailwind
 
-The components render Tailwind v4 utility class names. Configure Tailwind in
-your app and include the package in its content graph. The package
-includes `src/` as well as `dist/` so consumers can scan either path. The
-`@source` path is relative to the stylesheet containing it; adjust it for
-your app's directory layout.
+The components render Tailwind v4 utility class names, so your app's Tailwind
+build must scan the package. Import the bundled preset after Tailwind:
+
+```css
+@import 'tailwindcss';
+@import 'control-kit/tailwind.css';
+```
+
+The preset registers the package source with `@source` (resolved relative to
+the installed package, so no path adjustment is needed), includes
+`control-kit/theme.css`, and maps each token to a `ck-*` color utility:
+`bg-ck-surface`, `bg-ck-surface-content`, `text-ck-foreground`,
+`border-ck-border`, `ring-ck-accent`, `border-ck-accent-border`,
+`border-ck-border-focus`, `border-ck-border-scrub`, and
+`border-ck-border-invalid` (every Tailwind color utility and opacity modifier
+works, for example `bg-ck-accent/40`).
+
+To scan the package manually instead, add an `@source` for its shipped
+`src/` (or `dist/`). The path is relative to the stylesheet containing it;
+adjust it for your app's directory layout.
 
 ```css
 @source '../node_modules/control-kit/src';
@@ -68,32 +83,62 @@ your app's directory layout.
 
 Component palette colors resolve through `--ck-*` CSS custom properties with
 dark defaults. Once Tailwind generates the component styles, no additional
-theme or animation package is required. Define these variables on a
-containing element to retheme the controls:
+theme or animation package is required.
+
+`control-kit/theme.css` defines every token with the dark defaults on
+`:root` and adds a light preset. It is plain CSS, so it works with or without
+Tailwind, and `control-kit/tailwind.css` already includes it. Import it after
+`tailwindcss` when both are used.
+
+```css
+@import 'control-kit/theme.css';
+```
+
+Opt into the light preset with `data-ck-theme="light"` on `<html>` or any
+container; `data-ck-theme="dark"` restores the dark values inside a light
+subtree. Dark stays the default, and the theme does not follow
+`prefers-color-scheme` automatically. Toggle the attribute from your own
+color-scheme logic if you want that.
+
+```html
+<html data-ck-theme="light"></html>
+```
+
+| Token                  | Dark      | Light     | Used for                               |
+| ---------------------- | --------- | --------- | -------------------------------------- |
+| `--ck-surface`         | `#383838` | `#ffffff` | control and selected toggle background |
+| `--ck-surface-content` | `#1f1f1f` | `#f0f0f0` | recessed panels and dark tooltip color |
+| `--ck-foreground`      | `#ffffff` | `#1e1e1e` | text and inverse tooltip background    |
+| `--ck-accent`          | `#0d99ff` | `#0a84e8` | focus rings, checked fills             |
+| `--ck-accent-border`   | `#007be5` | `#0068c4` | border paired with accent fills        |
+| `--ck-border`          | `#4c4c4c` | `#c4c4c4` | hover and resting borders              |
+| `--ck-border-focus`    | `#5288db` | `#2f6fd0` | value input while editing              |
+| `--ck-border-scrub`    | `#97c1ef` | `#4f8fdd` | value input while scrubbing            |
+| `--ck-border-invalid`  | `#ff4e4e` | `#d92c2c` | invalid drafts                         |
+
+The theme file declares its values with zero specificity in the `base`
+cascade layer, so your own definitions win regardless of import order.
+Define any of these variables on a containing element to retheme the
+controls:
 
 ```css
 :root {
-  --ck-surface: #383838; /* control and selected toggle background */
-  --ck-surface-content: #1f1f1f; /* recessed panel and dark tooltip color */
-  --ck-foreground: #ffffff; /* text and inverse tooltip background */
-  --ck-accent: #0d99ff; /* focus rings, checked fills */
-  --ck-accent-border: #007be5; /* border paired with accent fills */
-  --ck-border: #4c4c4c; /* hover + resting borders */
-  --ck-border-focus: #5288db; /* value input while editing */
-  --ck-border-scrub: #97c1ef; /* value input while scrubbing */
-  --ck-border-invalid: #ff4e4e; /* invalid drafts */
+  --ck-accent: #7c3aed;
+  --ck-accent-border: #6d28d9;
 }
 ```
 
-The same tokens are exported as `controlKitColor` for use in inline styles.
-Tooltip content is portaled to `document.body`, so variables set only on a
-trigger's ancestor do not reach it. Put shared theme variables on `:root`
-or `body`, or define them directly on `TooltipContent` through its `style`
-or `className` prop. Tooltip and ToggleGroup use these package tokens rather
-than requiring host theme names such as `background`, `foreground`, or `ring`.
-`ControlField.Error` retains Tailwind's `red-400` text color; override its
-`className` when needed. The `--ck-border-invalid` token controls invalid
-input borders, not error-message text.
+Without `theme.css`, every component still falls back to the dark defaults
+inline. The same tokens are exported as `controlKitColor` for use in inline
+styles. Tooltip content is portaled to `document.body`, so variables or a
+`data-ck-theme` attribute set only on a trigger's ancestor do not reach it.
+Put shared theme variables on `:root` or `body`, or define them directly on
+`TooltipContent` through its `style` or `className` prop. Tooltip and
+ToggleGroup use these package tokens rather than requiring host theme names
+such as `background`, `foreground`, or `ring`. `ControlField.Error` retains
+Tailwind's `red-400` text color; override its `className` when needed. The
+`--ck-border-invalid` token controls invalid input borders, not error-message
+text.
 
 ## Plane
 

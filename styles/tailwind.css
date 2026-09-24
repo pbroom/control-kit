@@ -1,0 +1,27 @@
+/*
+ * control-kit Tailwind v4 preset.
+ *
+ *   @import 'tailwindcss';
+ *   @import 'control-kit/tailwind.css';
+ *
+ * Adds the theme tokens, registers the package source so Tailwind generates
+ * the component classes, and maps the tokens to `ck-*` color utilities such
+ * as `bg-ck-surface`, `text-ck-foreground`, `border-ck-border`, and
+ * `ring-ck-accent`.
+ */
+@import './theme.css';
+
+/* Relative to this file: node_modules/control-kit/styles -> ../src */
+@source '../src';
+
+@theme inline {
+  --color-ck-surface: var(--ck-surface);
+  --color-ck-surface-content: var(--ck-surface-content);
+  --color-ck-foreground: var(--ck-foreground);
+  --color-ck-accent: var(--ck-accent);
+  --color-ck-accent-border: var(--ck-accent-border);
+  --color-ck-border: var(--ck-border);
+  --color-ck-border-focus: var(--ck-border-focus);
+  --color-ck-border-scrub: var(--ck-border-scrub);
+  --color-ck-border-invalid: var(--ck-border-invalid);
+}

@@ -8,6 +8,14 @@ the package adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `control-kit/theme.css` defines every `--ck-*` token with the dark
+  defaults on `:root` and a light preset opted into with
+  `data-ck-theme="light"`. `control-kit/tailwind.css` is a Tailwind v4 preset
+  that includes the theme, registers the package source with `@source`, and
+  maps the tokens to `ck-*` color utilities such as `bg-ck-surface` and
+  `ring-ck-accent`. Replace a manual `@source` with
+  `@import 'control-kit/tailwind.css';`.
+
 - Reworked the Mesh gradient example with continuous Oklab color blending,
   curved flow, six draggable color points, editable palettes, grain controls,
   and a software rendering fallback.

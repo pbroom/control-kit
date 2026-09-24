@@ -14,7 +14,10 @@ The check exercises ESM and CommonJS exports and declarations, builds Tailwind
 from the package's shipped source, and opens the built app in Chromium. It
 checks numeric input updates and interaction metadata, the migrated Tooltip
 composition, ToggleGroup state, and default and overridden theme colors without
-Lab CSS. Temporary files and the server are removed when the check completes.
+Lab CSS. It also checks that the tarball ships `control-kit/theme.css` and
+`control-kit/tailwind.css`, that both exports resolve, and then rebuilds the
+fixture with only `@import 'control-kit/tailwind.css'` to confirm the preset
+generates the component classes, the `ck-*` utilities, and the light theme. Temporary files and the server are removed when the check completes.
 
 The channel input mirrors the exported hook boundary used by Color Kit's
 `ColorInput`. It checks that integration pattern, not a complete Color Kit
