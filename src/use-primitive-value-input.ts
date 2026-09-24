@@ -7,7 +7,6 @@ import {
   useState,
   type ChangeEvent as ReactChangeEvent,
   type KeyboardEvent as ReactKeyboardEvent,
-  type PointerEvent as ReactPointerEvent,
 } from 'react';
 import {
   formatPrimitiveValue,
@@ -21,6 +20,7 @@ import {
   type PrimitiveValueInteraction,
   type PrimitiveWrapMode,
 } from './primitive-value-input-helpers.js';
+import { useScrubGesture } from './use-scrub-gesture.js';
 
 export interface UsePrimitiveValueInputOptions {
   value: number;
@@ -50,19 +50,6 @@ export interface UsePrimitiveValueInputOptions {
   readOnly: boolean;
   onInvalidCommit?: (draft: string) => void;
   onScrubbingChange?: (isScrubbing: boolean) => void;
-}
-
-interface PrimitiveInputSelectionSnapshot {
-  start: number;
-  end: number;
-  direction: HTMLInputElement['selectionDirection'];
-  selectAll: boolean;
-}
-
-interface PrimitiveScrubSnapshot {
-  clientX: number;
-  shiftKey: boolean;
-  altKey: boolean;
 }
 
 export function usePrimitiveValueInput({
@@ -95,23 +82,6 @@ export function usePrimitiveValueInput({
   onScrubbingChange,
 }: UsePrimitiveValueInputOptions) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const scrubHandleRef = useRef<HTMLDivElement>(null);
-  const onScrubbingChangeRef = useRef(onScrubbingChange);
-  const preservedSelectionRef = useRef<PrimitiveInputSelectionSnapshot | null>(
-    null,
-  );
-  const clearPreservedSelectionFrameRef = useRef<number | null>(null);
-  const activePointerIdRef = useRef<number | null>(null);
-  const scrubStartXRef = useRef(0);
-  const scrubStartValueRef = useRef(0);
-  const scrubCurrentValueRef = useRef(0);
-  const lastScrubXRef = useRef(0);
-  const activeScrubStepRef = useRef(step);
-  const hasDragStartedRef = useRef(false);
-  const pendingScrubRef = useRef<PrimitiveScrubSnapshot | null>(null);
-  const scrubFrameRef = useRef<number | null>(null);
-  const lastScrubCommitTsRef = useRef(0);
-  const processPendingScrubRef = useRef<(frameTime: number) => void>(() => {});
   const lastCommittedValueRef = useRef(value);
   const hasTextDraftRef = useRef(false);
   const skipBlurCommitRef = useRef(false);
@@ -120,7 +90,6 @@ export function usePrimitiveValueInput({
   );
   const [isEditing, setIsEditing] = useState(false);
   const [focusStartValue, setFocusStartValue] = useState<number | null>(null);
-  const [isScrubbing, setIsScrubbing] = useState(false);
 
   const displayValue = useMemo(
     () => formatPrimitiveValue(value, precision, autoTrim),
@@ -132,12 +101,6 @@ export function usePrimitiveValueInput({
       setDraft(displayValue);
     }
   }, [displayValue, isEditing]);
-
-  useEffect(() => {
-    if (!isEditing && !isScrubbing) {
-      lastCommittedValueRef.current = value;
-    }
-  }, [isEditing, isScrubbing, value]);
 
   const parsedDraft = useMemo(() => {
     if (!isEditing) {
@@ -169,63 +132,6 @@ export function usePrimitiveValueInput({
 
   const isDraftValid = parsedDraft !== null;
   const currentValue = isEditing ? draft : displayValue;
-
-  const restorePreservedSelection = useCallback(() => {
-    const input = inputRef.current;
-    const snapshot = preservedSelectionRef.current;
-    if (!input || !snapshot || document.activeElement !== input) {
-      return;
-    }
-
-    const valueLength = input.value.length;
-    const start = snapshot.selectAll
-      ? 0
-      : Math.min(snapshot.start, valueLength);
-    const end = snapshot.selectAll
-      ? valueLength
-      : Math.min(snapshot.end, valueLength);
-    input.setSelectionRange(start, end, snapshot.direction ?? undefined);
-  }, []);
-
-  const clearPreservedSelection = useCallback(() => {
-    if (clearPreservedSelectionFrameRef.current !== null) {
-      cancelAnimationFrame(clearPreservedSelectionFrameRef.current);
-      clearPreservedSelectionFrameRef.current = null;
-    }
-    preservedSelectionRef.current = null;
-  }, []);
-
-  const scheduleClearPreservedSelection = useCallback(() => {
-    if (clearPreservedSelectionFrameRef.current !== null) {
-      cancelAnimationFrame(clearPreservedSelectionFrameRef.current);
-    }
-    clearPreservedSelectionFrameRef.current = requestAnimationFrame(() => {
-      restorePreservedSelection();
-      preservedSelectionRef.current = null;
-      clearPreservedSelectionFrameRef.current = null;
-    });
-  }, [restorePreservedSelection]);
-
-  const preserveCurrentSelection = useCallback(() => {
-    const input = inputRef.current;
-    if (!input || document.activeElement !== input) {
-      preservedSelectionRef.current = null;
-      return;
-    }
-
-    const start = input.selectionStart ?? input.value.length;
-    const end = input.selectionEnd ?? start;
-    preservedSelectionRef.current = {
-      start,
-      end,
-      direction: input.selectionDirection,
-      selectAll: start === 0 && end === input.value.length,
-    };
-  }, []);
-
-  useLayoutEffect(() => {
-    restorePreservedSelection();
-  }, [currentValue, restorePreservedSelection]);
 
   const emitValue = useCallback(
     (
@@ -281,6 +187,56 @@ export function usePrimitiveValueInput({
     precision,
   ]);
 
+  const normalizeScrubValue = useCallback(
+    (nextValue: number) =>
+      normalizePrimitiveValue(nextValue, min, max, wrapMode),
+    [max, min, wrapMode],
+  );
+  const handleScrubValue = useCallback(
+    (nextValue: number) => {
+      emitValue(nextValue, 'pointer');
+    },
+    [emitValue],
+  );
+  const getScrubReferenceValue = useCallback(
+    () => lastCommittedValueRef.current,
+    [],
+  );
+  const {
+    handleRef: scrubHandleRef,
+    handleProps: scrubHandleProps,
+    isScrubbing,
+    restoreSelection,
+  } = useScrubGesture<HTMLDivElement>({
+    value,
+    onValueChange: handleScrubValue,
+    onScrubbingChange,
+    normalize: normalizeScrubValue,
+    rebaseAtBoundary: wrapMode === 'clamp',
+    step,
+    smallStep: fineStep,
+    largeStep: coarseStep,
+    pixelsPerStep: scrubPixelsPerStep,
+    stepDistance: stepDragDistance,
+    threshold: scrubThreshold,
+    commitThreshold: scrubCommitThreshold,
+    maxCommitRate: scrubMaxCommitRate,
+    pointerLock: pointerLockEnabled,
+    enabled: scrubEnabled && !disabled && !readOnly,
+    getReferenceValue: getScrubReferenceValue,
+    inputRef,
+  });
+
+  useEffect(() => {
+    if (!isEditing && !isScrubbing) {
+      lastCommittedValueRef.current = value;
+    }
+  }, [isEditing, isScrubbing, value]);
+
+  useLayoutEffect(() => {
+    restoreSelection();
+  }, [currentValue, restoreSelection]);
+
   const getModifiedStep = useCallback(
     (shiftKey: boolean, altKey: boolean) =>
       getPrimitiveModifiedStep(shiftKey, altKey, {
@@ -290,29 +246,6 @@ export function usePrimitiveValueInput({
         pageStep,
       }),
     [coarseStep, fineStep, pageStep, step],
-  );
-
-  const getScrubValueFromDelta = useCallback(
-    (deltaPixels: number, activeStep: number) => {
-      const resolvedStepDragDistance = stepDragDistance ?? 0;
-      if (
-        Number.isFinite(resolvedStepDragDistance) &&
-        resolvedStepDragDistance > 0
-      ) {
-        const wholeDeltaSteps = Math.trunc(
-          deltaPixels / resolvedStepDragDistance,
-        );
-        return scrubStartValueRef.current + wholeDeltaSteps * activeStep;
-      }
-
-      const wholeDeltaPixels = Math.round(deltaPixels);
-      const pixelsPerStep = scrubPixelsPerStep > 0 ? scrubPixelsPerStep : 1;
-      return (
-        scrubStartValueRef.current +
-        (wholeDeltaPixels / pixelsPerStep) * activeStep
-      );
-    },
-    [scrubPixelsPerStep, stepDragDistance],
   );
 
   const handleFocus = useCallback(() => {
@@ -431,310 +364,6 @@ export function usePrimitiveValueInput({
     ],
   );
 
-  const hasPointerLock = useCallback(() => {
-    return document.pointerLockElement === scrubHandleRef.current;
-  }, []);
-
-  const commitScrubValue = useCallback(
-    (nextValue: number, clientX: number, force = false, publish = true) => {
-      const normalized = normalizePrimitiveValue(nextValue, min, max, wrapMode);
-      const previousCommittedValue = lastCommittedValueRef.current;
-      scrubCurrentValueRef.current = normalized;
-      if (
-        publish &&
-        (force ||
-          (!Object.is(normalized, previousCommittedValue) &&
-            Math.abs(normalized - previousCommittedValue) >=
-              Math.max(0, scrubCommitThreshold)))
-      ) {
-        emitValue(normalized, 'pointer');
-      }
-
-      if (wrapMode === 'clamp' && normalized !== nextValue) {
-        scrubStartXRef.current = clientX;
-        scrubStartValueRef.current = normalized;
-      }
-    },
-    [emitValue, max, min, scrubCommitThreshold, wrapMode],
-  );
-
-  const applyScrubSnapshot = useCallback(
-    (snapshot: PrimitiveScrubSnapshot, force = false, publish = true) => {
-      const deltaPixels = snapshot.clientX - scrubStartXRef.current;
-      if (
-        !hasDragStartedRef.current &&
-        Math.abs(deltaPixels) < scrubThreshold
-      ) {
-        lastScrubXRef.current = snapshot.clientX;
-        return;
-      }
-      const activeStep = getModifiedStep(snapshot.shiftKey, snapshot.altKey);
-      const previousStep = activeScrubStepRef.current;
-      if (hasDragStartedRef.current && activeStep !== previousStep) {
-        scrubStartXRef.current = lastScrubXRef.current;
-        scrubStartValueRef.current = scrubCurrentValueRef.current;
-      }
-      hasDragStartedRef.current = true;
-      setIsScrubbing(true);
-      activeScrubStepRef.current = activeStep;
-      const rebasedDeltaPixels = snapshot.clientX - scrubStartXRef.current;
-      const nextValue = getScrubValueFromDelta(rebasedDeltaPixels, activeStep);
-      lastScrubXRef.current = snapshot.clientX;
-      commitScrubValue(nextValue, snapshot.clientX, force, publish);
-    },
-    [commitScrubValue, getModifiedStep, getScrubValueFromDelta, scrubThreshold],
-  );
-
-  const schedulePendingScrubFrame = useCallback(() => {
-    scrubFrameRef.current = requestAnimationFrame((frameTime: number) => {
-      processPendingScrubRef.current(frameTime);
-    });
-  }, []);
-
-  const shouldRateLimitScrub = useCallback(() => {
-    return (
-      scrubMaxCommitRate !== undefined &&
-      Number.isFinite(scrubMaxCommitRate) &&
-      scrubMaxCommitRate > 0
-    );
-  }, [scrubMaxCommitRate]);
-
-  const processPendingScrub = useCallback(
-    (frameTime: number) => {
-      scrubFrameRef.current = null;
-      const pending = pendingScrubRef.current;
-      if (!pending || activePointerIdRef.current === null) {
-        pendingScrubRef.current = null;
-        return;
-      }
-
-      const safeRate = scrubMaxCommitRate ?? 120;
-      const minFrameDelta = 1000 / safeRate;
-      if (
-        lastScrubCommitTsRef.current > 0 &&
-        frameTime >= lastScrubCommitTsRef.current &&
-        frameTime - lastScrubCommitTsRef.current < minFrameDelta
-      ) {
-        schedulePendingScrubFrame();
-        return;
-      }
-
-      pendingScrubRef.current = null;
-      applyScrubSnapshot(pending);
-      lastScrubCommitTsRef.current = frameTime;
-
-      if (pendingScrubRef.current) {
-        schedulePendingScrubFrame();
-      }
-    },
-    [applyScrubSnapshot, schedulePendingScrubFrame, scrubMaxCommitRate],
-  );
-
-  useEffect(() => {
-    processPendingScrubRef.current = processPendingScrub;
-  }, [processPendingScrub]);
-
-  const queueScrubValue = useCallback(
-    (clientX: number, shiftKey: boolean, altKey: boolean) => {
-      const snapshot = { clientX, shiftKey, altKey };
-      if (!shouldRateLimitScrub()) {
-        applyScrubSnapshot(snapshot);
-        return;
-      }
-
-      const pending = pendingScrubRef.current;
-      if (
-        pending &&
-        getModifiedStep(pending.shiftKey, pending.altKey) !==
-          getModifiedStep(shiftKey, altKey)
-      ) {
-        // Preserve the previous movement segment without bypassing the
-        // configured callback rate when modifiers change between frames.
-        applyScrubSnapshot(pending, false, false);
-      }
-      pendingScrubRef.current = snapshot;
-      if (scrubFrameRef.current === null) {
-        schedulePendingScrubFrame();
-      }
-    },
-    [
-      applyScrubSnapshot,
-      getModifiedStep,
-      schedulePendingScrubFrame,
-      shouldRateLimitScrub,
-    ],
-  );
-
-  const stopScrubFrame = useCallback(() => {
-    if (scrubFrameRef.current !== null) {
-      cancelAnimationFrame(scrubFrameRef.current);
-      scrubFrameRef.current = null;
-    }
-    pendingScrubRef.current = null;
-  }, []);
-
-  const endScrub = useCallback(
-    (clientX = lastScrubXRef.current, shiftKey?: boolean, altKey?: boolean) => {
-      if (activePointerIdRef.current !== null) {
-        if (shiftKey !== undefined && altKey !== undefined) {
-          const snapshot = { clientX, shiftKey, altKey };
-          applyScrubSnapshot(snapshot, true);
-        } else if (pendingScrubRef.current) {
-          applyScrubSnapshot(pendingScrubRef.current, true);
-        } else {
-          applyScrubSnapshot({ clientX, shiftKey: false, altKey: false }, true);
-        }
-      }
-      activePointerIdRef.current = null;
-      hasDragStartedRef.current = false;
-      lastScrubCommitTsRef.current = 0;
-      setIsScrubbing(false);
-      stopScrubFrame();
-      scheduleClearPreservedSelection();
-      if (hasPointerLock()) {
-        document.exitPointerLock?.();
-      }
-    },
-    [
-      applyScrubSnapshot,
-      hasPointerLock,
-      scheduleClearPreservedSelection,
-      stopScrubFrame,
-    ],
-  );
-
-  const handlePointerDown = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>) => {
-      if (!scrubEnabled || disabled || readOnly || event.button !== 0) {
-        return;
-      }
-      event.preventDefault();
-      clearPreservedSelection();
-      preserveCurrentSelection();
-      activePointerIdRef.current = event.pointerId;
-      scrubStartXRef.current = event.clientX;
-      lastScrubXRef.current = event.clientX;
-      scrubStartValueRef.current = value;
-      scrubCurrentValueRef.current = value;
-      activeScrubStepRef.current = getModifiedStep(
-        event.shiftKey,
-        event.altKey,
-      );
-      hasDragStartedRef.current = false;
-      lastScrubCommitTsRef.current = 0;
-      pendingScrubRef.current = null;
-      event.currentTarget.setPointerCapture?.(event.pointerId);
-      if (pointerLockEnabled) {
-        try {
-          const lockRequest =
-            event.currentTarget.requestPointerLock?.() as Promise<void> | void;
-          if (lockRequest) {
-            void lockRequest.catch(() => {});
-          }
-        } catch {
-          // Embedded previews may reject pointer lock synchronously; document
-          // pointer listeners keep scrub dragging available without it.
-        }
-      }
-    },
-    [
-      clearPreservedSelection,
-      disabled,
-      pointerLockEnabled,
-      preserveCurrentSelection,
-      getModifiedStep,
-      readOnly,
-      scrubEnabled,
-      value,
-    ],
-  );
-
-  const handleLostPointerCapture = useCallback(
-    (event: ReactPointerEvent<HTMLDivElement>) => {
-      if (event.pointerId === activePointerIdRef.current) {
-        endScrub();
-      }
-    },
-    [endScrub],
-  );
-
-  useEffect(() => {
-    const handleDocumentPointerMove = (event: PointerEvent) => {
-      if (event.pointerId !== activePointerIdRef.current || hasPointerLock()) {
-        return;
-      }
-      queueScrubValue(event.clientX, event.shiftKey, event.altKey);
-    };
-
-    const handleDocumentPointerUp = (event: PointerEvent) => {
-      if (event.pointerId !== activePointerIdRef.current) {
-        return;
-      }
-      if (hasPointerLock()) {
-        endScrub();
-      } else {
-        endScrub(event.clientX, event.shiftKey, event.altKey);
-      }
-    };
-
-    const handleDocumentPointerCancel = (event: PointerEvent) => {
-      if (event.pointerId === activePointerIdRef.current) {
-        endScrub();
-      }
-    };
-
-    const handleLockedMouseMove = (event: MouseEvent) => {
-      if (activePointerIdRef.current === null || !hasPointerLock()) {
-        return;
-      }
-      queueScrubValue(
-        (pendingScrubRef.current?.clientX ?? lastScrubXRef.current) +
-          event.movementX,
-        event.shiftKey,
-        event.altKey,
-      );
-    };
-
-    const handlePointerLockChange = () => {
-      if (activePointerIdRef.current !== null && !hasPointerLock()) {
-        endScrub();
-      }
-    };
-
-    document.addEventListener('pointermove', handleDocumentPointerMove);
-    document.addEventListener('pointerup', handleDocumentPointerUp);
-    document.addEventListener('pointercancel', handleDocumentPointerCancel);
-    document.addEventListener('mousemove', handleLockedMouseMove);
-    document.addEventListener('pointerlockchange', handlePointerLockChange);
-    return () => {
-      document.removeEventListener('pointermove', handleDocumentPointerMove);
-      document.removeEventListener('pointerup', handleDocumentPointerUp);
-      document.removeEventListener(
-        'pointercancel',
-        handleDocumentPointerCancel,
-      );
-      document.removeEventListener('mousemove', handleLockedMouseMove);
-      document.removeEventListener(
-        'pointerlockchange',
-        handlePointerLockChange,
-      );
-    };
-  }, [endScrub, hasPointerLock, queueScrubValue]);
-
-  useEffect(() => clearPreservedSelection, [clearPreservedSelection]);
-  useEffect(() => stopScrubFrame, [stopScrubFrame]);
-  useEffect(() => {
-    onScrubbingChangeRef.current = onScrubbingChange;
-  }, [onScrubbingChange]);
-  const hasReportedScrubbingRef = useRef(false);
-  useEffect(() => {
-    if (!hasReportedScrubbingRef.current) {
-      hasReportedScrubbingRef.current = true;
-      return;
-    }
-    onScrubbingChangeRef.current?.(isScrubbing);
-  }, [isScrubbing]);
-
   return {
     inputRef,
     scrubHandleRef,
@@ -754,9 +383,6 @@ export function usePrimitiveValueInput({
       onChange: handleChange,
       onKeyDown: handleKeyDown,
     },
-    scrubHandleProps: {
-      onPointerDown: handlePointerDown,
-      onLostPointerCapture: handleLostPointerCapture,
-    },
+    scrubHandleProps,
   };
 }

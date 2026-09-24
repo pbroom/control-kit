@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { getPrimitiveModifiedStep } from '../primitive-value-input-helpers.js';
+import { getModifiedStep } from '../number-value.js';
 import { clampPlaneValue } from './geometry.js';
 import type { PlaneValue } from './types.js';
 
@@ -50,12 +50,7 @@ export function getArrowStep(
   altKey: boolean,
   shiftKey: boolean,
 ) {
-  return getPrimitiveModifiedStep(shiftKey, altKey, {
-    fineStep: smallStep,
-    step,
-    coarseStep: largeStep,
-    pageStep: largeStep,
-  });
+  return getModifiedStep(shiftKey, altKey, { smallStep, step, largeStep });
 }
 
 export function getAxisKeyValue(
