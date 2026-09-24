@@ -35,7 +35,7 @@ test('connects tooltip pointers to top and right popups', async ({
 
   const browserErrors = await collectBrowserErrors(page);
   await page.goto('/lab/tooltip');
-  await page.getByRole('spinbutton', { name: 'Initial delay' }).fill('0');
+  await page.getByRole('textbox', { name: 'Initial delay' }).fill('0');
 
   const rightTrigger = page.getByRole('button', {
     name: 'right',

@@ -105,6 +105,8 @@ try {
      for (const kit of [esm, cjs]) {
        assert.deepEqual(kit.clampPlaneValue({x: 2, y: -1}), {x: 1, y: 0});
        assert.equal(typeof kit.usePrimitiveValueInput, 'function');
+       assert.equal(typeof kit.ControlInput, 'object');
+       assert.equal(kit.getControlFieldInteraction({ reason: 'scrub' }), 'pointer');
      }
      for (const file of ['theme.css', 'tailwind.css']) {
        const pattern = new RegExp('/control-kit/styles/' + file.replace('.', '\\.') + '$');

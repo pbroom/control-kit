@@ -173,17 +173,22 @@ describe('PrimitiveValueInput', () => {
     expect(html.indexOf('>px<')).toBeLessThan(html.indexOf('>D<'));
   });
 
-  it('exposes spinbutton range semantics for numeric keyboard controls', () => {
+  it('exposes Base UI number field semantics and range', () => {
     const html = renderPrimitive({
       value: 42,
       min: 0,
       max: 100,
+      ariaLabel: 'Opacity',
     });
 
-    expect(html).toContain('role="spinbutton"');
-    expect(html).toContain('aria-valuemin="0"');
-    expect(html).toContain('aria-valuemax="100"');
-    expect(html).toContain('aria-valuenow="42"');
+    // The adapter renders ControlField: a text input described as a number
+    // field, with the range on the form input (no forced spinbutton role).
+    expect(html).toContain('aria-roledescription="Number field"');
+    expect(html).toContain('aria-label="Opacity"');
+    expect(html).toContain('value="42"');
+    expect(html).toContain('min="0"');
+    expect(html).toContain('max="100"');
+    expect(html).not.toContain('role="spinbutton"');
   });
 
   it('commits valid text drafts on blur with text-input metadata', () => {

@@ -167,6 +167,69 @@ Tailwind's `red-400` text color; override its `className` when needed. The
 `--ck-border-invalid` token controls invalid input borders, not error-message
 text.
 
+## Number input
+
+`ControlField` is the numeric input primitive: compose its parts for custom
+layouts, or use the `ControlInput` preset for a compact field with a scrub
+handle and unit. `onValueChange` fires on every change, including each
+parseable keystroke; put expensive work in `onValueCommitted`, which fires once
+per finished edit (Enter or blur after typing, a key step, an expression, or a
+scrub release).
+
+```tsx
+import { useState } from 'react';
+import { ControlInput } from 'control-kit';
+
+export function OpacityInput({ save }: { save: (value: number) => void }) {
+  const [opacity, setOpacity] = useState<number | null>(80);
+
+  return (
+    <ControlInput
+      label="Opacity"
+      value={opacity}
+      onValueChange={setOpacity}
+      onValueCommitted={(value) => {
+        if (value !== null) save(value);
+      }}
+      min={0}
+      max={100}
+      precision={1}
+      handle="O"
+      unit="%"
+      size="sm"
+    />
+  );
+}
+```
+
+Arrow keys step by `step`; Alt/Option uses `smallStep` and Shift uses
+`largeStep`, for scrubbing too. Typed arithmetic such as `* 2` or `+ 10`
+resolves on commit. `boundaryBehavior` is `'clamp'`, `'wrap'`, or `'free'`.
+
+`PrimitiveValueInput`, `usePrimitiveValueInput`, and the `*Primitive*` helpers
+are deprecated and will be removed in a future release. `PrimitiveValueInput`
+now renders `ControlInput` and keeps its callback semantics. To migrate:
+
+| `PrimitiveValueInput`                     | `ControlInput`                                    |
+| ----------------------------------------- | ------------------------------------------------- |
+| `wrapMode`                                | `boundaryBehavior`                                |
+| `fineStep` / `coarseStep`                 | `smallStep` / `largeStep`                         |
+| `ariaLabel`                               | `label`                                           |
+| `autoTrim`                                | `trimTrailingZeros`                               |
+| `selectAllOnFocus`                        | `selectOnFocus`                                   |
+| `allowExpressions` / `parseExpression`    | `expressionResolver` (`null` disables)            |
+| `horizontalArrowKeysMoveCaret={false}`    | `arrowKeys="both"`                                |
+| `leadingElement` / `handleElement`        | `handle` (with `handleSide`)                      |
+| `trailingElement`                         | `unit`                                            |
+| `scrubEnabled`                            | `scrub`                                           |
+| `scrubPixelsPerStep` / `stepDragDistance` | `pixelsPerStep` / `stepDistance`                  |
+| `pointerLockEnabled`                      | `pointerLock` (now off by default)                |
+| `visualTreatment` / `visualState`         | `variant` / `invalid`                             |
+| `onValueChange(value, { interaction })`   | `onValueCommitted` + `getControlFieldInteraction` |
+
+The input no longer has `role="spinbutton"`; it keeps Base UI's number field
+semantics, so tests should query it as a textbox.
+
 ## Plane
 
 `Plane` owns normalized Cartesian XY input while its children own the visual

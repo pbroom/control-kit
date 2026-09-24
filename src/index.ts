@@ -41,17 +41,32 @@ export {
   ControlFieldRoot,
   ControlFieldScrubArea,
   ControlFieldScrubAreaCursor,
+  getControlFieldInteraction,
 } from './control-field.js';
 export type {
   ControlFieldAffixProps,
+  ControlFieldArrowKeys,
   ControlFieldBoundaryBehavior,
   ControlFieldCustomEventDetails,
   ControlFieldCustomReason,
   ControlFieldInputProps,
+  ControlFieldInteraction,
+  ControlFieldInvalidCommitDetails,
   ControlFieldRootProps,
+  ControlFieldScrubAreaCursorProps,
+  ControlFieldScrubAreaProps,
+  ControlFieldScrubAreaState,
   ControlFieldValueChangeDetails,
   ControlFieldValueCommitDetails,
 } from './control-field.js';
+export { ControlInput } from './control-input.js';
+export type {
+  ControlInputDensity,
+  ControlInputHandleSide,
+  ControlInputProps,
+  ControlInputSize,
+  ControlInputVariant,
+} from './control-input.js';
 export type {
   ControlFieldExpressionContext,
   ControlFieldExpressionResolver,

@@ -26,7 +26,7 @@ import {
   MultiInputControl,
   Plane,
   PlaneThumb,
-  PrimitiveValueInput,
+  ControlInput,
   Tabs,
   TabsList,
   TabsTrigger,
@@ -36,18 +36,15 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-  normalizePrimitivePrecision,
-  type MultiInputConfig as ControlMultiInputConfig,
+  type ControlFieldBoundaryBehavior,
+  type ControlFieldExpressionResolver,
+  type ControlInputDensity,
+  type ControlInputHandleSide,
+  type ControlInputSize,
+  type MultiInputSegmentConfig,
   type MultiInputField,
   type PlaneInteraction,
   type PlaneValue,
-  type PrimitiveDensity,
-  type PrimitiveExpressionParser,
-  type PrimitiveHandleSide,
-  type PrimitivePrecision,
-  type PrimitiveSize,
-  type PrimitiveVisualState,
-  type PrimitiveWrapMode,
 } from 'control-kit';
 import {
   ArrowBigDown,
@@ -163,11 +160,19 @@ type LabPageKey =
   | 'tabs'
   | 'toggleButton'
   | 'toggle';
-type PrimitiveHandleContent = 'none' | 'letter' | 'icon' | 'swatch';
+type InputHandleContent = 'none' | 'letter' | 'icon' | 'swatch';
+type InputValidity = 'auto' | 'valid' | 'invalid';
 type MultiInputFieldId = 'l' | 'c' | 'h' | 'a';
-type MultiInputConfig = ControlMultiInputConfig<MultiInputFieldId>;
+// The lab edits every option, so its config keeps each field populated.
+type MultiInputConfig = Record<
+  MultiInputFieldId,
+  Required<MultiInputSegmentConfig>
+>;
 type PrimitiveScrubFieldId = 'dragStep' | 'stepDragDistance';
-type PrimitiveScrubConfig = ControlMultiInputConfig<PrimitiveScrubFieldId>;
+type PrimitiveScrubConfig = Record<
+  PrimitiveScrubFieldId,
+  Required<MultiInputSegmentConfig>
+>;
 type TooltipSide = 'top' | 'right' | 'bottom' | 'left';
 type PlacementSide = TooltipSide;
 type PlacementAlign = 'start' | 'center' | 'end';
@@ -719,7 +724,7 @@ const SEGMENTED_FIELD_ITEM_ACTIVE_BG_CLASS =
 
 const SEGMENTED_FIELD_ITEM_CLASS = `h-full min-h-0 w-full min-w-0 flex-1 rounded-[5px] border px-2 py-0 text-[11px] font-medium leading-4 tracking-[0.005em] transition-[background-color,color] hover:text-white/70 focus-visible:ring-2 focus-visible:ring-[#0d99ff]/80 focus-visible:ring-offset-0 data-[pressed]:!text-white/90 data-[pressed]:!shadow-none ${SEGMENTED_FIELD_ITEM_ACTIVE_BG_CLASS}`;
 
-const TOGGLE_BUTTON_DENSITY_CLASS: Record<PrimitiveDensity, string> = {
+const TOGGLE_BUTTON_DENSITY_CLASS: Record<ControlInputDensity, string> = {
   compact: 'h-6 min-h-6 min-w-6 text-[11px]',
   comfortable: 'h-7 min-h-7 min-w-7 text-xs',
 };
@@ -1071,8 +1076,77 @@ function getToggleButtonStateClass(
     .join(' ');
 }
 
-const parsePrimitiveExpression: PrimitiveExpressionParser = (draft, options) =>
-  ColorApi.parseColorInputExpression(draft, options);
+// color-kit grammar (`%` of range, `deg`, relative `+ - * /`) for lab fields.
+const labExpressionResolver: ControlFieldExpressionResolver = (text, context) =>
+  ColorApi.parseColorInputExpression(text, {
+    allowExpressions: true,
+    currentValue: context.startValue ?? context.currentValue,
+    range: context.range ?? [
+      Number.NEGATIVE_INFINITY,
+      Number.POSITIVE_INFINITY,
+    ],
+  });
+
+function normalizePrecision(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.min(
+    MAX_PRIMITIVE_PRECISION_DIGITS,
+    Math.max(0, Math.round(value)),
+  );
+}
+
+/** Compact lab number field: a ControlInput that ignores empty drafts. */
+function LabNumberInput({
+  value,
+  onValueChange,
+  label,
+  handle,
+  min,
+  max,
+  boundaryBehavior = 'clamp',
+  step,
+  smallStep,
+  largeStep,
+  pageStep,
+  precision,
+  expressions = true,
+}: {
+  value: number;
+  onValueChange: (value: number) => void;
+  label: string;
+  handle?: ReactNode;
+  min: number;
+  max: number;
+  boundaryBehavior?: ControlFieldBoundaryBehavior;
+  step: number;
+  smallStep: number;
+  largeStep: number;
+  pageStep: number;
+  precision: number;
+  expressions?: boolean;
+}) {
+  return (
+    <ControlInput
+      value={value}
+      onValueChange={(nextValue) => {
+        if (nextValue !== null) onValueChange(nextValue);
+      }}
+      label={label}
+      handle={handle}
+      min={min}
+      max={max}
+      boundaryBehavior={boundaryBehavior}
+      step={step}
+      smallStep={smallStep}
+      largeStep={largeStep}
+      pageStep={pageStep}
+      precision={precision}
+      expressionResolver={expressions ? labExpressionResolver : null}
+      selectOnFocus
+      size="full"
+    />
+  );
+}
 
 function alternateAxis(channel: ColorAreaChannel): ColorAreaChannel {
   if (channel === 'l') return 'c';
@@ -1419,34 +1493,19 @@ function NumberConfigField({
         <span className="block text-[11px] font-medium uppercase tracking-[0.14em] text-white/45">
           {label}
         </span>
-        <PrimitiveValueInput
+        <LabNumberInput
           value={value}
           onValueChange={(nextValue) =>
             onChange(Math.min(max, Math.max(min, nextValue)))
           }
-          ariaLabel={label}
-          leadingElement={null}
+          label={label}
           min={min}
           max={max}
-          wrapMode="clamp"
           step={step}
-          fineStep={step / 10}
-          coarseStep={step * 10}
+          smallStep={step / 10}
+          largeStep={step * 10}
           pageStep={step * 10}
           precision={precision}
-          autoTrim
-          allowExpressions
-          parseExpression={parsePrimitiveExpression}
-          selectAllOnFocus
-          commitOnBlur
-          scrubEnabled
-          scrubPixelsPerStep={1}
-          scrubThreshold={1}
-          pointerLockEnabled={false}
-          disabled={false}
-          readOnly={false}
-          visualState="auto"
-          size="full"
         />
       </label>
     </PropertyFieldTooltip>
@@ -1499,8 +1558,8 @@ function PrecisionConfigInput({
   value,
   onChange,
 }: {
-  value: PrimitivePrecision;
-  onChange: (value: PrimitivePrecision) => void;
+  value: number;
+  onChange: (value: number) => void;
 }) {
   return (
     <PropertyFieldTooltip label="Precision">
@@ -1508,13 +1567,11 @@ function PrecisionConfigInput({
         <span className="block text-[11px] font-medium uppercase tracking-[0.14em] text-white/45">
           Precision
         </span>
-        <PrimitiveValueInput
+        <LabNumberInput
           value={value}
-          onValueChange={(nextValue) =>
-            onChange(normalizePrimitivePrecision(nextValue))
-          }
-          ariaLabel="Precision"
-          leadingElement={
+          onValueChange={(nextValue) => onChange(normalizePrecision(nextValue))}
+          label="Precision"
+          handle={
             <DecimalsArrowRight
               aria-hidden="true"
               className="size-3"
@@ -1523,24 +1580,12 @@ function PrecisionConfigInput({
           }
           min={0}
           max={MAX_PRIMITIVE_PRECISION_DIGITS}
-          wrapMode="clamp"
           step={1}
-          fineStep={1}
-          coarseStep={2}
+          smallStep={1}
+          largeStep={2}
           pageStep={3}
           precision={0}
-          autoTrim
-          allowExpressions={false}
-          selectAllOnFocus
-          commitOnBlur
-          scrubEnabled
-          scrubPixelsPerStep={1}
-          scrubThreshold={1}
-          pointerLockEnabled={false}
-          disabled={false}
-          readOnly={false}
-          visualState="auto"
-          size="full"
+          expressions={false}
         />
       </label>
     </PropertyFieldTooltip>
@@ -1563,32 +1608,19 @@ function StepConfigInput({
   return (
     <PropertyFieldTooltip label={label}>
       <label className="block w-full min-w-0 max-w-full">
-        <PrimitiveValueInput
+        <LabNumberInput
           value={value}
           onValueChange={onValueChange}
-          ariaLabel={label}
-          leadingElement={leadingElement}
+          label={label}
+          handle={leadingElement}
           min={0}
           max={1000}
-          wrapMode="free"
+          boundaryBehavior="free"
           step={step}
-          fineStep={step / 10}
-          coarseStep={step * 10}
+          smallStep={step / 10}
+          largeStep={step * 10}
           pageStep={step * 10}
           precision={6}
-          autoTrim
-          allowExpressions
-          parseExpression={parsePrimitiveExpression}
-          selectAllOnFocus
-          commitOnBlur
-          scrubEnabled
-          scrubPixelsPerStep={1}
-          scrubThreshold={1}
-          pointerLockEnabled={false}
-          disabled={false}
-          readOnly={false}
-          visualState="auto"
-          size="full"
         />
       </label>
     </PropertyFieldTooltip>
@@ -1635,7 +1667,7 @@ function DragStepConfigInput({
         config={PRIMITIVE_SCRUB_CONFIG}
         fields={PRIMITIVE_SCRUB_FIELDS}
         onFieldChange={handleFieldChange}
-        parseExpression={parsePrimitiveExpression}
+        expressionResolver={labExpressionResolver}
         showLeadingLabels
       />
     </div>
@@ -1661,37 +1693,24 @@ function BoundsConfigInput({
   fineStep?: number;
   coarseStep?: number;
   pageStep?: number;
-  precision?: PrimitivePrecision;
+  precision?: number;
 }) {
   return (
     <PropertyFieldTooltip label={label}>
       <label className="block w-full min-w-0 max-w-full">
-        <PrimitiveValueInput
+        <LabNumberInput
           value={value}
           onValueChange={onValueChange}
-          ariaLabel={label}
-          leadingElement={leadingElement}
+          label={label}
+          handle={leadingElement}
           min={-1000}
           max={1000}
-          wrapMode="free"
+          boundaryBehavior="free"
           step={step}
-          fineStep={fineStep}
-          coarseStep={coarseStep}
+          smallStep={fineStep}
+          largeStep={coarseStep}
           pageStep={pageStep}
           precision={precision}
-          autoTrim
-          allowExpressions
-          parseExpression={parsePrimitiveExpression}
-          selectAllOnFocus
-          commitOnBlur
-          scrubEnabled
-          scrubPixelsPerStep={1}
-          scrubThreshold={1}
-          pointerLockEnabled={false}
-          disabled={false}
-          readOnly={false}
-          visualState="auto"
-          size="full"
         />
       </label>
     </PropertyFieldTooltip>
@@ -1708,34 +1727,20 @@ function DragThresholdConfigInput({
   return (
     <PropertyFieldTooltip label="Drag threshold">
       <label className="block w-full min-w-0 max-w-full">
-        <PrimitiveValueInput
+        <LabNumberInput
           value={value}
           onValueChange={onValueChange}
-          ariaLabel="Drag threshold"
-          leadingElement={
+          label="Drag threshold"
+          handle={
             <Radius aria-hidden="true" className="size-3" strokeWidth={1.75} />
           }
           min={0}
           max={1000}
-          wrapMode="clamp"
           step={1}
-          fineStep={0.1}
-          coarseStep={10}
+          smallStep={0.1}
+          largeStep={10}
           pageStep={10}
           precision={6}
-          autoTrim
-          allowExpressions
-          parseExpression={parsePrimitiveExpression}
-          selectAllOnFocus
-          commitOnBlur
-          scrubEnabled
-          scrubPixelsPerStep={1}
-          scrubThreshold={1}
-          pointerLockEnabled={false}
-          disabled={false}
-          readOnly={false}
-          visualState="auto"
-          size="full"
         />
       </label>
     </PropertyFieldTooltip>
@@ -1988,7 +1993,7 @@ function ToggleButtonPlaygroundStage({
   selected: boolean;
   interactionState: ToggleButtonInteractionState;
   disabled: boolean;
-  density: PrimitiveDensity;
+  density: ControlInputDensity;
   content: ToggleButtonContent;
   label: string;
   onSelectedChange: (selected: boolean) => void;
@@ -2628,7 +2633,7 @@ function MultiInputPlaygroundStage({
         config={config}
         onFieldChange={onFieldChange}
         fields={MULTI_INPUT_FIELDS}
-        parseExpression={parsePrimitiveExpression}
+        expressionResolver={labExpressionResolver}
       />
     </div>
   );
@@ -2772,7 +2777,8 @@ export {
   PanelSection,
   PlacementGridField,
   PrecisionConfigInput,
-  PrimitiveValueInput,
+  ControlInput,
+  LabNumberInput,
   PropertyFieldTooltip,
   Radius,
   SELECT_OPTION_BY_ID,
@@ -2796,8 +2802,8 @@ export {
   alternateAxis,
   getOklchSliderRail,
   getToggleButtonStateClass,
+  labExpressionResolver,
   normalizeAxes,
-  parsePrimitiveExpression,
   useColor,
 };
 
@@ -2825,13 +2831,12 @@ export type {
   PlaneValue,
   PlacementAlign,
   PlacementSide,
-  PrimitiveDensity,
-  PrimitiveHandleContent,
-  PrimitiveHandleSide,
-  PrimitivePrecision,
-  PrimitiveSize,
-  PrimitiveVisualState,
-  PrimitiveWrapMode,
+  ControlFieldBoundaryBehavior,
+  ControlInputDensity,
+  ControlInputHandleSide,
+  ControlInputSize,
+  InputHandleContent,
+  InputValidity,
   SelectOptionId,
   SelectTriggerBehavior,
   SelectTriggerContent,
