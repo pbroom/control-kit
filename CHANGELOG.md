@@ -49,6 +49,10 @@ Unreleased section.
 - Unit tests for `Checkbox`, `Tabs`, `ToggleGroup`, and the `Tooltip` handoff
   animation behavior.
 
+- `ToggleGroup` `required` prop (single mode only). When `true`, clicking or
+  keyboard-toggling the pressed item no longer deselects it, so the group
+  always keeps a selection.
+
 ### Changed
 
 - Renamed the standalone package from `@color-kit/control-kit` to `control-kit`.
@@ -81,11 +85,27 @@ Unreleased section.
   keyboard, context, hover tracking, `Plane`, and `PlaneThumb`). Root exports
   and their types are unchanged.
 
+- **Breaking:** In single mode, `ToggleGroup` now reports deselection through
+  `value`/`onValueChange` as `null` instead of `undefined`, and accepts
+  `value`/`defaultValue` of `string | null` (in addition to `undefined`).
+  `null` renders nothing pressed while keeping the group controlled;
+  `undefined` still means uncontrolled. Update consumers that stored the
+  callback value directly in state typed as `string | undefined`, or that
+  compared it to `undefined`, to use `string | null` instead.
+
 ### Deprecated
 
 - `PlaneThumb` `onValueCommit` is a deprecated alias for `onValueCommitted`
   and will be removed in a future release. Rename the prop; no other change is
   needed.
+
+### Fixed
+
+- `ToggleGroup` single mode: deselecting the pressed item while controlled no
+  longer flips the underlying Base UI Toggle Group into an uncontrolled
+  state (previously reported via `onValueChange(undefined, …)`, which caused
+  Base UI to warn about changing a controlled component to uncontrolled and
+  ignore subsequent `value` updates from the parent).
 
 ## 0.0.1
 

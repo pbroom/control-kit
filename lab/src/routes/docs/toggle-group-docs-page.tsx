@@ -27,24 +27,32 @@ const TOGGLE_GROUP_PROPS = [
   },
   {
     name: 'value',
-    type: 'string | string[] | undefined',
-    shortType: 'string | string[]',
+    type: 'string | null | string[] | undefined',
+    shortType: 'string | null | string[]',
     description:
-      'The controlled selection. Its shape follows the selected type.',
+      'The controlled selection. Single mode uses string | null (null means controlled and nothing pressed); multiple mode uses string[]. Omit for uncontrolled.',
   },
   {
     name: 'defaultValue',
-    type: 'string | string[] | undefined',
-    shortType: 'string | string[]',
+    type: 'string | null | string[] | undefined',
+    shortType: 'string | null | string[]',
     description:
       'The initial uncontrolled selection. Its shape follows the selected type.',
   },
   {
     name: 'onValueChange',
     shortType: 'function',
-    type: '((value: string | undefined, details: ToggleGroup.ChangeEventDetails) => void) | ((value: string[], details: ToggleGroup.ChangeEventDetails) => void)',
+    type: '((value: string | null, details: ToggleGroup.ChangeEventDetails) => void) | ((value: string[], details: ToggleGroup.ChangeEventDetails) => void)',
     description:
-      'Called with the next scalar or array selection and Base UI event details.',
+      'Called with the next scalar or array selection and Base UI event details. Single mode reports null on deselect.',
+  },
+  {
+    name: 'required',
+    type: 'boolean | undefined',
+    shortType: 'boolean',
+    defaultValue: 'false',
+    description:
+      'Single mode only. When true, clicking or keyboard-toggling the pressed item does not deselect it — the group always keeps a selection.',
   },
   {
     name: 'variant',

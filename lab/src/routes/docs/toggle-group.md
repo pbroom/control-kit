@@ -63,7 +63,9 @@ Use `variant="outline"` for a bordered treatment. Apply the same `sm`, `default`
 
 ### Controlled selection
 
-Single groups use a string or `undefined`; multiple groups use an array.
+Single groups use a string, `null` (controlled with nothing pressed), or
+`undefined` (uncontrolled); multiple groups use an array. Set `required` to
+keep a single group's pressed item from being deselected.
 
 <!-- demo:controlled -->
 
@@ -81,7 +83,7 @@ Provides shared selection and roving focus to its items. It renders a Base UI To
 
 <!-- props:toggle-group -->
 
-In single mode, Control Kit converts Base UI's array state to a string or `undefined` for `value`, `defaultValue`, and `onValueChange`.
+In single mode, Control Kit converts Base UI's array state to a string, `null` (nothing pressed while controlled), or `undefined` (uncontrolled) for `value`, `defaultValue`, and `onValueChange`. Deselecting the pressed item reports `null`, not `undefined`, so the group stays controlled.
 
 ### ToggleGroupItem
 

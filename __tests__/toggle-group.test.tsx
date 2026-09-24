@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, type ReactNode } from 'react';
+import { act, useState, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -95,7 +95,7 @@ describe('ToggleGroup', () => {
     expect(onValueChange.mock.calls[0][0]).toBe('b');
   });
 
-  it('reports deselection as undefined in single mode', () => {
+  it('reports deselection as null in single mode', () => {
     const onValueChange = vi.fn();
     const container = mountToggleGroup({ defaultValue: 'a', onValueChange });
     const items = getItems(container);
@@ -105,7 +105,7 @@ describe('ToggleGroup', () => {
     });
 
     expect(onValueChange).toHaveBeenCalledTimes(1);
-    expect(onValueChange.mock.calls[0][0]).toBeUndefined();
+    expect(onValueChange.mock.calls[0][0]).toBeNull();
   });
 
   it('accepts scalar controlled values in single mode', () => {
@@ -318,5 +318,117 @@ describe('ToggleGroup', () => {
     await keyDown(items[0], 'End');
     expect(document.activeElement).toBe(items[1]);
     expect(Array.from(items, (item) => item.tabIndex)).toEqual([-1, 0]);
+  });
+
+  it('renders nothing pressed when value is null', () => {
+    const container = mountToggleGroup({ value: null });
+
+    expect(pressedStates(container)).toEqual(['false', 'false']);
+  });
+
+  it('renders nothing pressed when defaultValue is null', () => {
+    const container = mountToggleGroup({ defaultValue: null });
+
+    expect(pressedStates(container)).toEqual(['false', 'false']);
+  });
+
+  it('round-trips deselect -> null -> reselect through parent state without warning', () => {
+    const consoleErrorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+
+    function ControlledOwner() {
+      const [value, setValue] = useState<string | null>('a');
+      return (
+        <ToggleGroup value={value} onValueChange={setValue}>
+          <ToggleGroupItem value="a">A</ToggleGroupItem>
+          <ToggleGroupItem value="b">B</ToggleGroupItem>
+        </ToggleGroup>
+      );
+    }
+
+    const { container } = mount(<ControlledOwner />);
+    const items = getItems(container);
+
+    // Deselect the pressed item -> value becomes null, group stays controlled.
+    act(() => items[0].click());
+    expect(pressedStates(container)).toEqual(['false', 'false']);
+
+    // Reselect through the parent-owned controlled state.
+    act(() => items[1].click());
+    expect(pressedStates(container)).toEqual(['false', 'true']);
+
+    const uncontrolledWarning = consoleErrorSpy.mock.calls.some((call) =>
+      call.some(
+        (arg) =>
+          typeof arg === 'string' &&
+          arg.includes('changing the controlled value state'),
+      ),
+    );
+    expect(uncontrolledWarning).toBe(false);
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('blocks pointer deselect of the pressed item when required', () => {
+    const onValueChange = vi.fn();
+    const container = mountToggleGroup({
+      defaultValue: 'a',
+      required: true,
+      onValueChange,
+    });
+    const items = getItems(container);
+
+    act(() => items[0].click());
+
+    expect(onValueChange).not.toHaveBeenCalled();
+    expect(pressedStates(container)).toEqual(['true', 'false']);
+  });
+
+  it('blocks keyboard deselect of the pressed item when required', async () => {
+    const onValueChange = vi.fn();
+    const container = mountToggleGroup({
+      defaultValue: 'a',
+      required: true,
+      onValueChange,
+    });
+    const items = getItems(container);
+
+    act(() => items[0].focus());
+    await keyDown(items[0], ' ');
+
+    expect(onValueChange).not.toHaveBeenCalled();
+    expect(pressedStates(container)).toEqual(['true', 'false']);
+  });
+
+  it('still allows switching items when required', () => {
+    const onValueChange = vi.fn();
+    const container = mountToggleGroup({
+      defaultValue: 'a',
+      required: true,
+      onValueChange,
+    });
+    const items = getItems(container);
+
+    act(() => items[1].click());
+
+    expect(onValueChange).toHaveBeenCalledExactlyOnceWith(
+      'b',
+      expect.anything(),
+    );
+    expect(pressedStates(container)).toEqual(['false', 'true']);
+  });
+
+  it('still allows deselecting the pressed item when required is false', () => {
+    const onValueChange = vi.fn();
+    const container = mountToggleGroup({ defaultValue: 'a', onValueChange });
+    const items = getItems(container);
+
+    act(() => items[0].click());
+
+    expect(onValueChange).toHaveBeenCalledExactlyOnceWith(
+      null,
+      expect.anything(),
+    );
+    expect(pressedStates(container)).toEqual(['false', 'false']);
   });
 });

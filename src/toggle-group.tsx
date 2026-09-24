@@ -46,10 +46,21 @@ export type ToggleGroupSingleProps = Omit<
   'className' | 'defaultValue' | 'multiple' | 'onValueChange' | 'value'
 > & {
   type?: 'single';
-  value?: string;
-  defaultValue?: string;
+  /**
+   * The pressed item's value. `null` means the group is controlled and
+   * nothing is pressed; `undefined` means the group is uncontrolled.
+   */
+  value?: string | null;
+  defaultValue?: string | null;
+  /**
+   * When `true`, the pressed item cannot be deselected by clicking it again
+   * or by toggling it with the keyboard — the group always keeps a
+   * selection. Has no effect on switching between items.
+   * @default false
+   */
+  required?: boolean;
   onValueChange?: (
-    value: string | undefined,
+    value: string | null,
     eventDetails: ToggleGroupChangeEventDetails,
   ) => void;
 };
@@ -61,6 +72,8 @@ export type ToggleGroupMultipleProps = Omit<
   type: 'multiple';
   value?: string[];
   defaultValue?: string[];
+  /** Not supported in multiple mode. */
+  required?: never;
   onValueChange?: (
     value: string[],
     eventDetails: ToggleGroupChangeEventDetails,
@@ -84,36 +97,55 @@ export function ToggleGroup({
   defaultValue,
   loop,
   onValueChange,
+  required,
   type = 'single',
   value,
   ...props
 }: ToggleGroupProps) {
   const multiple = type === 'multiple';
-  const primitiveValue = React.useMemo(
-    () =>
-      value === undefined ? undefined : Array.isArray(value) ? value : [value],
-    [value],
+
+  // Single mode is always driven as a controlled Base UI ToggleGroup so that
+  // deselecting the pressed item (`null`) never flips the primitive between
+  // controlled and uncontrolled. When the consumer doesn't pass `value`, we
+  // track the pressed item ourselves and feed it back in as the primitive's
+  // controlled value.
+  const [internalSingleValue, setInternalSingleValue] = React.useState<
+    string | null
+  >(() =>
+    multiple ? null : ((defaultValue as string | null | undefined) ?? null),
   );
-  const primitiveDefaultValue = React.useMemo(
-    () =>
-      defaultValue === undefined
-        ? undefined
-        : Array.isArray(defaultValue)
-          ? defaultValue
-          : [defaultValue],
-    [defaultValue],
-  );
+  const [internalMultipleValue, setInternalMultipleValue] = React.useState<
+    string[]
+  >(() => (multiple ? ((defaultValue as string[] | undefined) ?? []) : []));
+
+  const isSingleControlled = !multiple && value !== undefined;
+  const isMultipleControlled = multiple && value !== undefined;
+
+  const currentSingleValue = isSingleControlled
+    ? ((value as string | null | undefined) ?? null)
+    : internalSingleValue;
+  const currentMultipleValue = isMultipleControlled
+    ? ((value as string[] | undefined) ?? [])
+    : internalMultipleValue;
+
+  const primitiveValue = multiple
+    ? currentMultipleValue
+    : currentSingleValue === null
+      ? []
+      : [currentSingleValue];
 
   return (
     <ToggleGroupPrimitive
       data-slot="toggle-group"
       className={cn(toggleGroupVariants({ variant, size }), className)}
-      defaultValue={primitiveDefaultValue}
       loopFocus={loop}
       multiple={multiple}
       value={primitiveValue}
       onValueChange={(nextValue, eventDetails) => {
         if (multiple) {
+          if (!isMultipleControlled) {
+            setInternalMultipleValue(nextValue);
+          }
           (
             onValueChange as
               | ToggleGroupMultipleProps['onValueChange']
@@ -122,9 +154,20 @@ export function ToggleGroup({
           return;
         }
 
+        const nextSingleValue = nextValue[0] ?? null;
+
+        if (required && nextSingleValue === null) {
+          // Keep the current selection: no state update, no callback.
+          return;
+        }
+
+        if (!isSingleControlled) {
+          setInternalSingleValue(nextSingleValue);
+        }
+
         (
           onValueChange as ToggleGroupSingleProps['onValueChange'] | undefined
-        )?.(nextValue[0] ?? undefined, eventDetails);
+        )?.(nextSingleValue, eventDetails);
       }}
       {...props}
     >
