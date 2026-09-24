@@ -171,13 +171,13 @@ test('renders the focused Plane examples with executable source', async ({
     name: 'Image pan and focal point demo',
     exact: true,
   });
-  const landscapePhoto = imagePanExample.locator('img');
-  await expect(landscapePhoto).toHaveAttribute(
+  const owlPhoto = imagePanExample.locator('img');
+  await expect(owlPhoto).toHaveAttribute(
     'src',
-    /image-pan-and-focal-point\.jpg$/,
+    /image-pan-and-focal-point\.webp$/,
   );
   expect(
-    await landscapePhoto.evaluate((image: HTMLImageElement) => ({
+    await owlPhoto.evaluate((image: HTMLImageElement) => ({
       complete: image.complete,
       naturalWidth: image.naturalWidth,
       sameOrigin: new URL(image.currentSrc).origin === window.location.origin,
