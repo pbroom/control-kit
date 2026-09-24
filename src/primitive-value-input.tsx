@@ -102,6 +102,7 @@ const TYPING_REASONS = new Set<string>([
   'input-clear',
   'input-paste',
   'input-blur',
+  'input-commit',
   'none',
 ]);
 
@@ -176,7 +177,8 @@ export function PrimitiveValueInput({
 
   const handleValueCommitted = useCallback(
     (nextValue: number | null, details: ControlFieldValueCommitDetails) => {
-      if (details.reason !== 'input-blur') return;
+      if (details.reason !== 'input-blur' && details.reason !== 'input-commit')
+        return;
       if (nextValue === null) {
         // An empty draft used to commit 0; it now reverts instead.
         onInvalidCommit?.('');

@@ -59,9 +59,9 @@ Wrap the control in Base UI `Field.Root` when the interface needs a visible labe
 
 ### Changes and commits
 
-`onValueChange` fires for every change, including each parseable keystroke, so previews can follow typing. `onValueCommitted` fires once per finished edit: Enter or blur after typing, each keyboard step, an expression, a stepper press, or a scrub release. Put expensive work, history entries, and network requests in `onValueCommitted`. `getControlFieldInteraction(details)` maps either callback's details to `'text-input'`, `'keyboard'`, or `'pointer'`.
+`onValueChange` fires for every change, including each parseable keystroke, so previews can follow typing. `onValueCommitted` fires once per finished edit: Enter or blur after typing, each keyboard step, an expression, a stepper press, or a scrub release. Put expensive work, history entries, and network requests in `onValueCommitted`. `getControlFieldInteraction(details)` maps either callback's details to `'text-input'`, `'keyboard'`, or `'pointer'`; Enter commits of typed text use the `'input-commit'` reason and count as text input.
 
-Escape restores the last committed value. Set `commitOnBlur={false}` to make blur behave like Escape. `onInvalidCommit` reports text that cannot be committed.
+Escape restores the last committed value, or a newer value the parent set while the field was focused. Set `commitOnBlur={false}` to make blur behave like Escape. `onInvalidCommit` reports text that cannot be committed.
 
 ## Examples
 
@@ -191,7 +191,7 @@ See the [Base UI Number Field API](https://base-ui.com/react/components/number-f
 
 The input keeps Base UI Number Field semantics: a text input described as a number field, with Base UI owning validation, form serialization, and disabled and read-only behavior. Give `ControlField.Input` an accessible name directly when the compact control stands alone. Use `ControlField.Label` inside a Base UI `Field.Root` when a visible label is part of the composition.
 
-Up and Down Arrow step by `step`; Alt/Option uses `smallStep` and Shift uses `largeStep`. Page Up and Page Down use `pageStep`; Home and End move to finite bounds. Left and Right keep caret behavior unless `arrowKeys="both"`. Enter commits typed text in place and Escape restores the last committed value. Expressions use the same text input and commit model rather than creating a second focus target. The scrub area is a pointer affordance; every value operation remains available from the input.
+Up and Down Arrow step by `step`; Alt/Option uses `smallStep` and Shift uses `largeStep`. Page Up and Page Down use `pageStep`; Home and End move to finite bounds. Left and Right keep caret behavior unless `arrowKeys="both"`. Ctrl- or Cmd-modified keys keep their text-navigation meaning and never change the value. Enter commits typed text in place and Escape restores the last committed value. Expressions use the same text input and commit model rather than creating a second focus target. The scrub area is a pointer affordance; every value operation remains available from the input.
 
 ## Presets and migration
 

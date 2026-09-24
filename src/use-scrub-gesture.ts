@@ -33,13 +33,9 @@ export interface ScrubGestureOptions {
    * Called for each scrub update that clears the commit threshold, with the
    * pointer or mouse event that produced it.
    */
-  onValueChange: (value: number, event: Event | undefined) => void;
+  onValueChange: (value: number, event: Event | undefined) => boolean | void;
   /** Called once when a gesture ends, after the final update. */
-  onScrubEnd?: (details: {
-    value: number;
-    moved: boolean;
-    event: Event | undefined;
-  }) => void;
+  onScrubEnd?: (details: ScrubEndDetails) => void;
   onScrubbingChange?: (isScrubbing: boolean) => void;
   /** Applies boundary behavior to raw scrub values. */
   normalize: (value: number) => number;
@@ -62,6 +58,17 @@ export interface ScrubGestureOptions {
   getReferenceValue?: () => number;
   /** Input whose selection is preserved while scrubbing. */
   inputRef?: RefObject<HTMLInputElement | null>;
+}
+
+export interface ScrubEndDetails {
+  /** The last value `onValueChange` accepted (or the start value). */
+  value: number;
+  startValue: number;
+  /** Whether the pointer moved past the threshold. */
+  moved: boolean;
+  /** Whether `onValueChange` rejected (returned `false`) any update. */
+  rejected: boolean;
+  event: Event | undefined;
 }
 
 interface InputSelectionSnapshot {
@@ -116,6 +123,9 @@ export function useScrubGesture<TElement extends HTMLElement = HTMLElement>({
   const processPendingScrubRef = useRef<(frameTime: number) => void>(() => {});
   const lastEventRef = useRef<Event | undefined>(undefined);
   const lockedElementRef = useRef<TElement | null>(null);
+  const acceptedValueRef = useRef(value);
+  const startValueRef = useRef(value);
+  const rejectedRef = useRef(false);
   const reportedScrubbingRef = useRef(false);
   const [isScrubbing, setIsScrubbing] = useState(false);
 
@@ -220,8 +230,16 @@ export function useScrubGesture<TElement extends HTMLElement = HTMLElement>({
       ) {
         return;
       }
+      const previousEmitted = lastEmittedValueRef.current;
       lastEmittedValueRef.current = nextValue;
-      onValueChange(nextValue, lastEventRef.current);
+      if (onValueChange(nextValue, lastEventRef.current) === false) {
+        // Rejected: keep thresholds and the final commit on the last value
+        // the consumer accepted.
+        lastEmittedValueRef.current = previousEmitted;
+        rejectedRef.current = true;
+        return;
+      }
+      acceptedValueRef.current = nextValue;
     },
     [commitThreshold, getReferenceValue, onValueChange],
   );
@@ -265,6 +283,11 @@ export function useScrubGesture<TElement extends HTMLElement = HTMLElement>({
     },
     [commitScrubValue, getStep, getScrubValueFromDelta, threshold],
   );
+
+  const applyScrubSnapshotRef = useRef(applyScrubSnapshot);
+  useEffect(() => {
+    applyScrubSnapshotRef.current = applyScrubSnapshot;
+  }, [applyScrubSnapshot]);
 
   const schedulePendingScrubFrame = useCallback(() => {
     scrubFrameRef.current = requestAnimationFrame((frameTime: number) => {
@@ -358,6 +381,12 @@ export function useScrubGesture<TElement extends HTMLElement = HTMLElement>({
       const wasActive = activePointerIdRef.current !== null;
       if (wasActive) {
         if (shiftKey !== undefined && altKey !== undefined) {
+          // A rate-limited movement may still be queued with other
+          // modifiers; apply its segment before the release position.
+          if (pendingScrubRef.current) {
+            applyScrubSnapshot(pendingScrubRef.current, false, false);
+            pendingScrubRef.current = null;
+          }
           const snapshot = { clientX, shiftKey, altKey };
           applyScrubSnapshot(snapshot, true);
         } else if (pendingScrubRef.current) {
@@ -378,8 +407,10 @@ export function useScrubGesture<TElement extends HTMLElement = HTMLElement>({
       }
       if (wasActive) {
         onScrubEndRef.current?.({
-          value: scrubCurrentValueRef.current,
+          value: acceptedValueRef.current,
+          startValue: startValueRef.current,
           moved,
+          rejected: rejectedRef.current,
           event: lastEventRef.current,
         });
       }
@@ -407,6 +438,9 @@ export function useScrubGesture<TElement extends HTMLElement = HTMLElement>({
       scrubStartValueRef.current = value;
       scrubCurrentValueRef.current = value;
       lastEmittedValueRef.current = value;
+      acceptedValueRef.current = value;
+      startValueRef.current = value;
+      rejectedRef.current = false;
       activeScrubStepRef.current = getStep(event.shiftKey, event.altKey);
       hasDragStartedRef.current = false;
       lastScrubCommitTsRef.current = 0;
@@ -514,7 +548,17 @@ export function useScrubGesture<TElement extends HTMLElement = HTMLElement>({
   }, [endScrub, hasPointerLock, queueScrubValue]);
 
   useEffect(() => clearPreservedSelection, [clearPreservedSelection]);
-  useEffect(() => stopScrubFrame, [stopScrubFrame]);
+  // Cancel a scheduled frame on unmount. The queued movement is kept for
+  // the unmount handler below, which publishes it.
+  useEffect(
+    () => () => {
+      if (scrubFrameRef.current !== null) {
+        cancelAnimationFrame(scrubFrameRef.current);
+        scrubFrameRef.current = null;
+      }
+    },
+    [],
+  );
   useEffect(() => {
     onScrubbingChangeRef.current = onScrubbingChange;
   }, [onScrubbingChange]);
@@ -531,10 +575,13 @@ export function useScrubGesture<TElement extends HTMLElement = HTMLElement>({
   useEffect(
     () => () => {
       if (activePointerIdRef.current === null) return;
+      // Publish a rate-limited movement that is still queued.
+      const pending = pendingScrubRef.current;
+      pendingScrubRef.current = null;
+      if (pending) applyScrubSnapshotRef.current(pending, true);
       const moved = hasDragStartedRef.current;
       activePointerIdRef.current = null;
       hasDragStartedRef.current = false;
-      pendingScrubRef.current = null;
       const locked = lockedElementRef.current;
       lockedElementRef.current = null;
       if (locked && document.pointerLockElement === locked) {
@@ -546,8 +593,10 @@ export function useScrubGesture<TElement extends HTMLElement = HTMLElement>({
       }
       if (moved) {
         onScrubEndRef.current?.({
-          value: scrubCurrentValueRef.current,
+          value: acceptedValueRef.current,
+          startValue: startValueRef.current,
           moved,
+          rejected: rejectedRef.current,
           event: lastEventRef.current,
         });
       }

@@ -567,7 +567,7 @@ describe('ControlField text entry', () => {
     pressKey(input, 'Enter');
     expect(onInvalidCommit).toHaveBeenLastCalledWith(
       '2 /',
-      expect.objectContaining({ reason: 'keyboard', expression: true }),
+      expect.objectContaining({ reason: 'input-commit', expression: true }),
     );
     expect(input.value).toBe('2 /');
 

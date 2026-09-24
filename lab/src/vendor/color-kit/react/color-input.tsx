@@ -96,6 +96,7 @@ const TYPING_REASONS = new Set<string>([
   'input-clear',
   'input-paste',
   'input-blur',
+  'input-commit',
   'none',
 ]);
 
@@ -250,8 +251,9 @@ export const ColorInput = forwardRef<HTMLDivElement, ColorInputProps>(
           setIsDraftValid(true);
           applyChannelValue(nextValue, 'text-input');
         }}
-        onInvalidCommit={(text) => {
-          setIsDraftValid(false);
+        onInvalidCommit={(text, details) => {
+          // Enter keeps the invalid draft editable; blur restores the value.
+          setIsDraftValid(details.reason === 'input-blur');
           onInvalidCommit?.(text);
         }}
         data-color-input=""
@@ -302,6 +304,11 @@ export const ColorInput = forwardRef<HTMLDivElement, ColorInputProps>(
           style={{ flex: 1, minWidth: 0 }}
           onChange={() => {
             typedRef.current = true;
+            setIsDraftValid(true);
+          }}
+          onKeyDown={(event) => {
+            // Escape restores the committed (valid) value.
+            if (event.key === 'Escape') setIsDraftValid(true);
           }}
           onFocus={() => setIsEditing(true)}
           onBlur={() => setIsEditing(false)}

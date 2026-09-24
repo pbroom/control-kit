@@ -5,7 +5,7 @@ import {
   resolveControlFieldExpression,
   type ControlFieldExpressionResolver,
 } from './control-field-expression.js';
-import { useScrubGesture } from './use-scrub-gesture.js';
+import { useScrubGesture, type ScrubEndDetails } from './use-scrub-gesture.js';
 import { cn } from './utils.js';
 
 type PreventableBaseUIEvent = {
@@ -20,7 +20,8 @@ export type ControlFieldCustomReason =
   | 'boundary-key'
   | 'keyboard'
   | 'scrub'
-  | 'input-blur';
+  | 'input-blur'
+  | 'input-commit';
 
 /** How a value change was produced, independent of the exact event reason. */
 export type ControlFieldInteraction = 'text-input' | 'keyboard' | 'pointer';
@@ -45,8 +46,8 @@ export type ControlFieldValueCommitDetails =
   | Pick<ControlFieldCustomEventDetails, 'reason' | 'event' | 'expression'>;
 
 export interface ControlFieldInvalidCommitDetails {
-  /** `'input-blur'` for blur commits, `'keyboard'` for Enter. */
-  reason: 'input-blur' | 'keyboard';
+  /** `'input-blur'` for blur commits, `'input-commit'` for Enter. */
+  reason: 'input-blur' | 'input-commit';
   event: Event;
   /** Whether the rejected text was an expression draft. */
   expression: boolean;
@@ -207,6 +208,7 @@ const TEXT_INPUT_REASONS = new Set<string>([
   'input-change',
   'input-clear',
   'input-blur',
+  'input-commit',
   'input-paste',
   'expression',
   'none',
@@ -467,9 +469,25 @@ export const ControlFieldRoot = React.forwardRef<
     [boundaryBehavior, max, min],
   );
 
+  // The last value this field published. A controlled value that differs
+  // from it came from the parent, and becomes the new revert baseline.
+  const lastPublishedRef = React.useRef<number | null | undefined>(undefined);
+  const previousValueRef = React.useRef(value);
+  React.useLayoutEffect(() => {
+    if (Object.is(previousValueRef.current, value)) return;
+    previousValueRef.current = value;
+    if (
+      revertValueRef.current !== undefined &&
+      !Object.is(value, lastPublishedRef.current)
+    ) {
+      revertValueRef.current = value;
+    }
+  }, [value]);
+
   const publishValue = React.useCallback(
     (nextValue: number | null, details: ControlFieldValueChangeDetails) => {
       const normalized = normalize(nextValue);
+      lastPublishedRef.current = normalized;
       onValueChange?.(normalized, details);
 
       if (!details.isCanceled && !controlled) {
@@ -700,46 +718,40 @@ function preventBaseUIHandler(event: PreventableBaseUIEvent) {
   event.preventBaseUIHandler?.();
 }
 
+type BaseUIChangeHandler = (event: React.ChangeEvent<HTMLInputElement>) => void;
+
 /**
- * Pushes `text` into Base UI's input state through the native value setter
- * and an `input` event, keeping the input's selection. Base UI's keydown,
- * paste, stepper, and blur handlers read that state, so it must match the
- * text Control Field shows.
+ * Pushes `text` into Base UI's input state. Base UI's keydown, paste,
+ * stepper, and blur handlers read that state, so it must match the text
+ * Control Field shows. The merged change handler is called directly with a
+ * synthetic event object: no DOM event is dispatched, so neither React nor
+ * native listeners on ancestors ever observe the reconciliation.
  */
 function syncBaseUIText(
-  input: HTMLInputElement,
   text: string,
+  onChange: BaseUIChangeHandler,
   syncingRef: React.RefObject<boolean>,
 ) {
-  const focused = document.activeElement === input;
-  const selection = focused
-    ? {
-        start: input.selectionStart,
-        end: input.selectionEnd,
-        direction: input.selectionDirection,
-      }
-    : null;
-  const setValue = Object.getOwnPropertyDescriptor(
-    HTMLInputElement.prototype,
-    'value',
-  )?.set;
+  const target = { value: text } as HTMLInputElement;
+  const nativeEvent = new Event('input');
+  const event = {
+    nativeEvent,
+    currentTarget: target,
+    target,
+    type: 'change',
+    bubbles: false,
+    defaultPrevented: false,
+    isDefaultPrevented: () => false,
+    isPropagationStopped: () => true,
+    persist() {},
+    preventDefault() {},
+    stopPropagation() {},
+  } as unknown as React.ChangeEvent<HTMLInputElement>;
   syncingRef.current = true;
   try {
-    // The DOM usually already shows `text`; move React's value tracker off
-    // it first so the input event reaches Base UI's change handler.
-    input.value = `${text}\u0000`;
-    setValue?.call(input, text);
-    input.dispatchEvent(new Event('input', { bubbles: true }));
+    onChange(event);
   } finally {
     syncingRef.current = false;
-  }
-  if (selection && selection.start !== null && selection.end !== null) {
-    const length = input.value.length;
-    input.setSelectionRange(
-      Math.min(selection.start, length),
-      Math.min(selection.end, length),
-      selection.direction ?? undefined,
-    );
   }
 }
 
@@ -820,6 +832,7 @@ export const ControlFieldInput = React.forwardRef<
   // synthetic input event away from mount, external updates, and unfocused
   // scrubs. Runs after every render; it is a no-op once in sync.
   const baseUITextRef = React.useRef<string | null>(null);
+  const baseUIOnChangeRef = React.useRef<BaseUIChangeHandler | null>(null);
   const syncBaseUITextIfFocused = React.useCallback(() => {
     if (expressionDraftRef.current !== null || context.textDirtyRef.current) {
       return;
@@ -831,8 +844,9 @@ export const ControlFieldInput = React.forwardRef<
       context.locale,
       context.displayFormat,
     );
-    if (baseUITextRef.current === text) return;
-    syncBaseUIText(input, text, context.syncingTextRef);
+    const onChange = baseUIOnChangeRef.current;
+    if (baseUITextRef.current === text || !onChange) return;
+    syncBaseUIText(text, onChange, context.syncingTextRef);
   }, [context]);
   React.useLayoutEffect(() => {
     syncBaseUITextIfFocused();
@@ -1048,12 +1062,8 @@ export const ControlFieldInput = React.forwardRef<
         }
       }}
       onChange={(event) => {
-        if (context.syncingTextRef.current) {
-          // Control Field's own sync: Base UI's handler still runs on this
-          // element, but ancestors never see a phantom edit.
-          event.stopPropagation();
-          return;
-        }
+        // Control Field's own sync: only Base UI's handler should see it.
+        if (context.syncingTextRef.current) return;
         onChange?.(event);
         if (event.defaultPrevented) return;
 
@@ -1087,11 +1097,15 @@ export const ControlFieldInput = React.forwardRef<
           if (event.key === 'Enter') {
             event.preventDefault();
             preventBaseUIHandler(event);
+            const resolved = resolveExpression(
+              event.nativeEvent,
+              'input-commit',
+            );
             if (legacyKeys) {
+              // The legacy primitive committed on Enter, then blurred.
+              if (!resolved) revertDraft('input-commit', event.nativeEvent);
               event.currentTarget.blur();
-              return;
             }
-            resolveExpression(event.nativeEvent, 'keyboard');
             return;
           }
           if (event.key === 'Escape') {
@@ -1117,13 +1131,18 @@ export const ControlFieldInput = React.forwardRef<
 
         if (event.key === 'Enter') {
           if (legacyKeys) {
+            // The legacy primitive committed on Enter (regardless of
+            // commitOnBlur), reverted invalid drafts, then blurred.
             event.preventDefault();
+            if (!commitText(event.nativeEvent, 'input-commit')) {
+              revertDraft('input-commit', event.nativeEvent);
+            }
             event.currentTarget.blur();
             return;
           }
           if (context.textDirtyRef.current) {
             event.preventDefault();
-            commitText(event.nativeEvent, 'keyboard');
+            commitText(event.nativeEvent, 'input-commit');
           }
           return;
         }
@@ -1141,6 +1160,8 @@ export const ControlFieldInput = React.forwardRef<
         }
 
         if (context.readOnly || context.disabled) return;
+        // Ctrl/Meta + Home/End/arrows navigate or select text.
+        if (event.ctrlKey || event.metaKey) return;
 
         handleStepKey(event);
       }}
@@ -1178,6 +1199,8 @@ export const ControlFieldInput = React.forwardRef<
       render={(baseProps, state) => {
         baseUITextRef.current =
           typeof baseProps.value === 'string' ? baseProps.value : null;
+        baseUIOnChangeRef.current =
+          (baseProps.onChange as BaseUIChangeHandler | undefined) ?? null;
         // While the user edits text, Base UI's text is authoritative. At rest
         // Control Field formats the value itself so stepping, scrubbing, and
         // controlled values are never rounded by the display format.
@@ -1310,26 +1333,25 @@ export const ControlFieldScrubArea = React.forwardRef<
   );
   const handleScrubValue = React.useCallback(
     (nextValue: number, event: Event | undefined) => {
-      changeValue(nextValue, 'scrub', event ?? new Event('pointermove'), {
-        commit: false,
-      });
-      discardDrafts();
+      const applied = changeValue(
+        nextValue,
+        'scrub',
+        event ?? new Event('pointermove'),
+        { commit: false },
+      );
+      if (applied) discardDrafts();
+      // A canceled change is rejected: the engine keeps the last accepted
+      // value for later thresholds and the release commit.
+      return applied;
     },
     [changeValue, discardDrafts],
   );
   const handleScrubEnd = React.useCallback(
-    ({
-      value,
-      moved,
-      event,
-    }: {
-      value: number;
-      moved: boolean;
-      event: Event | undefined;
-    }) => {
-      if (moved) {
-        commitValue(value, 'scrub', event ?? new Event('pointerup'));
-      }
+    ({ value, startValue, moved, rejected, event }: ScrubEndDetails) => {
+      if (!moved) return;
+      // Every update was rejected: there is nothing to commit.
+      if (rejected && Object.is(value, startValue)) return;
+      commitValue(value, 'scrub', event ?? new Event('pointerup'));
     },
     [commitValue],
   );
