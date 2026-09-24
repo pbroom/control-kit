@@ -101,6 +101,13 @@ function Consumer() {
           <TooltipContent>Inverse tooltip</TooltipContent>
         </Tooltip>
       </TooltipProvider>
+      {/* Utilities from control-kit/tailwind.css; unstyled without the preset. */}
+      <div
+        data-testid="preset-utilities"
+        className="border border-ck-border bg-ck-surface text-ck-foreground"
+      >
+        Preset utilities
+      </div>
     </main>
   );
 }
