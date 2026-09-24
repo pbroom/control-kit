@@ -152,6 +152,7 @@ interface ControlFieldContextValue {
   smallStep: number;
   step: number;
   textDirty: boolean;
+  textDirtyRef: React.RefObject<boolean>;
   isScrubbing: boolean;
   setScrubbing: (isScrubbing: boolean) => void;
   value: number | null;
@@ -536,6 +537,7 @@ export const ControlFieldRoot = React.forwardRef<
       smallStep: Math.abs(smallStep),
       step: Math.abs(numericStep),
       textDirty,
+      textDirtyRef,
       value,
       valueRef,
     }),
@@ -682,9 +684,16 @@ export const ControlFieldInput = React.forwardRef<
 ) {
   const context = useControlFieldContext();
   const legacyKeys = React.useContext(ControlFieldLegacyKeysContext);
-  const [expressionDraft, setExpressionDraft] = React.useState<string | null>(
-    null,
-  );
+  const [expressionDraft, setExpressionDraftState] = React.useState<
+    string | null
+  >(null);
+  // Handlers read the ref: legacy Enter/Escape blur synchronously, before
+  // React re-renders with the new state.
+  const expressionDraftRef = React.useRef<string | null>(null);
+  const setExpressionDraft = React.useCallback((draft: string | null) => {
+    expressionDraftRef.current = draft;
+    setExpressionDraftState(draft);
+  }, []);
   const [expressionInvalid, setExpressionInvalid] = React.useState(false);
   const [textInvalid, setTextInvalid] = React.useState(false);
   const permissiveExpressions =
@@ -722,10 +731,11 @@ export const ControlFieldInput = React.forwardRef<
 
   const resolveExpression = React.useCallback(
     (event: Event, reason: ControlFieldInvalidCommitDetails['reason']) => {
-      if (expressionDraft === null || !context.expressionResolver) return true;
+      if (expressionDraftRef.current === null || !context.expressionResolver)
+        return true;
 
       const start = context.focusValueRef.current ?? context.value ?? 0;
-      const resolved = context.expressionResolver(expressionDraft, {
+      const resolved = context.expressionResolver(expressionDraftRef.current, {
         currentValue: context.value ?? 0,
         startValue: start,
         min: context.min,
@@ -737,7 +747,7 @@ export const ControlFieldInput = React.forwardRef<
       });
       if (resolved === null || !Number.isFinite(resolved)) {
         setExpressionInvalid(true);
-        context.onInvalidCommit?.(expressionDraft, {
+        context.onInvalidCommit?.(expressionDraftRef.current, {
           reason,
           event,
           expression: true,
@@ -746,7 +756,7 @@ export const ControlFieldInput = React.forwardRef<
       }
 
       const changed = context.changeValue(resolved, 'expression', event, {
-        expression: expressionDraft,
+        expression: expressionDraftRef.current,
       });
       if (changed) {
         setExpressionDraft(null);
@@ -755,13 +765,13 @@ export const ControlFieldInput = React.forwardRef<
       }
       return changed;
     },
-    [context, expressionDraft],
+    [context, setExpressionDraft],
   );
 
   /** Commits typed (non-expression) text. Returns false when invalid. */
   const commitText = React.useCallback(
     (event: Event, reason: ControlFieldInvalidCommitDetails['reason']) => {
-      if (!context.textDirty) return true;
+      if (!context.textDirtyRef.current) return true;
       const draft = context.draftRef.current;
       if (!draft.parsed) {
         setTextInvalid(true);
@@ -805,7 +815,7 @@ export const ControlFieldInput = React.forwardRef<
 
     const draft = context.draftRef.current;
     const base =
-      context.textDirty && draft.parsed && draft.value !== null
+      context.textDirtyRef.current && draft.parsed && draft.value !== null
         ? draft.value
         : context.value;
     let nextValue: number;
@@ -864,9 +874,13 @@ export const ControlFieldInput = React.forwardRef<
         };
         if (context.selectOnFocus) {
           const input = event.currentTarget;
-          requestAnimationFrame(() => {
+          const selectAll = () => {
             if (document.activeElement === input) input.select();
-          });
+          };
+          // The microtask runs after Base UI's focus handler, which moves the
+          // caret to the end on first focus; the frame covers pointer focus.
+          queueMicrotask(selectAll);
+          requestAnimationFrame(selectAll);
         }
       }}
       onBlur={(event) => {
@@ -880,13 +894,16 @@ export const ControlFieldInput = React.forwardRef<
         if (context.readOnly) return;
 
         if (!context.commitOnBlur) {
-          if (expressionDraft !== null || context.textDirty) {
+          if (
+            expressionDraftRef.current !== null ||
+            context.textDirtyRef.current
+          ) {
             revertDraft('input-blur', nativeEvent);
           }
           return;
         }
 
-        if (expressionDraft !== null) {
+        if (expressionDraftRef.current !== null) {
           if (!resolveExpression(nativeEvent, 'input-blur')) {
             revertDraft('input-blur', nativeEvent);
           }
@@ -905,7 +922,7 @@ export const ControlFieldInput = React.forwardRef<
         setTextInvalid(false);
         if (
           context.expressionResolver &&
-          (expressionDraft !== null ||
+          (expressionDraftRef.current !== null ||
             expressionIsPresent(nextDraft, permissiveExpressions))
         ) {
           preventBaseUIHandler(event);
@@ -927,7 +944,7 @@ export const ControlFieldInput = React.forwardRef<
         onKeyDown?.(event);
         if (event.defaultPrevented) return;
 
-        if (expressionDraft !== null) {
+        if (expressionDraftRef.current !== null) {
           if (event.key === 'Enter') {
             event.preventDefault();
             preventBaseUIHandler(event);
@@ -969,7 +986,7 @@ export const ControlFieldInput = React.forwardRef<
             event.currentTarget.blur();
             return;
           }
-          if (context.textDirty) {
+          if (context.textDirtyRef.current) {
             event.preventDefault();
             commitText(event.nativeEvent, 'keyboard');
           }
@@ -977,7 +994,7 @@ export const ControlFieldInput = React.forwardRef<
         }
 
         if (event.key === 'Escape') {
-          if (context.textDirty || textInvalid) {
+          if (context.textDirtyRef.current || textInvalid) {
             event.preventDefault();
             revertDraft('keyboard', event.nativeEvent);
           }
@@ -998,7 +1015,7 @@ export const ControlFieldInput = React.forwardRef<
 
         const input = event.currentTarget;
         const pasted = event.clipboardData.getData('text/plain');
-        const currentText = expressionDraft ?? input.value;
+        const currentText = expressionDraftRef.current ?? input.value;
         const start = input.selectionStart ?? currentText.length;
         const end = input.selectionEnd ?? start;
         const nextDraft =
@@ -1006,7 +1023,7 @@ export const ControlFieldInput = React.forwardRef<
 
         if (
           context.expressionResolver &&
-          (expressionDraft !== null ||
+          (expressionDraftRef.current !== null ||
             expressionIsPresent(nextDraft, permissiveExpressions))
         ) {
           event.preventDefault();

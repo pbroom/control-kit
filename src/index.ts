@@ -59,6 +59,14 @@ export type {
   ControlFieldValueChangeDetails,
   ControlFieldValueCommitDetails,
 } from './control-field.js';
+export { ControlInput } from './control-input.js';
+export type {
+  ControlInputDensity,
+  ControlInputHandleSide,
+  ControlInputProps,
+  ControlInputSize,
+  ControlInputVariant,
+} from './control-input.js';
 export type {
   ControlFieldExpressionContext,
   ControlFieldExpressionResolver,

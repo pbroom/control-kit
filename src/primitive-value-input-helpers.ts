@@ -44,6 +44,9 @@ export interface PrimitiveSteppedValueOptions {
   pageStep: number;
 }
 
+/**
+ * @deprecated Boundary handling is built into `ControlField` via `boundaryBehavior`. Will be removed in a future release.
+ */
 export function normalizePrimitiveValue(
   value: number,
   min: number,
@@ -53,6 +56,9 @@ export function normalizePrimitiveValue(
   return normalizeNumberValue(value, min, max, mode);
 }
 
+/**
+ * @deprecated Use `ControlField` `precision` / `trimTrailingZeros` or `format`. Will be removed in a future release.
+ */
 export function formatPrimitiveValue(
   value: number,
   precision: PrimitivePrecision,
@@ -61,14 +67,23 @@ export function formatPrimitiveValue(
   return formatNumberValue(value, precision, autoTrim);
 }
 
+/**
+ * @deprecated Use `ControlField` `precision`, which is normalized internally. Will be removed in a future release.
+ */
 export function normalizePrimitivePrecision(value: number): number {
   return normalizeNumberPrecision(value);
 }
 
+/**
+ * @deprecated Configure `ControlField.ScrubArea` `pixelsPerStep` directly. Will be removed in a future release.
+ */
 export function normalizePrimitiveScrubMultiplier(value: number): number {
   return normalizeScrubMultiplier(value);
 }
 
+/**
+ * @deprecated Use `ControlField` `expressionResolver`. Will be removed in a future release.
+ */
 export function parsePrimitiveDraft(
   draft: string,
   currentValue: number,
@@ -89,6 +104,9 @@ export function parsePrimitiveDraft(
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+/**
+ * @deprecated `ControlField` applies `smallStep`/`largeStep` for Alt/Shift itself. Will be removed in a future release.
+ */
 export function getPrimitiveModifiedStep(
   shiftKey: boolean,
   altKey: boolean,
@@ -101,6 +119,9 @@ export function getPrimitiveModifiedStep(
   });
 }
 
+/**
+ * @deprecated `ControlField` owns keyboard stepping. Will be removed in a future release.
+ */
 export function getPrimitiveSteppedValue({
   value,
   key,

@@ -22,6 +22,10 @@ import {
 } from './primitive-value-input-helpers.js';
 import { useScrubGesture } from './use-scrub-gesture.js';
 
+/**
+ * @deprecated Use `ControlField` or `ControlInput`. Will be removed in a
+ * future release.
+ */
 export interface UsePrimitiveValueInputOptions {
   value: number;
   onValueChange: (value: number, details: PrimitiveValueChangeDetails) => void;
@@ -52,6 +56,11 @@ export interface UsePrimitiveValueInputOptions {
   onScrubbingChange?: (isScrubbing: boolean) => void;
 }
 
+/**
+ * @deprecated Use `ControlField` parts or `ControlInput`, which cover the
+ * draft, keyboard, commit, and scrub behavior of this hook. Will be removed
+ * in a future release.
+ */
 export function usePrimitiveValueInput({
   value,
   onValueChange,
