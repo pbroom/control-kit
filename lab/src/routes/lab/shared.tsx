@@ -37,7 +37,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
   normalizePrimitivePrecision,
-  type MultiInputConfig as ControlMultiInputConfig,
+  type MultiInputSegmentConfig,
   type MultiInputField,
   type PlaneInteraction,
   type PlaneValue,
@@ -165,9 +165,16 @@ type LabPageKey =
   | 'toggle';
 type PrimitiveHandleContent = 'none' | 'letter' | 'icon' | 'swatch';
 type MultiInputFieldId = 'l' | 'c' | 'h' | 'a';
-type MultiInputConfig = ControlMultiInputConfig<MultiInputFieldId>;
+// The lab edits every option, so its config keeps each field populated.
+type MultiInputConfig = Record<
+  MultiInputFieldId,
+  Required<MultiInputSegmentConfig>
+>;
 type PrimitiveScrubFieldId = 'dragStep' | 'stepDragDistance';
-type PrimitiveScrubConfig = ControlMultiInputConfig<PrimitiveScrubFieldId>;
+type PrimitiveScrubConfig = Record<
+  PrimitiveScrubFieldId,
+  Required<MultiInputSegmentConfig>
+>;
 type TooltipSide = 'top' | 'right' | 'bottom' | 'left';
 type PlacementSide = TooltipSide;
 type PlacementAlign = 'start' | 'center' | 'end';
