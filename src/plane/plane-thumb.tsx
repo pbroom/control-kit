@@ -51,6 +51,7 @@ export function PlaneThumb({
   value: controlledValue,
   defaultValue = DEFAULT_PLANE_VALUE,
   onValueChange,
+  onValueCommitted,
   onValueCommit,
   disabled = false,
   readOnly = false,
@@ -90,6 +91,8 @@ export function PlaneThumb({
   const keyboardOriginalEventRef = React.useRef<Event | undefined>(undefined);
   const pressedArrowKeysRef = React.useRef(new Set<PlaneArrowKey>());
   const pointerFocusRef = React.useRef(false);
+  // `onValueCommit` is the deprecated alias; the new name takes precedence.
+  const onCommit = onValueCommitted ?? onValueCommit;
   const isControlled = controlledValue !== undefined;
   const sourceValue = isControlled ? controlledValue : uncontrolledValue;
   const defaultValueRef = React.useRef(defaultValue);
@@ -254,7 +257,7 @@ export function PlaneThumb({
       }
       const committedValue = interactionValueRef.current;
       keyboardDirtyRef.current = false;
-      onValueCommit?.(
+      onCommit?.(
         committedValue,
         getValueChangeDetails(
           { interaction: 'keyboard', reason, originalEvent },
@@ -264,25 +267,18 @@ export function PlaneThumb({
       keyboardOriginalEventRef.current = undefined;
       if (isControlled) interactionValueRef.current = renderedValue;
     },
-    [
-      isControlled,
-      isDisabled,
-      isReadOnly,
-      onValueCommit,
-      renderedValue,
-      thumbId,
-    ],
+    [isControlled, isDisabled, isReadOnly, onCommit, renderedValue, thumbId],
   );
 
   const commitPointerValue = React.useCallback(
     (source: PlaneValueChangeSource) => {
-      onValueCommit?.(
+      onCommit?.(
         interactionValueRef.current,
         getValueChangeDetails(source, thumbId),
       );
       if (isControlled) interactionValueRef.current = renderedValue;
     },
-    [isControlled, onValueCommit, renderedValue, thumbId],
+    [isControlled, onCommit, renderedValue, thumbId],
   );
 
   const beginRelativeDrag = () => {

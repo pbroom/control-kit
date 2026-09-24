@@ -65,6 +65,18 @@ export type PlaneThumbProps = Omit<
   value?: PlaneValue;
   defaultValue?: PlaneValue;
   onValueChange?: (value: PlaneValue, details: PlaneValueChangeDetails) => void;
+  /**
+   * Called once when a pointer drag, plane press, or keyboard interaction
+   * completes, with the final value.
+   */
+  onValueCommitted?: (
+    value: PlaneValue,
+    details: PlaneValueChangeDetails,
+  ) => void;
+  /**
+   * Ignored when `onValueCommitted` is provided.
+   * @deprecated Use onValueCommitted.
+   */
   onValueCommit?: (value: PlaneValue, details: PlaneValueChangeDetails) => void;
   disabled?: boolean;
   readOnly?: boolean;

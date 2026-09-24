@@ -22,7 +22,7 @@ Coordinates are clamped from `0` to `1`. X increases from left to right. Y follo
 
 ## Usage guidelines
 
-- Use a thumb's `onValueChange` for immediate visual feedback. Use `onValueCommit` for persistence or expensive downstream work.
+- Use a thumb's `onValueChange` for immediate visual feedback. Use `onValueCommitted` for persistence or expensive downstream work.
 - In controlled mode, update the thumb's `value` from `onValueChange`. The rendered thumb only moves when the controlled value changes.
 - Use `getAriaValueText` to express domain values instead of normalized percentages—for example, “50% saturation, 75% lightness” for a color plane.
 - Hide decorative guides, canvas layers, and SVG content from assistive technology when they do not add information beyond the two axis controls.
@@ -38,7 +38,7 @@ const [value, setValue] = React.useState({ x: 0.5, y: 0.5 });
   <PlaneThumb
     value={value}
     onValueChange={setValue}
-    onValueCommit={(nextValue, details) => {
+    onValueCommitted={(nextValue, details) => {
       savePosition(nextValue, details.interaction);
     }}
     xAriaLabel="Saturation"
@@ -127,7 +127,7 @@ Owns a normalized position, renders its visible marker, and supplies two accessi
 
 <!-- props:plane-thumb -->
 
-`onValueChange` and `onValueCommit` receive `details.interaction`, which groups changes as `'pointer'` or `'keyboard'`. `details.reason` identifies `'thumb-drag'`, `'plane-press'`, `'keyboard'`, or `'input-change'`, and `details.originalEvent` exposes the native event when available. When `thumbId` is set, callbacks also receive it as `details.thumbId`.
+`onValueChange` and `onValueCommitted` receive `details.interaction`, which groups changes as `'pointer'` or `'keyboard'`. `details.reason` identifies `'thumb-drag'`, `'plane-press'`, `'keyboard'`, or `'input-change'`, and `details.originalEvent` exposes the native event when available. When `thumbId` is set, callbacks also receive it as `details.thumbId`.
 
 A pointer interaction commits on release, cancellation, or lost capture. Changing a thumb to `disabled` or `readOnly` during a drag ends the interaction without committing. Non-positive and non-finite step values fall back to their defaults.
 

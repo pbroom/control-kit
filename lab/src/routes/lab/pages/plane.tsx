@@ -54,7 +54,7 @@ function PlanePreview({ controller }: { controller: PlaneLabPageController }) {
           data-testid="plane-demo-thumb"
           value={value}
           onValueChange={setValue}
-          onValueCommit={controller.setValue}
+          onValueCommitted={controller.setValue}
           step={0.01}
           largeStep={0.1}
           xAriaLabel="Horizontal position"

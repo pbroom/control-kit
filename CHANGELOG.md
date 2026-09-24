@@ -54,6 +54,19 @@ the package adheres to [Semantic Versioning](https://semver.org/).
   (`primitive-value-input-helpers.ts`), the stateful hook
   (`use-primitive-value-input.ts`), and the component. All existing import
   paths and exports are unchanged.
+- `PlaneThumb` now names its commit callback `onValueCommitted`, matching
+  `ControlField` and Base UI. It has the same signature and fires at the same
+  times as the previous `onValueCommit`. When both props are passed, only
+  `onValueCommitted` is called.
+- `plane.tsx` split into focused modules under `src/plane/` (types, geometry,
+  keyboard, context, hover tracking, `Plane`, and `PlaneThumb`). Root exports
+  and their types are unchanged.
+
+### Deprecated
+
+- `PlaneThumb` `onValueCommit` is a deprecated alias for `onValueCommitted`
+  and will be removed in a future release. Rename the prop; no other change is
+  needed.
 
 ## 0.0.1
 

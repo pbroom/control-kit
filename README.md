@@ -99,7 +99,7 @@ input borders, not error-message text.
 
 `Plane` owns normalized Cartesian XY input while its children own the visual
 surface. `PlaneThumb` supplies the positioned marker and accessible keyboard
-axes; use `onValueChange` for live updates and `onValueCommit` for completed
+axes; use `onValueChange` for live updates and `onValueCommitted` for completed
 pointer or keyboard interactions.
 
 ```tsx
@@ -124,7 +124,7 @@ export function PositionControl({
       <PlaneThumb
         value={point}
         onValueChange={setPoint}
-        onValueCommit={savePoint}
+        onValueCommitted={savePoint}
         xAriaLabel="Horizontal position"
         yAriaLabel="Vertical position"
       />
