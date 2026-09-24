@@ -6,7 +6,7 @@ const FOCUSED_PLANE_EXAMPLE_TITLES = [
   'Color grading controls — Circular controls (3-way color adjuster)',
   'Mesh gradient',
   'Image pan and focal point',
-  'Gradient center/origin',
+  'Gradient origin + radius',
   'Pattern/texture offset',
   'Drop-shadow offset',
   'Image crop focal point',
@@ -949,14 +949,14 @@ test('routes between Plane docs and Lab and exposes tabs only on documented page
   await expect(
     page.getByRole('heading', { name: 'API reference', exact: true }),
   ).toBeVisible();
-  await expect(page.locator('pre[data-language="tsx"]')).toHaveCount(6);
+  await expect(page.locator('pre[data-language="tsx"]')).toHaveCount(9);
   const codeBlocks = page.locator('[data-docs-code-block]');
   const copyButtons = page.getByRole('button', {
     name: 'Copy code',
     exact: true,
   });
-  await expect(codeBlocks).toHaveCount(6);
-  await expect(copyButtons).toHaveCount(6);
+  await expect(codeBlocks).toHaveCount(9);
+  await expect(copyButtons).toHaveCount(9);
   expect(
     await codeBlocks.evaluateAll((blocks) =>
       blocks.every((block) => block.classList.contains('not-typeset')),
@@ -1019,7 +1019,7 @@ test('routes between Plane docs and Lab and exposes tabs only on documented page
     'Code copied to clipboard.',
   );
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
-    `import { Plane, PlaneThumb } from 'control-kit';
+    `import { Plane, PlaneThumb, PlaneAttachment } from 'control-kit';
 
 <Plane aria-label="Position">
   <PlaneThumb defaultValue={{ x: 0.5, y: 0.5 }} />
@@ -1069,7 +1069,10 @@ test('routes between Plane docs and Lab and exposes tabs only on documented page
   await valueProp.focus();
   await valueProp.press('Enter');
   await expect(
-    page.getByText('The controlled normalized position.', { exact: true }),
+    page.getByText(
+      'The controlled plane position, or signed parent-relative offset for a nested thumb.',
+      { exact: true },
+    ),
   ).toBeVisible();
   const propTableCodeSizes = await page
     .locator('section[aria-label$="component props table"] code')

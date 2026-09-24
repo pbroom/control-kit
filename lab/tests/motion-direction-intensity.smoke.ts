@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { collectBrowserErrors } from './lab-smoke-utils.js';
+import { collectBrowserErrors, planeInputBounds } from './lab-smoke-utils.js';
 
 async function openMotionExample(page: Page) {
   await page.goto('/docs/plane-examples#motion-direction-intensity');
@@ -16,8 +16,7 @@ async function openMotionExample(page: Page) {
 }
 
 async function setPlaneValue(page: Page, plane: Locator, x: number, y: number) {
-  const bounds = await plane.boundingBox();
-  if (!bounds) throw new Error('The motion plane has no bounds.');
+  const bounds = await planeInputBounds(plane);
   await page.mouse.click(
     bounds.x + bounds.width * x,
     bounds.y + bounds.height * (1 - y),
