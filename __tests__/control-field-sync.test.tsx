@@ -310,6 +310,107 @@ describe('ControlField blur commits', () => {
     expect(input.value).toBe('15');
   });
 });
+describe('ControlField text sync does not leak input events', () => {
+  function mountInForm(
+    props: Partial<ControlFieldRootProps> = {},
+    initialValue = 10,
+  ) {
+    const formOnChange = vi.fn();
+    const formNativeInput = vi.fn();
+    const bodyNativeInput = vi.fn();
+    let setExternal!: (value: number) => void;
+    function Harness() {
+      const [value, setValue] = React.useState<number | null>(initialValue);
+      setExternal = setValue;
+      return (
+        <form onChange={formOnChange}>
+          <ControlField.Root {...props} value={value} onValueChange={setValue}>
+            <ControlField.Group>
+              <ControlField.ScrubArea>V</ControlField.ScrubArea>
+              <ControlField.Input aria-label="Amount" />
+            </ControlField.Group>
+          </ControlField.Root>
+        </form>
+      );
+    }
+    document.body.addEventListener('input', bodyNativeInput);
+    const { container } = render(<Harness />);
+    const form = container.querySelector('form') as HTMLFormElement;
+    form.addEventListener('input', formNativeInput);
+    const input = container.querySelector(
+      '[data-slot="control-field-input"]',
+    ) as HTMLInputElement;
+    const scrubArea = container.querySelector(
+      '[data-slot="control-field-scrub-area"]',
+    ) as HTMLElement;
+    scrubArea.setPointerCapture = vi.fn();
+    const cleanup = () =>
+      document.body.removeEventListener('input', bodyNativeInput);
+    return {
+      input,
+      scrubArea,
+      formOnChange,
+      formNativeInput,
+      bodyNativeInput,
+      cleanup,
+      setExternal: (value: number) => act(() => setExternal(value)),
+    };
+  }
+
+  it('fires no input events on mount with precision', () => {
+    // 1.234 displays as 1.23 while Base UI's own text is 1.234.
+    const { input, formOnChange, bodyNativeInput, cleanup } = mountInForm(
+      { precision: 2 },
+      1.234,
+    );
+    cleanup();
+
+    expect(input.value).toBe('1.23');
+    expect(formOnChange).not.toHaveBeenCalled();
+    expect(bodyNativeInput).not.toHaveBeenCalled();
+  });
+
+  it('fires no input events for programmatic value changes', () => {
+    const { formOnChange, formNativeInput, bodyNativeInput, cleanup, ...f } =
+      mountInForm({ precision: 2 });
+    for (const value of [1.234, 2.5, 3, 4.125, 5]) f.setExternal(value);
+    cleanup();
+
+    expect(f.input.value).toBe('5');
+    expect(formOnChange).not.toHaveBeenCalled();
+    expect(formNativeInput).not.toHaveBeenCalled();
+    expect(bodyNativeInput).not.toHaveBeenCalled();
+  });
+
+  it('fires no input events while scrubbing an unfocused field', () => {
+    const { formOnChange, formNativeInput, bodyNativeInput, cleanup, ...f } =
+      mountInForm();
+    pointer(f.scrubArea, 'pointerdown', 0);
+    for (const x of [2, 4, 6, 8]) pointer(document, 'pointermove', x);
+    pointer(document, 'pointerup', 8);
+    cleanup();
+
+    expect(f.input.value).toBe('18');
+    expect(formOnChange).not.toHaveBeenCalled();
+    expect(formNativeInput).not.toHaveBeenCalled();
+    expect(bodyNativeInput).not.toHaveBeenCalled();
+  });
+
+  it('keeps focused sync events away from React and document ancestors', () => {
+    const { formOnChange, bodyNativeInput, cleanup, input } = mountInForm({
+      precision: 0,
+    });
+
+    act(() => input.focus());
+    keyDown(input, 'ArrowUp');
+    keyDown(input, 'ArrowUp');
+    cleanup();
+
+    expect(input.value).toBe('12');
+    expect(formOnChange).not.toHaveBeenCalled();
+    expect(bodyNativeInput).not.toHaveBeenCalled();
+  });
+});
 
 describe('ControlField.ScrubArea lifecycle', () => {
   it('ends the gesture when the scrub area unmounts mid-drag', () => {

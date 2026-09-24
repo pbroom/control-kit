@@ -813,21 +813,29 @@ export const ControlFieldInput = React.forwardRef<
     };
   }, [resetExpressionRef, setExpressionDraft]);
 
-  // Keep Base UI's text equal to the formatted value whenever no draft is
-  // being edited (after key steps, commits, reverts, scrubs, and external
-  // value changes). Runs after every render; it is a no-op once in sync.
+  // Keep Base UI's text equal to the formatted value while the input is
+  // focused and no draft is being edited. Base UI only reads its text from
+  // keydown, paste, and blur, which need focus; stepper presses without a
+  // draft step from the exact value. Syncing only while focused keeps the
+  // synthetic input event away from mount, external updates, and unfocused
+  // scrubs. Runs after every render; it is a no-op once in sync.
   const baseUITextRef = React.useRef<string | null>(null);
-  React.useLayoutEffect(() => {
-    if (expressionDraft !== null || context.textDirty) return;
+  const syncBaseUITextIfFocused = React.useCallback(() => {
+    if (expressionDraftRef.current !== null || context.textDirtyRef.current) {
+      return;
+    }
     const input = context.inputRef.current;
-    if (!input) return;
+    if (!input || document.activeElement !== input) return;
     const text = formatDisplayValue(
-      context.value,
+      context.valueRef.current,
       context.locale,
       context.displayFormat,
     );
     if (baseUITextRef.current === text) return;
     syncBaseUIText(input, text, context.syncingTextRef);
+  }, [context]);
+  React.useLayoutEffect(() => {
+    syncBaseUITextIfFocused();
   });
 
   /** Restores the value from focus or the last commit. */
@@ -988,6 +996,8 @@ export const ControlFieldInput = React.forwardRef<
         onFocus?.(event);
         if (event.defaultPrevented) return;
 
+        syncBaseUITextIfFocused();
+
         context.blurGateRef.current = false;
         context.revertValueRef.current = context.value;
         context.draftRef.current = {
@@ -1038,7 +1048,12 @@ export const ControlFieldInput = React.forwardRef<
         }
       }}
       onChange={(event) => {
-        if (context.syncingTextRef.current) return;
+        if (context.syncingTextRef.current) {
+          // Control Field's own sync: Base UI's handler still runs on this
+          // element, but ancestors never see a phantom edit.
+          event.stopPropagation();
+          return;
+        }
         onChange?.(event);
         if (event.defaultPrevented) return;
 
