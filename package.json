@@ -1,6 +1,6 @@
 {
   "name": "control-kit",
-  "version": "0.0.1",
+  "version": "0.1.0-next.0",
   "description": "React UI primitives for building operational color controls",
   "type": "module",
   "packageManager": "pnpm@10.30.3",
@@ -50,6 +50,7 @@
     "lab:smoke": "playwright test -c lab/playwright.config.ts",
     "lab:typecheck": "tsc -p lab/tsconfig.json --noEmit",
     "prepare": "pnpm build",
+    "prepublishOnly": "pnpm typecheck && pnpm test && pnpm build",
     "test": "vitest run --passWithNoTests",
     "test:consumer": "node scripts/check-packed-consumer.mjs",
     "test:consumer:git": "node scripts/check-packed-consumer.mjs --git",
@@ -66,7 +67,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/pbroom/control-kit.git"
+    "url": "git+https://github.com/pbroom/control-kit.git"
   },
   "bugs": {
     "url": "https://github.com/pbroom/control-kit/issues"

@@ -6,7 +6,18 @@ the package adheres to [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+These entries will ship as `0.1.0-next.0`, the first npm release, under the
+`next` dist-tag. When it is published, rename this heading to
+`## 0.1.0-next.0 - YYYY-MM-DD` with the publish date and start a new empty
+Unreleased section.
+
 ### Added
+
+- Published to npm as `control-kit` under the `next` dist-tag:
+  `pnpm add control-kit@next @base-ui/react`. The GitHub install remains
+  available for unreleased changes. A manual Release workflow publishes with
+  npm provenance, and `prepublishOnly` typechecks, tests, and rebuilds
+  `dist/` before any publish.
 
 - `control-kit/theme.css` defines every `--ck-*` token with the dark
   defaults on `:root` and a light preset opted into with
@@ -44,7 +55,7 @@ the package adheres to [Semantic Versioning](https://semver.org/).
   Replace the dependency and import specifiers, and update Tailwind source paths
   from `node_modules/@color-kit/control-kit/src` to `node_modules/control-kit/src`.
   Root exports are unchanged. See the [installation instructions](./README.md#install)
-  for the GitHub install command.
+  for the npm and GitHub install commands.
 
 - Tooltip now forwards Base UI props: replace provider `delayDuration` with
   `delay`, `skipDelayDuration` with `timeout`, and trigger `asChild` with

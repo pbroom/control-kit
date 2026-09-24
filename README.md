@@ -6,13 +6,24 @@ Control Kit is a standalone package maintained in [pbroom/control-kit](https://g
 
 ## Install
 
-Install the renamed package directly from this repository:
+Install the prerelease from npm together with the Base UI peer:
+
+```sh
+pnpm add control-kit@next @base-ui/react
+```
+
+Releases are published under the `next` dist-tag while the API settles, so
+`control-kit` without a tag does not resolve to them yet. The npm package
+ships prebuilt ESM, CommonJS, and TypeScript declarations in `dist/`, plus the
+`src/` files that the Tailwind preset scans.
+
+To track unreleased changes, install from this repository instead:
 
 ```sh
 pnpm add --allow-build=control-kit control-kit@github:pbroom/control-kit @base-ui/react
 ```
 
-The package builds ESM, CommonJS, and TypeScript declarations into `dist/`. The `--allow-build=control-kit` flag (pnpm 10) allows Git installs to run the `prepare` script so consumers receive the compiled entrypoints.
+The `--allow-build=control-kit` flag (pnpm 10) allows Git installs to run the `prepare` script so consumers receive the compiled entrypoints. Append `#<commit>` to pin a revision.
 
 ## Compatibility
 
@@ -24,8 +35,24 @@ The package builds ESM, CommonJS, and TypeScript declarations into `dist/`. The 
 
 ## Releases
 
-Changes are tracked in [CHANGELOG.md](./CHANGELOG.md). Use the GitHub install
-above for the renamed package; pin a Git commit for reproducible installs.
+Changes are tracked in [CHANGELOG.md](./CHANGELOG.md). Versions before 1.0
+are prereleases published to npm under the `next` dist-tag
+(`0.1.0-next.0`, `0.1.0-next.1`, ...); pin an exact version for reproducible
+installs.
+
+To cut a release, bump `version` in `package.json`, move the CHANGELOG
+entries under the new version heading, and commit. Then publish in one of
+two ways:
+
+- **GitHub Actions (preferred):** run the manual **Release** workflow
+  (`.github/workflows/release.yml`) on that commit. It runs the format,
+  type, unit, and packed-consumer checks, then publishes with npm
+  provenance under the chosen dist-tag (default `next`). It needs an
+  `NPM_TOKEN` repository secret; enable **dry-run** to rehearse without
+  uploading.
+- **Locally:** `pnpm publish --tag next` while logged in to npm with
+  publish rights. The `prepublishOnly` script typechecks, tests, and
+  rebuilds `dist/` first, so a stale build cannot ship.
 
 ### Upgrading from `@color-kit/control-kit`
 
