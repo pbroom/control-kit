@@ -33,11 +33,13 @@ function mountHighlightedCode({
   appearance,
   block,
   code,
+  previewLines,
   showCopyButton,
 }: {
   appearance?: 'block' | 'example';
   block: boolean;
   code: string;
+  previewLines?: number;
   showCopyButton?: boolean;
 }) {
   const container = document.createElement('div');
@@ -52,6 +54,7 @@ function mountHighlightedCode({
         block={block}
         code={code}
         language="tsx"
+        previewLines={previewLines}
         showCopyButton={showCopyButton}
       />,
     );
@@ -123,6 +126,29 @@ describe('HighlightedCode', () => {
     expect(pre?.className).toContain('rounded-none!');
     expect(pre?.className).toContain('border-0!');
     expect(container.querySelector('button')).toBeNull();
+  });
+
+  it('renders only the requested preview lines while copying the full source', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    });
+    const code = ['const a = 1;', 'const b = 2;', 'const c = 3;'].join('\n');
+    const container = mountHighlightedCode({
+      block: true,
+      code,
+      previewLines: 2,
+    });
+
+    expect(container.querySelector('pre')?.textContent).toBe(
+      'const a = 1;\nconst b = 2;',
+    );
+
+    await act(async () => {
+      container.querySelector('button')?.click();
+    });
+    expect(writeText).toHaveBeenCalledWith(code);
   });
 
   it('shows a visible failure state when clipboard access is denied', async () => {

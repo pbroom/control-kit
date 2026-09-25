@@ -8,6 +8,12 @@ type HighlightedCodeProps = {
   block?: boolean;
   code: string;
   language?: Language;
+  /**
+   * Render only the first `previewLines` lines. Collapsed example sources clip
+   * to a few lines, so rendering every token span of every example would add
+   * tens of thousands of hidden DOM nodes to pages such as Plane Examples.
+   */
+  previewLines?: number;
   showCopyButton?: boolean;
 };
 
@@ -96,17 +102,20 @@ export function HighlightedCode({
   block = false,
   code,
   language = 'tsx',
+  previewLines,
   showCopyButton = true,
 }: HighlightedCodeProps) {
   return (
     <Highlight code={code} language={language} theme={themes.vsDark}>
       {({ className, getLineProps, getTokenProps, style, tokens }) => {
-        const highlightedLines = tokens.map((line, lineIndex) => (
+        const visibleTokens =
+          previewLines === undefined ? tokens : tokens.slice(0, previewLines);
+        const highlightedLines = visibleTokens.map((line, lineIndex) => (
           <span {...getLineProps({ line })} key={lineIndex}>
             {line.map((token, tokenIndex) => (
               <span {...getTokenProps({ token })} key={tokenIndex} />
             ))}
-            {lineIndex < tokens.length - 1 ? '\n' : null}
+            {lineIndex < visibleTokens.length - 1 ? '\n' : null}
           </span>
         ));
 

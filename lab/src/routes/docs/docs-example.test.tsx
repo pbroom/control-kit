@@ -31,7 +31,13 @@ vi.mock('./highlighted-code.js', () => ({
   CopyCodeButton: ({ code }: { code: string }) => (
     <button aria-label="Copy code" data-code={code} type="button" />
   ),
-  HighlightedCode: ({ code }: { code: string }) => <pre>{code}</pre>,
+  HighlightedCode: ({
+    code,
+    previewLines,
+  }: {
+    code: string;
+    previewLines?: number;
+  }) => <pre data-preview-lines={previewLines ?? 'all'}>{code}</pre>,
 }));
 
 afterEach(() => {
@@ -67,10 +73,12 @@ describe('DocsExample', () => {
     ).not.toBeNull();
     expect(source?.getAttribute('aria-hidden')).toBe('true');
     expect(toggle?.getAttribute('aria-expanded')).toBe('false');
+    expect(source?.querySelector('pre')?.dataset.previewLines).toBe('8');
 
     act(() => toggle?.click());
 
     expect(source?.getAttribute('aria-hidden')).toBe('false');
+    expect(source?.querySelector('pre')?.dataset.previewLines).toBe('all');
     expect(toggle?.getAttribute('aria-expanded')).toBe('true');
     expect(toggle?.textContent).toBe('Hide code');
 
