@@ -43,7 +43,16 @@ test('drives the composed Plane with pointer, keyboard, and properties', async (
       };
     });
 
-  const planeBox = await plane.boundingBox();
+  // CSS percentage-positioned thumbs use the inside of the plane border.
+  const planeBox = await plane.evaluate((node) => {
+    const rect = node.getBoundingClientRect();
+    return {
+      x: rect.x + node.clientLeft,
+      y: rect.y + node.clientTop,
+      width: node.clientWidth,
+      height: node.clientHeight,
+    };
+  });
   const thumbBox = await thumb.boundingBox();
   const idleThumbVisualState = await readThumbVisualState();
   expect(planeBox).not.toBeNull();
@@ -104,10 +113,15 @@ test('drives the composed Plane with pointer, keyboard, and properties', async (
   await expect(yAxis).not.toBeFocused();
   await expect(thumb).not.toHaveAttribute('data-focused');
   await xAxis.focus();
+  const beforeFineStep = Number(await xAxis.inputValue());
   await page.keyboard.press('Alt+ArrowRight');
-  await expect(xAxis).toHaveValue('0.801');
+  await expect
+    .poll(async () => Number(await xAxis.inputValue()))
+    .toBeCloseTo(beforeFineStep + 0.001, 8);
   await page.keyboard.press('Alt+ArrowLeft');
-  await expect(xAxis).toHaveValue('0.8');
+  await expect
+    .poll(async () => Number(await xAxis.inputValue()))
+    .toBeCloseTo(beforeFineStep, 8);
   await page.keyboard.press('Shift+ArrowLeft');
   await expect(readout).toContainText('X 0.70 · Y 0.75');
   await page.keyboard.down('ArrowRight');

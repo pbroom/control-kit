@@ -48,6 +48,26 @@ export const LAB_PAGES = LAB_PAGE_NAVIGATION.map((labPage) => ({
   panelText: LAB_PAGE_PANEL_TEXT[labPage.value],
 }));
 
+/**
+ * Plane maps pointer input to its padding box (the area thumbs are positioned
+ * in), excluding any border. Returns that box in viewport coordinates.
+ */
+export async function planeInputBounds(plane: Locator) {
+  return plane.evaluate((element) => {
+    const bounds = element.getBoundingClientRect();
+    const node = element as HTMLElement;
+    const scaleX = node.offsetWidth > 0 ? bounds.width / node.offsetWidth : 1;
+    const scaleY =
+      node.offsetHeight > 0 ? bounds.height / node.offsetHeight : 1;
+    return {
+      x: bounds.left + node.clientLeft * scaleX,
+      y: bounds.top + node.clientTop * scaleY,
+      width: node.clientWidth * scaleX,
+      height: node.clientHeight * scaleY,
+    };
+  });
+}
+
 function isIgnoredConsoleError(message: string) {
   return (
     message === 'Failed to load resource: net::ERR_NETWORK_IO_SUSPENDED' ||

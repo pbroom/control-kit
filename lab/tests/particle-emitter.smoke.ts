@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { collectBrowserErrors } from './lab-smoke-utils.js';
+import { collectBrowserErrors, planeInputBounds } from './lab-smoke-utils.js';
 
 async function openEmitterExample(page: Page) {
   await page.goto('/docs/plane-examples#particle-emitter-direction-spread');
@@ -15,8 +15,7 @@ async function openEmitterExample(page: Page) {
 }
 
 async function setPlaneValue(page: Page, plane: Locator, x: number, y: number) {
-  const bounds = await plane.boundingBox();
-  if (!bounds) throw new Error('The particle emitter Plane has no bounds.');
+  const bounds = await planeInputBounds(plane);
   await page.mouse.click(
     bounds.x + bounds.width * x,
     bounds.y + bounds.height * (1 - y),
