@@ -19,6 +19,17 @@ afterEach(async () => {
   vi.restoreAllMocks();
 });
 
+/**
+ * PlaneAttachment defers blur-driven hiding with `setTimeout(0)` so a focus
+ * move into a nested portal can cancel it. `act` only waits for setImmediate
+ * ticks, which race that timer in Node. A zero-delay timer queued after the
+ * blur runs strictly after the component's timer (same-duration timers fire
+ * FIFO), so awaiting it inside `act` deterministically flushes the hide.
+ */
+function flushBlurTimer() {
+  return new Promise<void>((resolve) => setTimeout(resolve, 0));
+}
+
 async function mount(props: Partial<PlaneAttachmentProps> = {}) {
   const host = document.createElement('div');
   document.body.append(host);
@@ -102,7 +113,10 @@ describe('PlaneAttachment', () => {
     );
     const outside = document.createElement('button');
     document.body.append(outside);
-    await act(async () => outside.focus());
+    await act(async () => {
+      outside.focus();
+      await flushBlurTimer();
+    });
     expect(document.querySelector('[data-slot="plane-attachment"]')).toBeNull();
   });
 
