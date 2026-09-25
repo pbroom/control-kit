@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Plane, PlaneThumb, type PlaneValue } from 'control-kit';
-import landscapePhotoUrl from './image-pan-and-focal-point.jpg';
+import owlPhotoUrl from './image-pan-and-focal-point.webp';
 
 function describePosition({ x, y }: PlaneValue) {
   return `${Math.round(x * 100)}% from the left, ${Math.round(y * 100)}% from the bottom`;
@@ -32,7 +32,7 @@ export function ImagePanAndFocalPointExample() {
             alt=""
             className="size-full object-cover"
             draggable={false}
-            src={landscapePhotoUrl}
+            src={owlPhotoUrl}
           />
         </div>
         <div
@@ -84,11 +84,11 @@ export function ImagePanAndFocalPointExample() {
         </output>
         <a
           className="text-[9px] text-white/45 underline decoration-white/25 underline-offset-2"
-          href="https://unsplash.com/photos/mountains-and-a-lake-reflecting-the-beautiful-landscape-kblRqsIVebw"
+          href="https://unsplash.com/photos/brown-owl-sI6MbZDxUas"
           rel="noreferrer"
           target="_blank"
         >
-          Photo by DEENOW on Unsplash
+          Photo by David Clode on Unsplash
         </a>
       </div>
     </div>
