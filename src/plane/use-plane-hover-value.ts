@@ -1,5 +1,6 @@
 import * as React from 'react';
 import {
+  getPlaneBounds,
   getPlaneValueFromPoint,
   planeBoundsContainPoint,
   planeValuesEqual,
@@ -52,8 +53,7 @@ export function usePlaneHoverValue(
 
       const bounds =
         hoverPointerBoundsRef.current ??
-        (hoverPointerBoundsRef.current =
-          event.currentTarget.getBoundingClientRect());
+        (hoverPointerBoundsRef.current = getPlaneBounds(event.currentTarget));
       const value = getPlaneValueFromPoint(event, bounds);
       if (!planeBoundsContainPoint(event, bounds)) {
         hoverPointersRef.current.delete(event.pointerId);

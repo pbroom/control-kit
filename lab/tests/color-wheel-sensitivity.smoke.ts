@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { planeInputBounds } from './lab-smoke-utils.js';
 
 const EXAMPLE_NAME =
   'Color grading controls — Circular controls (3-way color adjuster) demo';
@@ -44,7 +45,7 @@ test('all three color wheels use quarter-distance relative dragging', async ({
     const thumb = plane.locator('[data-slot="plane-thumb"]');
     const xAxis = plane.locator('[data-plane-axis="x"]');
     const yAxis = plane.locator('[data-plane-axis="y"]');
-    const planeBounds = await plane.boundingBox();
+    const planeBounds = await planeInputBounds(plane);
     const firstThumbBounds = await thumb.boundingBox();
     if (!planeBounds || !firstThumbBounds) {
       throw new Error(`${label} wheel geometry is unavailable.`);

@@ -8,6 +8,12 @@ type HighlightedCodeProps = {
   block?: boolean;
   code: string;
   language?: Language;
+  /**
+   * Render only the first `previewLines` lines. Collapsed example sources clip
+   * to a few lines, so rendering every token span of every example would add
+   * tens of thousands of hidden DOM nodes to pages such as Plane Examples.
+   */
+  previewLines?: number;
   showCopyButton?: boolean;
 };
 
@@ -91,15 +97,36 @@ export function CopyCodeButton({
   );
 }
 
+/** Returns the first `lineCount` lines of `code`, or all of it when unset. */
+export function previewSource(code: string, lineCount?: number) {
+  if (lineCount === undefined) return code;
+  if (lineCount <= 0) return '';
+  let end = -1;
+  for (let line = 0; line < lineCount; line += 1) {
+    end = code.indexOf('\n', end + 1);
+    if (end === -1) return code;
+  }
+  return code.slice(0, end);
+}
+
 export function HighlightedCode({
   appearance = 'block',
   block = false,
   code,
   language = 'tsx',
+  previewLines,
   showCopyButton = true,
 }: HighlightedCodeProps) {
+  // Highlight only the preview so collapsed sources skip tokenizing lines they
+  // never show. The copy control below still receives the full `code`.
+  const highlightedSource = previewSource(code, previewLines);
+
   return (
-    <Highlight code={code} language={language} theme={themes.vsDark}>
+    <Highlight
+      code={highlightedSource}
+      language={language}
+      theme={themes.vsDark}
+    >
       {({ className, getLineProps, getTokenProps, style, tokens }) => {
         const highlightedLines = tokens.map((line, lineIndex) => (
           <span {...getLineProps({ line })} key={lineIndex}>

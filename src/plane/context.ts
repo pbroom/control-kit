@@ -10,6 +10,17 @@ export const PlaneContext =
 export const PlaneThumbContext =
   React.createContext<PlaneThumbContextValue | null>(null);
 
+// Nested thumbs render outside their parent's element so their percentage
+// positions resolve against the plane. Each parent owns a `display: contents`
+// container placed directly after its own element, so descendants keep the
+// logical (JSX) order in the DOM and therefore in sequential focus order.
+export type NestedThumbSlotContextValue = {
+  container: HTMLDivElement | null;
+  register: () => () => void;
+};
+export const NestedThumbSlotContext =
+  React.createContext<NestedThumbSlotContextValue | null>(null);
+
 export function assignRef<T>(ref: React.Ref<T> | undefined, value: T | null) {
   if (typeof ref === 'function') {
     ref(value);

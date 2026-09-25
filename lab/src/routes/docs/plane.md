@@ -9,7 +9,7 @@ A composable two-dimensional input for selecting normalized X and Y values. `Pla
 Import the parts and compose them together:
 
 ```tsx
-import { Plane, PlaneThumb } from 'control-kit';
+import { Plane, PlaneThumb, PlaneAttachment } from 'control-kit';
 
 <Plane aria-label="Position">
   <PlaneThumb defaultValue={{ x: 0.5, y: 0.5 }} />
@@ -18,7 +18,7 @@ import { Plane, PlaneThumb } from 'control-kit';
 
 `Plane` renders a `div` and routes pointer interaction to its thumbs. `PlaneThumb` owns a normalized position and renders a positioned `div` containing two visually hidden range inputs, one for each axis. Both parts forward their refs to their rendered `div`.
 
-Coordinates are clamped from `0` to `1`. X increases from left to right. Y follows Cartesian direction and increases from bottom to top.
+Top-level thumb coordinates are clamped from `0` to `1`. X increases from left to right. Y follows Cartesian direction and increases from bottom to top. Nested thumbs use signed offsets from their parent, measured in the same plane units.
 
 ## Usage guidelines
 
@@ -58,9 +58,58 @@ Set `pressBehavior="nearest"` to select the visually nearest eligible thumb on a
 
 <!-- demo:multiple -->
 
+## Nested thumbs
+
+Place a `PlaneThumb` inside another thumb to give it a position relative to that parent. One X unit is the full plane width; one Y unit is the full plane height, regardless of the parent marker's size. Nested offsets range from `-1` to `1` on each axis and default to `{ x: 0, y: 0 }`.
+
+```tsx
+const [center, setCenter] = React.useState({ x: 0.4, y: 0.6 });
+const [radius, setRadius] = React.useState({ x: 0.3, y: 0 });
+
+<Plane>
+  <PlaneThumb
+    aria-label="Gradient center"
+    value={center}
+    onValueChange={setCenter}
+  >
+    <PlaneThumb
+      aria-label="Gradient radius"
+      value={radius}
+      onValueChange={setRadius}
+    />
+  </PlaneThumb>
+</Plane>;
+```
+
+Moving a parent carries its descendants without changing their offsets or firing their value callbacks. Moving a child changes only that child's offset. Each child retains its own keyboard axes, controlled state, and form fields. Descendants can extend beyond the plane when their parent moves; their offsets are not shortened to keep the group inside the plane. Keep overflowing thumbs visible by clipping decorative content separately from the handles. Nested thumbs render into the plane root so their positioning is independent of their parent marker’s size; style each thumb directly rather than relying on DOM descendant selectors.
+
+[Try gradient origin and radius](/docs/plane-examples#plane-examples-position-and-alignment).
+
+## Controls inside a thumb
+
+A thumb can contain ordinary elements directly. Buttons, text fields, links, and other interactive descendants handle their own input without starting a thumb drag. Non-interactive decoration remains part of the thumb's drag target.
+
+```tsx
+<PlaneThumb aria-label="Named point">
+  <div className="absolute left-full top-0 ml-3">
+    <input aria-label="Point name" defaultValue="Highlight" />
+  </div>
+</PlaneThumb>
+```
+
+Use the optional `PlaneAttachment` when you want placement and collision handling instead of positioning that content yourself. It follows the thumb, can flip or shift at a boundary, and portals by default. It does not own a plane value or add dialog semantics.
+
+```tsx
+<PlaneThumb aria-label="Named point">
+  <PlaneAttachment side="right" visibility="focus-within">
+    <input aria-label="Point name" defaultValue="Highlight" />
+  </PlaneAttachment>
+</PlaneThumb>
+```
+
 ## Drag without jumping
 
-Set `dragBehavior="relative"` on `Plane` to preserve the selected thumb's offset from the pointer. Pressing does not change its value; dragging moves it by the pointer's distance, normalized to the plane bounds. The selected thumb stays locked for the gesture, and its resulting coordinates remain clamped from `0` to `1`. The default, `dragBehavior="absolute"`, places the selected thumb at the pointer on press and during dragging.
+Set `dragBehavior="relative"` on `Plane` to preserve the selected thumb's offset from the pointer. Pressing does not change its value; dragging moves it by the pointer's distance, normalized to the plane bounds. The selected thumb stays locked for the gesture, and its resulting coordinates remain within the selected thumb's range. The default, `dragBehavior="absolute"`, places the selected thumb at the pointer on press and during dragging.
 
 Set `dragSensitivity` to scale relative pointer movement. The default `1` follows the pointer at full speed; `0.25` moves the thumb one quarter of the pointer's drag distance for finer control. The scale is fixed when each gesture begins, so controlled updates do not accumulate rounding drift. Non-finite and negative values fall back to `1`.
 
@@ -123,7 +172,7 @@ The root captures the primary pointer for a drag and measures its bounds once at
 
 ### PlaneThumb
 
-Owns a normalized position, renders its visible marker, and supplies two accessible slider axes. `PlaneThumbProps` includes native `div` props except `defaultValue` and `onChange`.
+Owns a position, renders its visible marker, and supplies two accessible slider axes. A top-level thumb owns a normalized plane position; a nested thumb owns a signed parent-relative offset. `PlaneThumbProps` includes native `div` props except `defaultValue` and `onChange`.
 
 <!-- props:plane-thumb -->
 
@@ -144,9 +193,19 @@ A pointer interaction commits on release, cancellation, or lost capture. Changin
 | `data-focused`            | While either axis input contains focus.          |
 | `data-focus-visible`      | While keyboard focus is visible.                 |
 
+### PlaneAttachment
+
+Positions ordinary UI relative to its nearest parent thumb. `PlaneAttachmentProps` includes native `div` props and Base UI positioning options. It requires a `PlaneThumb` ancestor.
+
+<!-- props:plane-attachment -->
+
+`visibility="hover"` keeps the attachment visible while the thumb or attachment is hovered or contains focus, with a short leave delay to cross the gap. `visibility="focus-within"` keeps it visible while focus is in the thumb or attached controls, including portaled content. Neither mode moves focus automatically.
+
+Set `portal={false}` to render in place. Portaled form controls need their own `form` attribute to associate with a form outside the portal. For custom boundaries, pass `collisionBoundary` and `collisionPadding`; `collisionAvoidance` controls flipping and shifting. Style the wrapper using `className`, `style`, or `data-slot="plane-attachment"`.
+
 ## Accessibility
 
-Each `PlaneThumb` renders two visually hidden `input[type="range"]` elements ranging from `0` to `1`. Each axis has its own accessible label and orientation. Both share the value text returned by `getAriaValueText`.
+Each `PlaneThumb` renders two visually hidden `input[type="range"]` elements. Top-level axes range from `0` to `1`; nested axes range from `-1` to `1`. Each axis has its own accessible label and orientation. Both share the value text returned by `getAriaValueText`.
 
 When a pointer interaction ends, keyboard focus returns to the manipulated thumb without showing its focus ring. Press Tab once to reveal keyboard focus without leaving the thumb. Once focus is visible, Tab and Shift + Tab move to the next or previous focusable element. Arrow keys can continue from the pointer position immediately and switch the active axis internally.
 
@@ -162,7 +221,7 @@ For multiple thumbs, use `aria-label` on each thumb to prefix its default axis l
 | Alt/Option + Arrow       | Changes the corresponding axis by `smallStep`. Alt/Option takes precedence over Shift. |
 | Shift + Arrow            | Changes the corresponding axis by `largeStep`.                                         |
 | Page Down / Page Up      | Changes the focused axis by `largeStep`.                                               |
-| Home / End               | Sets the focused axis to `0` or `1`.                                                   |
+| Home / End               | Sets the focused axis to its minimum or maximum.                                       |
 | Tab / Shift + Tab        | Reveals focus after pointer use, then moves to the next or previous focusable element. |
 
 Held-arrow changes commit when the final arrow is released. Other keyboard changes commit on keyup. Changes from the native range inputs commit immediately. Values clamp at every edge.
@@ -175,7 +234,7 @@ Returns `{ disabled, readOnly, dragging }` for a descendant visual layer. It thr
 
 ### usePlaneThumbContext
 
-Returns `{ value, hovered, dragging, focused, focusVisible, disabled, readOnly }` for a descendant of `PlaneThumb`. It throws when called outside `PlaneThumb`.
+Returns `{ value, worldValue, element, hovered, dragging, focused, focusedWithin, focusVisible, disabled, readOnly }` for a descendant of `PlaneThumb`. `value` is the thumb's own position or offset; `worldValue` is its accumulated plane position. `element` is its rendered element, and `focusedWithin` includes focus in descendant controls. Descendants inherit their parent thumb's `disabled` and `readOnly` states. It throws when called outside `PlaneThumb`.
 
 ### clampPlaneValue
 
@@ -189,7 +248,7 @@ Converts viewport coordinates and element bounds to a clamped Cartesian `PlaneVa
 
 | Type                           | Contract                                                                                |
 | ------------------------------ | --------------------------------------------------------------------------------------- |
-| `PlaneValue`                   | `{ x: number; y: number }` normalized from `0` to `1`.                                  |
+| `PlaneValue`                   | `{ x: number; y: number }`: a normalized position or signed nested offset.              |
 | `PlaneInteraction`             | `'pointer' \| 'keyboard'`.                                                              |
 | `PlaneHoverValueChangeDetails` | The pointer type and native pointer event for a hover-position change.                  |
 | `PlaneValueChangeReason`       | `'thumb-drag' \| 'plane-press' \| 'keyboard' \| 'input-change'`.                        |
@@ -203,6 +262,7 @@ Converts viewport coordinates and element bounds to a clamped Cartesian `PlaneVa
 | `PlaneThumbContextValue`       | The thumb's value, interaction, hover, focus, `disabled`, and `readOnly` states.        |
 | `PlaneProps`                   | Native `div` props plus root interaction options.                                       |
 | `PlaneThumbProps`              | Native `div` props plus value, interaction, form, and axis options.                     |
+| `PlaneAttachmentProps`         | Native `div` props plus placement, collision, portal, and visibility options.           |
 
 ## Source
 

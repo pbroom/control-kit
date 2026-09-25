@@ -1,9 +1,15 @@
 import * as React from 'react';
 import { cn } from '../utils.js';
-import { PlaneContext, assignRef } from './context.js';
+import {
+  NestedThumbSlotContext,
+  PlaneContext,
+  PlaneThumbContext,
+  assignRef,
+} from './context.js';
 import {
   getNearestThumb,
-  getPlaneValueFromPoint,
+  getPlaneBounds,
+  getRawPlaneValueFromPoint,
   getRelativeDragValue,
   normalizeDragSensitivity,
   pointOverPositionedThumb,
@@ -20,6 +26,11 @@ import type {
   PlaneThumbSize,
   PlaneValue,
 } from './types.js';
+
+// Pressing these inside the plane keeps their native pointer behavior instead
+// of starting a drag, unless the control is the pressed thumb itself.
+const NATIVE_CONTROL_SELECTOR =
+  'button, input, select, textarea, label, a[href], summary, [contenteditable]:not([contenteditable="false"]), [role="button"], [role="textbox"], [role="combobox"], [data-plane-attachment], [tabindex]';
 
 /**
  * Plane root. Owns pointer capture for the whole surface and routes pointer
@@ -65,7 +76,8 @@ export function Plane({
 
   function getPointerValue(point: PlanePoint, bounds: PlaneBounds): PlaneValue {
     const origin = relativeDragOriginRef.current;
-    if (!origin) return getPlaneValueFromPoint(point, bounds);
+    // Unclamped: the target thumb clamps in its own local space.
+    if (!origin) return getRawPlaneValueFromPoint(point, bounds);
     return getRelativeDragValue(origin, point, bounds);
   }
 
@@ -168,7 +180,7 @@ export function Plane({
         data-disabled={disabled || undefined}
         data-readonly={readOnly || undefined}
         className={cn(
-          'relative touch-none select-none outline-none data-[disabled]:cursor-not-allowed data-[readonly]:cursor-default',
+          'relative overflow-visible touch-none select-none outline-none data-[disabled]:cursor-not-allowed data-[readonly]:cursor-default',
           className,
         )}
         onFocus={(event) => {
@@ -183,6 +195,13 @@ export function Plane({
         }}
         onPointerDown={(event) => {
           onPointerDown?.(event);
+          // React portals bubble through their logical parents. Only pointer
+          // targets physically belonging to this plane can begin a drag.
+          if (
+            !(event.target instanceof Element) ||
+            event.target.closest('[data-slot="plane"]') !== event.currentTarget
+          )
+            return;
           if (
             event.defaultPrevented ||
             disabled ||
@@ -197,11 +216,23 @@ export function Plane({
             event.target instanceof Element
               ? event.target.closest<HTMLElement>('[data-plane-thumb-key]')
               : null;
+          // Native controls and attached UI keep their own pointer behavior.
+          if (event.target instanceof Element) {
+            const control = event.target.closest(NATIVE_CONTROL_SELECTOR);
+            if (
+              control &&
+              control !== event.currentTarget &&
+              event.currentTarget.contains(control) &&
+              control !== directThumb &&
+              (!directThumb || directThumb.contains(control))
+            )
+              return;
+          }
           let registration: PlaneThumbRegistration | null = null;
           let reason: PlanePointerReason = 'thumb-drag';
           let bounds: PlaneBounds | null = null;
           const readBounds = () => {
-            bounds ??= event.currentTarget.getBoundingClientRect();
+            bounds ??= getPlaneBounds(event.currentTarget);
             return bounds;
           };
 
@@ -249,9 +280,13 @@ export function Plane({
           activeThumbKeyRef.current = registration.key;
           setActiveThumbKey(registration.key);
           event.currentTarget.setPointerCapture(event.pointerId);
-          const nextValue = getPointerValue(event, bounds);
+          // Publish the raw pointer value; the thumb clamps it in its own
+          // local space, avoiding world/local round-trip rounding. Hover
+          // checks use the clamped position the thumb actually renders at.
+          const pointerValue = getPointerValue(event, bounds);
+          const nextValue = registration.constrainWorldValue(pointerValue);
           if (!relativeDragOriginRef.current) {
-            registration.publishValue(nextValue, {
+            registration.publishValue(pointerValue, {
               interaction: 'pointer',
               reason,
               originalEvent: event.nativeEvent,
@@ -297,8 +332,9 @@ export function Plane({
             : undefined;
           if (bounds && registration?.isInteractive()) {
             const reason = activePointerReasonRef.current ?? 'thumb-drag';
-            const nextValue = getPointerValue(event, bounds);
-            registration.publishValue(nextValue, {
+            const pointerValue = getPointerValue(event, bounds);
+            const nextValue = registration.constrainWorldValue(pointerValue);
+            registration.publishValue(pointerValue, {
               interaction: 'pointer',
               reason,
               originalEvent: event.nativeEvent,
@@ -343,9 +379,15 @@ export function Plane({
           );
           const bounds = activePointerBoundsRef.current;
           const reason = activePointerReasonRef.current ?? 'thumb-drag';
-          const nextValue = bounds ? getPointerValue(event, bounds) : null;
-          if (canPublish && nextValue && registration) {
-            registration.publishValue(nextValue, {
+          const pointerValue = bounds ? getPointerValue(event, bounds) : null;
+          // Reconcile hover against the clamped position the thumb renders at,
+          // not the raw pointer, which may lie outside the thumb's range.
+          const nextValue =
+            pointerValue && registration
+              ? registration.constrainWorldValue(pointerValue)
+              : null;
+          if (canPublish && pointerValue && registration) {
+            registration.publishValue(pointerValue, {
               interaction: 'pointer',
               reason,
               originalEvent: event.nativeEvent,
@@ -442,7 +484,11 @@ export function Plane({
           }
         }}
       >
-        {children}
+        <PlaneThumbContext.Provider value={null}>
+          <NestedThumbSlotContext.Provider value={null}>
+            {children}
+          </NestedThumbSlotContext.Provider>
+        </PlaneThumbContext.Provider>
       </div>
     </PlaneContext.Provider>
   );

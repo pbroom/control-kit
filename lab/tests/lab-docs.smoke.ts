@@ -6,7 +6,7 @@ const FOCUSED_PLANE_EXAMPLE_TITLES = [
   'Color grading controls — Circular controls (3-way color adjuster)',
   'Mesh gradient',
   'Image pan and focal point',
-  'Gradient center/origin',
+  'Gradient origin + radius',
   'Pattern/texture offset',
   'Drop-shadow offset',
   'Image crop focal point',
@@ -681,6 +681,80 @@ for (const fragment of ['api-reference', '%61pi-reference']) {
   });
 }
 
+test('keeps a restored fragment anchored until the reader scrolls away', async ({
+  page,
+}, testInfo) => {
+  const browserErrors = await collectBrowserErrors(page);
+  const hasVisibleOutline = testInfo.project.name === 'desktop';
+  const headingTop = () =>
+    page
+      .locator('#api-reference')
+      .evaluate((element) => Math.round(element.getBoundingClientRect().top));
+  // Stand-in for late layout shifts above the fragment, such as web fonts
+  // reflowing paragraphs. Native scroll anchoring is disabled because it
+  // does not absorb those shifts either. The spacer starts 1px tall so that
+  // growing it never changes margin collapsing around the heading.
+  const growContentAbove = (height: number) =>
+    page.evaluate((extraHeight) => {
+      const heading = document.querySelector('#api-reference')!;
+      let spacer = document.getElementById('docs-anchor-test-spacer');
+      if (!spacer) {
+        spacer = document.createElement('div');
+        spacer.id = 'docs-anchor-test-spacer';
+        heading.before(spacer);
+      }
+      spacer.style.height = `${1 + extraHeight}px`;
+    }, height);
+  const openFragment = async () => {
+    // A real load each time; a same-URL goto would only change the hash.
+    await page.goto('about:blank');
+    await page.goto('/docs/plane#api-reference');
+    await page.addStyleTag({
+      content:
+        'html, [data-docs-page-scroll] { overflow-anchor: none !important; }',
+    });
+    // Settle web fonts so the spacer is the only layout shift measured.
+    await page.evaluate(async () => {
+      await document.fonts.ready;
+    });
+    await growContentAbove(0);
+    await expectDocsFragment(page, 'api-reference', hasVisibleOutline);
+    return headingTop();
+  };
+
+  // Clicks and keys that do not scroll keep the anchor.
+  const anchoredTop = await openFragment();
+  await page.getByRole('heading', { name: 'API reference', level: 2 }).click();
+  await page.keyboard.press('Shift');
+  await growContentAbove(240);
+  await expect.poll(headingTop).toBe(anchoredTop);
+  await expectDocsFragment(page, 'api-reference', hasVisibleOutline);
+
+  // A scroll the page did not make, such as a scrollbar drag, releases it.
+  await openFragment();
+  const readerTop = await page.evaluate(async () => {
+    const root = document.querySelector<HTMLElement>(
+      '[data-docs-page-scroll]',
+    )!;
+    const scroller =
+      root.scrollTop > 0 ? root : (document.scrollingElement as HTMLElement);
+    await new Promise<void>((resolve) => {
+      document.addEventListener('scroll', () => resolve(), {
+        capture: true,
+        once: true,
+      });
+      scroller.scrollTop -= 600;
+    });
+    return Math.round(
+      document.querySelector('#api-reference')!.getBoundingClientRect().top,
+    );
+  });
+  expect(readerTop).toBeGreaterThan(anchoredTop + 500);
+  await growContentAbove(240);
+  await expect.poll(headingTop).toBe(readerTop + 240);
+  expect(browserErrors).toEqual([]);
+});
+
 test('restores documentation fragments through history and a different docs page', async ({
   page,
 }, testInfo) => {
@@ -875,14 +949,14 @@ test('routes between Plane docs and Lab and exposes tabs only on documented page
   await expect(
     page.getByRole('heading', { name: 'API reference', exact: true }),
   ).toBeVisible();
-  await expect(page.locator('pre[data-language="tsx"]')).toHaveCount(6);
+  await expect(page.locator('pre[data-language="tsx"]')).toHaveCount(9);
   const codeBlocks = page.locator('[data-docs-code-block]');
   const copyButtons = page.getByRole('button', {
     name: 'Copy code',
     exact: true,
   });
-  await expect(codeBlocks).toHaveCount(6);
-  await expect(copyButtons).toHaveCount(6);
+  await expect(codeBlocks).toHaveCount(9);
+  await expect(copyButtons).toHaveCount(9);
   expect(
     await codeBlocks.evaluateAll((blocks) =>
       blocks.every((block) => block.classList.contains('not-typeset')),
@@ -945,7 +1019,7 @@ test('routes between Plane docs and Lab and exposes tabs only on documented page
     'Code copied to clipboard.',
   );
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
-    `import { Plane, PlaneThumb } from 'control-kit';
+    `import { Plane, PlaneThumb, PlaneAttachment } from 'control-kit';
 
 <Plane aria-label="Position">
   <PlaneThumb defaultValue={{ x: 0.5, y: 0.5 }} />
@@ -995,7 +1069,10 @@ test('routes between Plane docs and Lab and exposes tabs only on documented page
   await valueProp.focus();
   await valueProp.press('Enter');
   await expect(
-    page.getByText('The controlled normalized position.', { exact: true }),
+    page.getByText(
+      'The controlled plane position, or signed parent-relative offset for a nested thumb.',
+      { exact: true },
+    ),
   ).toBeVisible();
   const propTableCodeSizes = await page
     .locator('section[aria-label$="component props table"] code')

@@ -1,6 +1,5 @@
 import * as React from 'react';
 import { getModifiedStep } from '../number-value.js';
-import { clampPlaneValue } from './geometry.js';
 import type { PlaneValue } from './types.js';
 
 export type PlaneAxis = 'x' | 'y';
@@ -30,8 +29,9 @@ export function getArrowChordValue(
   value: PlaneValue,
   keys: ReadonlySet<PlaneArrowKey>,
   amount: number,
-) {
-  return clampPlaneValue({
+): PlaneValue {
+  // Unclamped; the thumb clamps to its own range when publishing.
+  return {
     x:
       value.x +
       (keys.has('ArrowRight') ? amount : 0) -
@@ -40,7 +40,7 @@ export function getArrowChordValue(
       value.y +
       (keys.has('ArrowUp') ? amount : 0) -
       (keys.has('ArrowDown') ? amount : 0),
-  });
+  };
 }
 
 export function getArrowStep(
@@ -62,11 +62,12 @@ export function getAxisKeyValue(
   largeStep: number,
   altKey: boolean,
   shiftKey: boolean,
+  minimum: number,
 ): PlaneValue | null {
   const amount = getArrowStep(smallStep, step, largeStep, altKey, shiftKey);
   const nextValue = { ...value };
 
-  if (key === 'Home') nextValue[axis] = 0;
+  if (key === 'Home') nextValue[axis] = minimum;
   else if (key === 'End') nextValue[axis] = 1;
   else if (key === 'ArrowLeft') nextValue.x -= amount;
   else if (key === 'ArrowRight') nextValue.x += amount;
@@ -76,7 +77,15 @@ export function getAxisKeyValue(
   else if (key === 'PageUp') nextValue[axis] += largeStep;
   else return null;
 
-  return clampPlaneValue(nextValue);
+  // Unclamped; the thumb clamps to its own range when publishing.
+  return nextValue;
+}
+
+export function isOwnThumbEvent(event: React.SyntheticEvent<HTMLElement>) {
+  return (
+    event.target instanceof Element &&
+    event.target.closest('[data-plane-thumb-key]') === event.currentTarget
+  );
 }
 
 export function getKeyAxis(axis: PlaneAxis, key: string): PlaneAxis | null {

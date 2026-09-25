@@ -2,6 +2,10 @@ import { useId, useState, type ReactNode } from 'react';
 import { Button } from '../../components/ui/button.js';
 import { CopyCodeButton, HighlightedCode } from './highlighted-code.js';
 
+// The collapsed source clips to 122px (about four 24px lines plus padding).
+// Render a few extra lines so the clip never exposes the end of the preview.
+const COLLAPSED_PREVIEW_LINES = 8;
+
 type DocsExampleProps = {
   children: ReactNode;
   code: string;
@@ -46,6 +50,7 @@ export function DocsExample({
               appearance="example"
               block
               code={code}
+              previewLines={expanded ? undefined : COLLAPSED_PREVIEW_LINES}
               showCopyButton={false}
             />
           </div>

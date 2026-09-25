@@ -62,7 +62,10 @@ export type PlaneThumbProps = Omit<
 > & {
   thumbId?: string;
   pressBehavior?: PlaneThumbPressBehavior;
+  /** Root thumbs use [0, 1] plane coordinates; nested thumbs use [-1, 1]
+   * offsets from their parent, measured in plane widths and heights. */
   value?: PlaneValue;
+  /** Defaults to the plane center, or {x: 0, y: 0} for a nested thumb. */
   defaultValue?: PlaneValue;
   onValueChange?: (value: PlaneValue, details: PlaneValueChangeDetails) => void;
   /**
@@ -99,6 +102,10 @@ export type PlaneContextValue = {
 
 export type PlaneThumbContextValue = {
   value: PlaneValue;
+  /** Position in the containing plane, including all parent offsets. */
+  worldValue: PlaneValue;
+  element: HTMLDivElement | null;
+  focusedWithin: boolean;
   hovered: boolean;
   dragging: boolean;
   focused: boolean;
@@ -145,12 +152,16 @@ export type PlaneThumbPointerHover = {
 
 export type PlaneThumbRegistration = PlaneThumbPointerHover & {
   key: string;
+  /** Position in plane (world) coordinates, including parent offsets. */
   getValue: () => PlaneValue;
+  /** Clamps a world-space value to the range this thumb can render at. */
+  constrainWorldValue: (value: PlaneValue) => PlaneValue;
   beginRelativeDrag: () => PlaneValue;
   getHoverSize: () => PlaneThumbSize;
   isControlled: () => boolean;
   isInteractive: () => boolean;
   acceptsPlanePress: () => boolean;
+  /** Accepts an unclamped world-space value; the thumb clamps it locally. */
   publishValue: (value: PlaneValue, source: PlaneValueChangeSource) => boolean;
   commitPointerValue: (source: PlaneValueChangeSource) => void;
   focus: () => void;

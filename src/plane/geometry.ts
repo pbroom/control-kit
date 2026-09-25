@@ -26,10 +26,36 @@ export function getPlaneValueFromPoint(
   point: PlanePoint,
   bounds: PlaneBounds,
 ): PlaneValue {
-  return clampPlaneValue({
+  return clampPlaneValue(getRawPlaneValueFromPoint(point, bounds));
+}
+
+/** Like getPlaneValueFromPoint, but without clamping to the plane. */
+export function getRawPlaneValueFromPoint(
+  point: PlanePoint,
+  bounds: PlaneBounds,
+): PlaneValue {
+  return {
     x: bounds.width > 0 ? (point.clientX - bounds.left) / bounds.width : 0,
     y: bounds.height > 0 ? 1 - (point.clientY - bounds.top) / bounds.height : 0,
-  });
+  };
+}
+
+// Absolute percentage positioning uses the padding box, excluding the border.
+// Match that coordinate space for pointer input, including CSS scaling.
+export function getPlaneBounds(element: HTMLElement): PlaneBounds {
+  const bounds = element.getBoundingClientRect();
+  const scaleX =
+    element.offsetWidth > 0 ? bounds.width / element.offsetWidth : 1;
+  const scaleY =
+    element.offsetHeight > 0 ? bounds.height / element.offsetHeight : 1;
+  return {
+    left: bounds.left + element.clientLeft * scaleX,
+    top: bounds.top + element.clientTop * scaleY,
+    width:
+      element.offsetWidth > 0 ? element.clientWidth * scaleX : bounds.width,
+    height:
+      element.offsetHeight > 0 ? element.clientHeight * scaleY : bounds.height,
+  };
 }
 
 export type PlaneRelativeDragOrigin = {
@@ -48,8 +74,9 @@ export function getRelativeDragValue(
   bounds: PlaneBounds,
 ): PlaneValue {
   // Keep the raw pointer delta so moving outside the plane and back does not
-  // discard the grab offset. Only the resulting thumb position is clamped.
-  return clampPlaneValue({
+  // discard the grab offset. The result is unclamped; the thumb clamps it in
+  // its own local space.
+  return {
     x:
       origin.value.x +
       (bounds.width > 0
@@ -62,7 +89,7 @@ export function getRelativeDragValue(
         ? ((point.clientY - origin.point.clientY) / bounds.height) *
           origin.sensitivity
         : 0),
-  });
+  };
 }
 
 export function planeValuesEqual(a: PlaneValue | null, b: PlaneValue | null) {

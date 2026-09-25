@@ -269,14 +269,18 @@ function drawDotWaveform(
   context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
   context.clearRect(0, 0, bounds.width, bounds.height);
 
+  // Reduced motion draws one representative synthetic frame. Sampling the
+  // analyser there would freeze an arbitrary instant of live audio, which is a
+  // flat line whenever the audio graph has not rendered its first quantum yet.
+  const liveAnalyser = reducedMotion ? null : analyser;
   if (
-    analyser &&
-    analyserDataRef.current?.length !== analyser.frequencyBinCount
+    liveAnalyser &&
+    analyserDataRef.current?.length !== liveAnalyser.frequencyBinCount
   ) {
-    analyserDataRef.current = new Float32Array(analyser.frequencyBinCount);
+    analyserDataRef.current = new Float32Array(liveAnalyser.frequencyBinCount);
   }
-  const analyserData = analyser ? analyserDataRef.current : null;
-  analyser?.getFloatTimeDomainData(analyserData!);
+  const analyserData = liveAnalyser ? analyserDataRef.current : null;
+  liveAnalyser?.getFloatTimeDomainData(analyserData!);
   const color = getDotColor(value);
   const representativeTime = reducedMotion ? 1.35 : time;
   let activeRadius = 0;

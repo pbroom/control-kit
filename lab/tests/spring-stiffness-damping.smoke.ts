@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { collectBrowserErrors } from './lab-smoke-utils.js';
+import { collectBrowserErrors, planeInputBounds } from './lab-smoke-utils.js';
 
 async function openSpringExample(page: Page) {
   await page.goto('/docs/plane-examples#spring-stiffness-damping');
@@ -12,8 +12,7 @@ async function openSpringExample(page: Page) {
 }
 
 async function setPlaneValue(page: Page, plane: Locator, x: number, y: number) {
-  const bounds = await plane.boundingBox();
-  if (!bounds) throw new Error('The spring plane has no bounds.');
+  const bounds = await planeInputBounds(plane);
   // Drag the thumb so pointer capture can reach values beyond rounded corners.
   const thumb = await plane.locator('[data-slot="plane-thumb"]').boundingBox();
   if (!thumb) throw new Error('The spring thumb has no bounds.');
