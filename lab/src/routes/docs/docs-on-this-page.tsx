@@ -138,29 +138,60 @@ export function DocsOnThisPage({
 
     // Content above the fragment can still change height after the first
     // restore (web fonts swapping in reflow paragraphs, examples settling).
-    // Keep the restored heading anchored until the reader takes over.
+    // Keep the restored heading anchored until the reader scrolls away by any
+    // means (wheel, touch, keys, scrollbar drag, focus moves). Only a scroll
+    // to a position this effect did not set releases the anchor, so clicks
+    // and keys that do not scroll leave it in place.
+    const scrollingElement = document.scrollingElement as HTMLElement | null;
+    const anchorScrollers = [scrollRoot, scrollingElement].filter(
+      (element): element is HTMLElement => element !== null,
+    );
     let anchoredTarget: HTMLElement | null = null;
-    const reanchorFragment = () => {
-      if (!anchoredTarget) return;
-      anchoredTarget.scrollIntoView({ block: 'start', behavior: 'instant' });
-      setActiveId(anchoredTarget.id);
+    let anchoredPositions: number[] = [];
+    const scrollToAnchor = (target: HTMLElement) => {
+      target.scrollIntoView({ block: 'start', behavior: 'instant' });
+      anchoredPositions = anchorScrollers.map((element) => element.scrollTop);
+      setActiveId(target.id);
+    };
+    const anchorFragment = (target: HTMLElement) => {
+      if (!anchoredTarget) {
+        // Browser scroll anchoring would fight the manual re-anchor below.
+        for (const element of anchorScrollers) {
+          element.style.overflowAnchor = 'none';
+        }
+      }
+      anchoredTarget = target;
+      scrollToAnchor(target);
     };
     const releaseFragmentAnchor = () => {
+      if (!anchoredTarget) return;
       anchoredTarget = null;
+      for (const element of anchorScrollers) {
+        element.style.overflowAnchor = '';
+      }
+    };
+    const reanchorFragment = () => {
+      if (anchoredTarget) scrollToAnchor(anchoredTarget);
+    };
+    const releaseOnReaderScroll = () => {
+      if (!anchoredTarget) return;
+      const movedByReader = anchorScrollers.some((element, index) => {
+        const expected = anchoredPositions[index] ?? 0;
+        if (Math.abs(element.scrollTop - expected) < 2) return false;
+        // Shrinking content clamps scrollTop without reader input; the
+        // resize callback re-anchors that case.
+        const maxScrollTop = element.scrollHeight - element.clientHeight;
+        return expected <= maxScrollTop;
+      });
+      if (movedByReader) releaseFragmentAnchor();
     };
     const resizeObserver =
       typeof ResizeObserver === 'undefined'
         ? null
         : new ResizeObserver(reanchorFragment);
     resizeObserver?.observe(article);
-    const readerInputEvents = [
-      'wheel',
-      'touchstart',
-      'pointerdown',
-      'keydown',
-    ] as const;
     const restoreFragment = () => {
-      anchoredTarget = null;
+      releaseFragmentAnchor();
       let targetId: string;
       try {
         targetId = decodeURIComponent(window.location.hash.slice(1));
@@ -170,9 +201,7 @@ export function DocsOnThisPage({
       const target = headings.find((heading) => heading.id === targetId);
       if (!target) return;
 
-      anchoredTarget = target;
-      target.scrollIntoView({ block: 'start', behavior: 'instant' });
-      setActiveId(target.id);
+      anchorFragment(target);
     };
 
     const scheduleFragmentRestore = () => {
@@ -189,21 +218,19 @@ export function DocsOnThisPage({
     window.addEventListener('popstate', scheduleFragmentRestore);
     scrollRoot.addEventListener('scroll', scheduleUpdate, { passive: true });
     window.addEventListener('resize', scheduleUpdate);
-    for (const type of readerInputEvents) {
-      window.addEventListener(type, releaseFragmentAnchor, {
-        capture: true,
-        passive: true,
-      });
-    }
+    // Capture scroll events from the docs scroller and the document alike.
+    document.addEventListener('scroll', releaseOnReaderScroll, {
+      capture: true,
+      passive: true,
+    });
 
     return () => {
       window.cancelAnimationFrame(animationFrame);
       resizeObserver?.disconnect();
-      for (const type of readerInputEvents) {
-        window.removeEventListener(type, releaseFragmentAnchor, {
-          capture: true,
-        });
-      }
+      releaseFragmentAnchor();
+      document.removeEventListener('scroll', releaseOnReaderScroll, {
+        capture: true,
+      });
       window.removeEventListener('hashchange', scheduleFragmentRestore);
       window.removeEventListener('popstate', scheduleFragmentRestore);
       scrollRoot.removeEventListener('scroll', scheduleUpdate);
