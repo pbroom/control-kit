@@ -24,7 +24,7 @@ export function GradientOriginExample() {
         aria-label="Radial gradient origin and radius"
         pressBehavior="nearest"
         dragBehavior="relative"
-        className="relative size-[280px] touch-none rounded-2xl border border-white/12 bg-[#111827] p-0 [background-origin:border-box] max-sm:size-[240px]"
+        className="relative size-[280px] touch-none rounded-2xl border border-white/12 bg-[#111827] p-0 [background-origin:border-box] max-sm:size-[240px] [&:has([data-thumb-id=gradient-radius]:is(:hover,[data-focus-visible])):not(:active):not([data-dragging])_circle]:opacity-100"
       >
         <div
           aria-hidden="true"
@@ -35,6 +35,7 @@ export function GradientOriginExample() {
         >
           <svg className="absolute inset-0 size-full" viewBox="0 0 100 100">
             <circle
+              className="opacity-0"
               cx={origin.x * 100}
               cy={cssY * 100}
               r={radius * 100}
