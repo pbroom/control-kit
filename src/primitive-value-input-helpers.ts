@@ -1,15 +1,18 @@
+import {
+  formatNumberValue,
+  getModifiedStep,
+  getSteppedNumberValue,
+  normalizeNumberPrecision,
+  normalizeNumberValue,
+  normalizeScrubMultiplier,
+  type NumberBoundaryBehavior,
+  type NumberStepKey,
+} from './number-value.js';
+
 export type PrimitivePrecision = number;
-export type PrimitiveWrapMode = 'clamp' | 'wrap' | 'free';
+export type PrimitiveWrapMode = NumberBoundaryBehavior;
 export type PrimitiveValueInteraction = 'text-input' | 'keyboard' | 'pointer';
-export type PrimitiveStepKey =
-  | 'ArrowRight'
-  | 'ArrowLeft'
-  | 'ArrowUp'
-  | 'ArrowDown'
-  | 'PageUp'
-  | 'PageDown'
-  | 'Home'
-  | 'End';
+export type PrimitiveStepKey = NumberStepKey;
 
 export type PrimitiveExpressionParser = (
   draft: string,
@@ -41,71 +44,46 @@ export interface PrimitiveSteppedValueOptions {
   pageStep: number;
 }
 
-const MAX_PRIMITIVE_PRECISION_DIGITS = 12;
-
+/**
+ * @deprecated Boundary handling is built into `ControlField` via `boundaryBehavior`. Will be removed in a future release.
+ */
 export function normalizePrimitiveValue(
   value: number,
   min: number,
   max: number,
   mode: PrimitiveWrapMode,
 ): number {
-  if (!Number.isFinite(value)) {
-    return min;
-  }
-
-  if (mode === 'free' || max <= min) {
-    return value;
-  }
-
-  if (mode === 'wrap') {
-    if (Object.is(value, max) || Math.abs(value - max) <= 1e-12) {
-      return max;
-    }
-
-    const span = max - min;
-    return ((((value - min) % span) + span) % span) + min;
-  }
-
-  return Math.min(max, Math.max(min, value));
+  return normalizeNumberValue(value, min, max, mode);
 }
 
+/**
+ * @deprecated Use `ControlField` `precision` / `trimTrailingZeros` or `format`. Will be removed in a future release.
+ */
 export function formatPrimitiveValue(
   value: number,
   precision: PrimitivePrecision,
   autoTrim: boolean,
 ): string {
-  if (!Number.isFinite(value)) {
-    return '0';
-  }
-
-  const fixed = value.toFixed(precision);
-  if (autoTrim) {
-    const rounded = Number(fixed);
-    return Object.is(rounded, -0) ? '0' : String(rounded);
-  }
-
-  return fixed;
+  return formatNumberValue(value, precision, autoTrim);
 }
 
+/**
+ * @deprecated Use `ControlField` `precision`, which is normalized internally. Will be removed in a future release.
+ */
 export function normalizePrimitivePrecision(value: number): number {
-  if (!Number.isFinite(value)) {
-    return 0;
-  }
-
-  return Math.min(
-    MAX_PRIMITIVE_PRECISION_DIGITS,
-    Math.max(0, Math.round(value)),
-  );
+  return normalizeNumberPrecision(value);
 }
 
+/**
+ * @deprecated Configure `ControlField.ScrubArea` `pixelsPerStep` directly. Will be removed in a future release.
+ */
 export function normalizePrimitiveScrubMultiplier(value: number): number {
-  if (!Number.isFinite(value)) {
-    return 1;
-  }
-
-  return Math.min(1000, Math.max(0.01, Number(value.toFixed(4))));
+  return normalizeScrubMultiplier(value);
 }
 
+/**
+ * @deprecated Use `ControlField` `expressionResolver`. Will be removed in a future release.
+ */
 export function parsePrimitiveDraft(
   draft: string,
   currentValue: number,
@@ -126,16 +104,24 @@ export function parsePrimitiveDraft(
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+/**
+ * @deprecated `ControlField` applies `smallStep`/`largeStep` for Alt/Shift itself. Will be removed in a future release.
+ */
 export function getPrimitiveModifiedStep(
   shiftKey: boolean,
   altKey: boolean,
   steps: PrimitiveStepConfig,
 ): number {
-  if (altKey) return steps.fineStep;
-  if (shiftKey) return steps.coarseStep;
-  return steps.step;
+  return getModifiedStep(shiftKey, altKey, {
+    step: steps.step,
+    smallStep: steps.fineStep,
+    largeStep: steps.coarseStep,
+  });
 }
 
+/**
+ * @deprecated `ControlField` owns keyboard stepping. Will be removed in a future release.
+ */
 export function getPrimitiveSteppedValue({
   value,
   key,
@@ -145,32 +131,13 @@ export function getPrimitiveSteppedValue({
   step,
   pageStep,
 }: PrimitiveSteppedValueOptions): number | null {
-  const safeStep = Math.abs(step);
-  const safePageStep = Math.abs(pageStep);
-  let nextValue: number | null = null;
-
-  switch (key as PrimitiveStepKey) {
-    case 'ArrowRight':
-    case 'ArrowUp':
-      nextValue = value + safeStep;
-      break;
-    case 'ArrowLeft':
-    case 'ArrowDown':
-      nextValue = value - safeStep;
-      break;
-    case 'PageUp':
-      nextValue = value + safePageStep;
-      break;
-    case 'PageDown':
-      nextValue = value - safePageStep;
-      break;
-    case 'Home':
-      return min;
-    case 'End':
-      return max;
-    default:
-      return null;
-  }
-
-  return normalizePrimitiveValue(nextValue, min, max, wrapMode);
+  return getSteppedNumberValue({
+    value,
+    key,
+    min,
+    max,
+    boundaryBehavior: wrapMode,
+    step,
+    pageStep,
+  });
 }

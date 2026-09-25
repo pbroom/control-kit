@@ -42,7 +42,7 @@ export const PAGE_ROUTE_REGISTRY = {
   plane: { slug: 'plane', label: 'Plane', section: 'Primitives' },
   input: {
     slug: 'input-primitive',
-    label: 'Input Primitive (Legacy)',
+    label: 'Control Input',
     section: 'Primitives',
   },
   inputMulti: {

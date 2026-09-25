@@ -27,7 +27,7 @@ const MULTI_INPUT_PROPS = [
     type: 'MultiInputConfig<TFieldId>',
     shortType: 'MultiInputConfig',
     description:
-      'Per-field bounds, steps, precision, wrapping, and disabled state.',
+      'Per-field bounds (required) plus optional steps, precision, wrapping, and disabled state.',
   },
   {
     name: 'segments',
@@ -40,13 +40,30 @@ const MULTI_INPUT_PROPS = [
     type: '(field: TFieldId, value: number) => void',
     shortType: 'function',
     required: true,
-    description: 'Updates one controlled field value.',
+    description:
+      'Updates one controlled field value on every change, including each parseable keystroke.',
+  },
+  {
+    name: 'onFieldCommit',
+    type: '((field: TFieldId, value: number) => void) | undefined',
+    shortType: 'function',
+    description:
+      'Called once per finished edit: a text commit, key step, expression, or scrub release.',
+  },
+  {
+    name: 'expressionResolver',
+    type: 'ControlFieldExpressionResolver | null | undefined',
+    shortType: 'function | null',
+    defaultValue: 'resolveControlFieldExpression',
+    description:
+      'Resolves expression drafts for every segment. Set to null for numeric-only entry.',
   },
   {
     name: 'parseExpression',
     type: 'PrimitiveExpressionParser | undefined',
     shortType: 'function',
-    description: 'Parses expression drafts for every segment.',
+    description:
+      'Deprecated. Parses expression drafts for every segment; use expressionResolver.',
   },
   {
     name: 'showLeadingLabels',
@@ -85,7 +102,14 @@ const MULTI_INPUT_SEGMENT_PROPS = [
     type: '(value: number) => void',
     shortType: 'function',
     required: true,
-    description: 'Updates the stored field value.',
+    description:
+      'Updates the stored field value on every change, including keystrokes.',
+  },
+  {
+    name: 'onValueCommit',
+    type: '((value: number) => void) | undefined',
+    shortType: 'function',
+    description: 'Called once per finished edit with the stored value.',
   },
   {
     name: 'onScrubbingChange',
@@ -95,10 +119,16 @@ const MULTI_INPUT_SEGMENT_PROPS = [
     description: 'Reports segment scrub state to the containing control.',
   },
   {
+    name: 'expressionResolver',
+    type: 'ControlFieldExpressionResolver | null | undefined',
+    shortType: 'function | null',
+    description: 'Resolves expression drafts for this segment.',
+  },
+  {
     name: 'parseExpression',
     type: 'PrimitiveExpressionParser | undefined',
     shortType: 'function',
-    description: 'Parses expression drafts for this segment.',
+    description: 'Deprecated. Use expressionResolver.',
   },
   {
     name: 'showLeadingLabel',

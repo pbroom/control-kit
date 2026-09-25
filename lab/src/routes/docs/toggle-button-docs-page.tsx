@@ -40,7 +40,7 @@ const TOGGLE_BUTTON_LAB_PROPS = [
   {
     name: 'density',
     shortType: "'compact' | 'comfortable'",
-    type: 'PrimitiveDensity',
+    type: "'compact' | 'comfortable'",
     defaultValue: "'compact'",
     description: 'Selects compact or comfortable dimensions.',
     required: true,

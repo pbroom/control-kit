@@ -1,0 +1,41 @@
+/*
+ * control-kit theme tokens.
+ *
+ * Import once (e.g. `@import 'control-kit/theme.css';`). Dark defaults apply
+ * on :root. Opt into the light preset with `data-ck-theme="light"` on :root
+ * or any container; `data-ck-theme="dark"` restores the dark values inside a
+ * light subtree. Tooltips portal to document.body, so set the attribute on
+ * <html> or <body> for a page-wide theme.
+ *
+ * Declarations use :where() (zero specificity) inside the `base` cascade
+ * layer, so an unlayered or base-layer override such as
+ * `:root { --ck-accent: ... }` wins regardless of import order.
+ *
+ * Token names mirror `controlKitColor` in src/theme.ts.
+ */
+@layer base {
+  :where(:root),
+  :where([data-ck-theme='dark']) {
+    --ck-surface: #383838;
+    --ck-surface-content: #1f1f1f;
+    --ck-foreground: #ffffff;
+    --ck-accent: #0d99ff;
+    --ck-accent-border: #007be5;
+    --ck-border: #4c4c4c;
+    --ck-border-focus: #5288db;
+    --ck-border-scrub: #97c1ef;
+    --ck-border-invalid: #ff4e4e;
+  }
+
+  :where([data-ck-theme='light']) {
+    --ck-surface: #ffffff;
+    --ck-surface-content: #f0f0f0;
+    --ck-foreground: #1e1e1e;
+    --ck-accent: #0a84e8;
+    --ck-accent-border: #0068c4;
+    --ck-border: #c4c4c4;
+    --ck-border-focus: #2f6fd0;
+    --ck-border-scrub: #4f8fdd;
+    --ck-border-invalid: #d92c2c;
+  }
+}

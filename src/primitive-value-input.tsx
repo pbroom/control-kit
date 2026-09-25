@@ -1,12 +1,18 @@
-import { useState, type ReactNode } from 'react';
-import { controlKitColor } from './theme.js';
+import { useCallback, useMemo, type ReactNode } from 'react';
+import {
+  ControlFieldLegacyKeysContext,
+  getControlFieldInteraction,
+  type ControlFieldValueChangeDetails,
+  type ControlFieldValueCommitDetails,
+} from './control-field.js';
+import type { ControlFieldExpressionResolver } from './control-field-expression.js';
+import { ControlInput } from './control-input.js';
 import {
   type PrimitiveExpressionParser,
   type PrimitivePrecision,
   type PrimitiveValueChangeDetails,
   type PrimitiveWrapMode,
 } from './primitive-value-input-helpers.js';
-import { usePrimitiveValueInput } from './use-primitive-value-input.js';
 
 // Value semantics and the stateful input model live in sibling modules; this
 // module re-exports them so `primitive-value-input.js` stays the one import
@@ -39,18 +45,14 @@ export type PrimitiveVisualState = 'auto' | 'valid' | 'invalid';
 export type PrimitiveVisualTreatment = 'default' | 'embedded';
 export type PrimitiveHandleSide = 'leading' | 'trailing';
 
-const PRIMITIVE_SIZE_CLASS: Record<PrimitiveSize, string> = {
-  sm: 'w-32',
-  md: 'w-44',
-  lg: 'w-60',
-  full: 'w-full',
-};
-
-const PRIMITIVE_DENSITY_CLASS: Record<PrimitiveDensity, string> = {
-  compact: 'h-6 min-h-6 text-[11px] leading-4',
-  comfortable: 'h-8 min-h-8 text-xs leading-4',
-};
-
+/**
+ * @deprecated Use `ControlInput` (or `ControlField` parts). Props map as
+ * `wrapMode` → `boundaryBehavior`, `fineStep`/`coarseStep` →
+ * `smallStep`/`largeStep`, `ariaLabel` → `label`, `autoTrim` →
+ * `trimTrailingZeros`, `selectAllOnFocus` → `selectOnFocus`,
+ * `allowExpressions`/`parseExpression` → `expressionResolver`. Will be
+ * removed in a future release.
+ */
 export interface PrimitiveValueInputProps {
   value: number;
   onValueChange: (value: number, details: PrimitiveValueChangeDetails) => void;
@@ -93,6 +95,22 @@ export interface PrimitiveValueInputProps {
   density?: PrimitiveDensity;
 }
 
+// Per-keystroke and blur-time changes are internal to the adapter; typed text
+// reaches `onValueChange` once, from the blur/Enter commit.
+const TYPING_REASONS = new Set<string>([
+  'input-change',
+  'input-clear',
+  'input-paste',
+  'input-blur',
+  'input-commit',
+  'none',
+]);
+
+/**
+ * @deprecated Use `ControlInput`. `PrimitiveValueInput` is now an adapter
+ * over `ControlInput` and will be removed in a future release. See the
+ * README migration table.
+ */
 export function PrimitiveValueInput({
   value,
   onValueChange,
@@ -134,134 +152,104 @@ export function PrimitiveValueInput({
   size,
   density = 'compact',
 }: PrimitiveValueInputProps) {
-  const [isHovered, setIsHovered] = useState(false);
-  const {
-    inputRef,
-    inputProps,
-    scrubHandleRef,
-    scrubHandleProps,
-    isDraftValid,
-    isEditing,
-    isScrubbing,
-    ariaValueNow,
-  } = usePrimitiveValueInput({
-    value,
-    onValueChange,
-    min,
-    max,
-    wrapMode,
-    step,
-    fineStep,
-    coarseStep,
-    pageStep,
-    precision,
-    autoTrim,
-    allowExpressions,
-    parseExpression,
-    selectAllOnFocus,
-    commitOnBlur,
-    scrubEnabled,
-    scrubPixelsPerStep,
-    stepDragDistance,
-    scrubThreshold,
-    scrubCommitThreshold,
-    scrubMaxCommitRate,
-    pointerLockEnabled,
-    horizontalArrowKeysMoveCaret,
-    disabled,
-    readOnly,
-    onInvalidCommit,
-    onScrubbingChange,
-  });
+  const expressionResolver = useMemo<ControlFieldExpressionResolver | null>(
+    () =>
+      parseExpression
+        ? (text, context) =>
+            parseExpression(text, {
+              allowExpressions,
+              currentValue: context.startValue ?? context.currentValue,
+              range: context.range ?? [min, max],
+            })
+        : null,
+    [allowExpressions, max, min, parseExpression],
+  );
 
-  const showInvalidState = visualState === 'invalid';
-  const isVisuallyValid =
-    visualState === 'valid' || (visualState === 'auto' && isDraftValid);
-  const isEmbeddedVisual = visualTreatment === 'embedded';
-  const isInvalid = showInvalidState || (isEditing && !isDraftValid);
-  const borderColor =
-    showInvalidBorder && isInvalid
-      ? controlKitColor.borderInvalid
-      : isEmbeddedVisual
-        ? 'transparent'
-        : isScrubbing
-          ? controlKitColor.borderScrub
-          : isEditing
-            ? controlKitColor.borderFocus
-            : isHovered
-              ? controlKitColor.border
-              : 'transparent';
-  const hasTrailingElement =
-    trailingElement !== null &&
-    trailingElement !== undefined &&
-    trailingElement !== false;
+  const handleValueChange = useCallback(
+    (nextValue: number | null, details: ControlFieldValueChangeDetails) => {
+      if (nextValue === null || TYPING_REASONS.has(details.reason)) return;
+      onValueChange(nextValue, {
+        interaction: getControlFieldInteraction(details),
+      });
+    },
+    [onValueChange],
+  );
+
+  const handleValueCommitted = useCallback(
+    (nextValue: number | null, details: ControlFieldValueCommitDetails) => {
+      if (details.reason !== 'input-blur' && details.reason !== 'input-commit')
+        return;
+      if (nextValue === null) {
+        // An empty draft used to commit 0; it now reverts instead.
+        onInvalidCommit?.('');
+        return;
+      }
+      if (Object.is(nextValue, value) || Math.abs(nextValue - value) <= 1e-12) {
+        return;
+      }
+      onValueChange(nextValue, { interaction: 'text-input' });
+    },
+    [onInvalidCommit, onValueChange, value],
+  );
+
+  const handleInvalidCommit = useCallback(
+    (text: string) => onInvalidCommit?.(text),
+    [onInvalidCommit],
+  );
+
   const resolvedHandleElement =
     handleElement !== undefined
       ? handleElement
       : handleSide === 'trailing'
         ? trailingElement
         : leadingElement;
-  const hasHandleElement =
-    resolvedHandleElement !== null &&
-    resolvedHandleElement !== undefined &&
-    resolvedHandleElement !== false;
   const trailingElementFeedsHandle =
     handleSide === 'trailing' && handleElement === undefined;
-  const scrubHandleStyle = hasHandleElement
-    ? { width: handleContentWidth }
-    : undefined;
-  const scrubHandle = scrubEnabled ? (
-    <div
-      ref={scrubHandleRef}
-      data-control-kit-scrub-handle=""
-      aria-hidden="true"
-      className={
-        hasHandleElement
-          ? 'flex h-full shrink-0 cursor-ew-resize touch-none select-none items-center justify-center font-medium tabular-nums text-[color:var(--ck-foreground,#ffffff)]/55'
-          : `absolute ${
-              handleSide === 'leading' ? '-left-0.5' : '-right-0.5'
-            } top-0 z-10 h-full w-[5px] cursor-ew-resize touch-none select-none`
-      }
-      style={scrubHandleStyle}
-      {...scrubHandleProps}
-    >
-      {resolvedHandleElement}
-    </div>
-  ) : null;
+  const invalid = visualState === 'invalid';
 
   return (
-    <div
-      className={`relative box-border flex min-w-0 max-w-full items-center ${
-        isEmbeddedVisual ? 'rounded-none' : 'rounded-[4px]'
-      } border bg-[var(--ck-surface,#383838)] p-0 font-sans text-[color:var(--ck-foreground,#ffffff)] ${
-        PRIMITIVE_SIZE_CLASS[size]
-      } ${PRIMITIVE_DENSITY_CLASS[density]} ${disabled ? 'opacity-45' : ''}`}
-      style={{ borderColor }}
-      data-scrubbing={isScrubbing || undefined}
-      data-valid={isVisuallyValid || undefined}
-      onPointerEnter={() => setIsHovered(true)}
-      onPointerLeave={() => setIsHovered(false)}
-    >
-      {handleSide === 'leading' ? scrubHandle : null}
-      <input
-        ref={inputRef}
-        type="text"
-        role="spinbutton"
-        aria-label={ariaLabel}
-        aria-invalid={isInvalid}
-        aria-valuemin={wrapMode === 'free' ? undefined : min}
-        aria-valuemax={wrapMode === 'free' ? undefined : max}
-        aria-valuenow={ariaValueNow}
+    <ControlFieldLegacyKeysContext.Provider value>
+      <ControlInput
+        value={value}
+        onValueChange={handleValueChange}
+        onValueCommitted={handleValueCommitted}
+        onInvalidCommit={handleInvalidCommit}
+        label={ariaLabel}
         placeholder={placeholder}
-        className="h-full min-w-0 flex-1 cursor-default bg-transparent py-0 pl-1 pr-0 font-sans tabular-nums text-[color:var(--ck-foreground,#ffffff)] outline-none focus:cursor-text disabled:cursor-not-allowed"
-        {...inputProps}
+        handle={resolvedHandleElement}
+        handleSide={handleSide}
+        handleWidth={handleContentWidth}
+        unit={trailingElementFeedsHandle ? undefined : trailingElement}
+        min={min}
+        max={max}
+        boundaryBehavior={wrapMode}
+        step={step}
+        smallStep={fineStep}
+        largeStep={coarseStep}
+        pageStep={pageStep}
+        precision={precision}
+        trimTrailingZeros={autoTrim}
+        expressionResolver={expressionResolver}
+        selectOnFocus={selectAllOnFocus}
+        commitOnBlur={commitOnBlur}
+        scrub={scrubEnabled}
+        pixelsPerStep={scrubPixelsPerStep}
+        stepDistance={stepDragDistance}
+        scrubThreshold={scrubThreshold}
+        scrubCommitThreshold={scrubCommitThreshold}
+        scrubMaxCommitRate={scrubMaxCommitRate}
+        pointerLock={pointerLockEnabled}
+        arrowKeys={horizontalArrowKeysMoveCaret ? 'vertical' : 'both'}
+        disabled={disabled}
+        readOnly={readOnly}
+        invalid={invalid && showInvalidBorder}
+        inputProps={{ 'aria-invalid': invalid || undefined }}
+        variant={visualTreatment}
+        onScrubbingChange={onScrubbingChange}
+        size={size}
+        density={density}
+        data-valid={!invalid || undefined}
       />
-      {hasTrailingElement && !trailingElementFeedsHandle ? (
-        <span className="flex h-full w-5 shrink-0 select-none items-center justify-center text-[11px] font-medium leading-4 text-[color:var(--ck-foreground,#ffffff)]/50">
-          {trailingElement}
-        </span>
-      ) : null}
-      {handleSide === 'trailing' ? scrubHandle : null}
-    </div>
+    </ControlFieldLegacyKeysContext.Provider>
   );
 }

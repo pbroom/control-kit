@@ -6,13 +6,24 @@ Control Kit is a standalone package maintained in [pbroom/control-kit](https://g
 
 ## Install
 
-Install the renamed package directly from this repository:
+Install the prerelease from npm together with the Base UI peer:
+
+```sh
+pnpm add control-kit@next @base-ui/react
+```
+
+Releases are published under the `next` dist-tag while the API settles, so
+`control-kit` without a tag does not resolve to them yet. The npm package
+ships prebuilt ESM, CommonJS, and TypeScript declarations in `dist/`, plus the
+`src/` files that the Tailwind preset scans.
+
+To track unreleased changes, install from this repository instead:
 
 ```sh
 pnpm add --allow-build=control-kit control-kit@github:pbroom/control-kit @base-ui/react
 ```
 
-The package builds ESM, CommonJS, and TypeScript declarations into `dist/`. The `--allow-build=control-kit` flag (pnpm 10) allows Git installs to run the `prepare` script so consumers receive the compiled entrypoints.
+The `--allow-build=control-kit` flag (pnpm 10) allows Git installs to run the `prepare` script so consumers receive the compiled entrypoints. Append `#<commit>` to pin a revision.
 
 ## Compatibility
 
@@ -24,8 +35,24 @@ The package builds ESM, CommonJS, and TypeScript declarations into `dist/`. The 
 
 ## Releases
 
-Changes are tracked in [CHANGELOG.md](./CHANGELOG.md). Use the GitHub install
-above for the renamed package; pin a Git commit for reproducible installs.
+Changes are tracked in [CHANGELOG.md](./CHANGELOG.md). Versions before 1.0
+are prereleases published to npm under the `next` dist-tag
+(`0.1.0-next.0`, `0.1.0-next.1`, ...); pin an exact version for reproducible
+installs.
+
+To cut a release, bump `version` in `package.json`, move the CHANGELOG
+entries under the new version heading, and commit. Then publish in one of
+two ways:
+
+- **GitHub Actions (preferred):** run the manual **Release** workflow
+  (`.github/workflows/release.yml`) on that commit. It runs the format,
+  type, unit, and packed-consumer checks, then publishes with npm
+  provenance under the chosen dist-tag (default `next`). It needs an
+  `NPM_TOKEN` repository secret; enable **dry-run** to rehearse without
+  uploading.
+- **Locally:** `pnpm publish --tag next` while logged in to npm with
+  publish rights. The `prepublishOnly` script typechecks, tests, and
+  rebuilds `dist/` first, so a stale build cannot ship.
 
 ### Upgrading from `@color-kit/control-kit`
 
@@ -54,11 +81,26 @@ before replacing a pinned Git revision or released version.
 
 ## Tailwind
 
-The components render Tailwind v4 utility class names. Configure Tailwind in
-your app and include the package in its content graph. The package
-includes `src/` as well as `dist/` so consumers can scan either path. The
-`@source` path is relative to the stylesheet containing it; adjust it for
-your app's directory layout.
+The components render Tailwind v4 utility class names, so your app's Tailwind
+build must scan the package. Import the bundled preset after Tailwind:
+
+```css
+@import 'tailwindcss';
+@import 'control-kit/tailwind.css';
+```
+
+The preset registers the package source with `@source` (resolved relative to
+the installed package, so no path adjustment is needed), includes
+`control-kit/theme.css`, and maps each token to a `ck-*` color utility:
+`bg-ck-surface`, `bg-ck-surface-content`, `text-ck-foreground`,
+`border-ck-border`, `ring-ck-accent`, `border-ck-accent-border`,
+`border-ck-border-focus`, `border-ck-border-scrub`, and
+`border-ck-border-invalid` (every Tailwind color utility and opacity modifier
+works, for example `bg-ck-accent/40`).
+
+To scan the package manually instead, add an `@source` for its shipped
+`src/` (or `dist/`). The path is relative to the stylesheet containing it;
+adjust it for your app's directory layout.
 
 ```css
 @source '../node_modules/control-kit/src';
@@ -68,38 +110,131 @@ your app's directory layout.
 
 Component palette colors resolve through `--ck-*` CSS custom properties with
 dark defaults. Once Tailwind generates the component styles, no additional
-theme or animation package is required. Define these variables on a
-containing element to retheme the controls:
+theme or animation package is required.
+
+`control-kit/theme.css` defines every token with the dark defaults on
+`:root` and adds a light preset. It is plain CSS, so it works with or without
+Tailwind, and `control-kit/tailwind.css` already includes it. Import it after
+`tailwindcss` when both are used.
+
+```css
+@import 'control-kit/theme.css';
+```
+
+Opt into the light preset with `data-ck-theme="light"` on `<html>` or any
+container; `data-ck-theme="dark"` restores the dark values inside a light
+subtree. Dark stays the default, and the theme does not follow
+`prefers-color-scheme` automatically. Toggle the attribute from your own
+color-scheme logic if you want that.
+
+```html
+<html data-ck-theme="light"></html>
+```
+
+| Token                  | Dark      | Light     | Used for                               |
+| ---------------------- | --------- | --------- | -------------------------------------- |
+| `--ck-surface`         | `#383838` | `#ffffff` | control and selected toggle background |
+| `--ck-surface-content` | `#1f1f1f` | `#f0f0f0` | recessed panels and dark tooltip color |
+| `--ck-foreground`      | `#ffffff` | `#1e1e1e` | text and inverse tooltip background    |
+| `--ck-accent`          | `#0d99ff` | `#0a84e8` | focus rings, checked fills             |
+| `--ck-accent-border`   | `#007be5` | `#0068c4` | border paired with accent fills        |
+| `--ck-border`          | `#4c4c4c` | `#c4c4c4` | hover and resting borders              |
+| `--ck-border-focus`    | `#5288db` | `#2f6fd0` | value input while editing              |
+| `--ck-border-scrub`    | `#97c1ef` | `#4f8fdd` | value input while scrubbing            |
+| `--ck-border-invalid`  | `#ff4e4e` | `#d92c2c` | invalid drafts                         |
+
+The theme file declares its values with zero specificity in the `base`
+cascade layer, so your own definitions win regardless of import order.
+Define any of these variables on a containing element to retheme the
+controls:
 
 ```css
 :root {
-  --ck-surface: #383838; /* control and selected toggle background */
-  --ck-surface-content: #1f1f1f; /* recessed panel and dark tooltip color */
-  --ck-foreground: #ffffff; /* text and inverse tooltip background */
-  --ck-accent: #0d99ff; /* focus rings, checked fills */
-  --ck-accent-border: #007be5; /* border paired with accent fills */
-  --ck-border: #4c4c4c; /* hover + resting borders */
-  --ck-border-focus: #5288db; /* value input while editing */
-  --ck-border-scrub: #97c1ef; /* value input while scrubbing */
-  --ck-border-invalid: #ff4e4e; /* invalid drafts */
+  --ck-accent: #7c3aed;
+  --ck-accent-border: #6d28d9;
 }
 ```
 
-The same tokens are exported as `controlKitColor` for use in inline styles.
-Tooltip content is portaled to `document.body`, so variables set only on a
-trigger's ancestor do not reach it. Put shared theme variables on `:root`
-or `body`, or define them directly on `TooltipContent` through its `style`
-or `className` prop. Tooltip and ToggleGroup use these package tokens rather
-than requiring host theme names such as `background`, `foreground`, or `ring`.
-`ControlField.Error` retains Tailwind's `red-400` text color; override its
-`className` when needed. The `--ck-border-invalid` token controls invalid
-input borders, not error-message text.
+Without `theme.css`, every component still falls back to the dark defaults
+inline. The same tokens are exported as `controlKitColor` for use in inline
+styles. Tooltip content is portaled to `document.body`, so variables or a
+`data-ck-theme` attribute set only on a trigger's ancestor do not reach it.
+Put shared theme variables on `:root` or `body`, or define them directly on
+`TooltipContent` through its `style` or `className` prop. Tooltip and
+ToggleGroup use these package tokens rather than requiring host theme names
+such as `background`, `foreground`, or `ring`. `ControlField.Error` retains
+Tailwind's `red-400` text color; override its `className` when needed. The
+`--ck-border-invalid` token controls invalid input borders, not error-message
+text.
+
+## Number input
+
+`ControlField` is the numeric input primitive: compose its parts for custom
+layouts, or use the `ControlInput` preset for a compact field with a scrub
+handle and unit. `onValueChange` fires on every change, including each
+parseable keystroke; put expensive work in `onValueCommitted`, which fires once
+per finished edit (Enter or blur after typing, a key step, an expression, or a
+scrub release).
+
+```tsx
+import { useState } from 'react';
+import { ControlInput } from 'control-kit';
+
+export function OpacityInput({ save }: { save: (value: number) => void }) {
+  const [opacity, setOpacity] = useState<number | null>(80);
+
+  return (
+    <ControlInput
+      label="Opacity"
+      value={opacity}
+      onValueChange={setOpacity}
+      onValueCommitted={(value) => {
+        if (value !== null) save(value);
+      }}
+      min={0}
+      max={100}
+      precision={1}
+      handle="O"
+      unit="%"
+      size="sm"
+    />
+  );
+}
+```
+
+Arrow keys step by `step`; Alt/Option uses `smallStep` and Shift uses
+`largeStep`, for scrubbing too. Typed arithmetic such as `* 2` or `+ 10`
+resolves on commit. `boundaryBehavior` is `'clamp'`, `'wrap'`, or `'free'`.
+
+`PrimitiveValueInput`, `usePrimitiveValueInput`, and the `*Primitive*` helpers
+are deprecated and will be removed in a future release. `PrimitiveValueInput`
+now renders `ControlInput` and keeps its callback semantics. To migrate:
+
+| `PrimitiveValueInput`                     | `ControlInput`                                    |
+| ----------------------------------------- | ------------------------------------------------- |
+| `wrapMode`                                | `boundaryBehavior`                                |
+| `fineStep` / `coarseStep`                 | `smallStep` / `largeStep`                         |
+| `ariaLabel`                               | `label`                                           |
+| `autoTrim`                                | `trimTrailingZeros`                               |
+| `selectAllOnFocus`                        | `selectOnFocus`                                   |
+| `allowExpressions` / `parseExpression`    | `expressionResolver` (`null` disables)            |
+| `horizontalArrowKeysMoveCaret={false}`    | `arrowKeys="both"`                                |
+| `leadingElement` / `handleElement`        | `handle` (with `handleSide`)                      |
+| `trailingElement`                         | `unit`                                            |
+| `scrubEnabled`                            | `scrub`                                           |
+| `scrubPixelsPerStep` / `stepDragDistance` | `pixelsPerStep` / `stepDistance`                  |
+| `pointerLockEnabled`                      | `pointerLock` (now off by default)                |
+| `visualTreatment` / `visualState`         | `variant` / `invalid`                             |
+| `onValueChange(value, { interaction })`   | `onValueCommitted` + `getControlFieldInteraction` |
+
+The input no longer has `role="spinbutton"`; it keeps Base UI's number field
+semantics, so tests should query it as a textbox.
 
 ## Plane
 
 `Plane` owns normalized Cartesian XY input while its children own the visual
 surface. `PlaneThumb` supplies the positioned marker and accessible keyboard
-axes; use `onValueChange` for live updates and `onValueCommit` for completed
+axes; use `onValueChange` for live updates and `onValueCommitted` for completed
 pointer or keyboard interactions.
 
 ```tsx
@@ -124,7 +259,7 @@ export function PositionControl({
       <PlaneThumb
         value={point}
         onValueChange={setPoint}
-        onValueCommit={savePoint}
+        onValueCommitted={savePoint}
         xAriaLabel="Horizontal position"
         yAriaLabel="Vertical position"
       />

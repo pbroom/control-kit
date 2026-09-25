@@ -1,66 +1,50 @@
-# Input Primitive
+# Control Input
 
-A numeric text input with keyboard stepping, expression parsing, and pointer scrubbing. It keeps draft editing separate from committed numeric values.
-
-> Legacy — This API remains available for compatibility while the Base UI-backed [Control Field](/docs/control-field) component is evaluated. Prefer Control Field for new compositions.
+A compact numeric input preset built from [Control Field](/docs/control-field) parts. It adds width presets, density, an optional unit, and a scrub handle to Control Field's keyboard stepping, expressions, and precise scrubbing. Every prop is optional.
 
 <!-- demo:basic -->
 
 ## Anatomy
 
-`PrimitiveValueInput` is a single composed control:
+`ControlInput` composes `ControlField.Root`, `Group`, `ScrubArea`, `Input`, and `Affix`:
 
 ```tsx
-import { PrimitiveValueInput } from 'control-kit';
+import { ControlInput } from 'control-kit';
 
-<PrimitiveValueInput
+<ControlInput
+  label="Opacity"
   value={value}
   onValueChange={setValue}
-  ariaLabel="Opacity"
   min={0}
   max={100}
-  step={1}
-  fineStep={0.1}
-  coarseStep={10}
-  pageStep={10}
-  wrapMode="clamp"
   precision={1}
-  autoTrim
-  allowExpressions={false}
-  selectAllOnFocus
-  commitOnBlur
-  scrubEnabled
-  scrubThreshold={2}
-  pointerLockEnabled={false}
-  disabled={false}
-  readOnly={false}
-  visualState="auto"
-  size="sm"
+  handle="V"
+  unit="%"
 />;
 ```
 
-The component renders a `spinbutton` text input inside a visual root. When scrubbing is enabled, a pointer handle is rendered before or after the input.
+Reach for `ControlField` parts directly when a layout needs something the preset does not offer, such as stepper buttons or a visible label.
 
 ## Usage guidelines
 
-- Update `value` from `onValueChange`; the component is controlled and never owns the committed number.
-- Use `wrapMode="clamp"` for bounded values, `"wrap"` for cyclic values, and `"free"` for unbounded editing.
-- Keep `step`, modifier steps, page step, and precision aligned with the domain being edited.
-- Supply `parseExpression` to customize draft parsing. It receives `allowExpressions`, the current value, and the active range. Use `onInvalidCommit` when invalid drafts need application feedback.
+- `ControlInput` accepts every `ControlField.Root` prop, so value, bounds, stepping, formatting, and expression behavior are configured the same way.
+- `onValueChange` fires for every change, including each parseable keystroke, and may pass `null` while the text is empty. Put expensive work in `onValueCommitted`, which fires once per finished edit.
+- Use `boundaryBehavior="clamp"` for bounded values, `"wrap"` for cyclic values, and `"free"` for unbounded editing.
+- Give the input an accessible name with `label` unless a visible label is associated.
 
 ## Editing and commits
 
-Text entry remains a draft until Enter or the configured blur behavior commits it. Escape restores the committed value. `onValueChange` receives interaction details so application work can distinguish text entry, keyboard stepping, and scrubbing.
+Typed text commits on Enter (focus stays in the input) or blur. Escape restores the last committed value, and `commitOnBlur={false}` makes blur behave like Escape. Expressions such as `* 2` or `+ 10` resolve on commit; pass `expressionResolver={null}` for numeric-only entry or a custom resolver for domain syntax.
 
 ## Pointer scrubbing
 
-Set `scrubEnabled` to render the scrub handle. `scrubThreshold` controls when a pointer movement becomes a scrub; `scrubPixelsPerStep` or `stepDragDistance` controls the movement distance per step. Pointer lock is optional and should only be enabled where an unbounded drag is expected.
+Drag the handle horizontally to scrub. Without `handle` content the scrub target is a thin strip along the handle side; `scrub={false}` removes it. `pixelsPerStep` or `stepDistance` sets movement per step, `scrubThreshold` the distance before a drag starts, and `scrubCommitThreshold` and `scrubMaxCommitRate` throttle updates while dragging. Pointer lock is off by default.
 
 ## API reference
 
-### PrimitiveValueInput
+### ControlInput
 
-`PrimitiveValueInputProps` defines the value model, stepping, draft behavior, scrub behavior, and visual options.
+`ControlInputProps` extends `ControlFieldRootProps` with the preset's layout and scrub options.
 
 <!-- props:input -->
 
@@ -68,51 +52,42 @@ Set `scrubEnabled` to render the scrub handle. `scrubThreshold` controls when a 
 
 | Attribute                       | When present                            |
 | ------------------------------- | --------------------------------------- |
-| `data-scrubbing`                | While pointer scrubbing is active.      |
-| `data-valid`                    | When the current visual state is valid. |
+| `data-slot="control-input"`     | Always on the root.                     |
+| `data-variant`                  | Always on the root: the active variant. |
+| `data-scrubbing`                | On the root and group while scrubbing.  |
 | `data-control-kit-scrub-handle` | Always on the rendered scrub handle.    |
 
 ## Accessibility
 
-The text input has `role="spinbutton"` and reports its current value and invalid state. Finite clamp and wrap modes also report their minimum and maximum; free mode leaves those bounds unspecified. `ariaLabel` names the control when no visible label is associated.
-
-Up and Down Arrow step the value. Alt/Option uses `fineStep`, Shift uses `coarseStep`, Page Up and Page Down use `pageStep`, and Home or End move to a finite bound. When `horizontalArrowKeysMoveCaret` is true, Left and Right Arrow retain normal text-caret behavior while editing.
+The input keeps Control Field's Base UI Number Field semantics: a text input described as a number field with its range on the form input. Up and Down Arrow step the value; Alt/Option uses `smallStep`, Shift uses `largeStep`, Page Up and Page Down use `pageStep`, and Home or End move to a finite bound. Left and Right keep caret behavior unless `arrowKeys="both"`.
 
 The scrub handle is pointer-only and hidden from assistive technology; all value operations remain available from the input.
 
-## Types
+## Migrating from PrimitiveValueInput
 
-| Type                            | Contract                                              |
-| ------------------------------- | ----------------------------------------------------- |
-| `PrimitiveValueChangeDetails`   | Interaction category for a published value change.    |
-| `PrimitiveValueInteraction`     | `'text-input'`, `'keyboard'`, or `'pointer'`.         |
-| `PrimitiveExpressionParser`     | Draft parser with expression, value, and range input. |
-| `PrimitiveStepConfig`           | Standard, fine, coarse, and page increments.          |
-| `PrimitiveStepKey`              | Supported stepping keys.                              |
-| `PrimitiveSteppedValueOptions`  | Inputs used to resolve one keyboard step.             |
-| `PrimitiveWrapMode`             | `'clamp'`, `'wrap'`, or `'free'`.                     |
-| `PrimitivePrecision`            | Numeric display precision accepted by the formatter.  |
-| `PrimitiveSize`                 | `'sm'`, `'md'`, `'lg'`, or `'full'`.                  |
-| `PrimitiveDensity`              | `'compact'` or `'comfortable'`.                       |
-| `PrimitiveHandleSide`           | `'leading'` or `'trailing'`.                          |
-| `PrimitiveVisualState`          | `'auto'`, `'valid'`, or `'invalid'`.                  |
-| `PrimitiveVisualTreatment`      | `'default'` or `'embedded'`.                          |
-| `UsePrimitiveValueInputOptions` | State and interaction options accepted by the hook.   |
+`PrimitiveValueInput`, `usePrimitiveValueInput`, and the `*Primitive*` helpers are deprecated and will be removed in a future release. `PrimitiveValueInput` now renders `ControlInput` and keeps its old callback semantics.
 
-## Hook and utilities
+| PrimitiveValueInput                       | ControlInput                                      |
+| ----------------------------------------- | ------------------------------------------------- |
+| `wrapMode`                                | `boundaryBehavior`                                |
+| `fineStep` / `coarseStep`                 | `smallStep` / `largeStep`                         |
+| `ariaLabel`                               | `label`                                           |
+| `autoTrim`                                | `trimTrailingZeros`                               |
+| `selectAllOnFocus`                        | `selectOnFocus`                                   |
+| `allowExpressions` / `parseExpression`    | `expressionResolver` (`null` disables)            |
+| `horizontalArrowKeysMoveCaret={false}`    | `arrowKeys="both"`                                |
+| `leadingElement` / `handleElement`        | `handle` with `handleSide`                        |
+| `trailingElement`                         | `unit`                                            |
+| `handleContentWidth`                      | `handleWidth`                                     |
+| `scrubEnabled`                            | `scrub`                                           |
+| `scrubPixelsPerStep` / `stepDragDistance` | `pixelsPerStep` / `stepDistance`                  |
+| `pointerLockEnabled`                      | `pointerLock` (default `false`)                   |
+| `visualTreatment`                         | `variant`                                         |
+| `visualState="invalid"`                   | `invalid`                                         |
+| `onValueChange(value, { interaction })`   | `onValueCommitted` + `getControlFieldInteraction` |
 
-`usePrimitiveValueInput(options)` exposes the input and scrub-handle refs, state, formatted draft, ARIA value, and event props used by `PrimitiveValueInput`.
-
-| Export                              | Purpose                                                     |
-| ----------------------------------- | ----------------------------------------------------------- |
-| `formatPrimitiveValue`              | Formats a numeric value to the configured precision.        |
-| `normalizePrimitivePrecision`       | Clamps and rounds precision to the supported digit range.   |
-| `normalizePrimitiveScrubMultiplier` | Normalizes a finite scrub-speed multiplier.                 |
-| `normalizePrimitiveValue`           | Applies free, clamp, or wrap bounds.                        |
-| `parsePrimitiveDraft`               | Resolves a draft through the custom parser or numeric cast. |
-| `getPrimitiveModifiedStep`          | Selects the normal, fine, or coarse step from modifiers.    |
-| `getPrimitiveSteppedValue`          | Resolves the value produced by one supported step key.      |
+`role="spinbutton"` is no longer forced; selectors should use the textbox role. An empty draft no longer commits `0`; it reverts.
 
 ## Source
 
-[Implementation](https://github.com/pbroom/control-kit/blob/main/src/primitive-value-input.tsx) · [State model](https://github.com/pbroom/control-kit/blob/main/src/use-primitive-value-input.ts) · [Tests](https://github.com/pbroom/control-kit/blob/main/__tests__/primitive-value-input.test.tsx) · [Issues](https://github.com/pbroom/control-kit/issues)
+[Implementation](https://github.com/pbroom/control-kit/blob/main/src/control-input.tsx) · [Control Field](https://github.com/pbroom/control-kit/blob/main/src/control-field.tsx) · [Tests](https://github.com/pbroom/control-kit/blob/main/__tests__/control-input.test.tsx) · [Issues](https://github.com/pbroom/control-kit/issues)

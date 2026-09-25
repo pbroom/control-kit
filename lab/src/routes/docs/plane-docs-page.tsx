@@ -118,11 +118,18 @@ const PLANE_THUMB_PROPS = [
       'Called for each distinct value produced by pointer or keyboard input.',
   },
   {
-    name: 'onValueCommit',
+    name: 'onValueCommitted',
     shortType: 'function',
     type: '(value: PlaneValue, details: PlaneValueChangeDetails) => void',
     description:
       "Called when this thumb's pointer or keyboard interaction completes.",
+  },
+  {
+    name: 'onValueCommit',
+    shortType: 'function',
+    type: '(value: PlaneValue, details: PlaneValueChangeDetails) => void',
+    description:
+      'Deprecated alias for onValueCommitted. Ignored when onValueCommitted is provided.',
   },
   {
     name: 'disabled',

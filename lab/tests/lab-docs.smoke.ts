@@ -1369,7 +1369,7 @@ test('renders and exercises the documented primitive and component pages', async
     },
     {
       slug: 'input-primitive',
-      heading: 'Input Primitive',
+      heading: 'Control Input',
       lab: '/lab/input-primitive',
       apiHeading: 'API reference',
       exampleCount: 1,
@@ -1510,7 +1510,7 @@ test('renders and exercises the documented primitive and component pages', async
   await expect(checkbox).toHaveAttribute('aria-checked', 'true');
 
   await page.goto('/docs/input-primitive');
-  const primitiveInput = page.getByRole('spinbutton', { name: 'Opacity' });
+  const primitiveInput = page.getByRole('textbox', { name: 'Opacity' });
   await primitiveInput.fill('55');
   await primitiveInput.press('Enter');
   await expect(primitiveInput).toHaveValue('55');
@@ -1560,7 +1560,7 @@ test('renders and exercises the documented primitive and component pages', async
   await expect(resetControlFieldInput).toHaveValue('84');
 
   await page.goto('/docs/input-multi');
-  const multiInput = page.getByRole('spinbutton', {
+  const multiInput = page.getByRole('textbox', {
     name: 'Horizontal position',
   });
   await multiInput.focus();

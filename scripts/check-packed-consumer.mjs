@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import {
+  access,
+  cp,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -97,8 +105,34 @@ try {
      for (const kit of [esm, cjs]) {
        assert.deepEqual(kit.clampPlaneValue({x: 2, y: -1}), {x: 1, y: 0});
        assert.equal(typeof kit.usePrimitiveValueInput, 'function');
+       assert.equal(typeof kit.ControlInput, 'object');
+       assert.equal(kit.getControlFieldInteraction({ reason: 'scrub' }), 'pointer');
+     }
+     for (const file of ['theme.css', 'tailwind.css']) {
+       const pattern = new RegExp('/control-kit/styles/' + file.replace('.', '\\.') + '$');
+       assert.match(import.meta.resolve('control-kit/' + file), pattern);
+       assert.match(require.resolve('control-kit/' + file), pattern);
      }`,
   ]);
+  if (!gitInstall) {
+    const packed = execFileSync('tar', ['-tzf', tarball], { encoding: 'utf8' })
+      .split('\n')
+      .filter(Boolean);
+    for (const file of [
+      'package/styles/theme.css',
+      'package/styles/tailwind.css',
+      'package/src/index.ts',
+    ]) {
+      assert(packed.includes(file), `tarball is missing ${file}`);
+    }
+  }
+  // The preset's relative @source must reach the installed package source.
+  const installedStyles = join(consumer, 'node_modules/control-kit/styles');
+  const presetSource = /@source '([^']+)';/.exec(
+    await readFile(join(installedStyles, 'tailwind.css'), 'utf8'),
+  )?.[1];
+  assert(presetSource, 'tailwind.css must declare @source');
+  await access(join(installedStyles, presetSource, 'index.ts'));
   run('pnpm', ['exec', 'vite', 'build']);
   server = await preview({
     configFile: false,
@@ -223,8 +257,66 @@ try {
     'rgb(254, 220, 186)',
   );
   assert.deepEqual(errors, []);
+  await page.close();
+  await new Promise((resolve) => server.httpServer.close(resolve));
+  server = undefined;
+
+  // Second pass: replace the manual @source with the packaged Tailwind preset.
+  // The build must still generate the component classes (proving the preset's
+  // @source), the token utilities, and the light theme preset.
+  await writeFile(
+    join(consumer, 'styles.css'),
+    "@import 'tailwindcss';\n@import 'control-kit/tailwind.css';\n",
+  );
+  await rm(join(consumer, 'dist'), { recursive: true, force: true });
+  run('pnpm', ['exec', 'vite', 'build']);
+  const assets = join(consumer, 'dist/assets');
+  const cssFiles = (await readdir(assets)).filter((f) => f.endsWith('.css'));
+  assert.equal(cssFiles.length, 1);
+  const presetCss = await readFile(join(assets, cssFiles[0]), 'utf8');
+  for (const needle of [
+    '--ck-surface-content:#1f1f1f',
+    '[data-ck-theme=light]',
+    '.bg-ck-surface{background-color:var(--ck-surface)}',
+    '.border-ck-border{border-color:var(--ck-border)}',
+    // A component-only class, generated solely from the package source.
+    'var(--ck-surface-content,#1f1f1f)',
+  ]) {
+    assert(presetCss.includes(needle), `preset CSS is missing ${needle}`);
+  }
+  server = await preview({
+    configFile: false,
+    root: consumer,
+    preview: { host: '127.0.0.1', port: 0, open: false },
+  });
+  const presetAddress = server.httpServer.address();
+  assert(presetAddress && typeof presetAddress !== 'string');
+  const presetPage = await browser.newPage();
+  presetPage.on('pageerror', (error) => errors.push(error.message));
+  await presetPage.goto(`http://127.0.0.1:${presetAddress.port}/`);
+  const presetRgb = presetPage.getByRole('button', {
+    name: 'RGB',
+    exact: true,
+  });
+  const utilities = presetPage.getByTestId('preset-utilities');
+  await expect(presetRgb).toHaveCSS('background-color', 'rgb(56, 56, 56)');
+  await expect(presetRgb).toHaveCSS('color', 'rgb(255, 255, 255)');
+  await expect(utilities).toHaveCSS('background-color', 'rgb(56, 56, 56)');
+  await expect(utilities).toHaveCSS('border-color', 'rgb(76, 76, 76)');
+  await presetPage.evaluate(() =>
+    document.documentElement.setAttribute('data-ck-theme', 'light'),
+  );
+  await expect(presetRgb).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+  await expect(presetRgb).toHaveCSS('color', 'rgb(30, 30, 30)');
+  await expect(utilities).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+  await expect(utilities).toHaveCSS('color', 'rgb(30, 30, 30)');
+  await expect(utilities).toHaveCSS('border-color', 'rgb(196, 196, 196)');
+  // A :root override wins over the preset regardless of import order.
+  await presetPage.addStyleTag({ content: ':root { --ck-surface: #123456; }' });
+  await expect(utilities).toHaveCSS('background-color', 'rgb(18, 52, 86)');
+  assert.deepEqual(errors, []);
   console.log(
-    `${gitInstall ? 'Git-installed' : 'Packed'} consumer passed: ESM/CJS, types, sliders, channel input, Tooltip, ToggleGroup and Tailwind themes.`,
+    `${gitInstall ? 'Git-installed' : 'Packed'} consumer passed: ESM/CJS, types, sliders, channel input, Tooltip, ToggleGroup, Tailwind themes, and the theme.css/tailwind.css presets.`,
   );
 } finally {
   await browser?.close();

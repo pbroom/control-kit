@@ -1,10 +1,11 @@
 import { useCallback, useMemo, useState } from 'react';
-import {
-  PrimitiveValueInput,
-  type PrimitiveExpressionParser,
-  type PrimitivePrecision,
-  type PrimitiveWrapMode,
-} from './primitive-value-input.js';
+import type { ControlFieldExpressionResolver } from './control-field-expression.js';
+import { ControlInput } from './control-input.js';
+import type {
+  PrimitiveExpressionParser,
+  PrimitivePrecision,
+  PrimitiveWrapMode,
+} from './primitive-value-input-helpers.js';
 import {
   Tooltip,
   TooltipContent,
@@ -24,17 +25,30 @@ export interface MultiInputField<TFieldId extends MultiInputFieldId = string> {
   displayScale?: number;
 }
 
+/**
+ * Per-field numeric config. Only `min` and `max` are required; the rest
+ * default to the `ControlField` defaults (step 1, Alt 0.1, Shift and Page 10,
+ * clamped, trimmed display).
+ */
 export interface MultiInputSegmentConfig {
   min: number;
   max: number;
-  step: number;
-  fineStep: number;
-  coarseStep: number;
-  pageStep: number;
-  precision: PrimitivePrecision;
-  autoTrim: boolean;
-  wrapMode: PrimitiveWrapMode;
-  disabled: boolean;
+  /** @default 1 */
+  step?: number;
+  /** Alt/Option step. @default 0.1 */
+  fineStep?: number;
+  /** Shift step. @default 10 */
+  coarseStep?: number;
+  /** Page Up/Down step. @default coarseStep */
+  pageStep?: number;
+  /** Fraction digits shown. Omit to show the value as-is. */
+  precision?: PrimitivePrecision;
+  /** @default true */
+  autoTrim?: boolean;
+  /** @default 'clamp' */
+  wrapMode?: PrimitiveWrapMode;
+  /** @default false */
+  disabled?: boolean;
 }
 
 export type MultiInputConfig<TFieldId extends MultiInputFieldId = string> =
@@ -90,13 +104,38 @@ export function createMultiInputSegments<TFieldId extends MultiInputFieldId>({
   });
 }
 
+function scaleOptional(value: number | undefined, scale: number) {
+  return value === undefined ? undefined : value * scale;
+}
+
+function toExpressionResolver(
+  parseExpression: PrimitiveExpressionParser | undefined,
+  expressionResolver: ControlFieldExpressionResolver | null | undefined,
+): ControlFieldExpressionResolver | null | undefined {
+  if (!parseExpression) return expressionResolver;
+  return (text, context) =>
+    parseExpression(text, {
+      allowExpressions: true,
+      currentValue: context.startValue ?? context.currentValue,
+      range: context.range ?? [
+        context.min ?? Number.NEGATIVE_INFINITY,
+        context.max ?? Number.POSITIVE_INFINITY,
+      ],
+    });
+}
+
 interface MultiInputSegmentProps<TFieldId extends MultiInputFieldId> {
   field: MultiInputField<TFieldId>;
   config: MultiInputSegmentConfig;
   value: number;
+  /** Fires for every value change, including parseable keystrokes. */
   onValueChange: (value: number) => void;
+  /** Fires once per committed edit: text commit, key step, scrub release. */
+  onValueCommit?: (value: number) => void;
   onScrubbingChange: (field: TFieldId, isScrubbing: boolean) => void;
+  /** @deprecated Use `expressionResolver`. */
   parseExpression?: PrimitiveExpressionParser;
+  expressionResolver?: ControlFieldExpressionResolver | null;
   showLeadingLabel?: boolean;
 }
 
@@ -105,8 +144,10 @@ export function MultiInputSegment<TFieldId extends MultiInputFieldId>({
   config,
   value,
   onValueChange,
+  onValueCommit,
   onScrubbingChange,
   parseExpression,
+  expressionResolver,
   showLeadingLabel = false,
 }: MultiInputSegmentProps<TFieldId>) {
   const displayScale = field.displayScale ?? (field.unit === '%' ? 100 : 1);
@@ -119,39 +160,40 @@ export function MultiInputSegment<TFieldId extends MultiInputFieldId>({
     },
     [field.value, onScrubbingChange],
   );
+  const resolver = useMemo(
+    () => toExpressionResolver(parseExpression, expressionResolver),
+    [expressionResolver, parseExpression],
+  );
+  const coarseStep = config.coarseStep ?? 10;
 
   return (
     <Tooltip>
       <TooltipTrigger render={<label className="block h-6 min-w-0 w-full" />}>
-        <PrimitiveValueInput
+        <ControlInput
           value={value * displayScale}
-          onValueChange={(nextValue) => onValueChange(nextValue / displayScale)}
-          ariaLabel={field.tooltip}
-          leadingElement={leadingElement}
-          handleElement={handleElement}
+          onValueChange={(nextValue) => {
+            if (nextValue !== null) onValueChange(nextValue / displayScale);
+          }}
+          onValueCommitted={(nextValue) => {
+            if (nextValue !== null) onValueCommit?.(nextValue / displayScale);
+          }}
+          label={field.tooltip}
+          handle={handleElement}
           handleSide={hasTrailingUnit ? 'trailing' : 'leading'}
-          handleContentWidth={showLeadingLabel ? 18 : 16}
+          handleWidth={showLeadingLabel ? 18 : 16}
           min={config.min * displayScale}
           max={config.max * displayScale}
-          wrapMode={config.wrapMode}
-          step={config.step * displayScale}
-          fineStep={config.fineStep * displayScale}
-          coarseStep={config.coarseStep * displayScale}
-          pageStep={config.pageStep * displayScale}
+          boundaryBehavior={config.wrapMode ?? 'clamp'}
+          step={(config.step ?? 1) * displayScale}
+          smallStep={(config.fineStep ?? 0.1) * displayScale}
+          largeStep={coarseStep * displayScale}
+          pageStep={scaleOptional(config.pageStep ?? coarseStep, displayScale)}
           precision={config.precision}
-          autoTrim={config.autoTrim}
-          allowExpressions
-          parseExpression={parseExpression}
-          selectAllOnFocus
-          commitOnBlur
-          scrubEnabled
-          scrubPixelsPerStep={1}
-          scrubThreshold={1}
-          pointerLockEnabled={false}
-          disabled={config.disabled}
-          readOnly={false}
-          visualState="auto"
-          visualTreatment="embedded"
+          trimTrailingZeros={config.autoTrim ?? true}
+          expressionResolver={resolver}
+          selectOnFocus
+          disabled={config.disabled ?? false}
+          variant="embedded"
           onScrubbingChange={handleScrubbingChange}
           size="full"
           density="compact"
@@ -163,8 +205,20 @@ export function MultiInputSegment<TFieldId extends MultiInputFieldId>({
 }
 
 interface MultiInputControlSharedProps<TFieldId extends MultiInputFieldId> {
+  /** Fires for every value change, including parseable keystrokes. */
   onFieldChange: (field: TFieldId, value: number) => void;
+  /**
+   * Fires once per committed edit (text commit, key step, scrub release).
+   * Put expensive work here.
+   */
+  onFieldCommit?: (field: TFieldId, value: number) => void;
+  /** @deprecated Use `expressionResolver`. */
   parseExpression?: PrimitiveExpressionParser;
+  /**
+   * Resolves expression drafts in every field. Defaults to the built-in
+   * arithmetic resolver; `null` disables expressions.
+   */
+  expressionResolver?: ControlFieldExpressionResolver | null;
   showLeadingLabels?: boolean;
 }
 
@@ -188,7 +242,13 @@ export type MultiInputControlProps<TFieldId extends MultiInputFieldId> =
 export function MultiInputControl<TFieldId extends MultiInputFieldId>(
   props: MultiInputControlProps<TFieldId>,
 ) {
-  const { onFieldChange, parseExpression, showLeadingLabels = false } = props;
+  const {
+    onFieldChange,
+    onFieldCommit,
+    parseExpression,
+    expressionResolver,
+    showLeadingLabels = false,
+  } = props;
   const [isHovered, setIsHovered] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const [scrubbingField, setScrubbingField] = useState<TFieldId | null>(null);
@@ -272,8 +332,14 @@ export function MultiInputControl<TFieldId extends MultiInputFieldId>(
                   onValueChange={(nextValue) =>
                     onFieldChange(segment.id, nextValue)
                   }
+                  onValueCommit={
+                    onFieldCommit
+                      ? (nextValue) => onFieldCommit(segment.id, nextValue)
+                      : undefined
+                  }
                   onScrubbingChange={handleSegmentScrubbingChange}
                   parseExpression={parseExpression}
+                  expressionResolver={expressionResolver}
                   showLeadingLabel={showLeadingLabels}
                 />
               </div>

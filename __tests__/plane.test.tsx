@@ -2693,3 +2693,137 @@ describe('nested PlaneThumb', () => {
     expect(Number(childAxis.value)).toBeCloseTo(0.01);
   });
 });
+
+describe('PlaneThumb commit callbacks', () => {
+  it('calls onValueCommitted once when a pointer drag completes', () => {
+    const onValueChange = vi.fn();
+    const onValueCommitted = vi.fn();
+    const { plane } = mountPlane({ onValueChange }, { onValueCommitted });
+
+    act(() => pointer(plane, 'pointerdown', { clientX: 110, clientY: 45 }));
+    act(() => pointer(plane, 'pointermove', { clientX: 60, clientY: 95 }));
+    expect(onValueCommitted).not.toHaveBeenCalled();
+
+    act(() => pointer(plane, 'pointerup', { clientX: 60, clientY: 95 }));
+    expect(onValueCommitted).toHaveBeenCalledExactlyOnceWith(
+      { x: 0.25, y: 0.25 },
+      details({ interaction: 'pointer', reason: 'plane-press' }),
+    );
+    expect(onValueCommitted.mock.lastCall?.[1].originalEvent).toBeInstanceOf(
+      PointerEvent,
+    );
+  });
+
+  it('calls onValueCommitted when a keyboard interaction completes', () => {
+    const onValueCommitted = vi.fn();
+    const { container } = mountPlane(
+      {},
+      { onValueCommitted, thumbId: 'anchor' },
+    );
+    const xInput = container.querySelector(
+      '[data-plane-axis="x"]',
+    ) as HTMLInputElement;
+
+    act(() => key(xInput, 'keydown', 'ArrowRight'));
+    expect(onValueCommitted).not.toHaveBeenCalled();
+
+    act(() => key(xInput, 'keyup', 'ArrowRight'));
+    expect(onValueCommitted).toHaveBeenCalledExactlyOnceWith(
+      { x: 0.26, y: 0.75 },
+      details({
+        interaction: 'keyboard',
+        reason: 'keyboard',
+        thumbId: 'anchor',
+      }),
+    );
+  });
+
+  it('keeps the deprecated onValueCommit alias working on its own', () => {
+    const onValueCommit = vi.fn();
+    const { container, plane } = mountPlane({}, { onValueCommit });
+    const xInput = container.querySelector(
+      '[data-plane-axis="x"]',
+    ) as HTMLInputElement;
+
+    act(() => {
+      key(xInput, 'keydown', 'ArrowUp');
+      key(xInput, 'keyup', 'ArrowUp');
+    });
+    expect(onValueCommit).toHaveBeenLastCalledWith(
+      { x: 0.25, y: 0.76 },
+      details({ interaction: 'keyboard' }),
+    );
+
+    act(() => {
+      pointer(plane, 'pointerdown', { clientX: 110, clientY: 70 });
+      pointer(plane, 'pointerup', { clientX: 110, clientY: 70 });
+    });
+    expect(onValueCommit).toHaveBeenCalledTimes(2);
+    expect(onValueCommit).toHaveBeenLastCalledWith(
+      { x: 0.5, y: 0.5 },
+      details({ interaction: 'pointer', reason: 'plane-press' }),
+    );
+  });
+
+  it('prefers onValueCommitted over onValueCommit when both are provided', () => {
+    const onValueCommitted = vi.fn();
+    const onValueCommit = vi.fn();
+    const { container, plane } = mountPlane(
+      {},
+      { onValueCommitted, onValueCommit },
+    );
+    const xInput = container.querySelector(
+      '[data-plane-axis="x"]',
+    ) as HTMLInputElement;
+
+    act(() => {
+      key(xInput, 'keydown', 'ArrowRight');
+      key(xInput, 'keyup', 'ArrowRight');
+    });
+    act(() => {
+      pointer(plane, 'pointerdown', { clientX: 110, clientY: 70 });
+      pointer(plane, 'pointerup', { clientX: 110, clientY: 70 });
+    });
+
+    expect(onValueCommitted).toHaveBeenCalledTimes(2);
+    expect(onValueCommit).not.toHaveBeenCalled();
+  });
+
+  it('falls back to onValueCommit when onValueCommitted is removed', () => {
+    const onValueCommitted = vi.fn();
+    const onValueCommit = vi.fn();
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    mountedRoots.push(root);
+    const renderThumb = (committed?: typeof onValueCommitted) =>
+      act(() => {
+        root.render(
+          <Plane>
+            <PlaneThumb
+              defaultValue={{ x: 0.5, y: 0.5 }}
+              onValueCommitted={committed}
+              onValueCommit={onValueCommit}
+            />
+          </Plane>,
+        );
+      });
+
+    renderThumb(onValueCommitted);
+    renderThumb(undefined);
+    const xInput = container.querySelector(
+      '[data-plane-axis="x"]',
+    ) as HTMLInputElement;
+
+    act(() => {
+      key(xInput, 'keydown', 'ArrowLeft');
+      key(xInput, 'keyup', 'ArrowLeft');
+    });
+
+    expect(onValueCommitted).not.toHaveBeenCalled();
+    expect(onValueCommit).toHaveBeenCalledExactlyOnceWith(
+      { x: 0.49, y: 0.5 },
+      details({ interaction: 'keyboard' }),
+    );
+  });
+});

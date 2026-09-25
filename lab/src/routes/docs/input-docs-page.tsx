@@ -1,5 +1,5 @@
 import { DocsExample } from './docs-example.js';
-import { InputPrimitiveExample } from './examples/input-primitive-basic-example.js';
+import { ControlInputExample } from './examples/input-primitive-basic-example.js';
 import inputExampleCode from './examples/input-primitive-basic-example.tsx?raw';
 import { MarkdownDocsPage } from './markdown-docs-page.js';
 import {
@@ -11,254 +11,206 @@ import inputDocs from './input.md?raw';
 const INPUT_PROPS = [
   {
     name: 'value',
-    type: 'number',
-    required: true,
-    description: 'The controlled committed numeric value.',
+    type: 'number | null | undefined',
+    description: 'The controlled numeric value.',
+  },
+  {
+    name: 'defaultValue',
+    type: 'number | null | undefined',
+    defaultValue: 'null',
+    description: 'The initial value when the input is uncontrolled.',
   },
   {
     name: 'onValueChange',
-    type: '(value: number, details: PrimitiveValueChangeDetails) => void',
+    type: '(value: number | null, details: ControlFieldValueChangeDetails) => void',
     shortType: 'function',
-    required: true,
-    description: 'Updates the committed value after input interaction.',
+    description:
+      'Called for every value change, including each parseable keystroke.',
   },
   {
-    name: 'ariaLabel',
+    name: 'onValueCommitted',
+    type: '(value: number | null, details: ControlFieldValueCommitDetails) => void',
+    shortType: 'function',
+    description:
+      'Called once per finished edit: a text commit, key step, expression, or scrub release.',
+  },
+  {
+    name: 'label',
     type: 'string | undefined',
     shortType: 'string',
-    description: 'Names the spinbutton when no visible label is associated.',
+    description: 'Accessible name for the text input.',
   },
   {
     name: 'placeholder',
     type: 'string | undefined',
     shortType: 'string',
-    description: 'Placeholder text shown for an empty draft.',
+    description: 'Placeholder text shown when the value is empty.',
   },
   {
-    name: 'leadingElement',
-    type: 'ReactNode',
-    shortType: 'ReactNode',
-    defaultValue: "'V'",
+    name: 'min',
+    type: 'number | undefined',
+    description: 'The minimum value.',
+  },
+  {
+    name: 'max',
+    type: 'number | undefined',
+    description: 'The maximum value.',
+  },
+  {
+    name: 'boundaryBehavior',
+    type: "'clamp' | 'wrap' | 'free' | undefined",
+    shortType: "'clamp' | 'wrap' | 'free'",
+    defaultValue: "'clamp'",
+    description: 'Clamps, wraps, or frees values relative to min and max.',
+  },
+  {
+    name: 'step',
+    type: "number | 'any' | undefined",
+    shortType: 'number',
+    defaultValue: '1',
+    description: 'Arrow-key and scrub step.',
+  },
+  {
+    name: 'smallStep',
+    type: 'number | undefined',
+    defaultValue: '0.1',
+    description: 'Step while Alt/Option is held.',
+  },
+  {
+    name: 'largeStep',
+    type: 'number | undefined',
+    defaultValue: '10',
+    description: 'Step while Shift is held.',
+  },
+  {
+    name: 'pageStep',
+    type: 'number | undefined',
+    defaultValue: 'largeStep',
+    description: 'Page Up and Page Down step.',
+  },
+  {
+    name: 'precision',
+    type: 'number | undefined',
     description:
-      'Supplies the default leading scrub-handle content when the handle is enabled.',
+      'Fraction digits shown when format is not set. Values keep full precision.',
   },
   {
-    name: 'trailingElement',
-    type: 'ReactNode',
-    shortType: 'ReactNode',
+    name: 'expressionResolver',
+    type: 'ControlFieldExpressionResolver | null | undefined',
+    shortType: 'function | null',
+    defaultValue: 'resolveControlFieldExpression',
     description:
-      'Renders after the input, or supplies the trailing scrub handle when no handleElement is set.',
+      'Resolves expression drafts. Set to null for numeric-only entry.',
   },
   {
-    name: 'handleElement',
+    name: 'selectOnFocus',
+    type: 'boolean | undefined',
+    defaultValue: 'false',
+    description: 'Selects the text when the input receives focus.',
+  },
+  {
+    name: 'size',
+    type: "'sm' | 'md' | 'lg' | 'full' | undefined",
+    shortType: "'sm' | 'md' | 'lg' | 'full'",
+    defaultValue: "'full'",
+    description: 'Sets the width preset.',
+  },
+  {
+    name: 'density',
+    type: "'compact' | 'comfortable' | undefined",
+    shortType: "'compact' | 'comfortable'",
+    defaultValue: "'compact'",
+    description: 'Sets the height and text density.',
+  },
+  {
+    name: 'variant',
+    type: "'default' | 'embedded' | undefined",
+    shortType: "'default' | 'embedded'",
+    defaultValue: "'default'",
+    description:
+      'Embedded drops the rounded border for use inside another surface.',
+  },
+  {
+    name: 'unit',
     type: 'ReactNode',
-    shortType: 'ReactNode',
-    description: 'Overrides content inside the scrub handle.',
+    description: 'Non-interactive unit or suffix rendered after the text.',
+  },
+  {
+    name: 'handle',
+    type: 'ReactNode',
+    description:
+      'Scrub handle content. Without content the handle is a thin edge strip.',
   },
   {
     name: 'handleSide',
-    type: 'PrimitiveHandleSide | undefined',
+    type: "'leading' | 'trailing' | undefined",
     shortType: "'leading' | 'trailing'",
     defaultValue: "'leading'",
     description: 'Places the scrub handle before or after the input.',
   },
   {
-    name: 'handleContentWidth',
+    name: 'handleWidth',
     type: 'number | undefined',
-    shortType: 'number',
     defaultValue: '24',
-    description: 'Sets scrub-handle content width in pixels.',
+    description: 'Width in pixels of a handle with content.',
   },
   {
-    name: 'min',
-    type: 'number',
-    required: true,
-    description: 'The lower bound for clamp and wrap modes.',
+    name: 'scrub',
+    type: 'boolean | undefined',
+    defaultValue: 'true',
+    description: 'Renders the scrub handle.',
   },
   {
-    name: 'max',
-    type: 'number',
-    required: true,
-    description: 'The upper bound for clamp and wrap modes.',
-  },
-  {
-    name: 'wrapMode',
-    type: 'PrimitiveWrapMode',
-    shortType: "'clamp' | 'wrap' | 'free'",
-    required: true,
-    description: 'Controls how values behave at the bounds.',
-  },
-  {
-    name: 'step',
-    type: 'number',
-    required: true,
-    description: 'The standard keyboard and scrub increment.',
-  },
-  {
-    name: 'fineStep',
-    type: 'number',
-    required: true,
-    description: 'The Alt/Option-modified increment.',
-  },
-  {
-    name: 'coarseStep',
-    type: 'number',
-    required: true,
-    description: 'The Shift-modified increment.',
-  },
-  {
-    name: 'pageStep',
-    type: 'number',
-    required: true,
-    description: 'The Page Up and Page Down increment.',
-  },
-  {
-    name: 'precision',
-    type: 'PrimitivePrecision',
-    required: true,
-    description: 'Controls displayed decimal precision.',
-  },
-  {
-    name: 'autoTrim',
-    type: 'boolean',
-    required: true,
-    description: 'Trims insignificant trailing zeros from formatted values.',
-  },
-  {
-    name: 'allowExpressions',
-    type: 'boolean',
-    required: true,
-    description:
-      'Tells a supplied expression parser whether expression evaluation is enabled.',
-  },
-  {
-    name: 'parseExpression',
-    type: 'PrimitiveExpressionParser | undefined',
-    shortType: 'function',
-    description:
-      'Parses drafts and receives allowExpressions, the current value, and the active range.',
-  },
-  {
-    name: 'selectAllOnFocus',
-    type: 'boolean',
-    required: true,
-    description: 'Selects the complete draft when the input receives focus.',
-  },
-  {
-    name: 'commitOnBlur',
-    type: 'boolean',
-    required: true,
-    description: 'Commits a valid draft when focus leaves the input.',
-  },
-  {
-    name: 'scrubEnabled',
-    type: 'boolean',
-    required: true,
-    description: 'Renders and enables pointer scrubbing.',
-  },
-  {
-    name: 'scrubPixelsPerStep',
+    name: 'pixelsPerStep',
     type: 'number | undefined',
-    shortType: 'number',
     defaultValue: '1',
-    description: 'Sets pointer pixels required for each scrub step.',
+    description: 'Pointer pixels per step while scrubbing.',
   },
   {
-    name: 'stepDragDistance',
+    name: 'stepDistance',
     type: 'number | undefined',
-    shortType: 'number',
-    description: 'Alternative scrub distance for one configured step.',
+    description: 'Scrub in whole steps, one per stepDistance pixels.',
   },
   {
     name: 'scrubThreshold',
-    type: 'number',
-    required: true,
-    description: 'Sets pointer movement required before scrubbing begins.',
+    type: 'number | undefined',
+    defaultValue: '1',
+    description: 'Pointer pixels before a scrub starts.',
   },
   {
     name: 'scrubCommitThreshold',
     type: 'number | undefined',
-    shortType: 'number',
-    description: 'Sets the minimum scrub delta before publishing a value.',
+    defaultValue: '0',
+    description: 'Minimum value change between updates while scrubbing.',
   },
   {
     name: 'scrubMaxCommitRate',
     type: 'number | undefined',
-    shortType: 'number',
-    description: 'Limits scrub value publications per second.',
+    description: 'Maximum updates per second while scrubbing.',
   },
   {
-    name: 'pointerLockEnabled',
-    type: 'boolean',
-    required: true,
-    description: 'Uses pointer lock for unbounded scrubbing when available.',
-  },
-  {
-    name: 'horizontalArrowKeysMoveCaret',
+    name: 'pointerLock',
     type: 'boolean | undefined',
-    shortType: 'boolean',
-    defaultValue: 'true',
-    description:
-      'Keeps horizontal arrows available for caret movement while editing.',
-  },
-  {
-    name: 'disabled',
-    type: 'boolean',
-    required: true,
-    description: 'Disables editing and scrubbing.',
-  },
-  {
-    name: 'readOnly',
-    type: 'boolean',
-    required: true,
-    description: 'Prevents changes without disabling focus.',
-  },
-  {
-    name: 'onInvalidCommit',
-    type: '(draft: string) => void',
-    shortType: 'function',
-    description: 'Reports a draft that could not be committed.',
-  },
-  {
-    name: 'visualState',
-    type: 'PrimitiveVisualState',
-    shortType: "'auto' | 'valid' | 'invalid'",
-    required: true,
-    description: 'Controls validation styling.',
-  },
-  {
-    name: 'visualTreatment',
-    type: 'PrimitiveVisualTreatment | undefined',
-    shortType: "'default' | 'embedded'",
-    defaultValue: "'default'",
-    description: 'Selects standalone or embedded surface styling.',
-  },
-  {
-    name: 'showInvalidBorder',
-    type: 'boolean | undefined',
-    shortType: 'boolean',
     defaultValue: 'false',
-    description: 'Shows the invalid border treatment.',
+    description: 'Locks the pointer while scrubbing.',
   },
   {
     name: 'onScrubbingChange',
-    type: '(isScrubbing: boolean) => void',
+    type: '((isScrubbing: boolean) => void) | undefined',
     shortType: 'function',
-    description: 'Reports when pointer scrubbing starts or ends.',
+    description: 'Reports when scrubbing starts and ends.',
   },
   {
-    name: 'size',
-    type: 'PrimitiveSize',
-    shortType: "'sm' | 'md' | 'lg' | 'full'",
-    required: true,
-    description: 'Sets the control width preset.',
+    name: 'invalid',
+    type: 'boolean | undefined',
+    defaultValue: 'false',
+    description: 'Forces the invalid border and aria-invalid.',
   },
   {
-    name: 'density',
-    type: 'PrimitiveDensity | undefined',
-    shortType: "'compact' | 'comfortable'",
-    defaultValue: "'compact'",
-    description: 'Sets the control height and text density.',
+    name: 'inputProps',
+    type: 'ControlFieldInputProps | undefined',
+    shortType: 'object',
+    description: 'Props for the text input, such as inputMode or key handlers.',
   },
 ] satisfies readonly PropReference[];
 
@@ -267,12 +219,12 @@ export function InputDocsPage() {
     <MarkdownDocsPage
       slots={{
         'demo:basic': (
-          <DocsExample code={inputExampleCode} label="Primitive value input">
-            <InputPrimitiveExample />
+          <DocsExample code={inputExampleCode} label="Control input">
+            <ControlInputExample />
           </DocsExample>
         ),
         'props:input': (
-          <PropReferenceTable name="PrimitiveValueInput" props={INPUT_PROPS} />
+          <PropReferenceTable name="ControlInput" props={INPUT_PROPS} />
         ),
       }}
       source={inputDocs}

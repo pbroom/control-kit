@@ -1,0 +1,100 @@
+# Publishes control-kit to npm. Manual only: run it from the Actions tab
+# ("Release" -> "Run workflow") on the commit you want to ship. Nothing here
+# runs on push or tag.
+#
+# Maintainer setup (one time):
+#   1. Create an npm access token that can publish `control-kit`
+#      (a granular token with read/write access and "bypass 2FA" enabled,
+#      or an automation token). Tokens expire; rotate before they do.
+#   2. Add it to this repository as the Actions secret `NPM_TOKEN`
+#      (Settings -> Secrets and variables -> Actions -> New repository secret).
+#
+# Provenance: `--provenance` signs the tarball with this workflow's GitHub
+# OIDC identity, which is why the job needs `id-token: write`. npm requires
+# the repository to be public and `repository.url` in package.json to match it.
+#
+# Before running, bump `version` in package.json and update CHANGELOG.md on
+# the commit being released. npm refuses to republish an existing version.
+
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      dist-tag:
+        description: npm dist-tag to publish under
+        required: true
+        default: next
+        type: string
+      dry-run:
+        description: Run every check and `pnpm publish --dry-run` without uploading
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: pnpm
+          # Writes an .npmrc that reads the token from NODE_AUTH_TOKEN.
+          registry-url: https://registry.npmjs.org
+      - name: Validate dist-tag
+        env:
+          DIST_TAG: ${{ inputs.dist-tag }}
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if ! printf '%s' "$DIST_TAG" | grep -Eq '^[a-z][a-z0-9-]*$'; then
+            echo "::error::Invalid dist-tag '$DIST_TAG'"
+            exit 1
+          fi
+          case "$version" in
+            *-*)
+              if [ "$DIST_TAG" = latest ]; then
+                echo "::error::Refusing to publish prerelease $version as latest"
+                exit 1
+              fi
+              ;;
+          esac
+          echo "Publishing control-kit@$version under '$DIST_TAG'"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm format:check
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: pnpm exec playwright install --with-deps chromium
+      - if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: pnpm exec playwright install-deps chromium
+      - run: pnpm test:consumer
+      - name: Publish
+        env:
+          DIST_TAG: ${{ inputs.dist-tag }}
+          DRY_RUN: ${{ inputs.dry-run }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          args=(--tag "$DIST_TAG" --provenance --no-git-checks)
+          if [ "$DRY_RUN" = true ]; then
+            args+=(--dry-run)
+          fi
+          pnpm publish "${args[@]}"

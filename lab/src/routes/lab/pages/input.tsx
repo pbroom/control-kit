@@ -18,35 +18,35 @@ import {
   PANEL_TWO_COLUMN_GRID_CLASS,
   PanelSection,
   PrecisionConfigInput,
-  PrimitiveValueInput,
+  ControlInput,
   PropertyFieldTooltip,
   SegmentedField,
   Separator,
   StepConfigInput,
   TextConfigField,
   ToggleField,
-  parsePrimitiveExpression,
-  type PrimitiveDensity,
-  type PrimitiveHandleContent,
-  type PrimitiveHandleSide,
-  type PrimitivePrecision,
-  type PrimitiveSize,
-  type PrimitiveVisualState,
-  type PrimitiveWrapMode,
+  labExpressionResolver,
+  type ControlFieldBoundaryBehavior,
+  type ControlInputDensity,
+  type ControlInputHandleSide,
+  type ControlInputSize,
+  type InputHandleContent,
+  type InputValidity,
 } from '../shared.js';
 import { createActiveLabPage } from '../create-active-lab-page.js';
 import type { LabPageDescriptor } from '../types.js';
 
 function useInputLabPageController() {
-  const [value, setValue] = useState(42);
+  const [value, setValue] = useState<number | null>(42);
   const [min, setMin] = useState(0);
   const [max, setMax] = useState(100);
-  const [wrapMode, setWrapMode] = useState<PrimitiveWrapMode>('clamp');
+  const [wrapMode, setWrapMode] =
+    useState<ControlFieldBoundaryBehavior>('clamp');
   const [step, setStep] = useState(1);
   const [fineStep, setFineStep] = useState(0.1);
   const [coarseStep, setCoarseStep] = useState(10);
   const pageStep = 10;
-  const [precision, setPrecision] = useState<PrimitivePrecision>(3);
+  const [precision, setPrecision] = useState(3);
   const [autoTrim, setAutoTrim] = useState(true);
   const [allowExpressions, setAllowExpressions] = useState(true);
   const [selectAllOnFocus, setSelectAllOnFocus] = useState(true);
@@ -54,19 +54,20 @@ function useInputLabPageController() {
   const [horizontalArrowKeysMoveCaret, setHorizontalArrowKeysMoveCaret] =
     useState(true);
   const [scrubEnabled, setScrubEnabled] = useState(true);
-  const [pointerLockEnabled, setPointerLockEnabled] = useState(true);
+  const [pointerLockEnabled, setPointerLockEnabled] = useState(false);
   const [scrubThreshold, setScrubThreshold] = useState(2);
   const [stepDragDistance, setStepDragDistance] = useState(1);
   const [handleContent, setHandleContent] =
-    useState<PrimitiveHandleContent>('letter');
-  const [handleSide, setHandleSide] = useState<PrimitiveHandleSide>('leading');
+    useState<InputHandleContent>('letter');
+  const [handleSide, setHandleSide] =
+    useState<ControlInputHandleSide>('leading');
   const [handleLetter, setHandleLetter] = useState('V');
   const [handleLucideSlug, setHandleLucideSlug] = useState('mouse-pointer-2');
   const [disabled, setDisabled] = useState(false);
   const [readOnly, setReadOnly] = useState(false);
-  const [visualState, setVisualState] = useState<PrimitiveVisualState>('auto');
-  const size: PrimitiveSize = 'sm';
-  const [density, setDensity] = useState<PrimitiveDensity>('compact');
+  const [visualState, setVisualState] = useState<InputValidity>('auto');
+  const size: ControlInputSize = 'sm';
+  const [density, setDensity] = useState<ControlInputDensity>('compact');
   const [placeholder, setPlaceholder] = useState('0');
 
   const handleElement = useMemo<ReactNode>(() => {
@@ -156,33 +157,35 @@ type InputLabPageController = ReturnType<typeof useInputLabPageController>;
 
 function renderInputPreview(controller: InputLabPageController) {
   return (
-    <PrimitiveValueInput
+    <ControlInput
       value={controller.value}
       onValueChange={controller.setValue}
       placeholder={controller.placeholder}
-      handleElement={controller.handleElement}
+      handle={controller.handleElement}
       handleSide={controller.handleSide}
       min={controller.min}
       max={controller.max}
-      wrapMode={controller.wrapMode}
+      boundaryBehavior={controller.wrapMode}
       step={controller.step}
-      fineStep={controller.fineStep}
-      coarseStep={controller.coarseStep}
+      smallStep={controller.fineStep}
+      largeStep={controller.coarseStep}
       pageStep={controller.pageStep}
       precision={controller.precision}
-      autoTrim={controller.autoTrim}
-      allowExpressions={controller.allowExpressions}
-      parseExpression={parsePrimitiveExpression}
-      selectAllOnFocus={controller.selectAllOnFocus}
+      trimTrailingZeros={controller.autoTrim}
+      expressionResolver={
+        controller.allowExpressions ? labExpressionResolver : null
+      }
+      selectOnFocus={controller.selectAllOnFocus}
       commitOnBlur={controller.commitOnBlur}
-      scrubEnabled={controller.scrubEnabled}
-      stepDragDistance={controller.stepDragDistance}
+      scrub={controller.scrubEnabled}
+      stepDistance={controller.stepDragDistance}
       scrubThreshold={controller.scrubThreshold}
-      pointerLockEnabled={controller.pointerLockEnabled}
-      horizontalArrowKeysMoveCaret={controller.horizontalArrowKeysMoveCaret}
+      pointerLock={controller.pointerLockEnabled}
+      arrowKeys={controller.horizontalArrowKeysMoveCaret ? 'vertical' : 'both'}
       disabled={controller.disabled}
       readOnly={controller.readOnly}
-      visualState={controller.visualState}
+      invalid={controller.visualState === 'invalid'}
+      label="Value preview"
       size={controller.size}
       density={controller.density}
     />
@@ -200,36 +203,39 @@ function renderInputProperties(controller: InputLabPageController) {
                 <span className="block text-[11px] font-medium uppercase tracking-[0.14em] text-white/45">
                   Value
                 </span>
-                <PrimitiveValueInput
+                <ControlInput
                   value={controller.value}
                   onValueChange={controller.setValue}
-                  ariaLabel="Value"
                   placeholder={controller.placeholder}
-                  handleElement={controller.handleElement}
+                  handle={controller.handleElement}
                   handleSide={controller.handleSide}
                   min={controller.min}
                   max={controller.max}
-                  wrapMode={controller.wrapMode}
+                  boundaryBehavior={controller.wrapMode}
                   step={controller.step}
-                  fineStep={controller.fineStep}
-                  coarseStep={controller.coarseStep}
+                  smallStep={controller.fineStep}
+                  largeStep={controller.coarseStep}
                   pageStep={controller.pageStep}
                   precision={controller.precision}
-                  autoTrim={controller.autoTrim}
-                  allowExpressions={controller.allowExpressions}
-                  parseExpression={parsePrimitiveExpression}
-                  selectAllOnFocus={controller.selectAllOnFocus}
+                  trimTrailingZeros={controller.autoTrim}
+                  expressionResolver={
+                    controller.allowExpressions ? labExpressionResolver : null
+                  }
+                  selectOnFocus={controller.selectAllOnFocus}
                   commitOnBlur={controller.commitOnBlur}
-                  scrubEnabled={controller.scrubEnabled}
-                  stepDragDistance={controller.stepDragDistance}
+                  scrub={controller.scrubEnabled}
+                  stepDistance={controller.stepDragDistance}
                   scrubThreshold={controller.scrubThreshold}
-                  pointerLockEnabled={controller.pointerLockEnabled}
-                  horizontalArrowKeysMoveCaret={
+                  pointerLock={controller.pointerLockEnabled}
+                  arrowKeys={
                     controller.horizontalArrowKeysMoveCaret
+                      ? 'vertical'
+                      : 'both'
                   }
                   disabled={controller.disabled}
                   readOnly={controller.readOnly}
-                  visualState={controller.visualState}
+                  invalid={controller.visualState === 'invalid'}
+                  label="Value"
                   size="full"
                 />
               </label>
@@ -387,7 +393,7 @@ function renderInputProperties(controller: InputLabPageController) {
             onStepDragDistanceChange={controller.setStepDragDistance}
           />
           <StepConfigInput
-            label="Fine"
+            label="Small step"
             value={controller.fineStep}
             onValueChange={controller.setFineStep}
             leadingElement={
@@ -400,7 +406,7 @@ function renderInputProperties(controller: InputLabPageController) {
             step={0.1}
           />
           <StepConfigInput
-            label="Coarse"
+            label="Large step"
             value={controller.coarseStep}
             onValueChange={controller.setCoarseStep}
             leadingElement={
@@ -423,7 +429,7 @@ function renderInputProperties(controller: InputLabPageController) {
       >
         <div className="space-y-3">
           <ToggleField
-            label="Select all on focus"
+            label="Select on focus"
             checked={controller.selectAllOnFocus}
             onChange={controller.setSelectAllOnFocus}
           />
@@ -438,7 +444,7 @@ function renderInputProperties(controller: InputLabPageController) {
             onChange={controller.setCommitOnBlur}
           />
           <ToggleField
-            label="Horizontal arrows move caret"
+            label="Left/right arrows move caret"
             checked={controller.horizontalArrowKeysMoveCaret}
             onChange={controller.setHorizontalArrowKeysMoveCaret}
           />
@@ -478,7 +484,7 @@ function renderInputProperties(controller: InputLabPageController) {
 
       <PanelSection
         title="Visual State"
-        description="Preview primitive sizing and state variants."
+        description="Preview input sizing and state variants."
       >
         <div className="space-y-3">
           <SegmentedField
@@ -519,7 +525,7 @@ function renderInputProperties(controller: InputLabPageController) {
 export const inputLabPage: LabPageDescriptor<'input', InputLabPageController> =
   {
     key: 'input',
-    label: 'Input Primitive',
+    label: 'Control Input',
     useController: useInputLabPageController,
     renderPreview: renderInputPreview,
     renderProperties: renderInputProperties,

@@ -11,7 +11,7 @@ import {
   type Placement,
 } from '@floating-ui/react';
 import type { Popover } from '@base-ui/react/popover';
-import { usePlaneThumbContext } from './plane.js';
+import { usePlaneThumbContext } from './plane/context.js';
 import { cn } from './utils.js';
 
 type AttachmentPositioningProps = Pick<
