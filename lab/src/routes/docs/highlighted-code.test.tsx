@@ -3,7 +3,7 @@
 import { act, type ButtonHTMLAttributes, type PropsWithChildren } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { HighlightedCode } from './highlighted-code.js';
+import { HighlightedCode, previewSource } from './highlighted-code.js';
 
 vi.mock('../../components/ui/button.js', () => ({
   Button: ({
@@ -149,6 +149,42 @@ describe('HighlightedCode', () => {
       container.querySelector('button')?.click();
     });
     expect(writeText).toHaveBeenCalledWith(code);
+  });
+
+  it('slices preview sources by line without trailing newlines', () => {
+    const code = 'one\ntwo\nthree\n';
+    expect(previewSource(code)).toBe(code);
+    expect(previewSource(code, 0)).toBe('');
+    expect(previewSource(code, 1)).toBe('one');
+    expect(previewSource(code, 2)).toBe('one\ntwo');
+    expect(previewSource(code, 3)).toBe('one\ntwo\nthree');
+    expect(previewSource(code, 8)).toBe(code);
+    expect(previewSource('single', 8)).toBe('single');
+  });
+
+  it('only tokenizes preview lines while collapsed', () => {
+    // An unterminated template literal after the preview would restyle
+    // every token if it were highlighted with the preview lines.
+    const code = ['const a = 1;', 'const b = 2;', 'const c = `open'].join('\n');
+    const container = mountHighlightedCode({
+      block: true,
+      code,
+      previewLines: 2,
+    });
+    const tokens = Array.from(container.querySelectorAll('pre .token'));
+
+    expect(container.querySelector('pre')?.textContent).toBe(
+      'const a = 1;\nconst b = 2;',
+    );
+    expect(
+      tokens.some((token) => token.classList.contains('template-string')),
+    ).toBe(false);
+    expect(
+      tokens.some(
+        (token) =>
+          token.classList.contains('keyword') && token.textContent === 'const',
+      ),
+    ).toBe(true);
   });
 
   it('shows a visible failure state when clipboard access is denied', async () => {

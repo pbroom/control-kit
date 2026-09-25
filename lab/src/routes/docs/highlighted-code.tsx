@@ -97,6 +97,18 @@ export function CopyCodeButton({
   );
 }
 
+/** Returns the first `lineCount` lines of `code`, or all of it when unset. */
+export function previewSource(code: string, lineCount?: number) {
+  if (lineCount === undefined) return code;
+  if (lineCount <= 0) return '';
+  let end = -1;
+  for (let line = 0; line < lineCount; line += 1) {
+    end = code.indexOf('\n', end + 1);
+    if (end === -1) return code;
+  }
+  return code.slice(0, end);
+}
+
 export function HighlightedCode({
   appearance = 'block',
   block = false,
@@ -105,17 +117,23 @@ export function HighlightedCode({
   previewLines,
   showCopyButton = true,
 }: HighlightedCodeProps) {
+  // Highlight only the preview so collapsed sources skip tokenizing lines they
+  // never show. The copy control below still receives the full `code`.
+  const highlightedSource = previewSource(code, previewLines);
+
   return (
-    <Highlight code={code} language={language} theme={themes.vsDark}>
+    <Highlight
+      code={highlightedSource}
+      language={language}
+      theme={themes.vsDark}
+    >
       {({ className, getLineProps, getTokenProps, style, tokens }) => {
-        const visibleTokens =
-          previewLines === undefined ? tokens : tokens.slice(0, previewLines);
-        const highlightedLines = visibleTokens.map((line, lineIndex) => (
+        const highlightedLines = tokens.map((line, lineIndex) => (
           <span {...getLineProps({ line })} key={lineIndex}>
             {line.map((token, tokenIndex) => (
               <span {...getTokenProps({ token })} key={tokenIndex} />
             ))}
-            {lineIndex < visibleTokens.length - 1 ? '\n' : null}
+            {lineIndex < tokens.length - 1 ? '\n' : null}
           </span>
         ));
 
