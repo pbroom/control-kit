@@ -27,6 +27,26 @@ async function numberAttribute(locator: Locator, name: string) {
   return Number(await locator.getAttribute(name));
 }
 
+async function newestVelocitySpawnedAfter(canvas: Locator, spawnCount: number) {
+  // Read the newest particle after a later spawn, all from one frame's
+  // diagnostics, so the velocity belongs to a particle emitted with the
+  // current emitter settings rather than one emitted before the change.
+  let velocity: { x: number; y: number } | null = null;
+  await expect
+    .poll(async () => {
+      const sample = await canvas.evaluate((element: HTMLElement) => ({
+        spawnCount: Number(element.dataset.emitterSpawnCount),
+        x: Number(element.dataset.emitterNewestVelocityX),
+        y: Number(element.dataset.emitterNewestVelocityY),
+      }));
+      if (sample.spawnCount <= spawnCount) return false;
+      velocity = { x: sample.x, y: sample.y };
+      return true;
+    })
+    .toBe(true);
+  return velocity!;
+}
+
 test('emits a bounded, continuously moving particle pool inside the Plane', async ({
   page,
 }, testInfo) => {
@@ -133,29 +153,22 @@ test('pointer changes direction and spread without resetting the emitter', async
   await expect(canvas).toHaveAttribute('data-emitter-angle', '0.000');
   await expect(canvas).toHaveAttribute('data-emitter-spread', '35.000');
   await expect(example.locator('output')).toHaveText('0° · 35° spread');
-  await expect
-    .poll(() => numberAttribute(canvas, 'data-emitter-spawn-count'))
-    .toBeGreaterThan(centeredSpawnCount);
-  const rightVelocity = {
-    x: await numberAttribute(canvas, 'data-emitter-newest-velocity-x'),
-    y: await numberAttribute(canvas, 'data-emitter-newest-velocity-y'),
-  };
+  expect(
+    await numberAttribute(canvas, 'data-emitter-spawn-count'),
+  ).toBeGreaterThanOrEqual(centeredSpawnCount);
+  const rightVelocity = await newestVelocitySpawnedAfter(
+    canvas,
+    await numberAttribute(canvas, 'data-emitter-spawn-count'),
+  );
   expect(rightVelocity.x).toBeGreaterThan(0);
   expect(Math.abs(rightVelocity.y / rightVelocity.x)).toBeLessThan(0.34);
 
-  const spawnCountBeforeTurn = await numberAttribute(
-    canvas,
-    'data-emitter-spawn-count',
-  );
   await setPlaneValue(page, plane, 0.5, 0.95);
   await expect(canvas).toHaveAttribute('data-emitter-angle', '90.000');
-  await expect
-    .poll(() => numberAttribute(canvas, 'data-emitter-spawn-count'))
-    .toBeGreaterThan(spawnCountBeforeTurn);
-  const upwardVelocity = {
-    x: await numberAttribute(canvas, 'data-emitter-newest-velocity-x'),
-    y: await numberAttribute(canvas, 'data-emitter-newest-velocity-y'),
-  };
+  const upwardVelocity = await newestVelocitySpawnedAfter(
+    canvas,
+    await numberAttribute(canvas, 'data-emitter-spawn-count'),
+  );
   expect(upwardVelocity.y).toBeGreaterThan(0);
   expect(Math.abs(upwardVelocity.x / upwardVelocity.y)).toBeLessThan(0.34);
   expect(errors).toEqual([]);
