@@ -136,7 +136,31 @@ export function DocsOnThisPage({
       animationFrame = window.requestAnimationFrame(updateActiveHeading);
     };
 
+    // Content above the fragment can still change height after the first
+    // restore (web fonts swapping in reflow paragraphs, examples settling).
+    // Keep the restored heading anchored until the reader takes over.
+    let anchoredTarget: HTMLElement | null = null;
+    const reanchorFragment = () => {
+      if (!anchoredTarget) return;
+      anchoredTarget.scrollIntoView({ block: 'start', behavior: 'instant' });
+      setActiveId(anchoredTarget.id);
+    };
+    const releaseFragmentAnchor = () => {
+      anchoredTarget = null;
+    };
+    const resizeObserver =
+      typeof ResizeObserver === 'undefined'
+        ? null
+        : new ResizeObserver(reanchorFragment);
+    resizeObserver?.observe(article);
+    const readerInputEvents = [
+      'wheel',
+      'touchstart',
+      'pointerdown',
+      'keydown',
+    ] as const;
     const restoreFragment = () => {
+      anchoredTarget = null;
       let targetId: string;
       try {
         targetId = decodeURIComponent(window.location.hash.slice(1));
@@ -146,9 +170,11 @@ export function DocsOnThisPage({
       const target = headings.find((heading) => heading.id === targetId);
       if (!target) return;
 
+      anchoredTarget = target;
       target.scrollIntoView({ block: 'start', behavior: 'instant' });
       setActiveId(target.id);
     };
+
     const scheduleFragmentRestore = () => {
       window.cancelAnimationFrame(animationFrame);
       animationFrame = window.requestAnimationFrame(() => {
@@ -163,9 +189,21 @@ export function DocsOnThisPage({
     window.addEventListener('popstate', scheduleFragmentRestore);
     scrollRoot.addEventListener('scroll', scheduleUpdate, { passive: true });
     window.addEventListener('resize', scheduleUpdate);
+    for (const type of readerInputEvents) {
+      window.addEventListener(type, releaseFragmentAnchor, {
+        capture: true,
+        passive: true,
+      });
+    }
 
     return () => {
       window.cancelAnimationFrame(animationFrame);
+      resizeObserver?.disconnect();
+      for (const type of readerInputEvents) {
+        window.removeEventListener(type, releaseFragmentAnchor, {
+          capture: true,
+        });
+      }
       window.removeEventListener('hashchange', scheduleFragmentRestore);
       window.removeEventListener('popstate', scheduleFragmentRestore);
       scrollRoot.removeEventListener('scroll', scheduleUpdate);
