@@ -8,9 +8,9 @@ A composed one-dimensional color-channel control. Control Kit supplies the share
 
 ### Manual
 
-`ColorSlider` is owned by Color Kit and is not exported from `control-kit`. The Lab uses a local Color Kit adapter composed over `ColorValueSlider` from `control-kit`.
+`ColorSlider` is owned by Color Kit and is not exported from `@pbroom/control-kit`. The Lab uses a local Color Kit adapter composed over `ColorValueSlider` from `@pbroom/control-kit`.
 
-1. Install `control-kit` and its `@base-ui/react` peer, then copy the Lab [`ColorSlider` adapter](https://github.com/pbroom/control-kit/blob/main/lab/src/vendor/color-kit/react/color-slider.tsx) and its shared Color Kit dependencies into your project.
+1. Install `@pbroom/control-kit` and its `@base-ui/react` peer, then copy the Lab [`ColorSlider` adapter](https://github.com/pbroom/control-kit/blob/main/lab/src/vendor/color-kit/react/color-slider.tsx) and its shared Color Kit dependencies into your project.
 2. Update the `color-kit/react` import path to match your project setup.
 3. Import `ColorSlider` as shown below.
 
@@ -38,10 +38,10 @@ The root contains a Base UI control and thumb. Base UI supplies the hidden range
 
 ## Shared numeric sliders
 
-Use `Slider` from `control-kit` for a numeric value. Use `ColorValueSlider` for a numeric color control with a gradient supplied by the application. Both use the same Base UI interaction and accessible input; the color adapter omits the filled indicator.
+Use `Slider` from `@pbroom/control-kit` for a numeric value. Use `ColorValueSlider` for a numeric color control with a gradient supplied by the application. Both use the same Base UI interaction and accessible input; the color adapter omits the filled indicator.
 
 ```tsx
-import { ColorValueSlider, Slider } from 'control-kit';
+import { ColorValueSlider, Slider } from '@pbroom/control-kit';
 
 <Slider aria-label="Flow" defaultValue={50} min={0} max={100} />;
 <ColorValueSlider

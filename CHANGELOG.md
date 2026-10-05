@@ -1,15 +1,12 @@
 # Changelog
 
-All notable changes to `control-kit` are documented here. The
+All notable changes to `@pbroom/control-kit` are documented here. The
 format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 the package adheres to [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
-These entries will ship as `0.1.0-next.0`, the first npm release, under the
-`next` dist-tag. When it is published, rename this heading to
-`## 0.1.0-next.0 - YYYY-MM-DD` with the publish date and start a new empty
-Unreleased section.
+## 0.1.0-next.0 - 2026-10-05
 
 ### Added
 
@@ -35,19 +32,19 @@ Unreleased section.
 - `MultiInputControl` `onFieldCommit` fires once per finished edit, and
   `expressionResolver` sets the resolver for every field.
 
-- Published to npm as `control-kit` under the `next` dist-tag:
-  `pnpm add control-kit@next @base-ui/react`. The GitHub install remains
+- Published to npm as `@pbroom/control-kit` under the `next` dist-tag:
+  `pnpm add @pbroom/control-kit@next @base-ui/react`. The GitHub install remains
   available for unreleased changes. A manual Release workflow publishes with
   npm provenance, and `prepublishOnly` typechecks, tests, and rebuilds
   `dist/` before any publish.
 
-- `control-kit/theme.css` defines every `--ck-*` token with the dark
+- `@pbroom/control-kit/theme.css` defines every `--ck-*` token with the dark
   defaults on `:root` and a light preset opted into with
-  `data-ck-theme="light"`. `control-kit/tailwind.css` is a Tailwind v4 preset
+  `data-ck-theme="light"`. `@pbroom/control-kit/tailwind.css` is a Tailwind v4 preset
   that includes the theme, registers the package source with `@source`, and
   maps the tokens to `ck-*` color utilities such as `bg-ck-surface` and
   `ring-ck-accent`. Replace a manual `@source` with
-  `@import 'control-kit/tailwind.css';`.
+  `@import '@pbroom/control-kit/tailwind.css';`.
 
 - Reworked the Mesh gradient example with continuous Oklab color blending,
   curved flow, six draggable color points, editable palettes, grain controls,
@@ -77,6 +74,13 @@ Unreleased section.
 
 ### Changed
 
+- Renamed the package from `control-kit` to `@pbroom/control-kit` because
+  npm rejected the unscoped name as too similar to an existing package.
+  Nothing was published as `control-kit`. Consumers installing from GitHub
+  update import specifiers to `from '@pbroom/control-kit'`, CSS imports to
+  `@pbroom/control-kit/tailwind.css` and `@pbroom/control-kit/theme.css`, and
+  Tailwind source paths to `node_modules/@pbroom/control-kit/src`.
+
 - `PrimitiveValueInput` now renders `ControlInput`. Its props and callback
   semantics are unchanged, with these differences: the input keeps Base UI
   number field semantics instead of `role="spinbutton"` (query it as a
@@ -100,9 +104,10 @@ Unreleased section.
 - `ControlField` `onValueChange` fires for every parseable keystroke, as Base
   UI does; `onValueCommitted` fires once per finished edit.
 
-- Renamed the standalone package from `@color-kit/control-kit` to `control-kit`.
-  Replace the dependency and import specifiers, and update Tailwind source paths
-  from `node_modules/@color-kit/control-kit/src` to `node_modules/control-kit/src`.
+- Renamed the standalone package from `@color-kit/control-kit` to
+  `@pbroom/control-kit`. Replace the dependency and import specifiers, and
+  update Tailwind source paths from `node_modules/@color-kit/control-kit/src`
+  to `node_modules/@pbroom/control-kit/src`.
   Root exports are unchanged. See the [installation instructions](./README.md#install)
   for the npm and GitHub install commands.
 

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Plane, PlaneThumb, type PlaneValue } from 'control-kit';
+import { Plane, PlaneThumb, type PlaneValue } from '@pbroom/control-kit';
 
 const WORLD_SIZE = 300;
 const HEX_RADIUS = 124;

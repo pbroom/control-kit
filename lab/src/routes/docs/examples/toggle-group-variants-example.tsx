@@ -1,4 +1,4 @@
-import { ToggleGroup, ToggleGroupItem } from 'control-kit';
+import { ToggleGroup, ToggleGroupItem } from '@pbroom/control-kit';
 
 const sizes = ['sm', 'default', 'lg'] as const;
 

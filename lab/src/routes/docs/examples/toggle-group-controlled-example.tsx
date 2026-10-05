@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ToggleGroup, ToggleGroupItem } from 'control-kit';
+import { ToggleGroup, ToggleGroupItem } from '@pbroom/control-kit';
 
 export function ToggleGroupControlledExample() {
   const [view, setView] = useState<string | null>('grid');

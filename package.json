@@ -1,5 +1,5 @@
 {
-  "name": "control-kit",
+  "name": "@pbroom/control-kit",
   "version": "0.1.0-next.0",
   "description": "React UI primitives for building operational color controls",
   "type": "module",

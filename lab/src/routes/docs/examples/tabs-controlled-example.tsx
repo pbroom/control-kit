@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from 'control-kit';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@pbroom/control-kit';
 
 export function TabsControlledExample() {
   const [tab, setTab] = useState('canvas');

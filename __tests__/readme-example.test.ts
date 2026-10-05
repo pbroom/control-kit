@@ -26,7 +26,7 @@ it.each([
       moduleResolution: ts.ModuleResolutionKind.Bundler,
       jsx: ts.JsxEmit.ReactJSX,
       paths: {
-        'control-kit': [path.join(repoRoot, 'src/index.ts')],
+        '@pbroom/control-kit': [path.join(repoRoot, 'src/index.ts')],
       },
     };
     const host = ts.createCompilerHost(options);

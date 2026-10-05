@@ -3,7 +3,7 @@ import {
   MultiInputControl,
   type MultiInputConfig,
   type MultiInputField,
-} from 'control-kit';
+} from '@pbroom/control-kit';
 
 type FieldId = 'x' | 'y';
 

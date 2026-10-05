@@ -1,7 +1,7 @@
 import '../../src/styles.css';
 import { useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Plane, PlaneThumb, PlaneAttachment } from 'control-kit';
+import { Plane, PlaneThumb, PlaneAttachment } from '@pbroom/control-kit';
 
 const portal = new URLSearchParams(location.search).get('portal') !== 'false';
 

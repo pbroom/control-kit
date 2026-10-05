@@ -13,7 +13,7 @@ import {
   getControlFieldInteraction,
   type ControlFieldExpressionResolver,
   type ControlFieldInteraction,
-} from 'control-kit';
+} from '@pbroom/control-kit';
 import { useOptionalColorContext } from './context.js';
 import {
   colorFromColorInputChannelValue,

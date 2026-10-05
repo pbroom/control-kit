@@ -1019,7 +1019,7 @@ test('routes between Plane docs and Lab and exposes tabs only on documented page
     'Code copied to clipboard.',
   );
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
-    `import { Plane, PlaneThumb, PlaneAttachment } from 'control-kit';
+    `import { Plane, PlaneThumb, PlaneAttachment } from '@pbroom/control-kit';
 
 <Plane aria-label="Position">
   <PlaneThumb defaultValue={{ x: 0.5, y: 0.5 }} />

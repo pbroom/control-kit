@@ -45,7 +45,7 @@ import {
   type MultiInputField,
   type PlaneInteraction,
   type PlaneValue,
-} from 'control-kit';
+} from '@pbroom/control-kit';
 import {
   ArrowBigDown,
   ArrowBigUp,

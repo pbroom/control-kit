@@ -9,7 +9,7 @@ A compact numeric input preset built from [Control Field](/docs/control-field) p
 `ControlInput` composes `ControlField.Root`, `Group`, `ScrubArea`, `Input`, and `Affix`:
 
 ```tsx
-import { ControlInput } from 'control-kit';
+import { ControlInput } from '@pbroom/control-kit';
 
 <ControlInput
   label="Opacity"

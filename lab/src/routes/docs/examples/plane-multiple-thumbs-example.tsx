@@ -1,5 +1,10 @@
 import { useState } from 'react';
-import { Checkbox, Plane, PlaneThumb, type PlaneValue } from 'control-kit';
+import {
+  Checkbox,
+  Plane,
+  PlaneThumb,
+  type PlaneValue,
+} from '@pbroom/control-kit';
 
 const initialPoints = [
   { id: 'top-left', value: { x: 0.25, y: 0.75 } },

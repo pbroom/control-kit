@@ -58,7 +58,7 @@ try {
   // Use the versions selected by the repository lockfile, but install them
   // outside the repository. No workspace links or source aliases can mask a
   // missing package file, export, peer dependency, or Tailwind source.
-  const dependencies = { 'control-kit': packageSource };
+  const dependencies = { '@pbroom/control-kit': packageSource };
   for (const name of [
     '@base-ui/react',
     'react',
@@ -82,7 +82,11 @@ try {
   );
   run('pnpm', [
     ...(gitInstall
-      ? ['add', '--allow-build=control-kit', `control-kit@${packageSource}`]
+      ? [
+          'add',
+          '--allow-build=@pbroom/control-kit',
+          `@pbroom/control-kit@${packageSource}`,
+        ]
       : ['install', '--no-frozen-lockfile']),
     ...(gitInstall
       ? ['--store-dir', join(temporary, 'store')]
@@ -95,12 +99,12 @@ try {
     '-e',
     String.raw`import assert from 'node:assert/strict';
      import { createRequire } from 'node:module';
-     import * as esm from 'control-kit';
+     import * as esm from '@pbroom/control-kit';
      const require = createRequire(import.meta.url);
-     const cjs = require('control-kit');
-     assert.equal(require('control-kit/package.json').name, 'control-kit');
-     assert.match(import.meta.resolve('control-kit'), /\/dist\/index\.js$/);
-     assert.match(require.resolve('control-kit'), /\/dist\/index\.cjs$/);
+     const cjs = require('@pbroom/control-kit');
+     assert.equal(require('@pbroom/control-kit/package.json').name, '@pbroom/control-kit');
+     assert.match(import.meta.resolve('@pbroom/control-kit'), /\/dist\/index\.js$/);
+     assert.match(require.resolve('@pbroom/control-kit'), /\/dist\/index\.cjs$/);
      assert.deepEqual(Object.keys(esm).sort(), Object.keys(cjs).sort());
      for (const kit of [esm, cjs]) {
        assert.deepEqual(kit.clampPlaneValue({x: 2, y: -1}), {x: 1, y: 0});
@@ -110,8 +114,8 @@ try {
      }
      for (const file of ['theme.css', 'tailwind.css']) {
        const pattern = new RegExp('/control-kit/styles/' + file.replace('.', '\\.') + '$');
-       assert.match(import.meta.resolve('control-kit/' + file), pattern);
-       assert.match(require.resolve('control-kit/' + file), pattern);
+       assert.match(import.meta.resolve('@pbroom/control-kit/' + file), pattern);
+       assert.match(require.resolve('@pbroom/control-kit/' + file), pattern);
      }`,
   ]);
   if (!gitInstall) {
@@ -127,7 +131,10 @@ try {
     }
   }
   // The preset's relative @source must reach the installed package source.
-  const installedStyles = join(consumer, 'node_modules/control-kit/styles');
+  const installedStyles = join(
+    consumer,
+    'node_modules/@pbroom/control-kit/styles',
+  );
   const presetSource = /@source '([^']+)';/.exec(
     await readFile(join(installedStyles, 'tailwind.css'), 'utf8'),
   )?.[1];
@@ -266,7 +273,7 @@ try {
   // @source), the token utilities, and the light theme preset.
   await writeFile(
     join(consumer, 'styles.css'),
-    "@import 'tailwindcss';\n@import 'control-kit/tailwind.css';\n",
+    "@import 'tailwindcss';\n@import '@pbroom/control-kit/tailwind.css';\n",
   );
   await rm(join(consumer, 'dist'), { recursive: true, force: true });
   run('pnpm', ['exec', 'vite', 'build']);

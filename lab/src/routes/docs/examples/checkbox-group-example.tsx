@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Checkbox } from 'control-kit';
+import { Checkbox } from '@pbroom/control-kit';
 
 type GuideSettings = {
   grid: boolean;

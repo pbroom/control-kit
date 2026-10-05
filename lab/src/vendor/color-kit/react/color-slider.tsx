@@ -6,7 +6,7 @@ import {
   type HTMLAttributes,
 } from 'react';
 import { useSelector } from '@legendapp/state/react';
-import { ColorValueSlider, type SliderProps } from 'control-kit';
+import { ColorValueSlider, type SliderProps } from '@pbroom/control-kit';
 import type { Color } from '@color-kit/core';
 import { useOptionalColorContext } from './context.js';
 import {

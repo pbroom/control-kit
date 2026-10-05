@@ -3,7 +3,7 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from 'control-kit';
+} from '@pbroom/control-kit';
 
 export function TooltipPlacementExample() {
   return (

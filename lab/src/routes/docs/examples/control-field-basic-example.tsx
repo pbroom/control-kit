@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ControlField } from 'control-kit';
+import { ControlField } from '@pbroom/control-kit';
 
 export function ControlFieldBasicExample() {
   const [value, setValue] = useState<number | null>(42);

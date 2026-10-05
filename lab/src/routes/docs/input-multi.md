@@ -9,7 +9,7 @@ A grouped numeric editor that composes several [Control Input](/docs/input-primi
 Define fields, per-field configuration, and controlled values:
 
 ```tsx
-import { MultiInputControl } from 'control-kit';
+import { MultiInputControl } from '@pbroom/control-kit';
 
 <MultiInputControl
   fields={fields}
@@ -64,7 +64,7 @@ Renders one configured field through `ControlInput` and reports scrub state to t
 Joins field metadata with controlled values and configuration before rendering:
 
 ```tsx
-import { createMultiInputSegments } from 'control-kit';
+import { createMultiInputSegments } from '@pbroom/control-kit';
 
 const segments = createMultiInputSegments({ fields, values, config });
 ```
