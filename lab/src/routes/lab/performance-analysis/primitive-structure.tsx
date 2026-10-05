@@ -1,79 +1,59 @@
 import {
-  type Dispatch,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
   type RefObject,
-  type SetStateAction,
+  useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
 } from 'react';
+import { Slider } from '@pbroom/control-kit';
+import {
+  buildStructureFigure,
+  type StructureFigureRegion,
+  type Vec2,
+} from './structure-iso.js';
+import {
+  findLabPreviewHost,
+  measurePrimitiveStructure,
+  type StructureMeasurement,
+} from './structure-measure.js';
 import type {
   LabPrimitiveStructure,
   LabPrimitiveStructureNode,
   LabPrimitiveStructureNodeRelation,
   LabPrimitiveStructureNodeSlot,
   LabPrimitiveStructureNodeState,
-  LabPrimitiveStructureNodeView,
 } from './types.js';
 
-type ThreeModule = typeof import('three');
-type ThreeObject3D = InstanceType<ThreeModule['Object3D']>;
-type ThreeOrthographicCamera = InstanceType<ThreeModule['OrthographicCamera']>;
-type ThreeMesh = InstanceType<ThreeModule['Mesh']>;
-type ThreeMeshBasicMaterial = InstanceType<ThreeModule['MeshBasicMaterial']>;
-type ThreeLineBasicMaterial = InstanceType<ThreeModule['LineBasicMaterial']>;
+/*
+ * The Structure tab: the selected primitive, measured from the live preview
+ * and drawn as an exploded isometric line figure in the manner of Hairline
+ * (https://github.com/lucasmarkes/hairline, MIT). The figure is plain SVG:
+ * filled plates painted back to front, 1-device-pixel non-scaling strokes,
+ * DOM hit-testing for hover, and no frame loop unless the gap is animating.
+ */
 
-const STRUCTURE_CAMERA_DISTANCE = 8.2;
-const STRUCTURE_FRUSTUM_SIZE = 7.35;
-const STRUCTURE_CAMERA_PADDING = 1.24;
-const STRUCTURE_CAMERA_SCREEN_OFFSET_X = 0.1;
-const STRUCTURE_LAYER_GAP_Y = 0.64;
-// Authored spans use twelfths; the resolver maps them onto a 24-cell grid
-// so odd spans still center cleanly inside a parent.
-const STRUCTURE_GRID_SIZE = 24;
-const STRUCTURE_GRID_SPAN_UNITS = 12;
-const STRUCTURE_GRID_CELLS_PER_SPAN_UNIT =
-  STRUCTURE_GRID_SIZE / STRUCTURE_GRID_SPAN_UNITS;
-const STRUCTURE_ROOT_GRID_WORLD_SIZE = 4.8;
-const STRUCTURE_DEFAULT_VISIBLE_DEPTH = 1;
-const STRUCTURE_MAX_PIXEL_RATIO = 2;
-const STRUCTURE_CALLOUT_LABEL_X = 68;
-const STRUCTURE_CALLOUT_LABEL_MIN_Y = 18;
-const STRUCTURE_CALLOUT_LABEL_MAX_Y = 84;
-const STRUCTURE_CALLOUT_LABEL_MIN_GAP_PX = 28;
+const STRUCTURE_CALLOUT_LABEL_X = 70;
+const STRUCTURE_CALLOUT_LABEL_MIN_Y = 12;
+const STRUCTURE_CALLOUT_LABEL_MAX_Y = 88;
+const STRUCTURE_CALLOUT_LABEL_MIN_GAP_PX = 24;
+const STRUCTURE_FIGURE_RIGHT = 0.64;
+const STRUCTURE_FIGURE_PADDING = 18;
+const STRUCTURE_DEFAULT_EXPLODE = 0.6;
+const STRUCTURE_EXPLODE_SMOOTHING_MS = 90;
 
-const STRUCTURE_LAYER_CALLOUTS = [
-  {
-    labelX: STRUCTURE_CALLOUT_LABEL_X,
-    labelY: 78,
-    targetX: 59,
-    targetY: 78,
-  },
-  {
-    labelX: STRUCTURE_CALLOUT_LABEL_X,
-    labelY: 66,
-    targetX: 58,
-    targetY: 66,
-  },
-  {
-    labelX: STRUCTURE_CALLOUT_LABEL_X,
-    labelY: 56,
-    targetX: 52,
-    targetY: 56,
-  },
-  {
-    labelX: STRUCTURE_CALLOUT_LABEL_X,
-    labelY: 45,
-    targetX: 58,
-    targetY: 45,
-  },
-  {
-    labelX: STRUCTURE_CALLOUT_LABEL_X,
-    labelY: 36,
-    targetX: 44,
-    targetY: 36,
-  },
-] as const;
+const STRUCTURE_PALETTE = {
+  '--structure-accent': '#4ba3ff',
+  '--structure-accent-top': 'color-mix(in srgb, #4ba3ff 13%, #141414)',
+  '--structure-edge': '#6b6d74',
+  '--structure-hi': '#d4d8df',
+  '--structure-lo': '#34353a',
+  '--structure-mid': '#50525a',
+  '--structure-plate': '#141414',
+  '--structure-side': '#1b1b1d',
+} as CSSProperties;
 
 type StructureCalloutPosition = {
   labelX: number;
@@ -82,40 +62,11 @@ type StructureCalloutPosition = {
   targetY: number;
 };
 
-type StructureCalloutPositions = Record<string, StructureCalloutPosition>;
-
-type StructureLayerFrame = {
-  height: number;
-  width: number;
-  x: number;
-  z: number;
-};
-
-type StructureRenderLayer = {
-  color: string;
-  component: string;
-  detail: string;
-  height: number;
-  id: string;
-  label: string;
-  layerIndex: number;
-  opacity: number;
-  parentId: string | null;
-  path: readonly string[];
-  relation: LabPrimitiveStructureNodeRelation;
-  slot?: LabPrimitiveStructureNodeSlot;
-  state: LabPrimitiveStructureNodeState;
-  treeDepth: number;
-  width: number;
-  x: number;
-  y: number;
-  z: number;
-};
-
 type StructureNodeEntry = {
   component: string;
   detail: string;
   id: string;
+  index: number;
   label: string;
   parentId: string | null;
   path: readonly string[];
@@ -123,94 +74,10 @@ type StructureNodeEntry = {
   slot?: LabPrimitiveStructureNodeSlot;
   state: LabPrimitiveStructureNodeState;
   treeDepth: number;
-  view?: LabPrimitiveStructureNodeView;
-};
-
-type StructureLayerSceneBinding = {
-  anchor: ThreeObject3D;
-  baseColor: InstanceType<ThreeModule['Color']>;
-  edgeColor: InstanceType<ThreeModule['Color']>;
-  edgeMaterial: ThreeLineBasicMaterial;
-  edgeOpacity: number;
-  edges: ThreeObject3D;
-  layerId: string;
-  layerIndex: number;
-  material: ThreeMeshBasicMaterial;
-  mesh: ThreeMesh;
-  mutedOpacity: number;
-  opacity: number;
-};
-
-type StructureSceneControls = {
-  resize: () => void;
-  setActiveLayer: (layerId: string | null) => void;
 };
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
-}
-
-function gridSpanToCellSpan(span: number) {
-  return (
-    clamp(span, 1, STRUCTURE_GRID_SPAN_UNITS) *
-    STRUCTURE_GRID_CELLS_PER_SPAN_UNIT
-  );
-}
-
-function gridTrackStart(track: number | undefined, cellSpan: number) {
-  return clamp(
-    track ?? (STRUCTURE_GRID_SIZE - cellSpan) / 2,
-    0,
-    Math.max(0, STRUCTURE_GRID_SIZE - cellSpan),
-  );
-}
-
-function resolveLayerFrame(
-  view: LabPrimitiveStructureNodeView,
-  parentFrame: StructureLayerFrame | null,
-): StructureLayerFrame {
-  if (view.layout) {
-    const parent = parentFrame ?? {
-      height: STRUCTURE_ROOT_GRID_WORLD_SIZE,
-      width: STRUCTURE_ROOT_GRID_WORLD_SIZE,
-      x: 0,
-      z: 0,
-    };
-    const widthCellSpan = gridSpanToCellSpan(
-      view.layout.width ?? STRUCTURE_GRID_SPAN_UNITS,
-    );
-    const heightCellSpan = gridSpanToCellSpan(
-      view.layout.height ?? STRUCTURE_GRID_SPAN_UNITS,
-    );
-    const column = gridTrackStart(view.layout.column, widthCellSpan);
-    const row = gridTrackStart(view.layout.row, heightCellSpan);
-    const width = parent.width * (widthCellSpan / STRUCTURE_GRID_SIZE);
-    const height = parent.height * (heightCellSpan / STRUCTURE_GRID_SIZE);
-    const x =
-      parent.x -
-      parent.width / 2 +
-      ((column + widthCellSpan / 2) / STRUCTURE_GRID_SIZE) * parent.width;
-    const z =
-      parent.z +
-      parent.height / 2 -
-      ((row + heightCellSpan / 2) / STRUCTURE_GRID_SIZE) * parent.height;
-
-    return { height, width, x, z };
-  }
-
-  const parent = parentFrame ?? {
-    height: STRUCTURE_ROOT_GRID_WORLD_SIZE,
-    width: STRUCTURE_ROOT_GRID_WORLD_SIZE,
-    x: 0,
-    z: 0,
-  };
-
-  return {
-    height: view.height ?? parent.height,
-    width: view.width ?? parent.width,
-    x: parent.x + (view.offsetX ?? 0),
-    z: parent.z - (view.offsetY ?? 0),
-  };
 }
 
 function createStructureNodeEntries(
@@ -230,6 +97,7 @@ function createStructureNodeEntries(
       component: node.component,
       detail: node.detail,
       id: node.id,
+      index: entries.length,
       label: node.label,
       parentId,
       path,
@@ -237,7 +105,6 @@ function createStructureNodeEntries(
       slot: node.slot,
       state: node.state ?? 'default',
       treeDepth,
-      view: node.view,
     });
 
     node.children?.forEach((childNode) => {
@@ -250,662 +117,308 @@ function createStructureNodeEntries(
   return entries;
 }
 
-function createStructureRenderLayers(
+function usePrefersReducedMotion() {
+  const [reduced, setReduced] = useState(
+    () =>
+      typeof window !== 'undefined' &&
+      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true,
+  );
+
+  useEffect(() => {
+    const query = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+
+    if (!query) return;
+
+    const onChange = () => setReduced(query.matches);
+    query.addEventListener('change', onChange);
+
+    return () => query.removeEventListener('change', onChange);
+  }, []);
+
+  return reduced;
+}
+
+/**
+ * Measures the primitive in the preview and keeps the result current. All
+ * triggers (resize, DOM/attribute changes, portals opening, focus, transitions)
+ * coalesce into at most one read pass per frame, and an unchanged snapshot
+ * does not re-render.
+ */
+function useStructureMeasurement(
   structure: LabPrimitiveStructure,
-): readonly StructureRenderLayer[] {
-  const layers: StructureRenderLayer[] = [];
-  const visibleDepth =
-    structure.visibleDepth ?? STRUCTURE_DEFAULT_VISIBLE_DEPTH;
-  const layerGap = structure.defaultLayerGap ?? STRUCTURE_LAYER_GAP_Y;
+  pageKey: string,
+) {
+  const [measurement, setMeasurement] = useState<StructureMeasurement | null>(
+    null,
+  );
 
-  const visitNode = (
-    node: LabPrimitiveStructureNode,
-    treeDepth: number,
-    renderDepth: number,
-    parentFrame: StructureLayerFrame | null,
-    parentId: string | null,
-    parentPath: readonly string[],
-  ) => {
-    const path = [...parentPath, node.id];
-    const nextRenderDepth = node.view ? renderDepth + 1 : renderDepth;
-    const frame = node.view
-      ? resolveLayerFrame(node.view, parentFrame)
-      : parentFrame;
+  useEffect(() => {
+    let frame = 0;
+    let retryTimer = 0;
+    let observedHost: Element | null = null;
+    let signature = '';
+    // A drag in the preview mutates it every frame; measure once it ends.
+    let pointerActive = false;
+    let deferred = false;
+    const resizeObserver = new ResizeObserver(() => schedule());
+    const mutationObserver = new MutationObserver(() => schedule());
+    const portalObserver = new MutationObserver(() => schedule());
 
-    if (node.view && nextRenderDepth <= visibleDepth) {
-      const layerIndex = layers.length;
+    const observeHost = (host: Element | null) => {
+      if (host === observedHost) return;
 
-      layers.push({
-        color: node.view.color,
-        component: node.component,
-        detail: node.detail,
-        height: frame?.height ?? STRUCTURE_ROOT_GRID_WORLD_SIZE,
-        id: node.id,
-        label: node.label,
-        layerIndex,
-        opacity: node.view.opacity ?? 0.82,
-        parentId,
-        path,
-        relation: node.relation,
-        slot: node.slot,
-        state: node.state ?? 'default',
-        treeDepth,
-        width: frame?.width ?? STRUCTURE_ROOT_GRID_WORLD_SIZE,
-        x: frame?.x ?? 0,
-        y: layerIndex * layerGap + (node.view.offsetZ ?? 0) * 0.1,
-        z: frame?.z ?? 0,
+      resizeObserver.disconnect();
+      mutationObserver.disconnect();
+      observedHost = host;
+
+      if (!host) return;
+
+      resizeObserver.observe(host);
+      for (const child of Array.from(host.querySelectorAll('*')).slice(0, 8)) {
+        resizeObserver.observe(child);
+      }
+      mutationObserver.observe(host, {
+        attributes: true,
+        characterData: true,
+        childList: true,
+        subtree: true,
       });
+    };
+
+    const measure = () => {
+      frame = 0;
+
+      if (pointerActive) {
+        deferred = true;
+        return;
+      }
+
+      const host = findLabPreviewHost(pageKey);
+      observeHost(host);
+
+      if (!host) {
+        window.clearTimeout(retryTimer);
+        retryTimer = window.setTimeout(schedule, 200);
+        return;
+      }
+
+      const next = measurePrimitiveStructure(structure, host);
+      const nextSignature = next?.signature ?? '';
+
+      if (nextSignature !== signature) {
+        signature = nextSignature;
+        setMeasurement(next);
+      }
+    };
+
+    function schedule() {
+      if (frame === 0) {
+        frame = window.requestAnimationFrame(measure);
+      }
     }
 
-    node.children?.forEach((childNode) => {
-      visitNode(
-        childNode,
-        treeDepth + 1,
-        nextRenderDepth,
-        frame,
-        node.id,
-        path,
+    const documentEvents = [
+      'focusin',
+      'focusout',
+      'input',
+      'transitionend',
+      'animationend',
+    ] as const;
+
+    const onPointerDown = () => {
+      pointerActive = true;
+    };
+    const onPointerEnd = () => {
+      pointerActive = false;
+
+      if (deferred) {
+        deferred = false;
+        schedule();
+      }
+    };
+
+    window.addEventListener('pointerdown', onPointerDown, true);
+    window.addEventListener('pointerup', onPointerEnd, true);
+    window.addEventListener('pointercancel', onPointerEnd, true);
+    portalObserver.observe(document.body, { childList: true });
+    documentEvents.forEach((type) =>
+      document.addEventListener(type, schedule, true),
+    );
+    window.addEventListener('resize', schedule);
+    setMeasurement(null);
+    measure();
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(retryTimer);
+      resizeObserver.disconnect();
+      mutationObserver.disconnect();
+      portalObserver.disconnect();
+      documentEvents.forEach((type) =>
+        document.removeEventListener(type, schedule, true),
       );
-    });
-  };
+      window.removeEventListener('resize', schedule);
+      window.removeEventListener('pointerdown', onPointerDown, true);
+      window.removeEventListener('pointerup', onPointerEnd, true);
+      window.removeEventListener('pointercancel', onPointerEnd, true);
+    };
+  }, [pageKey, structure]);
 
-  visitNode(structure.root, 0, -1, null, null, []);
-
-  return layers;
+  return measurement;
 }
 
-function structureLayerCallout(layerIndex: number) {
-  return STRUCTURE_LAYER_CALLOUTS[
-    Math.min(layerIndex, STRUCTURE_LAYER_CALLOUTS.length - 1)
-  ];
+/** Follows `target` with a short exponential ease; jumps under reduced motion. */
+function useEasedValue(target: number, reducedMotion: boolean) {
+  const [value, setValue] = useState(target);
+  const valueRef = useRef(target);
+
+  useEffect(() => {
+    if (reducedMotion) {
+      valueRef.current = target;
+      setValue(target);
+      return;
+    }
+
+    let frame = 0;
+    let last = performance.now();
+
+    const step = (now: number) => {
+      const dt = Math.min(64, now - last);
+      last = now;
+      const current = valueRef.current;
+      const next =
+        current +
+        (target - current) *
+          (1 - Math.exp(-dt / STRUCTURE_EXPLODE_SMOOTHING_MS));
+      const done = Math.abs(target - next) < 0.002;
+      valueRef.current = done ? target : next;
+      setValue(valueRef.current);
+
+      if (!done) {
+        frame = window.requestAnimationFrame(step);
+      }
+    };
+
+    if (valueRef.current !== target) {
+      frame = window.requestAnimationFrame(step);
+    }
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [reducedMotion, target]);
+
+  return value;
 }
 
-function createStructureMaterial(
-  THREE: ThreeModule,
-  color: string,
-  opacity: number,
-) {
-  return new THREE.MeshBasicMaterial({
-    color: new THREE.Color(color),
-    depthWrite: false,
-    opacity,
-    side: THREE.DoubleSide,
-    transparent: true,
-  });
+function useElementSize(ref: RefObject<HTMLElement | null>) {
+  const [size, setSize] = useState({ height: 0, width: 0 });
+
+  useEffect(() => {
+    const element = ref.current;
+
+    if (!element) return;
+
+    const update = () => {
+      const width = Math.floor(element.clientWidth);
+      const height = Math.floor(element.clientHeight);
+      setSize((current) =>
+        current.width === width && current.height === height
+          ? current
+          : { height, width },
+      );
+    };
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+    update();
+
+    return () => observer.disconnect();
+  }, [ref]);
+
+  return size;
 }
 
-function createLayerGroup(THREE: ThreeModule, layer: StructureRenderLayer) {
-  const group = new THREE.Group();
-  const opacity = layer.opacity;
-  const geometry = new THREE.PlaneGeometry(layer.width, layer.height);
-  const baseColor = new THREE.Color(layer.color);
-  const edgeColor = baseColor.clone().lerp(new THREE.Color('#ffffff'), 0.48);
-  const material = createStructureMaterial(THREE, layer.color, opacity);
-  const mesh = new THREE.Mesh(geometry, material);
-  mesh.rotation.x = -Math.PI / 2;
-  mesh.name = layer.id;
-  mesh.userData.component = layer.component;
-  mesh.userData.layerId = layer.id;
-  mesh.userData.layerIndex = layer.layerIndex;
-  mesh.userData.parentId = layer.parentId;
-  mesh.userData.path = layer.path.join('/');
-  mesh.userData.relation = layer.relation;
-  mesh.userData.slot = layer.slot;
-  mesh.userData.state = layer.state;
-  mesh.userData.treeDepth = layer.treeDepth;
-  mesh.renderOrder = layer.layerIndex * 2;
-
-  const edgeOpacity = layer.layerIndex === 0 ? 0.48 : 0.72;
-  const edgeMaterial = new THREE.LineBasicMaterial({
-    color: edgeColor,
-    depthWrite: false,
-    opacity: edgeOpacity,
-    transparent: true,
-  });
-  const edges = new THREE.LineSegments(
-    new THREE.EdgesGeometry(geometry),
-    edgeMaterial,
+function useDevicePixelRatio() {
+  const [ratio, setRatio] = useState(() =>
+    typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1,
   );
-  edges.rotation.x = -Math.PI / 2;
-  edges.name = `${layer.id}-edges`;
-  edges.renderOrder = mesh.renderOrder + 1;
 
-  const anchor = new THREE.Object3D();
-  anchor.name = `${layer.id}-callout-anchor`;
-  anchor.position.set(layer.width * 0.3, 0, 0);
+  useEffect(() => {
+    const query = window.matchMedia?.(
+      `(resolution: ${window.devicePixelRatio || 1}dppx)`,
+    );
 
-  group.name = `${layer.id}-assembly-layer`;
-  group.position.set(layer.x, layer.y, layer.z);
-  group.add(mesh, edges, anchor);
+    if (!query) return;
 
-  return {
-    anchor,
-    baseColor,
-    edgeColor,
-    edgeMaterial,
-    edgeOpacity,
-    edges,
-    group,
-    layerId: layer.id,
-    layerIndex: layer.layerIndex,
-    material,
-    mesh,
-    mutedOpacity: Math.max(0.14, opacity * 0.38),
-    opacity,
-  };
+    const onChange = () => setRatio(window.devicePixelRatio || 1);
+    query.addEventListener('change', onChange);
+
+    return () => query.removeEventListener('change', onChange);
+  }, [ratio]);
+
+  return ratio;
 }
 
-function fitCameraToContainer(
-  camera: ThreeOrthographicCamera,
+function layoutCallouts(
+  anchors: ReadonlyArray<{ anchor: Vec2; nodeId: string }>,
   width: number,
   height: number,
-) {
-  const aspect = width / height;
-  camera.left = (-STRUCTURE_FRUSTUM_SIZE * aspect) / 2;
-  camera.right = (STRUCTURE_FRUSTUM_SIZE * aspect) / 2;
-  camera.top = STRUCTURE_FRUSTUM_SIZE / 2;
-  camera.bottom = -STRUCTURE_FRUSTUM_SIZE / 2;
-  camera.updateProjectionMatrix();
-}
+): Record<string, StructureCalloutPosition> {
+  if (width <= 0 || height <= 0) return {};
 
-function fitCameraToStructure(
-  THREE: ThreeModule,
-  camera: ThreeOrthographicCamera,
-  root: ThreeObject3D,
-  width: number,
-  height: number,
-) {
-  const aspect = width / height;
-  const bounds = new THREE.Box3().setFromObject(root);
-
-  if (bounds.isEmpty()) {
-    fitCameraToContainer(camera, width, height);
-    return;
-  }
-
-  const center = bounds.getCenter(new THREE.Vector3());
-  camera.position.set(
-    center.x + STRUCTURE_CAMERA_DISTANCE * 0.86,
-    center.y + STRUCTURE_CAMERA_DISTANCE * 0.72,
-    center.z + STRUCTURE_CAMERA_DISTANCE,
-  );
-  camera.lookAt(center);
-  camera.updateMatrixWorld(true);
-
-  const min = bounds.min;
-  const max = bounds.max;
-  const cameraSpaceCorners = [
-    new THREE.Vector3(min.x, min.y, min.z),
-    new THREE.Vector3(min.x, min.y, max.z),
-    new THREE.Vector3(min.x, max.y, min.z),
-    new THREE.Vector3(min.x, max.y, max.z),
-    new THREE.Vector3(max.x, min.y, min.z),
-    new THREE.Vector3(max.x, min.y, max.z),
-    new THREE.Vector3(max.x, max.y, min.z),
-    new THREE.Vector3(max.x, max.y, max.z),
-  ].map((corner) => corner.applyMatrix4(camera.matrixWorldInverse));
-  const viewBounds = cameraSpaceCorners.reduce(
-    (result, corner) => ({
-      maxX: Math.max(result.maxX, corner.x),
-      maxY: Math.max(result.maxY, corner.y),
-      minX: Math.min(result.minX, corner.x),
-      minY: Math.min(result.minY, corner.y),
-    }),
-    {
-      maxX: Number.NEGATIVE_INFINITY,
-      maxY: Number.NEGATIVE_INFINITY,
-      minX: Number.POSITIVE_INFINITY,
-      minY: Number.POSITIVE_INFINITY,
-    },
-  );
-  const viewWidth =
-    (viewBounds.maxX - viewBounds.minX) * STRUCTURE_CAMERA_PADDING;
-  const viewHeight =
-    (viewBounds.maxY - viewBounds.minY) * STRUCTURE_CAMERA_PADDING;
-  const frustumHeight = Math.max(viewHeight, viewWidth / aspect);
-  const frustumWidth = frustumHeight * aspect;
-  const centerX =
-    (viewBounds.minX + viewBounds.maxX) / 2 +
-    frustumWidth * STRUCTURE_CAMERA_SCREEN_OFFSET_X;
-  const centerY = (viewBounds.minY + viewBounds.maxY) / 2;
-
-  camera.left = centerX - frustumWidth / 2;
-  camera.right = centerX + frustumWidth / 2;
-  camera.top = centerY + frustumHeight / 2;
-  camera.bottom = centerY - frustumHeight / 2;
-  camera.updateProjectionMatrix();
-}
-
-function projectLayerAnchor(
-  THREE: ThreeModule,
-  anchor: ThreeObject3D,
-  camera: ThreeOrthographicCamera,
-) {
-  const worldPosition = new THREE.Vector3();
-  anchor.getWorldPosition(worldPosition);
-  worldPosition.project(camera);
-
-  return {
-    x: (worldPosition.x * 0.5 + 0.5) * 100,
-    y: (1 - (worldPosition.y * 0.5 + 0.5)) * 100,
-  };
-}
-
-function createProjectedCallouts(
-  THREE: ThreeModule,
-  layerBindings: StructureLayerSceneBinding[],
-  camera: ThreeOrthographicCamera,
-  height: number,
-) {
   const labelMinGap = clamp(
     (STRUCTURE_CALLOUT_LABEL_MIN_GAP_PX / height) * 100,
-    6.4,
-    11,
+    5,
+    12,
   );
-  const projectedEntries = layerBindings
-    .map((binding) => {
-      const projected = projectLayerAnchor(THREE, binding.anchor, camera);
+  const entries = anchors
+    .map(({ anchor, nodeId }) => {
+      const targetX = clamp((anchor[0] / width) * 100, 2, 66);
+      const targetY = clamp((anchor[1] / height) * 100, 10, 90);
 
       return {
-        binding,
         desiredLabelY: clamp(
-          projected.y,
+          targetY,
           STRUCTURE_CALLOUT_LABEL_MIN_Y,
           STRUCTURE_CALLOUT_LABEL_MAX_Y,
         ),
-        targetX: clamp(projected.x, 4, STRUCTURE_CALLOUT_LABEL_X - 5),
-        targetY: clamp(projected.y, 10, 90),
+        labelY: 0,
+        nodeId,
+        targetX,
+        targetY,
       };
     })
     .sort((left, right) => left.desiredLabelY - right.desiredLabelY);
 
-  let previousY = STRUCTURE_CALLOUT_LABEL_MIN_Y - labelMinGap;
-  const spacedEntries = projectedEntries.map((entry) => {
-    const labelY = Math.max(entry.desiredLabelY, previousY + labelMinGap);
-    previousY = labelY;
+  let previous = STRUCTURE_CALLOUT_LABEL_MIN_Y - labelMinGap;
+  for (const entry of entries) {
+    entry.labelY = Math.max(entry.desiredLabelY, previous + labelMinGap);
+    previous = entry.labelY;
+  }
 
-    return {
-      ...entry,
-      labelY,
-    };
-  });
   const overflow =
-    (spacedEntries.at(-1)?.labelY ?? STRUCTURE_CALLOUT_LABEL_MAX_Y) -
+    (entries.at(-1)?.labelY ?? STRUCTURE_CALLOUT_LABEL_MAX_Y) -
     STRUCTURE_CALLOUT_LABEL_MAX_Y;
 
   if (overflow > 0) {
-    spacedEntries.forEach((entry) => {
-      entry.labelY -= overflow;
-    });
-
-    for (let index = spacedEntries.length - 2; index >= 0; index -= 1) {
-      spacedEntries[index]!.labelY = Math.min(
-        spacedEntries[index]!.labelY,
-        spacedEntries[index + 1]!.labelY - labelMinGap,
+    for (let index = entries.length - 1; index >= 0; index -= 1) {
+      const next = entries[index + 1];
+      entries[index]!.labelY = Math.min(
+        entries[index]!.labelY - overflow,
+        next ? next.labelY - labelMinGap : Infinity,
       );
     }
   }
 
-  return spacedEntries.reduce<StructureCalloutPositions>((callouts, entry) => {
-    callouts[entry.binding.layerId] = {
-      labelX: STRUCTURE_CALLOUT_LABEL_X,
-      labelY: Number(
-        clamp(
-          entry.labelY,
-          STRUCTURE_CALLOUT_LABEL_MIN_Y,
-          STRUCTURE_CALLOUT_LABEL_MAX_Y,
-        ).toFixed(2),
-      ),
-      targetX: Number(entry.targetX.toFixed(2)),
-      targetY: Number(entry.targetY.toFixed(2)),
-    };
-
-    return callouts;
-  }, {});
-}
-
-function areCalloutPositionsEqual(
-  left: StructureCalloutPositions,
-  right: StructureCalloutPositions,
-) {
-  const leftEntries = Object.entries(left);
-
-  if (leftEntries.length !== Object.keys(right).length) {
-    return false;
-  }
-
-  return leftEntries.every(([layerId, leftCallout]) => {
-    const rightCallout = right[layerId];
-
-    return (
-      rightCallout !== undefined &&
-      leftCallout.labelX === rightCallout.labelX &&
-      leftCallout.labelY === rightCallout.labelY &&
-      leftCallout.targetX === rightCallout.targetX &&
-      leftCallout.targetY === rightCallout.targetY
-    );
-  });
-}
-
-function disposeObject(THREE: ThreeModule, object: ThreeObject3D) {
-  object.traverse((child) => {
-    if (child instanceof THREE.Mesh || child instanceof THREE.LineSegments) {
-      child.geometry.dispose();
-
-      if (Array.isArray(child.material)) {
-        child.material.forEach((material) => material.dispose());
-      } else {
-        child.material.dispose();
-      }
-    }
-  });
-}
-
-function usePrimitiveStructureScene(
-  structureTitle: string,
-  layers: readonly StructureRenderLayer[],
-  containerRef: RefObject<HTMLDivElement | null>,
-  isActive: boolean,
-  activeLayerId: string | null,
-  setActiveLayerId: Dispatch<SetStateAction<string | null>>,
-  setProjectedCallouts: Dispatch<SetStateAction<StructureCalloutPositions>>,
-) {
-  const sceneControlsRef = useRef<StructureSceneControls | null>(null);
-  const activeLayerIdRef = useRef(activeLayerId);
-
-  useEffect(() => {
-    activeLayerIdRef.current = activeLayerId;
-    sceneControlsRef.current?.setActiveLayer(activeLayerId);
-  }, [activeLayerId]);
-
-  useEffect(() => {
-    if (!isActive) {
-      return;
-    }
-
-    let firstFrame = 0;
-    let secondFrame = 0;
-
-    firstFrame = requestAnimationFrame(() => {
-      sceneControlsRef.current?.resize();
-      secondFrame = requestAnimationFrame(() => {
-        sceneControlsRef.current?.resize();
-      });
-    });
-
-    return () => {
-      cancelAnimationFrame(firstFrame);
-      cancelAnimationFrame(secondFrame);
-    };
-  }, [isActive]);
-
-  useEffect(() => {
-    const container = containerRef.current;
-
-    if (!container) {
-      return;
-    }
-
-    let cleanupScene: (() => void) | null = null;
-    let isDisposed = false;
-
-    setProjectedCallouts({});
-
-    void import('three')
-      .then((THREE) => {
-        if (isDisposed) {
-          return;
-        }
-
-        let renderer: InstanceType<ThreeModule['WebGLRenderer']>;
-
-        try {
-          renderer = new THREE.WebGLRenderer({
-            alpha: true,
-            antialias: true,
-            preserveDrawingBuffer: true,
-          });
-        } catch {
-          container.setAttribute(
-            'data-primitive-structure-renderer',
-            'fallback',
-          );
-          return;
-        }
-
-        container.setAttribute('data-primitive-structure-renderer', 'webgl');
-        renderer.setClearColor(0x000000, 0);
-        renderer.setPixelRatio(
-          Math.min(window.devicePixelRatio || 1, STRUCTURE_MAX_PIXEL_RATIO),
-        );
-        renderer.domElement.setAttribute('aria-label', structureTitle);
-        renderer.domElement.setAttribute(
-          'data-testid',
-          'lab-primitive-structure-canvas',
-        );
-        renderer.domElement.setAttribute('data-primitive-structure-axis', 'y');
-        renderer.domElement.setAttribute(
-          'data-primitive-structure-geometry',
-          'plane-grid',
-        );
-        renderer.domElement.setAttribute(
-          'data-primitive-structure-layout',
-          '24-grid',
-        );
-        renderer.domElement.setAttribute(
-          'data-primitive-structure-layer-gap',
-          'uniform',
-        );
-        renderer.domElement.setAttribute(
-          'data-primitive-structure-guides',
-          'callouts',
-        );
-        renderer.domElement.setAttribute(
-          'data-primitive-structure-interaction',
-          'raycast',
-        );
-        renderer.domElement.setAttribute(
-          'data-primitive-structure-motion',
-          'static',
-        );
-        renderer.domElement.setAttribute(
-          'data-primitive-structure-palette',
-          'layer-colors',
-        );
-        renderer.domElement.setAttribute('role', 'img');
-        renderer.domElement.className = 'h-full w-full';
-        renderer.domElement.style.display = 'block';
-        container.appendChild(renderer.domElement);
-
-        const scene = new THREE.Scene();
-        const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 80);
-
-        const root = new THREE.Group();
-        root.rotation.y = -0.12;
-        scene.add(root);
-
-        const layerBindings = layers.map((layer) => {
-          const binding = createLayerGroup(THREE, layer);
-          root.add(binding.group);
-
-          return binding;
-        });
-        const pickableMeshes = layerBindings.map((binding) => binding.mesh);
-        const raycaster = new THREE.Raycaster();
-        const pointer = new THREE.Vector2();
-        let canvasHoverLayerId: string | null = null;
-        const previousCursor = renderer.domElement.style.cursor;
-
-        const renderScene = () => {
-          renderer.render(scene, camera);
-        };
-
-        const setActiveLayer = (nextActiveLayerId: string | null) => {
-          layerBindings.forEach((binding) => {
-            const isActive = nextActiveLayerId === binding.layerId;
-            const isMuted =
-              nextActiveLayerId !== null &&
-              nextActiveLayerId !== binding.layerId;
-            const activeColor = binding.baseColor
-              .clone()
-              .lerp(new THREE.Color('#ffffff'), 0.16);
-
-            binding.material.color.copy(
-              isActive ? activeColor : binding.baseColor,
-            );
-            binding.material.opacity = isActive
-              ? Math.min(0.98, binding.opacity + 0.16)
-              : isMuted
-                ? binding.mutedOpacity
-                : binding.opacity;
-            binding.edgeMaterial.color.copy(
-              isActive
-                ? new THREE.Color('#ffffff')
-                : isMuted
-                  ? binding.edgeColor
-                      .clone()
-                      .lerp(new THREE.Color('#0b0f14'), 0.2)
-                  : binding.edgeColor,
-            );
-            binding.edgeMaterial.opacity = isActive
-              ? 0.92
-              : isMuted
-                ? 0.24
-                : binding.edgeOpacity;
-          });
-
-          renderScene();
-        };
-
-        const commitProjectedCallouts = (height: number) => {
-          const nextCallouts = createProjectedCallouts(
-            THREE,
-            layerBindings,
-            camera,
-            height,
-          );
-          setProjectedCallouts((currentCallouts) =>
-            areCalloutPositionsEqual(currentCallouts, nextCallouts)
-              ? currentCallouts
-              : nextCallouts,
-          );
-        };
-
-        const pickLayerAtPointer = (event: PointerEvent) => {
-          const rect = renderer.domElement.getBoundingClientRect();
-
-          if (rect.width <= 0 || rect.height <= 0) {
-            return null;
-          }
-
-          pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-          pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-          raycaster.setFromCamera(pointer, camera);
-
-          const [intersection] = raycaster.intersectObjects(
-            pickableMeshes,
-            false,
-          );
-
-          return typeof intersection?.object.userData.layerId === 'string'
-            ? intersection.object.userData.layerId
-            : null;
-        };
-
-        const onCanvasPointerMove = (event: PointerEvent) => {
-          const nextLayerId = pickLayerAtPointer(event);
-
-          if (nextLayerId === canvasHoverLayerId) {
-            return;
-          }
-
-          canvasHoverLayerId = nextLayerId;
-          renderer.domElement.style.cursor = nextLayerId
-            ? 'pointer'
-            : previousCursor;
-          setActiveLayerId(nextLayerId);
-        };
-
-        const onCanvasPointerLeave = () => {
-          canvasHoverLayerId = null;
-          renderer.domElement.style.cursor = previousCursor;
-          setActiveLayerId(null);
-        };
-
-        renderer.domElement.addEventListener(
-          'pointermove',
-          onCanvasPointerMove,
-        );
-        renderer.domElement.addEventListener(
-          'pointerleave',
-          onCanvasPointerLeave,
-        );
-
-        const resize = () => {
-          const rect = container.getBoundingClientRect();
-          const width = Math.floor(rect.width);
-          const height = Math.floor(rect.height);
-
-          if (width < 2 || height < 2) {
-            return;
-          }
-
-          renderer.setPixelRatio(
-            Math.min(window.devicePixelRatio || 1, STRUCTURE_MAX_PIXEL_RATIO),
-          );
-          renderer.setSize(width, height, false);
-          fitCameraToStructure(THREE, camera, root, width, height);
-          commitProjectedCallouts(height);
-          renderScene();
-        };
-
-        resize();
-        setActiveLayer(activeLayerIdRef.current);
-        sceneControlsRef.current = {
-          resize,
-          setActiveLayer,
-        };
-
-        const resizeObserver = new ResizeObserver(resize);
-        resizeObserver.observe(container);
-
-        cleanupScene = () => {
-          sceneControlsRef.current = null;
-          renderer.domElement.removeEventListener(
-            'pointermove',
-            onCanvasPointerMove,
-          );
-          renderer.domElement.removeEventListener(
-            'pointerleave',
-            onCanvasPointerLeave,
-          );
-          resizeObserver.disconnect();
-          disposeObject(THREE, root);
-          renderer.dispose();
-          renderer.domElement.remove();
-          container.removeAttribute('data-primitive-structure-renderer');
-        };
-      })
-      .catch(() => {
-        if (!isDisposed) {
-          container.setAttribute(
-            'data-primitive-structure-renderer',
-            'fallback',
-          );
-        }
-      });
-
-    return () => {
-      isDisposed = true;
-      cleanupScene?.();
-    };
-  }, [
-    containerRef,
-    layers,
-    setActiveLayerId,
-    setProjectedCallouts,
-    structureTitle,
-  ]);
+  return Object.fromEntries(
+    entries.map((entry) => [
+      entry.nodeId,
+      {
+        labelX: STRUCTURE_CALLOUT_LABEL_X,
+        labelY: Number(entry.labelY.toFixed(2)),
+        targetX: Number(entry.targetX.toFixed(2)),
+        targetY: Number(entry.targetY.toFixed(2)),
+      },
+    ]),
+  );
 }
 
 function nodeMatchesActivePath(
@@ -943,17 +456,27 @@ function formatComponentTag(component: string) {
   return `<${component.toLowerCase()}>`;
 }
 
+function formatSize(value: number) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
+
 export function LabPrimitiveStructureView({
   isActive,
+  pageKey,
   structure,
 }: {
   isActive: boolean;
+  pageKey: string;
   structure: LabPrimitiveStructure;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [activeLayerId, setActiveLayerId] = useState<string | null>(null);
-  const [projectedCallouts, setProjectedCallouts] =
-    useState<StructureCalloutPositions>({});
+  const [explode, setExplode] = useState(STRUCTURE_DEFAULT_EXPLODE);
+  const reducedMotion = usePrefersReducedMotion();
+  const displayedExplode = useEasedValue(explode, reducedMotion);
+  const measurement = useStructureMeasurement(structure, pageKey);
+  const size = useElementSize(containerRef);
+  const devicePixelRatio = useDevicePixelRatio();
   const nodeEntries = useMemo(
     () => createStructureNodeEntries(structure),
     [structure],
@@ -962,9 +485,70 @@ export function LabPrimitiveStructureView({
     () => nodeEntries.filter((node) => node.parentId !== null),
     [nodeEntries],
   );
-  const layers = useMemo(
-    () => createStructureRenderLayers(structure),
-    [structure],
+  const region = useMemo<StructureFigureRegion>(
+    () => ({
+      x0: STRUCTURE_FIGURE_PADDING,
+      x1: Math.max(
+        STRUCTURE_FIGURE_PADDING + 1,
+        size.width * STRUCTURE_FIGURE_RIGHT,
+      ),
+      y0: STRUCTURE_FIGURE_PADDING,
+      y1: Math.max(
+        STRUCTURE_FIGURE_PADDING + 1,
+        size.height - STRUCTURE_FIGURE_PADDING,
+      ),
+    }),
+    [size.height, size.width],
+  );
+  const figure = useMemo(
+    () =>
+      measurement && size.width > 0
+        ? buildStructureFigure(measurement, displayedExplode, region)
+        : null,
+    [displayedExplode, measurement, region, size.width],
+  );
+  const measuredNodes = useMemo(() => {
+    const nodes = new Map<
+      string,
+      { count: number; height: number; radius: number; width: number }
+    >();
+
+    for (const slab of measurement?.slabs ?? []) {
+      const current = nodes.get(slab.nodeId);
+      nodes.set(slab.nodeId, {
+        count: (current?.count ?? 0) + 1,
+        height: current?.height ?? slab.height,
+        radius: current?.radius ?? slab.radius,
+        width: current?.width ?? slab.width,
+      });
+    }
+
+    return nodes;
+  }, [measurement]);
+  // One callout per node, in tree order, leading to its first slab.
+  const calloutLayers = useMemo(() => {
+    if (!figure) return [];
+
+    const firstSlab = new Map<string, Vec2>();
+    for (const slab of figure.slabs) {
+      const current = firstSlab.get(slab.nodeId);
+      if (!current || slab.anchor[0] > current[0]) {
+        firstSlab.set(slab.nodeId, slab.anchor);
+      }
+    }
+
+    return nodeEntries
+      .filter((node) => firstSlab.has(node.id))
+      .map((node) => ({ anchor: firstSlab.get(node.id)!, node }));
+  }, [figure, nodeEntries]);
+  const callouts = useMemo(
+    () =>
+      layoutCallouts(
+        calloutLayers.map(({ anchor, node }) => ({ anchor, nodeId: node.id })),
+        size.width,
+        size.height,
+      ),
+    [calloutLayers, size.height, size.width],
   );
   const activePath = useMemo(() => {
     if (activeLayerId === null) {
@@ -977,29 +561,30 @@ export function LabPrimitiveStructureView({
       ]
     );
   }, [activeLayerId, nodeEntries]);
+
   useEffect(() => {
     setActiveLayerId(null);
   }, [structure]);
-  usePrimitiveStructureScene(
-    structure.title,
-    layers,
-    containerRef,
-    isActive,
-    activeLayerId,
-    setActiveLayerId,
-    setProjectedCallouts,
+
+  useEffect(() => {
+    if (!isActive) setActiveLayerId(null);
+  }, [isActive]);
+
+  const onFigurePointerMove = useCallback(
+    (event: ReactPointerEvent<SVGSVGElement>) => {
+      const target = (event.target as Element).closest('[data-structure-node]');
+      const nextLayerId = target?.getAttribute('data-structure-node') ?? null;
+      setActiveLayerId((current) =>
+        current === nextLayerId ? current : nextLayerId,
+      );
+    },
+    [],
   );
-  const calloutEntries = useMemo(
-    () =>
-      layers
-        .map((layer, layerIndex) => ({
-          callout:
-            projectedCallouts[layer.id] ?? structureLayerCallout(layerIndex),
-          layer,
-          layerIndex,
-        }))
-        .reverse(),
-    [layers, projectedCallouts],
+  const onFigurePointerLeave = useCallback(() => setActiveLayerId(null), []);
+
+  const stroke = Math.max(0.5, 1 / devicePixelRatio);
+  const layerOrder = new Map(
+    calloutLayers.map(({ node }, index) => [node.id, index]),
   );
 
   return (
@@ -1010,118 +595,323 @@ export function LabPrimitiveStructureView({
       data-primitive-structure-schema="node-tree"
       data-testid="lab-primitive-structure-shell"
     >
-      <div
-        aria-label={`${structure.title} orthographic render`}
-        className="relative min-h-[320px] overflow-hidden"
-        data-primitive-structure-surface="transparent"
-        data-testid="lab-primitive-structure-render"
-        ref={containerRef}
-      >
-        <svg
-          aria-hidden
-          className="pointer-events-none absolute inset-0 z-[1] h-full w-full"
-          data-testid="lab-primitive-structure-callouts"
-          preserveAspectRatio="none"
-          viewBox="0 0 100 100"
+      <div className="flex min-h-0 min-w-0 flex-col gap-1">
+        <div
+          className="flex h-6 items-center gap-3 font-mono text-[10px] uppercase tracking-[0.08em] text-white/40"
+          data-testid="lab-primitive-structure-gap-control"
         >
-          {calloutEntries.map(({ callout, layer }) => {
-            const isMuted =
-              activeLayerId !== null && activeLayerId !== layer.id;
-            const isActive = activeLayerId === layer.id;
+          <span id="lab-primitive-structure-gap-label">Explode</span>
+          <Slider
+            aria-labelledby="lab-primitive-structure-gap-label"
+            className="w-32"
+            data-testid="lab-primitive-structure-gap-slider"
+            max={1}
+            min={0}
+            onValueChange={(value) => setExplode(value as number)}
+            step={0.01}
+            value={explode}
+          />
+          <span
+            className="tabular-nums normal-case tracking-normal text-white/50"
+            data-testid="lab-primitive-structure-gap-readout"
+          >
+            gap {figure ? figure.gap.toFixed(1) : '0.0'}px
+          </span>
+        </div>
+        <div
+          aria-label={`${structure.title} isometric render`}
+          className="relative min-h-[320px] flex-1 overflow-hidden"
+          data-primitive-structure-renderer="svg"
+          data-primitive-structure-surface="transparent"
+          data-testid="lab-primitive-structure-render"
+          ref={containerRef}
+          style={STRUCTURE_PALETTE}
+        >
+          <svg
+            aria-label={structure.title}
+            className="absolute inset-0 h-full w-full"
+            data-primitive-structure-axis="z"
+            data-primitive-structure-geometry="measured-dom"
+            data-primitive-structure-guides="callouts"
+            data-primitive-structure-interaction="hit-test"
+            data-primitive-structure-layer-gap="adjustable"
+            data-primitive-structure-layout="dom-rects"
+            data-primitive-structure-motion={
+              reducedMotion ? 'reduced' : 'on-demand'
+            }
+            data-primitive-structure-palette="hairline"
+            data-primitive-structure-slabs={figure?.slabs.length ?? 0}
+            data-testid="lab-primitive-structure-canvas"
+            onPointerLeave={onFigurePointerLeave}
+            onPointerMove={onFigurePointerMove}
+            role="img"
+            shapeRendering="geometricPrecision"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            viewBox={`0 0 ${Math.max(1, size.width)} ${Math.max(1, size.height)}`}
+          >
+            {figure?.slabs.map((slab) => {
+              const isLayerActive = activeLayerId === slab.nodeId;
+              const isMuted = activeLayerId !== null && !isLayerActive;
+              const markStroke = isLayerActive
+                ? 'var(--structure-hi)'
+                : isMuted
+                  ? 'var(--structure-lo)'
+                  : 'var(--structure-mid)';
+              const edgeStroke = isLayerActive
+                ? 'var(--structure-accent)'
+                : isMuted
+                  ? 'var(--structure-mid)'
+                  : 'var(--structure-edge)';
+              const strokeProps = {
+                fill: 'none',
+                pointerEvents: 'none' as const,
+                strokeWidth: stroke,
+                vectorEffect: 'non-scaling-stroke' as const,
+              };
+
+              return (
+                <g
+                  data-structure-level={slab.level}
+                  data-structure-node={slab.nodeId}
+                  data-structure-painted={slab.painted ? 'true' : 'false'}
+                  data-structure-slab={slab.key}
+                  key={slab.key}
+                >
+                  {slab.footprint ? (
+                    <path
+                      {...strokeProps}
+                      d={slab.footprint}
+                      data-structure-footprint=""
+                      stroke={
+                        isLayerActive
+                          ? 'var(--structure-accent)'
+                          : 'var(--structure-lo)'
+                      }
+                      strokeDasharray="2 3"
+                    />
+                  ) : null}
+                  {slab.guide ? (
+                    <path
+                      {...strokeProps}
+                      d={slab.guide}
+                      data-structure-guide=""
+                      stroke={
+                        isLayerActive
+                          ? 'var(--structure-mid)'
+                          : 'var(--structure-lo)'
+                      }
+                      strokeDasharray="1 3"
+                    />
+                  ) : null}
+                  {slab.side ? (
+                    <path d={slab.side} fill="var(--structure-side)" />
+                  ) : null}
+                  <path
+                    d={slab.top}
+                    data-structure-top=""
+                    fill={
+                      slab.painted
+                        ? isLayerActive
+                          ? 'var(--structure-accent-top)'
+                          : 'var(--structure-plate)'
+                        : 'transparent'
+                    }
+                    stroke={
+                      slab.painted
+                        ? 'none'
+                        : isLayerActive
+                          ? 'var(--structure-accent)'
+                          : markStroke
+                    }
+                    strokeDasharray={slab.painted ? undefined : '2 3'}
+                    strokeWidth={stroke}
+                    vectorEffect="non-scaling-stroke"
+                  />
+                  {slab.hatch ? (
+                    <path
+                      {...strokeProps}
+                      d={slab.hatch}
+                      stroke={
+                        isLayerActive
+                          ? 'var(--structure-mid)'
+                          : 'var(--structure-lo)'
+                      }
+                    />
+                  ) : null}
+                  {slab.rings ? (
+                    <path {...strokeProps} d={slab.rings} stroke={markStroke} />
+                  ) : null}
+                  {slab.text ? (
+                    <path
+                      {...strokeProps}
+                      d={slab.text}
+                      data-structure-text=""
+                      stroke={markStroke}
+                    />
+                  ) : null}
+                  {slab.lines ? (
+                    <path
+                      {...strokeProps}
+                      d={slab.lines}
+                      data-structure-icon=""
+                      stroke={
+                        isMuted ? 'var(--structure-lo)' : 'var(--structure-hi)'
+                      }
+                    />
+                  ) : null}
+                  {slab.crease ? (
+                    <path
+                      {...strokeProps}
+                      d={slab.crease}
+                      stroke={markStroke}
+                    />
+                  ) : null}
+                  {slab.side ? (
+                    <path
+                      {...strokeProps}
+                      d={slab.side}
+                      data-structure-silhouette=""
+                      stroke={edgeStroke}
+                    />
+                  ) : null}
+                  {slab.focus ? (
+                    <path
+                      {...strokeProps}
+                      d={slab.focus}
+                      stroke="var(--structure-accent)"
+                      strokeDasharray="3 2"
+                    />
+                  ) : null}
+                </g>
+              );
+            })}
+          </svg>
+          {figure === null ? (
+            <p
+              className="absolute inset-0 flex items-center justify-center font-mono text-[10px] uppercase tracking-[0.08em] text-white/30"
+              data-testid="lab-primitive-structure-empty"
+            >
+              Waiting for the preview to render
+            </p>
+          ) : null}
+          <svg
+            aria-hidden
+            className="pointer-events-none absolute inset-0 z-[1] h-full w-full"
+            data-testid="lab-primitive-structure-callouts"
+            preserveAspectRatio="none"
+            viewBox="0 0 100 100"
+          >
+            {calloutLayers.map(({ node }) => {
+              const callout = callouts[node.id];
+
+              if (!callout) return null;
+
+              const isMuted =
+                activeLayerId !== null && activeLayerId !== node.id;
+              const isCalloutActive = activeLayerId === node.id;
+              const d = `M ${callout.targetX} ${callout.targetY} L ${callout.labelX} ${callout.labelY}`;
+
+              return (
+                <g
+                  className={[
+                    'transition-opacity duration-300',
+                    isMuted ? 'opacity-30' : 'opacity-100',
+                  ].join(' ')}
+                  data-primitive-callout={node.id}
+                  key={node.id}
+                >
+                  <path
+                    d={d}
+                    data-primitive-callout-hit={node.id}
+                    fill="none"
+                    stroke="rgba(255,255,255,0.001)"
+                    strokeWidth="8"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                  <path
+                    d={d}
+                    data-primitive-callout-line={node.id}
+                    fill="none"
+                    stroke={
+                      isCalloutActive
+                        ? 'var(--structure-accent)'
+                        : 'var(--structure-edge)'
+                    }
+                    strokeWidth={stroke}
+                    vectorEffect="non-scaling-stroke"
+                  />
+                </g>
+              );
+            })}
+          </svg>
+          {calloutLayers.map(({ node }) => {
+            const callout = callouts[node.id];
+
+            if (!callout) return null;
+
+            const isMuted = activeLayerId !== null && activeLayerId !== node.id;
+            const isCalloutActive = activeLayerId === node.id;
 
             return (
-              <g
+              <span
+                aria-hidden
                 className={[
-                  'transition-opacity duration-300',
-                  isMuted ? 'opacity-30' : 'opacity-100',
-                ]
-                  .filter(Boolean)
-                  .join(' ')}
-                data-primitive-callout={layer.id}
-                key={layer.id}
-              >
-                <path
-                  d={`M ${callout.targetX} ${callout.targetY} L ${callout.labelX} ${callout.labelY}`}
-                  data-primitive-callout-hit={layer.id}
-                  fill="none"
-                  stroke="rgba(255,255,255,0.001)"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="8"
-                  vectorEffect="non-scaling-stroke"
-                />
-                <path
-                  className={isActive ? 'stroke-white/72' : 'stroke-white/42'}
-                  d={`M ${callout.targetX} ${callout.targetY} L ${callout.labelX} ${callout.labelY}`}
-                  data-primitive-callout-line={layer.id}
-                  fill="none"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="1"
-                  vectorEffect="non-scaling-stroke"
-                />
-                <circle
-                  className="fill-transparent"
-                  cx={callout.targetX}
-                  cy={callout.targetY}
-                  data-primitive-callout-target={layer.id}
-                  r="3.2"
-                />
-              </g>
+                  'pointer-events-none absolute z-[2] size-[5px] -translate-x-1/2 -translate-y-1/2 rounded-full border bg-[var(--structure-plate)]',
+                  'transition-[border-color,opacity] duration-300',
+                  isCalloutActive
+                    ? 'border-[var(--structure-accent)]'
+                    : 'border-[var(--structure-hi)]',
+                  isMuted ? 'opacity-35' : 'opacity-100',
+                ].join(' ')}
+                data-primitive-callout-dot={node.id}
+                key={node.id}
+                style={{
+                  left: `${callout.targetX}%`,
+                  top: `${callout.targetY}%`,
+                }}
+              />
             );
           })}
-        </svg>
-        {calloutEntries.map(({ callout, layer }) => {
-          const isMuted = activeLayerId !== null && activeLayerId !== layer.id;
-          const isActive = activeLayerId === layer.id;
+          {calloutLayers.map(({ node }) => {
+            const callout = callouts[node.id];
 
-          return (
-            <span
-              aria-hidden
-              className={[
-                'pointer-events-none absolute z-[2] size-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full border bg-[#111827]',
-                'shadow-[0_0_0_1px_rgba(0,0,0,0.28)] transition-[border-color,opacity] duration-300',
-                isActive ? 'border-white/90' : 'border-white/60',
-                isMuted ? 'opacity-35' : 'opacity-100',
-              ]
-                .filter(Boolean)
-                .join(' ')}
-              data-primitive-callout-dot={layer.id}
-              key={layer.id}
-              style={{
-                left: `${callout.targetX}%`,
-                top: `${callout.targetY}%`,
-              }}
-            />
-          );
-        })}
-        {calloutEntries.map(({ callout, layer }) => {
-          const isMuted = activeLayerId !== null && activeLayerId !== layer.id;
-          const isActive = activeLayerId === layer.id;
+            if (!callout) return null;
 
-          return (
-            <div
-              className={[
-                'absolute z-[2] flex min-h-5 w-[min(128px,29%)] -translate-y-1/2 items-center rounded-none px-2 py-0',
-                'bg-[#151515]/86 text-[10px] font-medium leading-3 text-white/78',
-                'transition-[color,opacity] duration-300',
-                isActive ? 'text-white/92' : null,
-                isMuted ? 'opacity-30' : 'opacity-100',
-              ]
-                .filter(Boolean)
-                .join(' ')}
-              data-primitive-callout-label={layer.id}
-              data-primitive-callout-label-text={layer.id}
-              key={layer.id}
-              style={{
-                left: `${callout.labelX}%`,
-                top: `${callout.labelY}%`,
-              }}
-            >
-              <span className="min-w-0 truncate">{layer.label}</span>
-            </div>
-          );
-        })}
+            const isMuted = activeLayerId !== null && activeLayerId !== node.id;
+            const isCalloutActive = activeLayerId === node.id;
+            const measured = measuredNodes.get(node.id);
+
+            return (
+              <div
+                className={[
+                  'absolute z-[2] flex min-h-5 max-w-[31%] -translate-y-1/2 items-baseline gap-2 rounded-none py-0 pl-1.5',
+                  'font-mono text-[10px] leading-3 transition-[color,opacity] duration-300',
+                  isCalloutActive ? 'text-white/92' : 'text-white/62',
+                  isMuted ? 'opacity-30' : 'opacity-100',
+                ].join(' ')}
+                data-primitive-callout-label={node.id}
+                data-primitive-callout-label-text={node.id}
+                key={node.id}
+                style={{
+                  left: `${callout.labelX}%`,
+                  top: `${callout.labelY}%`,
+                }}
+              >
+                <span className="text-white/28">
+                  {String((layerOrder.get(node.id) ?? 0) + 1).padStart(2, '0')}
+                </span>
+                <span className="min-w-0 truncate">{node.label}</span>
+                {measured ? (
+                  <span className="hidden shrink-0 text-white/28 xl:inline">
+                    {formatSize(measured.width)}×{formatSize(measured.height)}
+                    {measured.count > 1 ? ` ×${measured.count}` : ''}
+                  </span>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
       </div>
       <div className="relative z-[2] min-h-0 min-w-0 space-y-3">
         <div className="space-y-1">
@@ -1138,25 +928,28 @@ export function LabPrimitiveStructureView({
         >
           {visibleNodeEntries.map((node) => {
             const isMuted = isStructureNodeMuted(node, activePath);
-            const isActive = activeLayerId === node.id;
-            const hasRenderLayer = layers.some((layer) => layer.id === node.id);
+            const isNodeActive = activeLayerId === node.id;
+            const measured = measuredNodes.get(node.id);
             const displayDepth = Math.max(0, node.treeDepth - 1);
 
             return (
               <li
                 className={[
                   'min-w-0 border-t border-white/8 pt-1.5 transition-opacity duration-300 first:border-t-0 first:pt-0',
-                  isActive ? 'text-white' : null,
+                  isNodeActive ? 'text-white' : null,
                   isMuted ? 'opacity-35' : 'opacity-100',
                 ]
                   .filter(Boolean)
                   .join(' ')}
-                data-primitive-callout-layer={
-                  hasRenderLayer ? 'true' : undefined
-                }
+                data-primitive-callout-layer={measured ? 'true' : undefined}
                 data-primitive-component={node.component}
                 data-primitive-depth={node.treeDepth}
                 data-primitive-layer={node.id}
+                data-primitive-measured={
+                  measured
+                    ? `${formatSize(measured.width)}x${formatSize(measured.height)}`
+                    : undefined
+                }
                 data-primitive-node={node.id}
                 data-primitive-parent={node.parentId ?? undefined}
                 data-primitive-relation={node.relation}
@@ -1172,6 +965,11 @@ export function LabPrimitiveStructureView({
                   </span>
                   <code className="block truncate font-mono text-[9px] font-medium leading-3 text-white/34">
                     {formatComponentTag(node.component)}
+                    {measured
+                      ? ` · ${formatSize(measured.width)}×${formatSize(measured.height)}${measured.radius > 0 ? ` r${formatSize(measured.radius)}` : ''}${measured.count > 1 ? ` ×${measured.count}` : ''}`
+                      : node.state === 'optional'
+                        ? ' · not rendered'
+                        : ''}
                   </code>
                   <span className="block text-[11px] leading-4 text-white/46">
                     {node.detail}

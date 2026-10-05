@@ -5,182 +5,132 @@ import {
   performancePanelFor,
 } from './lab-smoke-utils.js';
 
-function sampleStructureCanvas(element: SVGElement | HTMLElement) {
-  const webglCanvas = element as HTMLCanvasElement;
-  const gl =
-    webglCanvas.getContext('webgl2', {
-      preserveDrawingBuffer: true,
-    }) ??
-    webglCanvas.getContext('webgl', {
-      preserveDrawingBuffer: true,
-    });
+const CALLOUT_LABEL_X = 70;
 
-  if (!gl) {
-    return {
-      canvasHeight: webglCanvas.height,
-      canvasWidth: webglCanvas.width,
-      checksum: 0,
-      litBounds: null,
-      litPixels: 0,
-    };
-  }
+type NodeAttributes = {
+  component: string | null;
+  depth: string | null;
+  id: string | null;
+  parent: string | null;
+  relation: string | null;
+  slot: string | null;
+};
 
-  const pixels = new Uint8Array(webglCanvas.width * webglCanvas.height * 4);
-  gl.readPixels(
-    0,
-    0,
-    webglCanvas.width,
-    webglCanvas.height,
-    gl.RGBA,
-    gl.UNSIGNED_BYTE,
-    pixels,
+async function readNodes(locator: Locator): Promise<NodeAttributes[]> {
+  return locator.evaluateAll((items) =>
+    items.map((item) => ({
+      component: item.getAttribute('data-primitive-component'),
+      depth: item.getAttribute('data-primitive-depth'),
+      id: item.getAttribute('data-primitive-node'),
+      parent: item.getAttribute('data-primitive-parent'),
+      relation: item.getAttribute('data-primitive-relation'),
+      slot: item.getAttribute('data-primitive-slot'),
+    })),
   );
-
-  let checksum = 0;
-  let litPixels = 0;
-  let maxX = -1;
-  let maxY = -1;
-  let minX = webglCanvas.width;
-  let minY = webglCanvas.height;
-
-  for (let index = 0; index < pixels.length; index += 4) {
-    const alpha = pixels[index + 3] ?? 0;
-    const brightness =
-      (pixels[index] ?? 0) +
-      (pixels[index + 1] ?? 0) +
-      (pixels[index + 2] ?? 0);
-
-    if (alpha > 0 && brightness > 32) {
-      const pixelIndex = index / 4;
-      const x = pixelIndex % webglCanvas.width;
-      const y = Math.floor(pixelIndex / webglCanvas.width);
-
-      litPixels += 1;
-      maxX = Math.max(maxX, x);
-      maxY = Math.max(maxY, y);
-      minX = Math.min(minX, x);
-      minY = Math.min(minY, y);
-    }
-
-    checksum = (checksum + brightness * (index + 1) + alpha) % 1_000_000_007;
-  }
-
-  return {
-    canvasHeight: webglCanvas.height,
-    canvasWidth: webglCanvas.width,
-    checksum,
-    litBounds:
-      litPixels > 0
-        ? {
-            height: maxY - minY + 1,
-            maxX,
-            maxY,
-            minX,
-            minY,
-            width: maxX - minX + 1,
-          }
-        : null,
-    litPixels,
-  };
 }
 
-async function findCanvasHoveredLayer(
-  page: Page,
-  canvas: Locator,
-  shell: Locator,
-) {
-  const canvasBox = await canvas.boundingBox();
-  expect(canvasBox).not.toBeNull();
+/** The figure's slab groups, in paint order, with their on-screen boxes. */
+async function readSlabs(panel: Locator) {
+  return panel
+    .getByTestId('lab-primitive-structure-canvas')
+    .locator('[data-structure-slab]')
+    .evaluateAll((groups) =>
+      groups.map((group) => {
+        const top = group.querySelector('[data-structure-top]');
+        const box = (top ?? group).getBoundingClientRect();
 
-  const samplePoints = [
-    [0.42, 0.54],
-    [0.48, 0.56],
-    [0.36, 0.62],
-    [0.52, 0.48],
-    [0.44, 0.68],
-  ];
-
-  for (const [xRatio, yRatio] of samplePoints) {
-    await page.mouse.move(
-      canvasBox!.x + canvasBox!.width * xRatio,
-      canvasBox!.y + canvasBox!.height * yRatio,
+        return {
+          bottom: box.bottom,
+          d: top?.getAttribute('d') ?? '',
+          height: box.height,
+          key: group.getAttribute('data-structure-slab'),
+          left: box.left,
+          level: Number(group.getAttribute('data-structure-level')),
+          node: group.getAttribute('data-structure-node'),
+          painted: group.getAttribute('data-structure-painted') === 'true',
+          right: box.right,
+          top: box.top,
+          width: box.width,
+        };
+      }),
     );
+}
 
-    const hoveredLayer = await shell.getAttribute(
+async function expectFigureDrawn(panel: Locator, minimumSlabs: number) {
+  await expect
+    .poll(async () => (await readSlabs(panel)).length)
+    .toBeGreaterThanOrEqual(minimumSlabs);
+}
+
+/** Moves over the visible centre of each slab, topmost first, until one reports hover. */
+async function hoverFigureLayer(page: Page, panel: Locator, shell: Locator) {
+  const slabs = (await readSlabs(panel)).reverse();
+
+  for (const slab of slabs) {
+    await page.mouse.move(
+      slab.left + slab.width / 2,
+      slab.top + slab.height / 2,
+    );
+    const hovered = await shell.getAttribute(
       'data-primitive-structure-hover-layer',
     );
 
-    if (hoveredLayer) {
-      return hoveredLayer;
+    if (hovered) {
+      return hovered;
     }
   }
 
   return null;
 }
 
-async function expectStructureGeometryClearsCalloutLabels(
-  performancePanel: Locator,
-) {
-  const canvas = performancePanel.getByTestId('lab-primitive-structure-canvas');
-  const [canvasBox, sample, labelLeft] = await Promise.all([
-    canvas.boundingBox(),
-    canvas.evaluate(sampleStructureCanvas),
-    performancePanel
+async function expectStructureGeometryClearsCalloutLabels(panel: Locator) {
+  const [slabs, labelLeft] = await Promise.all([
+    readSlabs(panel),
+    panel
       .locator('[data-primitive-callout-label]')
       .evaluateAll((labels) =>
         Math.min(...labels.map((label) => label.getBoundingClientRect().left)),
       ),
   ]);
 
-  expect(canvasBox).not.toBeNull();
-  expect(sample.litBounds).not.toBeNull();
-
-  const litRight =
-    canvasBox!.x +
-    ((sample.litBounds!.maxX + 1) / sample.canvasWidth) * canvasBox!.width;
-
-  expect(labelLeft - litRight).toBeGreaterThanOrEqual(8);
+  expect(slabs.length).toBeGreaterThan(0);
+  expect(
+    labelLeft - Math.max(...slabs.map((slab) => slab.right)),
+  ).toBeGreaterThanOrEqual(8);
 }
 
-async function expectCalloutLinesAttachToLabels(performancePanel: Locator) {
-  const calloutGeometry = await performancePanel
+async function expectCalloutLinesAttachToLabels(panel: Locator) {
+  const calloutGeometry = await panel
     .locator('[data-primitive-callout-line]')
-    .evaluateAll((paths) =>
-      paths.map((path) => {
-        const values =
-          path
-            .getAttribute('d')
-            ?.match(/-?\d+(?:\.\d+)?/g)
-            ?.map(Number) ?? [];
-        const targetX = values[0] ?? 0;
-        const targetY = values[1] ?? 0;
-        const labelX = values[2] ?? 0;
-        const labelY = values[3] ?? 0;
+    .evaluateAll(
+      (paths, labelRail) =>
+        paths.map((path) => {
+          const values =
+            path
+              .getAttribute('d')
+              ?.match(/-?\d+(?:\.\d+)?/g)
+              ?.map(Number) ?? [];
+          const [targetX = 0, targetY = 0, labelX = 0, labelY = 0] = values;
 
-        return {
-          labelX,
-          targetBeforeLabel: targetX < labelX,
-          targetInBounds:
-            targetX >= 4 && targetX <= 63 && targetY >= 10 && targetY <= 90,
-          terminatesAtLabelRail: Math.abs(labelX - 68) < 0.5,
-          hasLength: Math.hypot(labelX - targetX, labelY - targetY) > 4,
-        };
-      }),
+          return (
+            targetX < labelX &&
+            targetX >= 2 &&
+            targetX <= 66 &&
+            targetY >= 10 &&
+            targetY <= 90 &&
+            Math.abs(labelX - labelRail) < 0.5 &&
+            Math.hypot(labelX - targetX, labelY - targetY) > 3
+          );
+        }),
+      CALLOUT_LABEL_X,
     );
 
-  expect(
-    calloutGeometry.every(
-      (entry) =>
-        entry.targetBeforeLabel &&
-        entry.targetInBounds &&
-        entry.terminatesAtLabelRail &&
-        entry.hasLength,
-    ),
-  ).toBe(true);
+  expect(calloutGeometry.length).toBeGreaterThan(0);
+  expect(calloutGeometry.every(Boolean)).toBe(true);
 }
 
-async function expectCalloutLabelsDoNotOverlap(performancePanel: Locator) {
-  const labelBoxes = await performancePanel
+async function expectCalloutLabelsDoNotOverlap(panel: Locator) {
+  const labelBoxes = await panel
     .locator('[data-primitive-callout-label]')
     .evaluateAll((labels) =>
       labels
@@ -204,10 +154,21 @@ async function expectCalloutLabelsDoNotOverlap(performancePanel: Locator) {
   }
 }
 
-test('renders the primitive structure tab as a nonblank orthographic view', async ({
+async function expectCalloutCount(panel: Locator, count: number) {
+  for (const attribute of [
+    'data-primitive-callout-line',
+    'data-primitive-callout-hit',
+    'data-primitive-callout-label',
+    'data-primitive-callout-dot',
+  ]) {
+    await expect(panel.locator(`[${attribute}]`)).toHaveCount(count);
+  }
+}
+
+test('renders the primitive structure tab as a measured isometric figure', async ({
   page,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== 'desktop', 'desktop WebGL coverage');
+  test.skip(testInfo.project.name !== 'desktop', 'desktop figure coverage');
   const browserErrors = await collectBrowserErrors(page);
 
   await openLabRoot(page);
@@ -224,19 +185,8 @@ test('renders the primitive structure tab as a nonblank orthographic view', asyn
     exact: true,
   });
 
-  await expect(metricsTab).toBeVisible();
   await expect(metricsTab).toHaveAttribute('aria-selected', 'false');
-  await expect(structureTab).toBeVisible();
   await expect(structureTab).toHaveAttribute('aria-selected', 'true');
-  await expect(
-    colorPlanePanel.getByTestId('lab-performance-html-canvas-labels-toggle'),
-  ).toHaveCount(0);
-  await expect(
-    colorPlanePanel.getByText('Unsupported in this browser', { exact: true }),
-  ).toHaveCount(0);
-  await expect(
-    colorPlanePanel.getByText('Use html-in-canvas', { exact: true }),
-  ).toHaveCount(0);
   await expect(
     colorPlanePanel.getByRole('tabpanel', { name: 'Structure', exact: true }),
   ).toBeVisible();
@@ -245,9 +195,6 @@ test('renders the primitive structure tab as a nonblank orthographic view', asyn
   ).toHaveAttribute('tabindex', '0');
   await expect(
     colorPlanePanel.getByText('ColorPlane primitive', { exact: true }),
-  ).toBeVisible();
-  await expect(
-    colorPlanePanel.locator('[data-primitive-layer="gamut-raster"]'),
   ).toBeVisible();
 
   const structureShell = colorPlanePanel.getByTestId(
@@ -261,11 +208,6 @@ test('renders the primitive structure tab as a nonblank orthographic view', asyn
     'data-primitive-structure-schema',
     'node-tree',
   );
-  expect(
-    await structureShell.getAttribute(
-      'data-primitive-structure-html-canvas-gate',
-    ),
-  ).toBeNull();
 
   const renderSurface = colorPlanePanel.getByTestId(
     'lab-primitive-structure-render',
@@ -274,136 +216,97 @@ test('renders the primitive structure tab as a nonblank orthographic view', asyn
     'data-primitive-structure-surface',
     'transparent',
   );
-  const renderSurfaceStyle = await renderSurface.evaluate((element) => {
-    const style = window.getComputedStyle(element);
+  await expect(renderSurface).toHaveAttribute(
+    'data-primitive-structure-renderer',
+    'svg',
+  );
+  expect(
+    await renderSurface.evaluate((element) => {
+      const style = window.getComputedStyle(element);
 
-    return {
-      backgroundColor: style.backgroundColor,
-      backgroundImage: style.backgroundImage,
-      borderTopWidth: style.borderTopWidth,
-    };
-  });
-  expect(renderSurfaceStyle).toEqual({
+      return {
+        backgroundColor: style.backgroundColor,
+        backgroundImage: style.backgroundImage,
+        borderTopWidth: style.borderTopWidth,
+      };
+    }),
+  ).toEqual({
     backgroundColor: 'rgba(0, 0, 0, 0)',
     backgroundImage: 'none',
     borderTopWidth: '0px',
   });
+
+  const canvas = colorPlanePanel.getByTestId('lab-primitive-structure-canvas');
+  await expect(canvas).toBeVisible();
+  await expect(canvas).toHaveAttribute('role', 'img');
+  for (const [name, value] of [
+    ['axis', 'z'],
+    ['geometry', 'measured-dom'],
+    ['layout', 'dom-rects'],
+    ['layer-gap', 'adjustable'],
+    ['guides', 'callouts'],
+    ['interaction', 'hit-test'],
+    ['motion', 'on-demand'],
+    ['palette', 'hairline'],
+  ] as const) {
+    await expect(canvas).toHaveAttribute(
+      `data-primitive-structure-${name}`,
+      value,
+    );
+  }
+  const canvasBox = await canvas.boundingBox();
+  expect(canvasBox!.width).toBeGreaterThan(300);
+  expect(canvasBox!.height).toBeGreaterThan(180);
+
+  // Frame, raster and thumb are rendered; the overlay layers are off by default.
+  await expectFigureDrawn(colorPlanePanel, 3);
+  const colorPlaneSlabs = await readSlabs(colorPlanePanel);
+  expect(colorPlaneSlabs.map((slab) => slab.node)).toEqual([
+    'plane-frame',
+    'gamut-raster',
+    'active-thumb',
+  ]);
+  expect(colorPlaneSlabs.map((slab) => slab.level)).toEqual([0, 1, 2]);
   await expect(
-    colorPlanePanel.getByText('Y Axis Exploded', { exact: true }),
-  ).toHaveCount(0);
-  await expect(
-    colorPlanePanel.getByTestId('lab-primitive-structure-callouts'),
-  ).toBeVisible();
-  await expect(
-    colorPlanePanel.locator('[data-primitive-callout-line]'),
-  ).toHaveCount(4);
-  await expect(
-    colorPlanePanel.locator('[data-primitive-callout-hit]'),
-  ).toHaveCount(4);
-  await expect(
-    colorPlanePanel.locator('[data-primitive-callout-label]'),
-  ).toHaveCount(4);
-  await expect(
-    colorPlanePanel.locator('[data-primitive-callout-dot]'),
-  ).toHaveCount(4);
+    canvas.locator('[data-structure-node="gamut-raster"] path'),
+  ).not.toHaveCount(0);
+
+  await expectCalloutCount(colorPlanePanel, 3);
   await expect(
     colorPlanePanel.locator('[data-primitive-callout-layer="true"]'),
-  ).toHaveCount(3);
-  await expect(
-    colorPlanePanel.locator('[data-primitive-layer] [aria-hidden="true"]'),
-  ).toHaveCount(0);
+  ).toHaveCount(2);
   await expectCalloutLinesAttachToLabels(colorPlanePanel);
-  const renderLabelMetrics = await colorPlanePanel
+  await expectCalloutLabelsDoNotOverlap(colorPlanePanel);
+  await expectStructureGeometryClearsCalloutLabels(colorPlanePanel);
+  const labelMetrics = await colorPlanePanel
     .locator('[data-primitive-callout-label]')
     .evaluateAll((labels) =>
       labels.map((label) => {
-        const rect = label.getBoundingClientRect();
         const style = window.getComputedStyle(label);
 
         return {
           borderRadius: style.borderRadius,
           fontSize: style.fontSize,
-          height: Math.round(rect.height),
+          height: Math.round(label.getBoundingClientRect().height),
           lineHeight: style.lineHeight,
-          paddingBottom: style.paddingBottom,
-          paddingTop: style.paddingTop,
           transitionDuration: style.transitionDuration,
         };
       }),
     );
   expect(
-    renderLabelMetrics.every(
+    labelMetrics.every(
       (label) =>
         label.borderRadius === '0px' &&
         label.height >= 20 &&
         label.fontSize === '10px' &&
         label.lineHeight === '12px' &&
-        label.paddingBottom === '0px' &&
-        label.paddingTop === '0px' &&
         label.transitionDuration === '0.3s',
     ),
   ).toBe(true);
-  const calloutTransitionDurations = await colorPlanePanel
-    .locator('[data-primitive-callout]')
-    .evaluateAll((callouts) =>
-      callouts.map((callout) => getComputedStyle(callout).transitionDuration),
-    );
-  expect(
-    calloutTransitionDurations.every((duration) => duration === '0.3s'),
-  ).toBe(true);
-  await expectCalloutLabelsDoNotOverlap(colorPlanePanel);
 
-  const colorPlaneRenderNodes = await colorPlanePanel
-    .locator('[data-primitive-callout-layer="true"]')
-    .evaluateAll((items) =>
-      items.map((item) => ({
-        component: item.getAttribute('data-primitive-component'),
-        depth: item.getAttribute('data-primitive-depth'),
-        id: item.getAttribute('data-primitive-node'),
-        parent: item.getAttribute('data-primitive-parent'),
-        relation: item.getAttribute('data-primitive-relation'),
-        slot: item.getAttribute('data-primitive-slot'),
-      })),
-    );
-  expect(colorPlaneRenderNodes).toEqual([
-    {
-      component: 'ColorPlane',
-      depth: '1',
-      id: 'gamut-raster',
-      parent: 'plane-frame',
-      relation: 'child',
-      slot: 'children',
-    },
-    {
-      component: 'Layer',
-      depth: '1',
-      id: 'overlay-boundaries',
-      parent: 'plane-frame',
-      relation: 'slot',
-      slot: 'overlay',
-    },
-    {
-      component: 'Thumb',
-      depth: '1',
-      id: 'active-thumb',
-      parent: 'plane-frame',
-      relation: 'implicit',
-      slot: 'thumb',
-    },
-  ]);
-  const colorPlaneStructureNodes = await colorPlanePanel
-    .locator('[data-primitive-node]')
-    .evaluateAll((items) =>
-      items.map((item) => ({
-        component: item.getAttribute('data-primitive-component'),
-        depth: item.getAttribute('data-primitive-depth'),
-        id: item.getAttribute('data-primitive-node'),
-        parent: item.getAttribute('data-primitive-parent'),
-        relation: item.getAttribute('data-primitive-relation'),
-        slot: item.getAttribute('data-primitive-slot'),
-      })),
-    );
-  expect(colorPlaneStructureNodes).toEqual([
+  expect(
+    await readNodes(colorPlanePanel.locator('[data-primitive-node]')),
+  ).toEqual([
     {
       component: 'Background',
       depth: '1',
@@ -431,15 +334,7 @@ test('renders the primitive structure tab as a nonblank orthographic view', asyn
     {
       component: 'GamutBoundaryLayer',
       depth: '2',
-      id: 'p3-boundary',
-      parent: 'overlay-boundaries',
-      relation: 'child',
-      slot: 'overlay',
-    },
-    {
-      component: 'GamutBoundaryLayer',
-      depth: '2',
-      id: 'srgb-boundary',
+      id: 'gamut-boundaries',
       parent: 'overlay-boundaries',
       relation: 'child',
       slot: 'overlay',
@@ -462,30 +357,7 @@ test('renders the primitive structure tab as a nonblank orthographic view', asyn
     },
   ]);
 
-  const canvas = colorPlanePanel.getByTestId('lab-primitive-structure-canvas');
-  const gamutLinePoint = await colorPlanePanel
-    .locator('[data-primitive-callout-hit="gamut-raster"]')
-    .evaluate((path) => {
-      const line = path as SVGPathElement;
-      const svg = line.ownerSVGElement;
-      const rect = svg?.getBoundingClientRect();
-      const point = line.getPointAtLength(line.getTotalLength() * 0.82);
-
-      if (!rect) {
-        return null;
-      }
-
-      return {
-        x: rect.left + (point.x / 100) * rect.width,
-        y: rect.top + (point.y / 100) * rect.height,
-      };
-    });
-  expect(gamutLinePoint).not.toBeNull();
-  await page.mouse.move(gamutLinePoint!.x, gamutLinePoint!.y);
-  await page.mouse.move(0, 0);
-  await expect(structureShell).not.toHaveAttribute(
-    'data-primitive-structure-hover-layer',
-  );
+  // Callout lines and labels do not steal hover; the figure does.
   await colorPlanePanel
     .locator('[data-primitive-callout-label="gamut-raster"]')
     .hover();
@@ -496,118 +368,107 @@ test('renders the primitive structure tab as a nonblank orthographic view', asyn
   await expect(structureShell).not.toHaveAttribute(
     'data-primitive-structure-hover-layer',
   );
-
-  const hoveredColorPlaneLayer = await findCanvasHoveredLayer(
+  const hoveredLayer = await hoverFigureLayer(
     page,
-    canvas,
+    colorPlanePanel,
     structureShell,
   );
-  expect([
-    'plane-frame',
-    'gamut-raster',
-    'overlay-boundaries',
-    'active-thumb',
-  ]).toContain(hoveredColorPlaneLayer);
-  await expect(structureShell).toHaveAttribute(
-    'data-primitive-structure-hover-layer',
-    hoveredColorPlaneLayer!,
+  expect(['plane-frame', 'gamut-raster', 'active-thumb']).toContain(
+    hoveredLayer,
   );
-  const mutedColorPlaneLayer =
-    hoveredColorPlaneLayer === 'gamut-raster' ? 'active-thumb' : 'gamut-raster';
+  const mutedLayer =
+    hoveredLayer === 'gamut-raster' ? 'active-thumb' : 'gamut-raster';
   await expect(
     colorPlanePanel.locator(
-      `[data-primitive-callout-layer="true"][data-primitive-layer="${mutedColorPlaneLayer}"]`,
+      `[data-primitive-callout-layer="true"][data-primitive-layer="${mutedLayer}"]`,
     ),
   ).toHaveClass(/opacity-35/);
-  if (hoveredColorPlaneLayer !== 'plane-frame') {
-    await expect(
-      colorPlanePanel.locator(
-        `[data-primitive-callout-layer="true"][data-primitive-layer="${hoveredColorPlaneLayer}"]`,
-      ),
-    ).toHaveClass(/opacity-100/);
-  }
   await page.mouse.move(0, 0);
   await expect(structureShell).not.toHaveAttribute(
     'data-primitive-structure-hover-layer',
   );
-  await expect(
-    colorPlanePanel.getByTestId('lab-primitive-structure-html-canvas-layer'),
-  ).toHaveCount(0);
 
-  await expect(canvas).toBeVisible();
-  await expect(canvas).toHaveAttribute('role', 'img');
-  await expect(canvas).toHaveAttribute('data-primitive-structure-axis', 'y');
-  await expect(canvas).toHaveAttribute(
-    'data-primitive-structure-geometry',
-    'plane-grid',
-  );
-  await expect(canvas).toHaveAttribute(
-    'data-primitive-structure-layout',
-    '24-grid',
-  );
-  await expect(canvas).toHaveAttribute(
-    'data-primitive-structure-layer-gap',
-    'uniform',
-  );
-  await expect(canvas).toHaveAttribute(
-    'data-primitive-structure-guides',
-    'callouts',
-  );
-  await expect(canvas).toHaveAttribute(
-    'data-primitive-structure-interaction',
-    'raycast',
-  );
-  await expect(canvas).toHaveAttribute(
-    'data-primitive-structure-motion',
-    'static',
-  );
-  await expect(canvas).toHaveAttribute(
-    'data-primitive-structure-palette',
-    'layer-colors',
-  );
-  const canvasBox = await canvas.boundingBox();
-  expect(canvasBox).not.toBeNull();
-  expect(canvasBox!.width).toBeGreaterThan(300);
-  expect(canvasBox!.height).toBeGreaterThan(180);
-  await expect
-    .poll(async () => (await canvas.evaluate(sampleStructureCanvas)).litPixels)
-    .toBeGreaterThan(1000);
-  const firstSample = await canvas.evaluate(sampleStructureCanvas);
+  // Idle figures do not animate.
+  const idleMarkup = await canvas.innerHTML();
   await page.waitForTimeout(350);
-  const secondSample = await canvas.evaluate(sampleStructureCanvas);
-  expect(secondSample.checksum).toBe(firstSample.checksum);
-  expect(firstSample.litBounds).not.toBeNull();
+  expect(await canvas.innerHTML()).toBe(idleMarkup);
+
+  // The explode control opens the gap between layers.
+  const gapReadout = colorPlanePanel.getByTestId(
+    'lab-primitive-structure-gap-readout',
+  );
+  const gapBefore = await gapReadout.textContent();
+  const raisedBefore = colorPlaneSlabs.at(-1)!.top;
+  await colorPlanePanel
+    .getByTestId('lab-primitive-structure-gap-control')
+    .getByRole('slider')
+    .focus();
+  await page.keyboard.press('End');
+  await expect(gapReadout).not.toHaveText(gapBefore ?? '');
+  await expect
+    .poll(async () => (await readSlabs(colorPlanePanel)).at(-1)!.top)
+    .toBeLessThan(raisedBefore - 4);
+  await page.keyboard.press('Home');
+  await expect(gapReadout).toHaveText('gap 0.0px');
+
   await metricsTab.click();
-  await expect(metricsTab).toHaveAttribute('aria-selected', 'true');
-  await expect(
-    colorPlanePanel.getByRole('tabpanel', { name: 'Metrics', exact: true }),
-  ).toBeVisible();
-  await expect(
-    colorPlanePanel.getByRole('tabpanel', { name: 'Metrics', exact: true }),
-  ).toHaveAttribute('tabindex', '0');
   await expect(canvas).toHaveCount(0);
   await structureTab.click();
-  await expect(structureTab).toHaveAttribute('aria-selected', 'true');
+  await expectFigureDrawn(colorPlanePanel, 3);
+
+  // ControlField: slabs match the rendered parts, and update when they change.
+  await page.getByRole('link', { name: 'Control Field', exact: true }).click();
+  await expect(page).toHaveURL(/\/lab\/control-field$/);
+  const controlFieldPanel = performancePanelFor(page, 'Control Field');
+  await expectFigureDrawn(controlFieldPanel, 4);
+  const inputSize = await page
+    .locator('[data-lab-component-preview] [data-slot="control-field-input"]')
+    .evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+
+      return `${Math.round(rect.width * 10) / 10}x${Math.round(rect.height * 10) / 10}`;
+    });
   await expect(
-    colorPlanePanel.getByRole('tabpanel', { name: 'Structure', exact: true }),
-  ).toBeVisible();
+    controlFieldPanel.locator('[data-primitive-node="control-field-input"]'),
+  ).toHaveAttribute('data-primitive-measured', inputSize);
+  expect(
+    (await readSlabs(controlFieldPanel)).map((slab) => [slab.node, slab.level]),
+  ).toEqual([
+    ['control-field-root', 0],
+    ['control-field-group', 1],
+    ['control-field-scrub-area', 2],
+    ['control-field-input', 2],
+  ]);
+  await expect(
+    controlFieldPanel.locator(
+      '[data-structure-node="control-field-input"] [data-structure-text]',
+    ),
+  ).toHaveCount(1);
+  await expectCalloutLinesAttachToLabels(controlFieldPanel);
+  await expectCalloutLabelsDoNotOverlap(controlFieldPanel);
+
+  // Plane: moving the thumb re-measures it.
+  await page.getByRole('link', { name: 'Plane', exact: true }).click();
+  await expect(page).toHaveURL(/\/lab\/plane$/);
+  const planePanel = performancePanelFor(page, 'Plane');
+  await expectFigureDrawn(planePanel, 2);
+  const thumbBefore = (await readSlabs(planePanel)).find(
+    (slab) => slab.node === 'plane-thumb',
+  )!.d;
+  await page
+    .locator('[data-lab-component-preview] [data-slot="plane-thumb"] input')
+    .first()
+    .focus();
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('ArrowRight');
   await expect
-    .poll(async () => (await canvas.evaluate(sampleStructureCanvas)).litPixels)
-    .toBeGreaterThan(1000);
-  const roundTripSample = await canvas.evaluate(sampleStructureCanvas);
-  expect(roundTripSample.litBounds).not.toBeNull();
-  expect(roundTripSample.litBounds!.width).toBeGreaterThan(
-    firstSample.litBounds!.width * 0.85,
-  );
-  expect(roundTripSample.litBounds!.width).toBeLessThan(
-    firstSample.litBounds!.width * 1.2,
-  );
-  expect(roundTripSample.litBounds!.height).toBeGreaterThan(
-    firstSample.litBounds!.height * 0.85,
-  );
-  expect(roundTripSample.litBounds!.height).toBeLessThan(
-    firstSample.litBounds!.height * 1.2,
-  );
+    .poll(
+      async () =>
+        (await readSlabs(planePanel)).find(
+          (slab) => slab.node === 'plane-thumb',
+        )?.d,
+    )
+    .not.toBe(thumbBefore);
 
   await page.getByRole('link', { name: 'Checkbox', exact: true }).click();
   await expect(page).toHaveURL(/\/lab\/checkbox$/);
@@ -615,15 +476,8 @@ test('renders the primitive structure tab as a nonblank orthographic view', asyn
   await expect(
     checkboxPanel.getByText('Checkbox primitive', { exact: true }),
   ).toBeVisible();
-  await expect(
-    checkboxPanel.locator('[data-primitive-callout-line]'),
-  ).toHaveCount(4);
-  await expect(
-    checkboxPanel.locator('[data-primitive-callout-label]'),
-  ).toHaveCount(4);
-  await expect(
-    checkboxPanel.locator('[data-primitive-callout-dot]'),
-  ).toHaveCount(4);
+  await expectFigureDrawn(checkboxPanel, 4);
+  await expectCalloutCount(checkboxPanel, 4);
   await expectCalloutLinesAttachToLabels(checkboxPanel);
   await expectCalloutLabelsDoNotOverlap(checkboxPanel);
 
@@ -633,6 +487,7 @@ test('renders the primitive structure tab as a nonblank orthographic view', asyn
   await expect(
     menuPanel.getByText('Menu primitive', { exact: true }),
   ).toBeVisible();
+  await expectFigureDrawn(menuPanel, 1);
   await expectCalloutLinesAttachToLabels(menuPanel);
   await expectCalloutLabelsDoNotOverlap(menuPanel);
   await expectStructureGeometryClearsCalloutLabels(menuPanel);
@@ -641,58 +496,16 @@ test('renders the primitive structure tab as a nonblank orthographic view', asyn
   await expect(page).toHaveURL(/\/lab\/tabs$/);
   const tabsPanel = performancePanelFor(page, 'Tabs');
   await expect(
-    tabsPanel.getByText('Tabs primitive', { exact: true }),
-  ).toBeVisible();
-  await expect(
     tabsPanel.getByText('A tablist shell containing repeated tab triggers', {
       exact: false,
     }),
   ).toBeVisible();
-
-  const tabsStructureShell = tabsPanel.getByTestId(
-    'lab-primitive-structure-shell',
-  );
-  const tabsCanvas = tabsPanel.getByTestId('lab-primitive-structure-canvas');
-  await expect(tabsPanel.locator('[data-primitive-callout-line]')).toHaveCount(
-    5,
-  );
-  await expect(tabsPanel.locator('[data-primitive-callout-hit]')).toHaveCount(
-    5,
-  );
-  await expect(tabsPanel.locator('[data-primitive-callout-label]')).toHaveCount(
-    5,
-  );
-  await expect(tabsPanel.locator('[data-primitive-callout-dot]')).toHaveCount(
-    5,
-  );
+  await expectFigureDrawn(tabsPanel, 5);
+  await expectCalloutCount(tabsPanel, 4);
   await expect(
     tabsPanel.locator('[data-primitive-callout-layer="true"]'),
-  ).toHaveCount(4);
-  for (const layerId of [
-    'tabs-list',
-    'active-tab',
-    'inactive-tabs',
-    'tab-content',
-    'inactive-tab-content',
-  ]) {
-    await expect(
-      tabsPanel.locator(`[data-primitive-layer="${layerId}"]`),
-    ).toBeVisible();
-  }
-  const tabsStructureNodes = await tabsPanel
-    .locator('[data-primitive-node]')
-    .evaluateAll((items) =>
-      items.map((item) => ({
-        component: item.getAttribute('data-primitive-component'),
-        depth: item.getAttribute('data-primitive-depth'),
-        id: item.getAttribute('data-primitive-node'),
-        parent: item.getAttribute('data-primitive-parent'),
-        relation: item.getAttribute('data-primitive-relation'),
-        slot: item.getAttribute('data-primitive-slot'),
-        text: item.textContent?.trim() ?? '',
-      })),
-    );
-  expect(tabsStructureNodes).toEqual([
+  ).toHaveCount(3);
+  expect(await readNodes(tabsPanel.locator('[data-primitive-node]'))).toEqual([
     {
       component: 'TabsList',
       depth: '1',
@@ -700,7 +513,6 @@ test('renders the primitive structure tab as a nonblank orthographic view', asyn
       parent: 'tabs-root',
       relation: 'child',
       slot: 'children',
-      text: 'TabsList<tabslist>Shared segmented shell that groups the tab triggers.',
     },
     {
       component: 'TabsTrigger',
@@ -709,7 +521,6 @@ test('renders the primitive structure tab as a nonblank orthographic view', asyn
       parent: 'tabs-list',
       relation: 'child',
       slot: 'trigger',
-      text: 'TabsTrigger<tabstrigger>Peer trigger surface that participates in roving focus.',
     },
     {
       component: 'TabsTrigger',
@@ -718,7 +529,6 @@ test('renders the primitive structure tab as a nonblank orthographic view', asyn
       parent: 'tabs-list',
       relation: 'child',
       slot: 'trigger',
-      text: 'TabsTrigger<tabstrigger>Selected trigger surface with active-state styling.',
     },
     {
       component: 'TabsContent',
@@ -727,7 +537,6 @@ test('renders the primitive structure tab as a nonblank orthographic view', asyn
       parent: 'tabs-root',
       relation: 'sibling',
       slot: 'content',
-      text: 'TabsContent<tabscontent>Selected panel content associated with the active tab value.',
     },
     {
       component: 'TabsContent',
@@ -736,64 +545,27 @@ test('renders the primitive structure tab as a nonblank orthographic view', asyn
       parent: 'tabs-root',
       relation: 'sibling',
       slot: 'content',
-      text: 'TabsContent<tabscontent>Inactive panel content kept as a sibling in the Tabs composition.',
     },
   ]);
-  await expect(tabsCanvas).toHaveAttribute(
-    'data-primitive-structure-geometry',
-    'plane-grid',
-  );
-  await expect(tabsCanvas).toHaveAttribute(
-    'data-primitive-structure-layout',
-    '24-grid',
-  );
-  await expect(tabsCanvas).toHaveAttribute(
-    'data-primitive-structure-layer-gap',
-    'uniform',
-  );
-  await expect(tabsCanvas).toHaveAttribute(
-    'data-primitive-structure-interaction',
-    'raycast',
-  );
-  await expect(tabsCanvas).toHaveAttribute(
-    'data-primitive-structure-palette',
-    'layer-colors',
-  );
-  await expectCalloutLinesAttachToLabels(tabsPanel);
-  await expectCalloutLabelsDoNotOverlap(tabsPanel);
-  await expect
-    .poll(
-      async () => (await tabsCanvas.evaluate(sampleStructureCanvas)).litPixels,
-    )
-    .toBeGreaterThan(1000);
-  const tabsFirstSample = await tabsCanvas.evaluate(sampleStructureCanvas);
-  await page.waitForTimeout(350);
-  const tabsSecondSample = await tabsCanvas.evaluate(sampleStructureCanvas);
-  expect(tabsSecondSample.checksum).toBe(tabsFirstSample.checksum);
-
-  const hoveredTabsLayer = await findCanvasHoveredLayer(
-    page,
-    tabsCanvas,
-    tabsStructureShell,
-  );
-  expect([
-    'tabs-root',
-    'tabs-list',
-    'active-tab',
-    'inactive-tabs',
-    'tab-content',
-  ]).toContain(hoveredTabsLayer);
-  await expect(tabsStructureShell).toHaveAttribute(
-    'data-primitive-structure-hover-layer',
-    hoveredTabsLayer!,
-  );
-  const mutedTabsLayer =
-    hoveredTabsLayer === 'inactive-tabs' ? 'active-tab' : 'inactive-tabs';
+  // Icons and labels are drawn on the triggers as geometry.
   await expect(
     tabsPanel.locator(
-      `[data-primitive-callout-layer="true"][data-primitive-layer="${mutedTabsLayer}"]`,
+      '[data-structure-node="active-tab"] [data-structure-icon]',
     ),
-  ).toHaveClass(/opacity-35/);
+  ).toHaveCount(1);
+  await expect(
+    tabsPanel.locator(
+      '[data-structure-node="active-tab"] [data-structure-text]',
+    ),
+  ).toHaveCount(1);
+  await expectCalloutLinesAttachToLabels(tabsPanel);
+  await expectCalloutLabelsDoNotOverlap(tabsPanel);
+  const tabsShell = tabsPanel.getByTestId('lab-primitive-structure-shell');
+  const hoveredTabsLayer = await hoverFigureLayer(page, tabsPanel, tabsShell);
+  expect(['tabs-root', 'tabs-list', 'active-tab', 'inactive-tabs']).toContain(
+    hoveredTabsLayer,
+  );
+  await page.mouse.move(0, 0);
 
   await page.getByRole('link', { name: 'Select', exact: true }).click();
   await expect(page).toHaveURL(/\/lab\/select$/);
@@ -802,8 +574,31 @@ test('renders the primitive structure tab as a nonblank orthographic view', asyn
     selectPanel.getByText('Select primitive', { exact: true }),
   ).toBeVisible();
   await expect(
-    selectPanel.locator('[data-primitive-layer="select-trigger"]'),
+    selectPanel.locator('[data-primitive-layer="select-content"]'),
   ).toBeVisible();
+  await expectFigureDrawn(selectPanel, 1);
 
   expect(browserErrors).toEqual([]);
+});
+
+test('jumps the explode gap under reduced motion', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'desktop figure coverage');
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await openLabRoot(page);
+  await page.goto('/lab/slider');
+  const panel = performancePanelFor(page, 'Slider');
+  await expectFigureDrawn(panel, 3);
+  await expect(
+    panel.getByTestId('lab-primitive-structure-canvas'),
+  ).toHaveAttribute('data-primitive-structure-motion', 'reduced');
+  const readout = panel.getByTestId('lab-primitive-structure-gap-readout');
+  await panel
+    .getByTestId('lab-primitive-structure-gap-control')
+    .getByRole('slider')
+    .focus();
+  await page.keyboard.press('Home');
+  // Eased, the gap needs ~0.5s to settle; reduced motion lands on it at once.
+  await expect(readout).toHaveText('gap 0.0px', { timeout: 150 });
 });

@@ -197,6 +197,15 @@ test('tracks a sustained drag without repeated Plane layout reads', async ({
   const browserErrors = await collectBrowserErrors(page);
 
   await page.goto('/lab/plane');
+  // The Structure tab measures the preview (Plane root included) after each
+  // interaction. This budget is for the Plane's own reads, so profile with
+  // the Metrics tab showing.
+  const metricsTab = performancePanelFor(page, 'Plane').getByRole('tab', {
+    name: 'Metrics',
+    exact: true,
+  });
+  await metricsTab.click();
+  await expect(metricsTab).toHaveAttribute('aria-selected', 'true');
   const plane = page.getByTestId('plane-demo');
   const thumb = page.getByTestId('plane-demo-thumb');
   const readout = page.getByTestId('plane-demo-readout');

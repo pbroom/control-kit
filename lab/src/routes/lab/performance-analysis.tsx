@@ -806,6 +806,7 @@ function LabPerformanceAnalysisPanelComponent({
             {activePanelView === 'structure' ? (
               <LabPrimitiveStructureView
                 isActive
+                pageKey={activePage}
                 structure={analysis.primitiveStructure}
               />
             ) : null}
