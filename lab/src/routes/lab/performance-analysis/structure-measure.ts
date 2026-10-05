@@ -18,6 +18,8 @@ export type StructurePoint = readonly [number, number];
 export type StructureMark =
   | { kind: 'text'; rect: LabPrimitiveStructureRect }
   | { kind: 'line'; points: readonly StructurePoint[] }
+  /** A construction line (drawn dashed), e.g. a thumb's crosshair. */
+  | { kind: 'dash'; points: readonly StructurePoint[] }
   | { kind: 'ring'; radius: number; rect: LabPrimitiveStructureRect }
   | {
       axis: 'grid' | 'x';
@@ -50,6 +52,7 @@ export type StructureMeasurement = {
 };
 
 type MeasuredElement = {
+  crosshair: boolean;
   element: Element;
   nodeId: string;
   portal: boolean;
@@ -384,6 +387,107 @@ function collectMarks(
     marks.push({ axis: 'x', kind: 'hatch', radius: 0, rect: slabRect });
   }
 
+  // The border's inner edge, so a bordered surface reads as a rimmed plate.
+  const borderWidth = Number.parseFloat(slabStyle.borderTopWidth) || 0;
+
+  if (
+    borderWidth > 0 &&
+    parseAlpha(slabStyle.borderTopColor) > 0.04 &&
+    slabRect.width > borderWidth * 4 &&
+    slabRect.height > borderWidth * 4
+  ) {
+    const inset = Math.max(
+      borderWidth,
+      Math.min(slabRect.width, slabRect.height) * 0.03,
+    );
+    marks.push({
+      kind: 'ring',
+      radius: Math.max(
+        0,
+        parseRadius(
+          slabStyle.borderTopLeftRadius,
+          slabRect.width,
+          slabRect.height,
+        ) - inset,
+      ),
+      rect: {
+        height: slabRect.height - inset * 2,
+        width: slabRect.width - inset * 2,
+        x: slabRect.x + inset,
+        y: slabRect.y + inset,
+      },
+    });
+  }
+
+  // A drag handle (scrub area): a double-headed arrow along its drag axis.
+  if (/^(ew|col|ns|row)-resize$/.test(slabStyle.cursor)) {
+    const vertical =
+      slabStyle.cursor.startsWith('ns') || slabStyle.cursor.startsWith('row');
+    const { height, width, x, y } = slabRect;
+
+    if (vertical) {
+      const cx = x + width * 0.82;
+      const y0 = y + height * 0.25;
+      const y1 = y + height * 0.75;
+      const head = Math.min(width, height) * 0.1;
+      marks.push(
+        {
+          kind: 'line',
+          points: [
+            [cx, y0],
+            [cx, y1],
+          ],
+        },
+        {
+          kind: 'line',
+          points: [
+            [cx - head, y0 + head],
+            [cx, y0],
+            [cx + head, y0 + head],
+          ],
+        },
+        {
+          kind: 'line',
+          points: [
+            [cx - head, y1 - head],
+            [cx, y1],
+            [cx + head, y1 - head],
+          ],
+        },
+      );
+    } else {
+      const cy = y + height * 0.84;
+      const x0 = x + width * 0.22;
+      const x1 = x + width * 0.78;
+      const head = Math.min(width * 0.12, height * 0.12);
+      marks.push(
+        {
+          kind: 'line',
+          points: [
+            [x0, cy],
+            [x1, cy],
+          ],
+        },
+        {
+          kind: 'line',
+          points: [
+            [x0 + head, cy - head],
+            [x0, cy],
+            [x0 + head, cy + head],
+          ],
+        },
+        {
+          kind: 'line',
+          points: [
+            [x1 - head, cy - head],
+            [x1, cy],
+            [x1 - head, cy + head],
+          ],
+        },
+      );
+    }
+  }
+
   const rail = pseudoGradientBox(slabElement, slabBox, origin);
 
   if (rail) {
@@ -550,9 +654,9 @@ function roundRect(rect: LabPrimitiveStructureRect): LabPrimitiveStructureRect {
 }
 
 function roundMark(mark: StructureMark): StructureMark {
-  if (mark.kind === 'line') {
+  if (mark.kind === 'line' || mark.kind === 'dash') {
     return {
-      kind: 'line',
+      kind: mark.kind,
       points: mark.points.map(([x, y]) => [round(x), round(y)] as const),
     };
   }
@@ -602,6 +706,7 @@ export function measurePrimitiveStructure(
 
       seen.add(element);
       measured.push({
+        crosshair: node.measure?.crosshair === true,
         element,
         nodeId: node.id,
         portal: portal && !preview.contains(element),
@@ -714,6 +819,43 @@ export function measurePrimitiveStructure(
 
     slabByElement.set(entry.element, slab);
     slabs.push(slab);
+
+    // A positioned marker traces its x/y across the surface right below it.
+    if (entry.crosshair) {
+      const cx = rect.x + rect.width / 2;
+      const cy = rect.y + rect.height / 2;
+      const below = slabs
+        .filter(
+          (candidate) =>
+            candidate !== slab &&
+            candidate.level < slab.level &&
+            cx > candidate.x &&
+            cx < candidate.x + candidate.width &&
+            cy > candidate.y &&
+            cy < candidate.y + candidate.height,
+        )
+        .sort((left, right) => right.level - left.level)[0];
+
+      if (below) {
+        below.marks = [
+          ...below.marks,
+          {
+            kind: 'dash',
+            points: [
+              [round(below.x), round(cy)],
+              [round(below.x + below.width), round(cy)],
+            ],
+          },
+          {
+            kind: 'dash',
+            points: [
+              [round(cx), round(below.y)],
+              [round(cx), round(below.y + below.height)],
+            ],
+          },
+        ];
+      }
+    }
   }
 
   const width = round(maxX - minX);

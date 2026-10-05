@@ -126,7 +126,11 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
               'Positioned marker with two native range axes for keyboard and assistive input.',
             id: 'plane-thumb',
             label: 'Thumb',
-            measure: { all: true, selector: slot('plane-thumb') },
+            measure: {
+              all: true,
+              crosshair: true,
+              selector: slot('plane-thumb'),
+            },
             relation: 'child',
             slot: 'children',
           },
@@ -211,6 +215,7 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
             id: 'active-thumb',
             label: 'Thumb',
             measure: {
+              crosshair: true,
               resolveRect: colorAreaThumbRect,
               selector: '[data-color-area-thumb]',
             },

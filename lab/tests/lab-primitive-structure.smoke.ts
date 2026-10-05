@@ -116,8 +116,8 @@ async function expectCalloutLinesAttachToLabels(panel: Locator) {
             targetX < labelX &&
             targetX >= 2 &&
             targetX <= 66 &&
-            targetY >= 10 &&
-            targetY <= 90 &&
+            targetY >= 2 &&
+            targetY <= 98 &&
             Math.abs(labelX - labelRail) < 0.5 &&
             Math.hypot(labelX - targetX, labelY - targetY) > 3
           );

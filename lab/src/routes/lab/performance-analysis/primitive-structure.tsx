@@ -41,18 +41,22 @@ const STRUCTURE_CALLOUT_LABEL_MAX_Y = 88;
 const STRUCTURE_CALLOUT_LABEL_MIN_GAP_PX = 24;
 const STRUCTURE_FIGURE_RIGHT = 0.64;
 const STRUCTURE_FIGURE_PADDING = 18;
-const STRUCTURE_DEFAULT_EXPLODE = 0.6;
+const STRUCTURE_DEFAULT_EXPLODE = 0.75;
 const STRUCTURE_EXPLODE_SMOOTHING_MS = 90;
 
 const STRUCTURE_PALETTE = {
+  // Lids are a lighter neutral than the panel (#171717), sides darker, so
+  // painted parts read as solid plates; strokes step down edge > text > mid > lo.
   '--structure-accent': '#4ba3ff',
-  '--structure-accent-top': 'color-mix(in srgb, #4ba3ff 13%, #141414)',
-  '--structure-edge': '#6b6d74',
-  '--structure-hi': '#d4d8df',
-  '--structure-lo': '#34353a',
-  '--structure-mid': '#50525a',
-  '--structure-plate': '#141414',
-  '--structure-side': '#1b1b1d',
+  '--structure-accent-top': 'color-mix(in srgb, #4ba3ff 22%, #26272b)',
+  '--structure-edge': '#a6a9b1',
+  '--structure-hi': '#eef0f3',
+  '--structure-lo': '#4b4d54',
+  '--structure-mid': '#7b7e88',
+  '--structure-plate': '#26272b',
+  '--structure-side': '#0e0e10',
+  '--structure-text': '#b9bdc5',
+  '--structure-text-fill': '#3a3c42',
 } as CSSProperties;
 
 type StructureCalloutPosition = {
@@ -372,7 +376,7 @@ function layoutCallouts(
   const entries = anchors
     .map(({ anchor, nodeId }) => {
       const targetX = clamp((anchor[0] / width) * 100, 2, 66);
-      const targetY = clamp((anchor[1] / height) * 100, 10, 90);
+      const targetY = clamp((anchor[1] / height) * 100, 2, 98);
 
       return {
         desiredLabelY: clamp(
@@ -597,7 +601,7 @@ export function LabPrimitiveStructureView({
     >
       <div className="flex min-h-0 min-w-0 flex-col gap-1">
         <div
-          className="flex h-6 items-center gap-3 font-mono text-[10px] uppercase tracking-[0.08em] text-white/40"
+          className="flex h-6 items-center gap-3 px-3 font-mono text-[10px] uppercase tracking-[0.08em] text-white/40"
           data-testid="lab-primitive-structure-gap-control"
         >
           <span id="lab-primitive-structure-gap-label">Explode</span>
@@ -658,6 +662,11 @@ export function LabPrimitiveStructureView({
                 : isMuted
                   ? 'var(--structure-lo)'
                   : 'var(--structure-mid)';
+              const textStroke = isLayerActive
+                ? 'var(--structure-hi)'
+                : isMuted
+                  ? 'var(--structure-mid)'
+                  : 'var(--structure-text)';
               const edgeStroke = isLayerActive
                 ? 'var(--structure-accent)'
                 : isMuted
@@ -739,6 +748,17 @@ export function LabPrimitiveStructureView({
                       }
                     />
                   ) : null}
+                  {slab.dashes ? (
+                    <path
+                      {...strokeProps}
+                      d={slab.dashes}
+                      data-structure-crosshair=""
+                      stroke={
+                        isMuted ? 'var(--structure-lo)' : 'var(--structure-mid)'
+                      }
+                      strokeDasharray="3 3"
+                    />
+                  ) : null}
                   {slab.rings ? (
                     <path {...strokeProps} d={slab.rings} stroke={markStroke} />
                   ) : null}
@@ -747,7 +767,8 @@ export function LabPrimitiveStructureView({
                       {...strokeProps}
                       d={slab.text}
                       data-structure-text=""
-                      stroke={markStroke}
+                      fill="var(--structure-text-fill)"
+                      stroke={textStroke}
                     />
                   ) : null}
                   {slab.lines ? (

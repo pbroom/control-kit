@@ -44,6 +44,8 @@ export type LabPrimitiveStructureRect = {
 export type LabPrimitiveStructureNodeMeasure = {
   /** Matches every element (true) or only the first one (default). */
   all?: boolean;
+  /** Trace the element's centre across the surface below it (2D thumbs). */
+  crosshair?: boolean;
   /**
    * Geometry for an element that is not laid out itself (e.g. a thumb hidden
    * in favour of a canvas-drawn one), relative to the root. Null skips it.

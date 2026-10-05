@@ -172,6 +172,8 @@ export type StructureFigureSlab = {
   footprint: string;
   /** Dashed drops to the layer below. */
   guide: string;
+  /** Construction lines on the lid (dashed). */
+  dashes: string;
   hatch: string;
   key: string;
   level: number;
@@ -216,13 +218,13 @@ export function structureThickness(measurement: StructureMeasurement) {
 }
 
 /**
- * The gap between levels at explode = 1: the opened stack is about as tall
- * as the footprint is deep, whatever the number of levels.
+ * The gap between levels at explode = 1: each level rises a little more than
+ * the footprint is deep on screen, so even thin parts open to a clear stack.
  */
 export function structureMaxGap(measurement: StructureMeasurement) {
   const depth = footprintWidth(measurement) * STRUCTURE_CAMERA_K;
 
-  return (depth * 1.05) / Math.max(1, measurement.levels - 1) / Z_FACTOR;
+  return (depth * 1.15) / Z_FACTOR;
 }
 
 function slabFrames(
@@ -410,6 +412,7 @@ export function buildStructureFigure(
     let rings = '';
     let lines = '';
     let hatch = '';
+    let dashes = '';
 
     for (const mark of slab.marks) {
       if (mark.kind === 'text') {
@@ -420,6 +423,8 @@ export function buildStructureFigure(
         rings += ringPath(x, y, width, height, mark.radius);
       } else if (mark.kind === 'line') {
         lines += openPath(mark.points.map(([u, v]) => project1(u, v)));
+      } else if (mark.kind === 'dash') {
+        dashes += openPath(mark.points.map(([u, v]) => project1(u, v)));
       } else {
         for (const [start, end] of hatchSegments(mark)) {
           hatch += openPath([project1(...start), project1(...end)]);
@@ -484,6 +489,7 @@ export function buildStructureFigure(
       focus,
       footprint,
       guide,
+      dashes,
       hatch,
       key: slab.key,
       level: slab.level,
