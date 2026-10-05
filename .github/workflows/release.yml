@@ -1,9 +1,9 @@
-# Publishes control-kit to npm. Manual only: run it from the Actions tab
+# Publishes @pbroom/control-kit to npm. Manual only: run it from the Actions tab
 # ("Release" -> "Run workflow") on the commit you want to ship. Nothing here
 # runs on push or tag.
 #
 # Maintainer setup (one time):
-#   1. Create an npm access token that can publish `control-kit`
+#   1. Create an npm access token that can publish `@pbroom/control-kit`
 #      (a granular token with read/write access and "bypass 2FA" enabled,
 #      or an automation token). Tokens expire; rotate before they do.
 #   2. Add it to this repository as the Actions secret `NPM_TOKEN`
@@ -70,7 +70,7 @@ jobs:
               fi
               ;;
           esac
-          echo "Publishing control-kit@$version under '$DIST_TAG'"
+          echo "Publishing @pbroom/control-kit@$version under '$DIST_TAG'"
       - run: pnpm install --frozen-lockfile
       - run: pnpm format:check
       - run: pnpm typecheck

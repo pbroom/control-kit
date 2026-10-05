@@ -5,7 +5,7 @@ import {
   PlaneThumb,
   type PlaneValue,
   type PlaneValueChangeDetails,
-} from 'control-kit';
+} from '@pbroom/control-kit';
 
 const GRAPH_SIZE = 360;
 const GRID_DIVISIONS = 12;

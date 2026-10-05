@@ -15,7 +15,7 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from 'control-kit';
+} from '@pbroom/control-kit';
 import {
   useCallback,
   useEffect,

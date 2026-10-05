@@ -1,4 +1,4 @@
-import kit = require('control-kit');
+import kit = require('@pbroom/control-kit');
 
 const value: kit.PlaneValue = kit.clampPlaneValue({ x: 2, y: -1 });
 void value;

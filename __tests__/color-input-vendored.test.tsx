@@ -5,7 +5,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import './helpers/dom-polyfills.js';
 
-// The vendored color-kit ColorInput resolves `control-kit` and
+// The vendored color-kit ColorInput resolves `@pbroom/control-kit` and
 // `@color-kit/core` through the aliases in vitest.config.ts.
 const { ColorInput } =
   await import('../lab/src/vendor/color-kit/react/color-input.js');

@@ -5,7 +5,7 @@ import {
   Plane,
   PlaneThumb,
   type PlaneValue,
-} from 'control-kit';
+} from '@pbroom/control-kit';
 
 type Tone = {
   label: 'Highlights' | 'Midtones' | 'Shadows';

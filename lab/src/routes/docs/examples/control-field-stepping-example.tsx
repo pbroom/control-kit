@@ -1,4 +1,4 @@
-import { ControlField } from 'control-kit';
+import { ControlField } from '@pbroom/control-kit';
 
 export function ControlFieldSteppingExample() {
   return (

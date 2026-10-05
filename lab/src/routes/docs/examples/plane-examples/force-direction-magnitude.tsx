@@ -13,7 +13,7 @@ import {
   clampPlaneValue,
   type PlaneValue,
   type PlaneValueChangeDetails,
-} from 'control-kit';
+} from '@pbroom/control-kit';
 
 const EXAMPLE_PLANE_CLASS_NAME =
   'relative size-[240px] touch-none overflow-visible [background-origin:border-box] max-sm:size-[220px]';

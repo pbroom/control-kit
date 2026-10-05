@@ -44,6 +44,32 @@ describe('component installation documentation', () => {
     },
   );
 
+  it.each(
+    Object.entries({
+      checkbox: checkboxDocs,
+      controlField: controlFieldDocs,
+      tabs: tabsDocs,
+      toggleGroup: toggleGroupDocs,
+      tooltip: tooltipDocs,
+    }),
+  )(
+    'installs %s from npm first, with the GitHub install as a fallback',
+    (_name, source) => {
+      const npmIndex = source.indexOf(
+        'pnpm add @pbroom/control-kit@next @base-ui/react',
+      );
+      const gitIndex = source.indexOf(
+        'pnpm add --allow-build=@pbroom/control-kit @pbroom/control-kit@github:pbroom/control-kit @base-ui/react',
+      );
+
+      expect(npmIndex).toBeGreaterThan(-1);
+      expect(gitIndex).toBeGreaterThan(npmIndex);
+      expect(source).toContain(
+        "@source '../node_modules/@pbroom/control-kit/src';",
+      );
+    },
+  );
+
   it.each(Object.entries(PRIMITIVE_DOCS))(
     'leaves the %s primitive documentation unchanged',
     (_name, source) => {

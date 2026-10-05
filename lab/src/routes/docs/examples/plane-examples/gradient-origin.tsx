@@ -4,7 +4,7 @@ import {
   PlaneAttachment,
   PlaneThumb,
   type PlaneValue,
-} from 'control-kit';
+} from '@pbroom/control-kit';
 
 const THUMB_CLASS_NAME =
   'size-5 border-2 border-white bg-[#171718] shadow-[0_2px_10px_rgba(0,0,0,0.35)]';

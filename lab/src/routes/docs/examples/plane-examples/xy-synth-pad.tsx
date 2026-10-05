@@ -6,7 +6,12 @@ import {
   type MutableRefObject,
   type ReactNode,
 } from 'react';
-import { Plane, PlaneThumb, Slider, type PlaneValue } from 'control-kit';
+import {
+  Plane,
+  PlaneThumb,
+  Slider,
+  type PlaneValue,
+} from '@pbroom/control-kit';
 
 const EXAMPLE_PLANE_CLASS_NAME =
   'relative size-[240px] touch-none overflow-hidden rounded-2xl border border-white/12 bg-[#111216] p-0 [background-origin:border-box] max-sm:size-[220px]';

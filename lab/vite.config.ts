@@ -11,7 +11,7 @@ export default defineConfig({
     alias: [
       { find: '@', replacement: fromLab('./src') },
       {
-        find: 'control-kit',
+        find: '@pbroom/control-kit',
         replacement: fromLab('../src/index.ts'),
       },
       {

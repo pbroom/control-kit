@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plane, PlaneThumb, type PlaneValue } from 'control-kit';
+import { Plane, PlaneThumb, type PlaneValue } from '@pbroom/control-kit';
 import owlPhotoUrl from './image-pan-and-focal-point.webp';
 
 function describePosition({ x, y }: PlaneValue) {

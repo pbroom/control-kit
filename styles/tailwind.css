@@ -1,8 +1,8 @@
 /*
- * control-kit Tailwind v4 preset.
+ * @pbroom/control-kit Tailwind v4 preset.
  *
  *   @import 'tailwindcss';
- *   @import 'control-kit/tailwind.css';
+ *   @import '@pbroom/control-kit/tailwind.css';
  *
  * Adds the theme tokens, registers the package source so Tailwind generates
  * the component classes, and maps the tokens to `ck-*` color utilities such
@@ -11,7 +11,7 @@
  */
 @import './theme.css';
 
-/* Relative to this file: node_modules/control-kit/styles -> ../src */
+/* Relative to this file: node_modules/@pbroom/control-kit/styles -> ../src */
 @source '../src';
 
 @theme inline {

@@ -6,7 +6,7 @@
  * inherit from the portal location, so use :root/body for a shared theme.
  *
  * This object is the source of truth for token names and dark defaults.
- * `styles/theme.css` (exported as `control-kit/theme.css`) must define every
+ * `styles/theme.css` (exported as `@pbroom/control-kit/theme.css`) must define every
  * token here; `__tests__/theme-css.test.ts` enforces that.
  */
 export const controlKitColor = {

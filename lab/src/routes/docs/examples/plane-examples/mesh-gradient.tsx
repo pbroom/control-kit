@@ -6,7 +6,7 @@ import {
   PlaneThumb,
   Slider,
   type PlaneValue,
-} from 'control-kit';
+} from '@pbroom/control-kit';
 
 type MeshStop = { x: number; y: number; color: string };
 

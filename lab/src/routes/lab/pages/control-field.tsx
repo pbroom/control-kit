@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ControlField } from 'control-kit';
+import { ControlField } from '@pbroom/control-kit';
 import { PanelSection, ToggleField } from '../shared.js';
 import { createActiveLabPage } from '../create-active-lab-page.js';
 import type { LabPageDescriptor } from '../types.js';

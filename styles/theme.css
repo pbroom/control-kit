@@ -1,7 +1,7 @@
 /*
- * control-kit theme tokens.
+ * @pbroom/control-kit theme tokens.
  *
- * Import once (e.g. `@import 'control-kit/theme.css';`). Dark defaults apply
+ * Import once (e.g. `@import '@pbroom/control-kit/theme.css';`). Dark defaults apply
  * on :root. Opt into the light preset with `data-ck-theme="light"` on :root
  * or any container; `data-ck-theme="dark"` restores the dark values inside a
  * light subtree. Tooltips portal to document.body, so set the attribute on

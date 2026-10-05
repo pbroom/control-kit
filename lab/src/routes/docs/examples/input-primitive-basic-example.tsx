@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ControlInput } from 'control-kit';
+import { ControlInput } from '@pbroom/control-kit';
 
 export function ControlInputExample() {
   const [value, setValue] = useState<number | null>(42);

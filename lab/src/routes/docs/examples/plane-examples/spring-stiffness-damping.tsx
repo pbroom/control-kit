@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Plane, PlaneThumb, type PlaneValue } from 'control-kit';
+import { Plane, PlaneThumb, type PlaneValue } from '@pbroom/control-kit';
 
 const SPRING_YELLOW = '#f5d34f';
 const CHART_WIDTH = 392;

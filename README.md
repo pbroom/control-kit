@@ -1,29 +1,29 @@
-# control-kit
+# @pbroom/control-kit
 
 React UI primitives for building operational color controls.
 
-Control Kit is a standalone package maintained in [pbroom/control-kit](https://github.com/pbroom/control-kit), with imports from `control-kit`. It was originally extracted from the `packages/control-kit` workspace in Color Kit and does not require Color Kit as a dependency. Component props can change as the API evolves; check the migration guidance before upgrading an existing consumer.
+Control Kit is a standalone package maintained in [pbroom/control-kit](https://github.com/pbroom/control-kit), with imports from `@pbroom/control-kit`. It was originally extracted from the `packages/control-kit` workspace in Color Kit and does not require Color Kit as a dependency. Component props can change as the API evolves; check the migration guidance before upgrading an existing consumer.
 
 ## Install
 
 Install the prerelease from npm together with the Base UI peer:
 
 ```sh
-pnpm add control-kit@next @base-ui/react
+pnpm add @pbroom/control-kit@next @base-ui/react
 ```
 
 Releases are published under the `next` dist-tag while the API settles, so
-`control-kit` without a tag does not resolve to them yet. The npm package
+`@pbroom/control-kit` without a tag does not resolve to them yet. The npm package
 ships prebuilt ESM, CommonJS, and TypeScript declarations in `dist/`, plus the
 `src/` files that the Tailwind preset scans.
 
 To track unreleased changes, install from this repository instead:
 
 ```sh
-pnpm add --allow-build=control-kit control-kit@github:pbroom/control-kit @base-ui/react
+pnpm add --allow-build=@pbroom/control-kit @pbroom/control-kit@github:pbroom/control-kit @base-ui/react
 ```
 
-The `--allow-build=control-kit` flag (pnpm 10) allows Git installs to run the `prepare` script so consumers receive the compiled entrypoints. Append `#<commit>` to pin a revision.
+The `--allow-build=@pbroom/control-kit` flag (pnpm 10) allows Git installs to run the `prepare` script so consumers receive the compiled entrypoints. Append `#<commit>` to pin a revision.
 
 ## Compatibility
 
@@ -54,11 +54,23 @@ two ways:
   publish rights. The `prepublishOnly` script typechecks, tests, and
   rebuilds `dist/` first, so a stale build cannot ship.
 
+### Upgrading from `control-kit`
+
+Earlier GitHub installs used the unscoped name `control-kit`, which was never
+published to npm. Replace that dependency with `@pbroom/control-kit`, then:
+
+- change every import specifier from `control-kit` to `@pbroom/control-kit`;
+- change CSS imports to `@import '@pbroom/control-kit/tailwind.css'` or
+  `@import '@pbroom/control-kit/theme.css'`;
+- point Tailwind `@source` paths at `node_modules/@pbroom/control-kit/src`.
+
+Exports, styles, and tokens are unchanged.
+
 ### Upgrading from `@color-kit/control-kit`
 
-Replace the old dependency with `control-kit`, update imports to
-`from 'control-kit'`, and update Tailwind source paths from
-`node_modules/@color-kit/control-kit/src` to `node_modules/control-kit/src`.
+Replace the old dependency with `@pbroom/control-kit`, update imports to
+`from '@pbroom/control-kit'`, and update Tailwind source paths from
+`node_modules/@color-kit/control-kit/src` to `node_modules/@pbroom/control-kit/src`.
 The package rename does not change its root exports.
 
 ### Upgrading from the Radix-based Tooltip
@@ -86,12 +98,12 @@ build must scan the package. Import the bundled preset after Tailwind:
 
 ```css
 @import 'tailwindcss';
-@import 'control-kit/tailwind.css';
+@import '@pbroom/control-kit/tailwind.css';
 ```
 
 The preset registers the package source with `@source` (resolved relative to
 the installed package, so no path adjustment is needed), includes
-`control-kit/theme.css`, and maps each token to a `ck-*` color utility:
+`@pbroom/control-kit/theme.css`, and maps each token to a `ck-*` color utility:
 `bg-ck-surface`, `bg-ck-surface-content`, `text-ck-foreground`,
 `border-ck-border`, `ring-ck-accent`, `border-ck-accent-border`,
 `border-ck-border-focus`, `border-ck-border-scrub`, and
@@ -103,7 +115,7 @@ To scan the package manually instead, add an `@source` for its shipped
 adjust it for your app's directory layout.
 
 ```css
-@source '../node_modules/control-kit/src';
+@source '../node_modules/@pbroom/control-kit/src';
 ```
 
 ## Theming
@@ -112,13 +124,13 @@ Component palette colors resolve through `--ck-*` CSS custom properties with
 dark defaults. Once Tailwind generates the component styles, no additional
 theme or animation package is required.
 
-`control-kit/theme.css` defines every token with the dark defaults on
+`@pbroom/control-kit/theme.css` defines every token with the dark defaults on
 `:root` and adds a light preset. It is plain CSS, so it works with or without
-Tailwind, and `control-kit/tailwind.css` already includes it. Import it after
+Tailwind, and `@pbroom/control-kit/tailwind.css` already includes it. Import it after
 `tailwindcss` when both are used.
 
 ```css
-@import 'control-kit/theme.css';
+@import '@pbroom/control-kit/theme.css';
 ```
 
 Opt into the light preset with `data-ck-theme="light"` on `<html>` or any
@@ -178,7 +190,7 @@ scrub release).
 
 ```tsx
 import { useState } from 'react';
-import { ControlInput } from 'control-kit';
+import { ControlInput } from '@pbroom/control-kit';
 
 export function OpacityInput({ save }: { save: (value: number) => void }) {
   const [opacity, setOpacity] = useState<number | null>(80);
@@ -239,7 +251,7 @@ pointer or keyboard interactions.
 
 ```tsx
 import { useState } from 'react';
-import { Plane, PlaneThumb, type PlaneValue } from 'control-kit';
+import { Plane, PlaneThumb, type PlaneValue } from '@pbroom/control-kit';
 
 export function PositionControl({
   savePoint,

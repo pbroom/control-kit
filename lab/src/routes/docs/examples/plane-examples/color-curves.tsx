@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Plane, PlaneThumb, type PlaneValue } from 'control-kit';
+import { Plane, PlaneThumb, type PlaneValue } from '@pbroom/control-kit';
 import PHOTO_URL from './color-curves-portrait.jpg';
 
 type CurvePoint = PlaneValue & { id: string };

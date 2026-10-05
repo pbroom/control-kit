@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Plane, PlaneThumb, type PlaneValue } from 'control-kit';
+import { Plane, PlaneThumb, type PlaneValue } from '@pbroom/control-kit';
 
 const PARTICLE_COUNT = 42;
 const MAX_SPEED = 84;

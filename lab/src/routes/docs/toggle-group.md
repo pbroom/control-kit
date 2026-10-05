@@ -11,16 +11,22 @@ A styled set of two-state buttons for choosing one or more related options. Buil
 1. Install Control Kit and its peer dependencies:
 
    ```bash
-   pnpm add --allow-build=control-kit control-kit@github:pbroom/control-kit @base-ui/react
+   pnpm add @pbroom/control-kit@next @base-ui/react
+   ```
+
+   To track unreleased changes, install from the GitHub repository instead. The `--allow-build` flag (pnpm 10) lets the Git install run the `prepare` build:
+
+   ```bash
+   pnpm add --allow-build=@pbroom/control-kit @pbroom/control-kit@github:pbroom/control-kit @base-ui/react
    ```
 
 2. Add the package source to Tailwind's content graph:
 
    ```css
-   @source '../node_modules/control-kit/src';
+   @source '../node_modules/@pbroom/control-kit/src';
    ```
 
-3. Import `ToggleGroup` and `ToggleGroupItem` from `control-kit` as shown below.
+3. Import `ToggleGroup` and `ToggleGroupItem` from `@pbroom/control-kit` as shown below.
 
 The `@source` path is relative to your stylesheet. The group uses
 `--ck-surface-content` for its background, `--ck-surface` for selected items,
@@ -34,7 +40,7 @@ an ancestor to customize its colors.
 Compose each item inside a group and give every item a stable value:
 
 ```tsx
-import { ToggleGroup, ToggleGroupItem } from 'control-kit';
+import { ToggleGroup, ToggleGroupItem } from '@pbroom/control-kit';
 
 <ToggleGroup aria-label="View" defaultValue="grid">
   <ToggleGroupItem value="list">List</ToggleGroupItem>
