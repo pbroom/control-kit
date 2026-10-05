@@ -16,6 +16,39 @@ import type {
 
 export type Vec2 = [number, number];
 
+export type StructureRect = {
+  height: number;
+  width: number;
+  x: number;
+  y: number;
+};
+
+/** The smallest rect containing all of `rects` (null when empty). */
+export function unionRects(
+  rects: ReadonlyArray<StructureRect | null | undefined>,
+): StructureRect | null {
+  let result: StructureRect | null = null;
+
+  for (const rect of rects) {
+    if (!rect) continue;
+    if (!result) {
+      result = { ...rect };
+      continue;
+    }
+
+    const x = Math.min(result.x, rect.x);
+    const y = Math.min(result.y, rect.y);
+    result = {
+      height: Math.max(result.y + result.height, rect.y + rect.height) - y,
+      width: Math.max(result.x + result.width, rect.x + rect.width) - x,
+      x,
+      y,
+    };
+  }
+
+  return result;
+}
+
 export type StructureCamera = {
   az: number;
   k: number;
@@ -165,6 +198,8 @@ function frontRun(camera: StructureCamera, ring: readonly Sample[]): Sample[] {
 export type StructureFigureSlab = {
   /** Where a callout leader lands: the rightmost point of the top face. */
   anchor: Vec2;
+  /** The projected top-left corner of the footprint, at the slab floor. */
+  origin: Vec2;
   /** Dim front edge of the lid, which reads as the slab's thickness. */
   crease: string;
   focus: string;
@@ -180,6 +215,8 @@ export type StructureFigureSlab = {
   lines: string;
   nodeId: string;
   painted: boolean;
+  /** A closed part drawn as an outline at its last or expected place. */
+  ghost: boolean;
   rings: string;
   /** Side band (hull of lid and floor), filled with the side tone. */
   side: string;
@@ -209,11 +246,17 @@ type SlabFrame = {
 };
 
 /** Footprint width at scale 1, which every proportion is taken from. */
-function footprintWidth(measurement: StructureMeasurement) {
+/** What the framing depends on: the root part's size and the level budget. */
+export type StructureFrameReference = Pick<
+  StructureMeasurement,
+  'fitLevels' | 'height' | 'width'
+>;
+
+function footprintWidth(measurement: StructureFrameReference) {
   return (measurement.width + measurement.height) * Math.SQRT1_2;
 }
 
-export function structureThickness(measurement: StructureMeasurement) {
+export function structureThickness(measurement: StructureFrameReference) {
   return Math.min(8, Math.max(1, footprintWidth(measurement) * 0.016));
 }
 
@@ -221,7 +264,7 @@ export function structureThickness(measurement: StructureMeasurement) {
  * The gap between levels at explode = 1: each level rises a little more than
  * the footprint is deep on screen, so even thin parts open to a clear stack.
  */
-export function structureMaxGap(measurement: StructureMeasurement) {
+export function structureMaxGap(measurement: StructureFrameReference) {
   const depth = footprintWidth(measurement) * STRUCTURE_CAMERA_K;
 
   return (depth * 1.15) / Z_FACTOR;
@@ -246,9 +289,20 @@ function slabFrames(
   });
 }
 
-function fitCamera(
-  measurement: StructureMeasurement,
+/**
+ * Frames the root part's footprint with the stack fully opened for the
+ * structure's level budget. Only the root's size and the region feed in, so
+ * parts moving or appearing never rescale or shift the figure; parts outside
+ * the root may overflow the region instead.
+ */
+export function fitStructureCamera(
+  reference: StructureFrameReference,
   region: StructureFigureRegion,
+  /**
+   * Extra footprint to keep in frame, relative to the root (e.g. where a
+   * menu's popup and submenus open), so opening them never refits.
+   */
+  extent: StructureRect | null = null,
 ): StructureCamera {
   const camera: StructureCamera = {
     az: STRUCTURE_CAMERA_AZIMUTH,
@@ -257,23 +311,29 @@ function fitCamera(
     oy: 0,
     scale: 1,
   };
-  // Fit the fully opened stack, so the base stays put while the gap moves.
-  const frames = slabFrames(measurement, structureMaxGap(measurement));
+  const thickness = structureThickness(reference);
+  const top =
+    Math.max(0, reference.fitLevels - 1) *
+      (thickness + structureMaxGap(reference)) +
+    thickness;
   let minX = Infinity;
   let maxX = -Infinity;
   let minY = Infinity;
   let maxY = -Infinity;
 
-  for (const { slab, z0, z1 } of frames) {
-    for (const x of [slab.x, slab.x + slab.width]) {
-      for (const y of [slab.y, slab.y + slab.height]) {
-        for (const z of [z0, z1]) {
-          const [px, py] = project(camera, x, y, z);
-          minX = Math.min(minX, px);
-          maxX = Math.max(maxX, px);
-          minY = Math.min(minY, py);
-          maxY = Math.max(maxY, py);
-        }
+  const x0 = Math.min(0, extent?.x ?? 0);
+  const y0 = Math.min(0, extent?.y ?? 0);
+  const x1 = Math.max(reference.width, extent ? extent.x + extent.width : 0);
+  const y1 = Math.max(reference.height, extent ? extent.y + extent.height : 0);
+
+  for (const x of [x0, x1]) {
+    for (const y of [y0, y1]) {
+      for (const z of [0, top]) {
+        const [px, py] = project(camera, x, y, z);
+        minX = Math.min(minX, px);
+        maxX = Math.max(maxX, px);
+        minY = Math.min(minY, py);
+        maxY = Math.max(maxY, py);
       }
     }
   }
@@ -343,9 +403,8 @@ function hatchSegments(
 export function buildStructureFigure(
   measurement: StructureMeasurement,
   explode: number,
-  region: StructureFigureRegion,
+  camera: StructureCamera,
 ): StructureFigure {
-  const camera = fitCamera(measurement, region);
   const gap = Math.max(0, Math.min(1, explode)) * structureMaxGap(measurement);
   const frames = slabFrames(measurement, gap);
   const frameByKey = new Map(frames.map((frame) => [frame.slab.key, frame]));
@@ -483,6 +542,7 @@ export function buildStructureFigure(
 
     return {
       anchor,
+      origin: at(z0)(slab.x, slab.y),
       crease: slab.painted
         ? openPath(front.map((sample) => at(z1)(sample.u, sample.v)))
         : '',
@@ -496,6 +556,7 @@ export function buildStructureFigure(
       lines,
       nodeId: slab.nodeId,
       painted: slab.painted,
+      ghost: slab.ghost,
       rings,
       side: slab.painted ? closedPath(hull(lid.concat(floor))) : '',
       text,

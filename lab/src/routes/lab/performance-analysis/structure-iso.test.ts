@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildStructureFigure,
+  fitStructureCamera,
   hull,
   project,
   roundedRing,
@@ -16,6 +17,7 @@ import type {
 function slab(overrides: Partial<StructureSlab>): StructureSlab {
   return {
     focused: false,
+    ghost: false,
     height: 24,
     key: 'root:0',
     level: 0,
@@ -23,6 +25,7 @@ function slab(overrides: Partial<StructureSlab>): StructureSlab {
     nodeId: 'root',
     painted: true,
     parentKey: null,
+    portal: false,
     radius: 4,
     width: 128,
     x: 0,
@@ -32,6 +35,7 @@ function slab(overrides: Partial<StructureSlab>): StructureSlab {
 }
 
 const measurement: StructureMeasurement = {
+  fitLevels: 2,
   height: 24,
   levels: 2,
   signature: '',
@@ -83,8 +87,9 @@ describe('structure isometric projection', () => {
   });
 
   it('stacks levels by the explode gap and keeps the fit stable', () => {
-    const closed = buildStructureFigure(measurement, 0, region);
-    const open = buildStructureFigure(measurement, 1, region);
+    const camera = fitStructureCamera(measurement, region);
+    const closed = buildStructureFigure(measurement, 0, camera);
+    const open = buildStructureFigure(measurement, 1, camera);
 
     expect(closed.gap).toBe(0);
     expect(open.gap).toBeCloseTo(structureMaxGap(measurement));
@@ -94,5 +99,32 @@ describe('structure isometric projection', () => {
     expect(open.slabs[1]!.guide).not.toBe('');
     expect(open.slabs[1]!.text).toMatch(/^M.*Z$/);
     expect(open.bounds.maxX).toBeLessThanOrEqual(region.x1 + 0.01);
+  });
+
+  it('frames from the root only, so other parts never refit the figure', () => {
+    const camera = fitStructureCamera(measurement, region);
+    // A thumb-like part moves and a popup appears, far outside the root.
+    const moved: StructureMeasurement = {
+      ...measurement,
+      levels: 3,
+      slabs: [
+        measurement.slabs[0]!,
+        { ...measurement.slabs[1]!, x: 80, y: -40 },
+        slab({
+          height: 170,
+          key: 'popup:0',
+          level: 2,
+          nodeId: 'popup',
+          width: 208,
+          x: 0,
+          y: 30,
+        }),
+      ],
+    };
+
+    expect(fitStructureCamera(moved, region)).toEqual(camera);
+    expect(buildStructureFigure(moved, 0.75, camera).slabs[0]!.top).toBe(
+      buildStructureFigure(measurement, 0.75, camera).slabs[0]!.top,
+    );
   });
 });

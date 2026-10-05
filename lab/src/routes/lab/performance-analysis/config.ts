@@ -60,6 +60,19 @@ function withinControlled(triggerSelector: string, selector: string) {
     );
 }
 
+/** Submenu popups opened from rows of the trigger's popup. */
+function openSubmenus(triggerSelector: string) {
+  const findPopup = controlledBy(triggerSelector);
+
+  return (preview: Element): readonly Element[] =>
+    findPopup(preview).flatMap((popup) =>
+      Array.from(popup.querySelectorAll(slot('dropdown-menu-sub-trigger')))
+        .map((row) => row.getAttribute('aria-controls'))
+        .map((id) => (id ? document.getElementById(id) : null))
+        .filter((element): element is HTMLElement => element !== null),
+    );
+}
+
 const MENU_TRIGGER = slot('dropdown-menu-trigger');
 const MENU_ROWS = [
   slot('dropdown-menu-item'),
@@ -499,7 +512,11 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
             detail: 'Tooltip panel; measured while the tooltip is open.',
             id: 'content',
             label: 'Content',
-            measure: { find: openTooltipContent },
+            measure: {
+              // A one-line popup centred above the trigger.
+              estimate: [{ height: 32, width: 122, x: -24, y: -38 }],
+              find: openTooltipContent,
+            },
             relation: 'slot',
             slot: 'content',
             state: 'optional',
@@ -530,17 +547,42 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
                 id: 'menu-items',
                 label: 'Item rows',
                 measure: {
+                  // Lab menu defaults: five 192x24 rows in the popup.
+                  estimate: [36, 60, 101, 125, 166].map((y) => ({
+                    height: 24,
+                    width: 192,
+                    x: 8,
+                    y,
+                  })),
                   find: withinControlled(MENU_TRIGGER, MENU_ROWS),
                 },
                 relation: 'child',
                 slot: 'item',
+              },
+              {
+                component: 'SubmenuPopup',
+                detail: 'Nested flyout opened from a submenu row.',
+                id: 'submenu-content',
+                label: 'Submenu',
+                measure: {
+                  // Lab menu defaults: 176px flyout beside its row.
+                  estimate: [{ height: 112, width: 176, x: 208, y: 52 }],
+                  find: openSubmenus(MENU_TRIGGER),
+                },
+                relation: 'slot',
+                slot: 'portal',
+                state: 'optional',
               },
             ],
             component: 'MenuPopup',
             detail: 'Portal-mounted menu surface; measured while open.',
             id: 'menu-content',
             label: 'Menu content',
-            measure: { find: controlledBy(MENU_TRIGGER) },
+            measure: {
+              // Lab menu defaults: bottom/start, 4px offset, 208x170.
+              estimate: [{ height: 170, width: 208, x: 0, y: 28 }],
+              find: controlledBy(MENU_TRIGGER),
+            },
             relation: 'slot',
             slot: 'portal',
             state: 'optional',
@@ -581,7 +623,11 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
             detail: 'Floating listbox surface; measured while open.',
             id: 'select-content',
             label: 'Option list',
-            measure: { find: controlledBy(MENU_TRIGGER) },
+            measure: {
+              // A 208px list aligned over the trigger at the selected item.
+              estimate: [{ height: 420, width: 208, x: 0, y: -8 }],
+              find: controlledBy(MENU_TRIGGER),
+            },
             relation: 'slot',
             slot: 'portal',
             state: 'optional',

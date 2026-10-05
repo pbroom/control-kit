@@ -44,6 +44,12 @@ export type LabPrimitiveStructureRect = {
 export type LabPrimitiveStructureNodeMeasure = {
   /** Matches every element (true) or only the first one (default). */
   all?: boolean;
+  /**
+   * Where the part is expected to appear, relative to the root part, until
+   * it has been measured once (popups that are closed at first). Drawn as a
+   * ghost outline and included in the framing.
+   */
+  estimate?: readonly LabPrimitiveStructureRect[];
   /** Trace the element's centre across the surface below it (2D thumbs). */
   crosshair?: boolean;
   /**

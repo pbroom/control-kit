@@ -1,5 +1,6 @@
 import {
   type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
   type RefObject,
   useCallback,
@@ -8,15 +9,18 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Slider } from '@pbroom/control-kit';
 import {
   buildStructureFigure,
+  fitStructureCamera,
   type StructureFigureRegion,
+  type StructureRect,
+  unionRects,
   type Vec2,
 } from './structure-iso.js';
 import {
   findLabPreviewHost,
   measurePrimitiveStructure,
+  type StructureGhostCache,
   type StructureMeasurement,
 } from './structure-measure.js';
 import type {
@@ -43,6 +47,10 @@ const STRUCTURE_FIGURE_RIGHT = 0.64;
 const STRUCTURE_FIGURE_PADDING = 18;
 const STRUCTURE_DEFAULT_EXPLODE = 0.75;
 const STRUCTURE_EXPLODE_SMOOTHING_MS = 90;
+/** Vertical drag distance, as a share of the render height, for the full range. */
+const STRUCTURE_DRAG_RANGE = 0.6;
+const STRUCTURE_KEY_STEP = 0.05;
+const STRUCTURE_PAGE_STEP = 0.2;
 
 const STRUCTURE_PALETTE = {
   // Lids are a lighter neutral than the panel (#171717), sides darker, so
@@ -72,6 +80,8 @@ type StructureNodeEntry = {
   id: string;
   index: number;
   label: string;
+  /** The config points this node at rendered element(s). */
+  measurable: boolean;
   parentId: string | null;
   path: readonly string[];
   relation: LabPrimitiveStructureNodeRelation;
@@ -79,6 +89,22 @@ type StructureNodeEntry = {
   state: LabPrimitiveStructureNodeState;
   treeDepth: number;
 };
+
+/** Popup extents seen per lab page, kept for the session. */
+const FRAME_EXTENT_CACHE = new Map<string, StructureRect>();
+/** Last measured rects per page and node, for ghost outlines. */
+const GHOST_CACHE = new Map<string, StructureGhostCache>();
+
+function ghostCacheFor(pageKey: string) {
+  let cache = GHOST_CACHE.get(pageKey);
+
+  if (!cache) {
+    cache = new Map();
+    GHOST_CACHE.set(pageKey, cache);
+  }
+
+  return cache;
+}
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
@@ -103,6 +129,7 @@ function createStructureNodeEntries(
       id: node.id,
       index: entries.length,
       label: node.label,
+      measurable: node.measure !== undefined,
       parentId,
       path,
       relation: node.relation,
@@ -206,7 +233,11 @@ function useStructureMeasurement(
         return;
       }
 
-      const next = measurePrimitiveStructure(structure, host);
+      const next = measurePrimitiveStructure(
+        structure,
+        host,
+        ghostCacheFor(pageKey),
+      );
       const nextSignature = next?.signature ?? '';
 
       if (nextSignature !== signature) {
@@ -271,13 +302,13 @@ function useStructureMeasurement(
   return measurement;
 }
 
-/** Follows `target` with a short exponential ease; jumps under reduced motion. */
-function useEasedValue(target: number, reducedMotion: boolean) {
+/** Follows `target` with a short exponential ease, or jumps when `immediate`. */
+function useEasedValue(target: number, immediate: boolean) {
   const [value, setValue] = useState(target);
   const valueRef = useRef(target);
 
   useEffect(() => {
-    if (reducedMotion) {
+    if (immediate) {
       valueRef.current = target;
       setValue(target);
       return;
@@ -308,7 +339,7 @@ function useEasedValue(target: number, reducedMotion: boolean) {
     }
 
     return () => window.cancelAnimationFrame(frame);
-  }, [reducedMotion, target]);
+  }, [immediate, target]);
 
   return value;
 }
@@ -361,67 +392,53 @@ function useDevicePixelRatio() {
   return ratio;
 }
 
-function layoutCallouts(
-  anchors: ReadonlyArray<{ anchor: Vec2; nodeId: string }>,
-  width: number,
+/**
+ * Spreads label rows along the rail near their targets' heights, keeping a
+ * minimum gap between rows.
+ */
+function layoutLabelRows(
+  anchors: ReadonlyMap<string, Vec2>,
   height: number,
-): Record<string, StructureCalloutPosition> {
-  if (width <= 0 || height <= 0) return {};
+): Record<string, number> {
+  if (height <= 0) return {};
 
-  const labelMinGap = clamp(
+  const minGap = clamp(
     (STRUCTURE_CALLOUT_LABEL_MIN_GAP_PX / height) * 100,
     5,
     12,
   );
-  const entries = anchors
-    .map(({ anchor, nodeId }) => {
-      const targetX = clamp((anchor[0] / width) * 100, 2, 66);
-      const targetY = clamp((anchor[1] / height) * 100, 2, 98);
+  const rows = Array.from(anchors, ([nodeId, anchor]) => ({
+    desired: clamp(
+      (anchor[1] / height) * 100,
+      STRUCTURE_CALLOUT_LABEL_MIN_Y,
+      STRUCTURE_CALLOUT_LABEL_MAX_Y,
+    ),
+    nodeId,
+    y: 0,
+  })).sort((left, right) => left.desired - right.desired);
 
-      return {
-        desiredLabelY: clamp(
-          targetY,
-          STRUCTURE_CALLOUT_LABEL_MIN_Y,
-          STRUCTURE_CALLOUT_LABEL_MAX_Y,
-        ),
-        labelY: 0,
-        nodeId,
-        targetX,
-        targetY,
-      };
-    })
-    .sort((left, right) => left.desiredLabelY - right.desiredLabelY);
-
-  let previous = STRUCTURE_CALLOUT_LABEL_MIN_Y - labelMinGap;
-  for (const entry of entries) {
-    entry.labelY = Math.max(entry.desiredLabelY, previous + labelMinGap);
-    previous = entry.labelY;
+  let previous = STRUCTURE_CALLOUT_LABEL_MIN_Y - minGap;
+  for (const row of rows) {
+    row.y = Math.max(row.desired, previous + minGap);
+    previous = row.y;
   }
 
   const overflow =
-    (entries.at(-1)?.labelY ?? STRUCTURE_CALLOUT_LABEL_MAX_Y) -
+    (rows.at(-1)?.y ?? STRUCTURE_CALLOUT_LABEL_MAX_Y) -
     STRUCTURE_CALLOUT_LABEL_MAX_Y;
 
   if (overflow > 0) {
-    for (let index = entries.length - 1; index >= 0; index -= 1) {
-      const next = entries[index + 1];
-      entries[index]!.labelY = Math.min(
-        entries[index]!.labelY - overflow,
-        next ? next.labelY - labelMinGap : Infinity,
+    for (let index = rows.length - 1; index >= 0; index -= 1) {
+      const next = rows[index + 1];
+      rows[index]!.y = Math.min(
+        rows[index]!.y - overflow,
+        next ? next.y - minGap : Infinity,
       );
     }
   }
 
   return Object.fromEntries(
-    entries.map((entry) => [
-      entry.nodeId,
-      {
-        labelX: STRUCTURE_CALLOUT_LABEL_X,
-        labelY: Number(entry.labelY.toFixed(2)),
-        targetX: Number(entry.targetX.toFixed(2)),
-        targetY: Number(entry.targetY.toFixed(2)),
-      },
-    ]),
+    rows.map((row) => [row.nodeId, Number(row.y.toFixed(2))]),
   );
 }
 
@@ -460,10 +477,6 @@ function formatComponentTag(component: string) {
   return `<${component.toLowerCase()}>`;
 }
 
-function formatSize(value: number) {
-  return Number.isInteger(value) ? String(value) : value.toFixed(1);
-}
-
 export function LabPrimitiveStructureView({
   isActive,
   pageKey,
@@ -474,10 +487,17 @@ export function LabPrimitiveStructureView({
   structure: LabPrimitiveStructure;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const dragRef = useRef<{
+    pointerId: number;
+    startExplode: number;
+    startY: number;
+  } | null>(null);
   const [activeLayerId, setActiveLayerId] = useState<string | null>(null);
   const [explode, setExplode] = useState(STRUCTURE_DEFAULT_EXPLODE);
+  const [isDragging, setIsDragging] = useState(false);
   const reducedMotion = usePrefersReducedMotion();
-  const displayedExplode = useEasedValue(explode, reducedMotion);
+  // A drag follows the pointer directly; keys ease unless motion is reduced.
+  const displayedExplode = useEasedValue(explode, reducedMotion || isDragging);
   const measurement = useStructureMeasurement(structure, pageKey);
   const size = useElementSize(containerRef);
   const devicePixelRatio = useDevicePixelRatio();
@@ -504,56 +524,142 @@ export function LabPrimitiveStructureView({
     }),
     [size.height, size.width],
   );
+  // The camera depends only on the root part's size, the structure's level
+  // budget and the panel size, so moving or appearing parts never refit it.
+  const rootWidth = measurement?.width ?? 0;
+  const rootHeight = measurement?.height ?? 0;
+  const fitLevels = measurement?.fitLevels ?? 1;
+  // Popups are framed from the start (config reserve plus anything seen
+  // before for this page), so opening one never moves or rescales the figure.
+  const [frameExtent, setFrameExtent] = useState<StructureRect | null>(
+    () => FRAME_EXTENT_CACHE.get(pageKey) ?? null,
+  );
+
+  useEffect(() => {
+    setFrameExtent(FRAME_EXTENT_CACHE.get(pageKey) ?? null);
+  }, [pageKey, structure]);
+
+  useEffect(() => {
+    // Ghosts are present from the first measurement, so this normally only
+    // grows when a popup opens somewhere other than where it was expected.
+    const popups = (measurement?.slabs ?? []).filter(
+      (slab) => slab.portal || slab.ghost,
+    );
+
+    if (popups.length === 0) return;
+
+    setFrameExtent((current) => {
+      const next = unionRects([current, ...popups]);
+
+      if (
+        !next ||
+        (current &&
+          next.x >= current.x - 0.5 &&
+          next.y >= current.y - 0.5 &&
+          next.width <= current.width + 0.5 &&
+          next.height <= current.height + 0.5)
+      ) {
+        return current;
+      }
+
+      FRAME_EXTENT_CACHE.set(pageKey, next);
+      return next;
+    });
+  }, [measurement, pageKey]);
+
+  const camera = useMemo(
+    () =>
+      rootWidth > 0 && rootHeight > 0
+        ? fitStructureCamera(
+            { fitLevels, height: rootHeight, width: rootWidth },
+            region,
+            frameExtent,
+          )
+        : null,
+    [fitLevels, frameExtent, region, rootHeight, rootWidth],
+  );
   const figure = useMemo(
     () =>
-      measurement && size.width > 0
-        ? buildStructureFigure(measurement, displayedExplode, region)
+      measurement && camera && size.width > 0
+        ? buildStructureFigure(measurement, displayedExplode, camera)
         : null,
-    [displayedExplode, measurement, region, size.width],
+    [camera, displayedExplode, measurement, size.width],
   );
-  const measuredNodes = useMemo(() => {
-    const nodes = new Map<
-      string,
-      { count: number; height: number; radius: number; width: number }
-    >();
+  const renderedNodeIds = useMemo(
+    () =>
+      new Set(
+        (measurement?.slabs ?? [])
+          .filter((slab) => !slab.ghost)
+          .map((slab) => slab.nodeId),
+      ),
+    [measurement],
+  );
+  // Each node's leader lands on the rightmost lid point of its slabs.
+  const anchors = useMemo(() => {
+    const result = new Map<string, Vec2>();
 
-    for (const slab of measurement?.slabs ?? []) {
-      const current = nodes.get(slab.nodeId);
-      nodes.set(slab.nodeId, {
-        count: (current?.count ?? 0) + 1,
-        height: current?.height ?? slab.height,
-        radius: current?.radius ?? slab.radius,
-        width: current?.width ?? slab.width,
-      });
-    }
-
-    return nodes;
-  }, [measurement]);
-  // One callout per node, in tree order, leading to its first slab.
-  const calloutLayers = useMemo(() => {
-    if (!figure) return [];
-
-    const firstSlab = new Map<string, Vec2>();
-    for (const slab of figure.slabs) {
-      const current = firstSlab.get(slab.nodeId);
+    for (const slab of figure?.slabs ?? []) {
+      const current = result.get(slab.nodeId);
       if (!current || slab.anchor[0] > current[0]) {
-        firstSlab.set(slab.nodeId, slab.anchor);
+        result.set(slab.nodeId, slab.anchor);
       }
     }
 
-    return nodeEntries
-      .filter((node) => firstSlab.has(node.id))
-      .map((node) => ({ anchor: firstSlab.get(node.id)!, node }));
-  }, [figure, nodeEntries]);
-  const callouts = useMemo(
+    return result;
+  }, [figure]);
+  const calloutLayers = useMemo(
     () =>
-      layoutCallouts(
-        calloutLayers.map(({ anchor, node }) => ({ anchor, nodeId: node.id })),
-        size.width,
-        size.height,
-      ),
-    [calloutLayers, size.height, size.width],
+      nodeEntries
+        .filter((node) => anchors.has(node.id))
+        .map((node) => ({ node })),
+    [anchors, nodeEntries],
   );
+  // Label rows are laid out once per framing, set of parts and gap; a part
+  // moving (or a popup swapping ghost for solid) only moves its leader's
+  // target, never the rows.
+  const labelRowsRef = useRef<{ key: string; rows: Record<string, number> }>({
+    key: '',
+    rows: {},
+  });
+  const labelRowsKey = [
+    camera
+      ? `${camera.ox.toFixed(1)},${camera.oy.toFixed(1)},${camera.scale.toFixed(4)}`
+      : '',
+    size.width,
+    size.height,
+    explode.toFixed(2),
+    isDragging ? 'drag' : '',
+    [...anchors.keys()].sort().join(','),
+  ].join('|');
+
+  if (labelRowsRef.current.key !== labelRowsKey && !isDragging) {
+    labelRowsRef.current = {
+      key: labelRowsKey,
+      rows: layoutLabelRows(anchors, size.height),
+    };
+  }
+
+  const labelRows = labelRowsRef.current.rows;
+  const callouts: Record<string, StructureCalloutPosition> = {};
+
+  if (size.width > 0 && size.height > 0) {
+    for (const [nodeId, anchor] of anchors) {
+      const labelY = labelRows[nodeId];
+
+      if (labelY === undefined) continue;
+
+      callouts[nodeId] = {
+        labelX: STRUCTURE_CALLOUT_LABEL_X,
+        labelY,
+        targetX: Number(
+          clamp((anchor[0] / size.width) * 100, 0, 100).toFixed(2),
+        ),
+        targetY: Number(
+          clamp((anchor[1] / size.height) * 100, 0, 100).toFixed(2),
+        ),
+      };
+    }
+  }
   const activePath = useMemo(() => {
     if (activeLayerId === null) {
       return null;
@@ -576,6 +682,9 @@ export function LabPrimitiveStructureView({
 
   const onFigurePointerMove = useCallback(
     (event: ReactPointerEvent<SVGSVGElement>) => {
+      // While dragging the gap, keep the highlight where the drag began.
+      if (dragRef.current) return;
+
       const target = (event.target as Element).closest('[data-structure-node]');
       const nextLayerId = target?.getAttribute('data-structure-node') ?? null;
       setActiveLayerId((current) =>
@@ -584,12 +693,79 @@ export function LabPrimitiveStructureView({
     },
     [],
   );
-  const onFigurePointerLeave = useCallback(() => setActiveLayerId(null), []);
+  const onFigurePointerLeave = useCallback(() => {
+    if (!dragRef.current) setActiveLayerId(null);
+  }, []);
+
+  // Drag up opens the stack, drag down closes it. Touch is ignored so the
+  // page keeps scrolling on phones.
+  const onRenderPointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (event.pointerType === 'touch' || event.button !== 0) return;
+
+      event.currentTarget.setPointerCapture(event.pointerId);
+      dragRef.current = {
+        pointerId: event.pointerId,
+        startExplode: explode,
+        startY: event.clientY,
+      };
+      setIsDragging(true);
+    },
+    [explode],
+  );
+  const onRenderPointerMove = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      const drag = dragRef.current;
+
+      if (!drag || drag.pointerId !== event.pointerId) return;
+
+      const range = Math.max(
+        80,
+        event.currentTarget.clientHeight * STRUCTURE_DRAG_RANGE,
+      );
+      setExplode(
+        clamp(drag.startExplode + (drag.startY - event.clientY) / range, 0, 1),
+      );
+    },
+    [],
+  );
+  const onRenderPointerEnd = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      const drag = dragRef.current;
+
+      if (!drag || drag.pointerId !== event.pointerId) return;
+
+      dragRef.current = null;
+      setIsDragging(false);
+
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+    },
+    [],
+  );
+  const onRenderKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLDivElement>) => {
+      const steps: Record<string, (value: number) => number> = {
+        ArrowDown: (value) => value - STRUCTURE_KEY_STEP,
+        ArrowUp: (value) => value + STRUCTURE_KEY_STEP,
+        End: () => 1,
+        Home: () => 0,
+        PageDown: (value) => value - STRUCTURE_PAGE_STEP,
+        PageUp: (value) => value + STRUCTURE_PAGE_STEP,
+      };
+      const step = steps[event.key];
+
+      if (!step) return;
+
+      event.preventDefault();
+      setExplode((value) => Math.round(clamp(step(value), 0, 1) * 100) / 100);
+    },
+    [],
+  );
 
   const stroke = Math.max(0.5, 1 / devicePixelRatio);
-  const layerOrder = new Map(
-    calloutLayers.map(({ node }, index) => [node.id, index]),
-  );
+  const explodePercent = Math.round(explode * 100);
 
   return (
     <div
@@ -599,37 +775,34 @@ export function LabPrimitiveStructureView({
       data-primitive-structure-schema="node-tree"
       data-testid="lab-primitive-structure-shell"
     >
-      <div className="flex min-h-0 min-w-0 flex-col gap-1">
+      <div className="flex min-h-0 min-w-0 flex-col">
         <div
-          className="flex h-6 items-center gap-3 px-3 font-mono text-[10px] uppercase tracking-[0.08em] text-white/40"
-          data-testid="lab-primitive-structure-gap-control"
-        >
-          <span id="lab-primitive-structure-gap-label">Explode</span>
-          <Slider
-            aria-labelledby="lab-primitive-structure-gap-label"
-            className="w-32"
-            data-testid="lab-primitive-structure-gap-slider"
-            max={1}
-            min={0}
-            onValueChange={(value) => setExplode(value as number)}
-            step={0.01}
-            value={explode}
-          />
-          <span
-            className="tabular-nums normal-case tracking-normal text-white/50"
-            data-testid="lab-primitive-structure-gap-readout"
-          >
-            gap {figure ? figure.gap.toFixed(1) : '0.0'}px
-          </span>
-        </div>
-        <div
-          aria-label={`${structure.title} isometric render`}
-          className="relative min-h-[320px] flex-1 overflow-hidden"
+          aria-label="Exploded structure; use Up/Down arrows to adjust spacing"
+          aria-orientation="vertical"
+          aria-valuemax={100}
+          aria-valuemin={0}
+          aria-valuenow={explodePercent}
+          aria-valuetext={`Layer spacing ${explodePercent}%`}
+          className={[
+            'relative min-h-[320px] flex-1 touch-pan-y overflow-hidden rounded-md outline-none select-none',
+            'focus-visible:ring-1 focus-visible:ring-white/30',
+            'pointer-fine:cursor-ns-resize',
+          ].join(' ')}
+          data-primitive-structure-dragging={isDragging ? 'true' : undefined}
+          data-primitive-structure-explode={explode.toFixed(2)}
           data-primitive-structure-renderer="svg"
           data-primitive-structure-surface="transparent"
           data-testid="lab-primitive-structure-render"
+          onKeyDown={onRenderKeyDown}
+          onLostPointerCapture={onRenderPointerEnd}
+          onPointerCancel={onRenderPointerEnd}
+          onPointerDown={onRenderPointerDown}
+          onPointerMove={onRenderPointerMove}
+          onPointerUp={onRenderPointerEnd}
           ref={containerRef}
+          role="slider"
           style={STRUCTURE_PALETTE}
+          tabIndex={0}
         >
           <svg
             aria-label={structure.title}
@@ -681,13 +854,15 @@ export function LabPrimitiveStructureView({
 
               return (
                 <g
+                  data-structure-ghost={slab.ghost ? 'true' : undefined}
                   data-structure-level={slab.level}
+                  data-structure-origin={`${slab.origin[0].toFixed(2)},${slab.origin[1].toFixed(2)}`}
                   data-structure-node={slab.nodeId}
                   data-structure-painted={slab.painted ? 'true' : 'false'}
                   data-structure-slab={slab.key}
                   key={slab.key}
                 >
-                  {slab.footprint ? (
+                  {slab.footprint && !slab.ghost ? (
                     <path
                       {...strokeProps}
                       d={slab.footprint}
@@ -720,20 +895,29 @@ export function LabPrimitiveStructureView({
                     d={slab.top}
                     data-structure-top=""
                     fill={
-                      slab.painted
-                        ? isLayerActive
-                          ? 'var(--structure-accent-top)'
-                          : 'var(--structure-plate)'
-                        : 'transparent'
-                    }
-                    stroke={
-                      slab.painted
+                      slab.ghost
                         ? 'none'
-                        : isLayerActive
-                          ? 'var(--structure-accent)'
-                          : markStroke
+                        : slab.painted
+                          ? isLayerActive
+                            ? 'var(--structure-accent-top)'
+                            : 'var(--structure-plate)'
+                          : 'transparent'
                     }
-                    strokeDasharray={slab.painted ? undefined : '2 3'}
+                    pointerEvents={slab.ghost ? 'none' : undefined}
+                    stroke={
+                      slab.ghost
+                        ? isLayerActive
+                          ? 'var(--structure-accent)'
+                          : 'var(--structure-lo)'
+                        : slab.painted
+                          ? 'none'
+                          : isLayerActive
+                            ? 'var(--structure-accent)'
+                            : markStroke
+                    }
+                    strokeDasharray={
+                      slab.ghost ? '1 3' : slab.painted ? undefined : '2 3'
+                    }
                     strokeWidth={stroke}
                     vectorEffect="non-scaling-stroke"
                   />
@@ -901,7 +1085,6 @@ export function LabPrimitiveStructureView({
 
             const isMuted = activeLayerId !== null && activeLayerId !== node.id;
             const isCalloutActive = activeLayerId === node.id;
-            const measured = measuredNodes.get(node.id);
 
             return (
               <div
@@ -919,16 +1102,7 @@ export function LabPrimitiveStructureView({
                   top: `${callout.labelY}%`,
                 }}
               >
-                <span className="text-white/28">
-                  {String((layerOrder.get(node.id) ?? 0) + 1).padStart(2, '0')}
-                </span>
                 <span className="min-w-0 truncate">{node.label}</span>
-                {measured ? (
-                  <span className="hidden shrink-0 text-white/28 xl:inline">
-                    {formatSize(measured.width)}×{formatSize(measured.height)}
-                    {measured.count > 1 ? ` ×${measured.count}` : ''}
-                  </span>
-                ) : null}
               </div>
             );
           })}
@@ -950,7 +1124,12 @@ export function LabPrimitiveStructureView({
           {visibleNodeEntries.map((node) => {
             const isMuted = isStructureNodeMuted(node, activePath);
             const isNodeActive = activeLayerId === node.id;
-            const measured = measuredNodes.get(node.id);
+            const measured = renderedNodeIds.has(node.id);
+            const firstSlab = measured
+              ? measurement?.slabs.find(
+                  (slab) => !slab.ghost && slab.nodeId === node.id,
+                )
+              : undefined;
             const displayDepth = Math.max(0, node.treeDepth - 1);
 
             return (
@@ -967,8 +1146,8 @@ export function LabPrimitiveStructureView({
                 data-primitive-depth={node.treeDepth}
                 data-primitive-layer={node.id}
                 data-primitive-measured={
-                  measured
-                    ? `${formatSize(measured.width)}x${formatSize(measured.height)}`
+                  firstSlab
+                    ? `${firstSlab.width}x${firstSlab.height}`
                     : undefined
                 }
                 data-primitive-node={node.id}
@@ -986,11 +1165,7 @@ export function LabPrimitiveStructureView({
                   </span>
                   <code className="block truncate font-mono text-[9px] font-medium leading-3 text-white/34">
                     {formatComponentTag(node.component)}
-                    {measured
-                      ? ` · ${formatSize(measured.width)}×${formatSize(measured.height)}${measured.radius > 0 ? ` r${formatSize(measured.radius)}` : ''}${measured.count > 1 ? ` ×${measured.count}` : ''}`
-                      : node.state === 'optional'
-                        ? ' · not rendered'
-                        : ''}
+                    {!measured && node.measurable ? ' · not rendered' : ''}
                   </code>
                   <span className="block text-[11px] leading-4 text-white/46">
                     {node.detail}

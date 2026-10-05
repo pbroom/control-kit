@@ -47,6 +47,8 @@ async function readSlabs(panel: Locator) {
           left: box.left,
           level: Number(group.getAttribute('data-structure-level')),
           node: group.getAttribute('data-structure-node'),
+          ghost: group.getAttribute('data-structure-ghost') === 'true',
+          origin: group.getAttribute('data-structure-origin'),
           painted: group.getAttribute('data-structure-painted') === 'true',
           right: box.right,
           top: box.top,
@@ -114,10 +116,10 @@ async function expectCalloutLinesAttachToLabels(panel: Locator) {
 
           return (
             targetX < labelX &&
-            targetX >= 2 &&
+            targetX >= 0 &&
             targetX <= 66 &&
-            targetY >= 2 &&
-            targetY <= 98 &&
+            targetY >= 0 &&
+            targetY <= 100 &&
             Math.abs(labelX - labelRail) < 0.5 &&
             Math.hypot(labelX - targetX, labelY - targetY) > 3
           );
@@ -152,6 +154,52 @@ async function expectCalloutLabelsDoNotOverlap(panel: Locator) {
       `${labelBoxes[index]!.id} overlaps ${labelBoxes[index + 1]!.id}`,
     ).toBeLessThanOrEqual(labelBoxes[index + 1]!.top + 0.5);
   }
+}
+
+/** What must not move when a part moves or appears: the frame and the root. */
+async function readFraming(panel: Locator, rootNode: string) {
+  const canvas = panel.getByTestId('lab-primitive-structure-canvas');
+  const [viewBox, slabs, labels] = await Promise.all([
+    canvas.getAttribute('viewBox'),
+    readSlabs(panel),
+    panel
+      .locator('[data-primitive-callout-label]')
+      .evaluateAll((items) =>
+        Object.fromEntries(
+          items.map((item) => [
+            item.getAttribute('data-primitive-callout-label'),
+            (item as HTMLElement).style.top,
+          ]),
+        ),
+      ),
+  ]);
+
+  return {
+    labels,
+    rootOrigin: slabs.find((slab) => slab.node === rootNode)?.origin ?? null,
+    viewBox,
+  };
+}
+
+async function dragRender(page: Page, panel: Locator, deltaY: number) {
+  const box = (await panel
+    .getByTestId('lab-primitive-structure-render')
+    .boundingBox())!;
+  const x = box.x + box.width * 0.85;
+  const y = box.y + box.height / 2;
+
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x, y + deltaY, { steps: 6 });
+  await page.mouse.up();
+}
+
+async function readExplode(panel: Locator) {
+  return Number(
+    await panel
+      .getByTestId('lab-primitive-structure-render')
+      .getAttribute('data-primitive-structure-explode'),
+  );
 }
 
 async function expectCalloutCount(panel: Locator, count: number) {
@@ -393,23 +441,84 @@ test('renders the primitive structure tab as a measured isometric figure', async
   await page.waitForTimeout(350);
   expect(await canvas.innerHTML()).toBe(idleMarkup);
 
-  // The explode control opens the gap between layers.
-  const gapReadout = colorPlanePanel.getByTestId(
-    'lab-primitive-structure-gap-readout',
+  // Dragging on the render opens (up) and closes (down) the stack.
+  const render = colorPlanePanel.getByTestId('lab-primitive-structure-render');
+  await expect(render).toHaveAttribute('role', 'slider');
+  await expect(render).toHaveAttribute(
+    'aria-label',
+    'Exploded structure; use Up/Down arrows to adjust spacing',
   );
-  const gapBefore = await gapReadout.textContent();
+  await expect(render).toHaveCSS('cursor', 'ns-resize');
+  await expect(
+    colorPlanePanel.getByTestId('lab-primitive-structure-gap-control'),
+  ).toHaveCount(0);
+  const explodeBefore = await readExplode(colorPlanePanel);
   const raisedBefore = colorPlaneSlabs.at(-1)!.top;
-  await colorPlanePanel
-    .getByTestId('lab-primitive-structure-gap-control')
-    .getByRole('slider')
-    .focus();
-  await page.keyboard.press('End');
-  await expect(gapReadout).not.toHaveText(gapBefore ?? '');
+  await dragRender(page, colorPlanePanel, -60);
+  expect(await readExplode(colorPlanePanel)).toBeGreaterThan(explodeBefore);
   await expect
     .poll(async () => (await readSlabs(colorPlanePanel)).at(-1)!.top)
     .toBeLessThan(raisedBefore - 4);
+  const explodeOpened = await readExplode(colorPlanePanel);
+  await dragRender(page, colorPlanePanel, 90);
+  expect(await readExplode(colorPlanePanel)).toBeLessThan(explodeOpened);
+
+  // Touch drags are ignored so the page can scroll.
+  const explodeBeforeTouch = await readExplode(colorPlanePanel);
+  await render.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    const x = rect.left + rect.width * 0.85;
+    const init = { bubbles: true, pointerId: 7, pointerType: 'touch' };
+    element.dispatchEvent(
+      new PointerEvent('pointerdown', {
+        ...init,
+        clientX: x,
+        clientY: rect.top + 200,
+      }),
+    );
+    element.dispatchEvent(
+      new PointerEvent('pointermove', {
+        ...init,
+        clientX: x,
+        clientY: rect.top + 40,
+      }),
+    );
+    element.dispatchEvent(
+      new PointerEvent('pointerup', { ...init, clientX: x, clientY: 40 }),
+    );
+  });
+  expect(await readExplode(colorPlanePanel)).toBe(explodeBeforeTouch);
+
+  // Keyboard: arrows step, PageUp/PageDown step further, Home/End jump.
+  await render.focus();
   await page.keyboard.press('Home');
-  await expect(gapReadout).toHaveText('gap 0.0px');
+  await expect(render).toHaveAttribute(
+    'data-primitive-structure-explode',
+    '0.00',
+  );
+  await page.keyboard.press('ArrowUp');
+  await expect(render).toHaveAttribute(
+    'data-primitive-structure-explode',
+    '0.05',
+  );
+  await page.keyboard.press('PageUp');
+  await expect(render).toHaveAttribute(
+    'data-primitive-structure-explode',
+    '0.25',
+  );
+  await page.keyboard.press('ArrowDown');
+  await expect(render).toHaveAttribute(
+    'data-primitive-structure-explode',
+    '0.20',
+  );
+  await page.keyboard.press('PageDown');
+  await expect(render).toHaveAttribute(
+    'data-primitive-structure-explode',
+    '0.00',
+  );
+  await expect(render).toHaveAttribute('aria-valuenow', '0');
+  await page.keyboard.press('End');
+  await expect(render).toHaveAttribute('aria-valuenow', '100');
 
   await metricsTab.click();
   await expect(canvas).toHaveCount(0);
@@ -455,6 +564,7 @@ test('renders the primitive structure tab as a measured isometric figure', async
   const thumbBefore = (await readSlabs(planePanel)).find(
     (slab) => slab.node === 'plane-thumb',
   )!.d;
+  const planeFraming = await readFraming(planePanel, 'plane-root');
   await page
     .locator('[data-lab-component-preview] [data-slot="plane-thumb"] input')
     .first()
@@ -469,6 +579,8 @@ test('renders the primitive structure tab as a measured isometric figure', async
         )?.d,
     )
     .not.toBe(thumbBefore);
+  // Only the thumb moved: same frame, same root, same label rows.
+  expect(await readFraming(planePanel, 'plane-root')).toEqual(planeFraming);
 
   await page.getByRole('link', { name: 'Checkbox', exact: true }).click();
   await expect(page).toHaveURL(/\/lab\/checkbox$/);
@@ -488,6 +600,50 @@ test('renders the primitive structure tab as a measured isometric figure', async
     menuPanel.getByText('Menu primitive', { exact: true }),
   ).toBeVisible();
   await expectFigureDrawn(menuPanel, 1);
+  // Closed popups are drawn as ghosts at their expected place, so the frame
+  // already covers the open menu and its submenu.
+  const ghostNodes = async () =>
+    Object.fromEntries(
+      (await readSlabs(menuPanel))
+        .filter((slab) => slab.node !== 'menu-items')
+        .map((slab) => [slab.node, slab.ghost]),
+    );
+  expect(await ghostNodes()).toEqual({
+    'menu-content': true,
+    'menu-trigger': false,
+    'submenu-content': true,
+  });
+  const menuFraming = await readFraming(menuPanel, 'menu-trigger');
+  const menuTrigger = page.locator(
+    '[data-lab-component-preview] [data-slot="dropdown-menu-trigger"]',
+  );
+  await menuTrigger.click();
+  await expect.poll(ghostNodes).toEqual({
+    'menu-content': false,
+    'menu-trigger': false,
+    'submenu-content': true,
+  });
+  // Open a submenu from the keyboard (first submenu row is second).
+  const submenuRow = page
+    .locator('[data-slot="dropdown-menu-sub-trigger"]')
+    .first();
+  await submenuRow.focus();
+  await page.keyboard.press('ArrowRight');
+  await expect.poll(ghostNodes).toEqual({
+    'menu-content': false,
+    'menu-trigger': false,
+    'submenu-content': false,
+  });
+  // Same viewBox, trigger and label rows as when closed.
+  expect(await readFraming(menuPanel, 'menu-trigger')).toEqual(menuFraming);
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  await expect.poll(ghostNodes).toEqual({
+    'menu-content': true,
+    'menu-trigger': false,
+    'submenu-content': true,
+  });
+  expect(await readFraming(menuPanel, 'menu-trigger')).toEqual(menuFraming);
   await expectCalloutLinesAttachToLabels(menuPanel);
   await expectCalloutLabelsDoNotOverlap(menuPanel);
   await expectStructureGeometryClearsCalloutLabels(menuPanel);
@@ -593,12 +749,12 @@ test('jumps the explode gap under reduced motion', async ({
   await expect(
     panel.getByTestId('lab-primitive-structure-canvas'),
   ).toHaveAttribute('data-primitive-structure-motion', 'reduced');
-  const readout = panel.getByTestId('lab-primitive-structure-gap-readout');
-  await panel
-    .getByTestId('lab-primitive-structure-gap-control')
-    .getByRole('slider')
-    .focus();
+  const render = panel.getByTestId('lab-primitive-structure-render');
+  await render.focus();
   await page.keyboard.press('Home');
-  // Eased, the gap needs ~0.5s to settle; reduced motion lands on it at once.
-  await expect(readout).toHaveText('gap 0.0px', { timeout: 150 });
+  // Eased, the stack needs ~0.5s to settle; reduced motion lands at once.
+  await page.waitForTimeout(60);
+  const settled = (await readSlabs(panel)).map((slab) => slab.top);
+  await page.waitForTimeout(400);
+  expect((await readSlabs(panel)).map((slab) => slab.top)).toEqual(settled);
 });

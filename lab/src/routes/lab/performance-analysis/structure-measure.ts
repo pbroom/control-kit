@@ -33,6 +33,12 @@ export type StructureSlab = LabPrimitiveStructureRect & {
   key: string;
   /** Draws a focus ring around the slab. */
   focused: boolean;
+  /**
+   * Not rendered right now (a closed popup): drawn as an outline where it
+   * last was, or where it is expected to open, so opening it swaps the
+   * ghost for the solid part in place.
+   */
+  ghost: boolean;
   level: number;
   marks: readonly StructureMark[];
   nodeId: string;
@@ -40,16 +46,55 @@ export type StructureSlab = LabPrimitiveStructureRect & {
   painted: boolean;
   /** Nearest measured ancestor slab, for the exploded guide lines. */
   parentKey: string | null;
+  /** Lives outside the preview (a portalled popup). */
+  portal: boolean;
   radius: number;
 };
 
 export type StructureMeasurement = {
+  /**
+   * Levels the figure is framed for (see structureFitLevels). Stable per
+   * structure, so a part appearing never changes the framing.
+   */
+  fitLevels: number;
+  /** The root part's height; slabs are placed relative to its origin. */
   height: number;
   levels: number;
   signature: string;
   slabs: readonly StructureSlab[];
+  /** The root part's width. */
   width: number;
 };
+
+function measuredDepth(node: LabPrimitiveStructureNode): number {
+  const below = Math.max(0, ...(node.children ?? []).map(measuredDepth));
+
+  return node.measure ? below + 1 : below;
+}
+
+function hasFloatingPart(node: LabPrimitiveStructureNode): boolean {
+  return (
+    (node.measure !== undefined &&
+      (node.relation === 'implicit' ||
+        node.slot === 'thumb' ||
+        node.slot === 'portal' ||
+        node.measure.find !== undefined)) ||
+    (node.children ?? []).some(hasFloatingPart)
+  );
+}
+
+/**
+ * How many levels to frame a structure for, from its config alone: the depth
+ * of measured nodes, plus one for a part that floats over its siblings
+ * (thumbs, portals). Derived from the config so it never depends on what is
+ * currently rendered.
+ */
+export function structureFitLevels(structure: LabPrimitiveStructure) {
+  return Math.max(
+    1,
+    measuredDepth(structure.root) + (hasFloatingPart(structure.root) ? 1 : 0),
+  );
+}
 
 type MeasuredElement = {
   crosshair: boolean;
@@ -640,6 +685,15 @@ function hasPaint(element: Element) {
   );
 }
 
+function slabByNode(
+  slabs: readonly StructureSlab[],
+  nodeId: string | undefined,
+) {
+  return nodeId === undefined
+    ? undefined
+    : slabs.find((slab) => slab.nodeId === nodeId);
+}
+
 function round(value: number) {
   return Math.round(value * 10) / 10;
 }
@@ -668,15 +722,24 @@ function roundMark(mark: StructureMark): StructureMark {
  * Measures every element the structure points at inside `preview`. Returns
  * null when nothing measurable is rendered (e.g. the page is still loading).
  */
+/** Last measured rects per node id (relative to the root), for ghosts. */
+export type StructureGhostCache = Map<string, LabPrimitiveStructureRect[]>;
+
 export function measurePrimitiveStructure(
   structure: LabPrimitiveStructure,
   preview: Element,
+  ghostCache: StructureGhostCache = new Map(),
 ): StructureMeasurement | null {
+  const nodes = flattenNodes(structure.root);
+  const treeParent = new Map<string, string>();
+  for (const node of nodes) {
+    for (const child of node.children ?? []) treeParent.set(child.id, node.id);
+  }
   const previewBox = preview.getBoundingClientRect();
   const measured: MeasuredElement[] = [];
   const seen = new Set<Element>();
 
-  for (const node of flattenNodes(structure.root)) {
+  for (const node of nodes) {
     const { elements, portal } = findElements(node, preview);
 
     for (const element of elements) {
@@ -727,14 +790,22 @@ export function measurePrimitiveStructure(
     return position & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1;
   });
 
-  const minX = Math.min(...measured.map((entry) => entry.rect.x));
-  const minY = Math.min(...measured.map((entry) => entry.rect.y));
-  const maxX = Math.max(
-    ...measured.map((entry) => entry.rect.x + entry.rect.width),
-  );
-  const maxY = Math.max(
-    ...measured.map((entry) => entry.rect.y + entry.rect.height),
-  );
+  // Everything is placed relative to the root part, so a thumb moving or a
+  // popup opening changes only that part, never the frame of reference.
+  const rootEntry =
+    measured.find((entry) => entry.nodeId === structure.root.id) ?? null;
+  const minX = rootEntry
+    ? rootEntry.rect.x
+    : Math.min(...measured.map((entry) => entry.rect.x));
+  const minY = rootEntry
+    ? rootEntry.rect.y
+    : Math.min(...measured.map((entry) => entry.rect.y));
+  const maxX = rootEntry
+    ? rootEntry.rect.x + rootEntry.rect.width
+    : Math.max(...measured.map((entry) => entry.rect.x + entry.rect.width));
+  const maxY = rootEntry
+    ? rootEntry.rect.y + rootEntry.rect.height
+    : Math.max(...measured.map((entry) => entry.rect.y + entry.rect.height));
   const origin: StructurePoint = [minX, minY];
   const claimed = new Set(measured.map((entry) => entry.element));
   const slabByElement = new Map<Element, StructureSlab>();
@@ -767,6 +838,13 @@ export function measurePrimitiveStructure(
     // Children rest on their parent; anything overlapping an earlier slab
     // (a later sibling painted over it, a portal over the trigger) stacks
     // above it, which is the order the browser paints them in.
+    // A portal has no DOM ancestor among the parts; it rests on the slab of
+    // its parent node instead (menu content on the trigger, a submenu on
+    // the menu), which is also where its ghost sits while closed.
+    if (!parent && entry.portal) {
+      parent = slabByNode(slabs, treeParent.get(entry.nodeId)) ?? null;
+    }
+
     let level = parent
       ? parent.level + 1
       : entry.portal
@@ -806,12 +884,14 @@ export function measurePrimitiveStructure(
         ownsFocus &&
         (active?.matches(':focus-visible') ||
           active instanceof HTMLInputElement),
+      ghost: false,
       key: `${entry.nodeId}:${count}`,
       level,
       marks: collectMarks(entry.element, rect, claimed, origin).map(roundMark),
       nodeId: entry.nodeId,
       painted: hasPaint(entry.element),
       parentKey: parent?.key ?? null,
+      portal: entry.portal,
       radius: round(
         parseRadius(style.borderTopLeftRadius, rect.width, rect.height),
       ),
@@ -858,10 +938,53 @@ export function measurePrimitiveStructure(
     }
   }
 
+  // Remember where every part was; closed parts become ghosts there.
+  const measuredNodeIds = new Set(slabs.map((slab) => slab.nodeId));
+  for (const nodeId of measuredNodeIds) {
+    ghostCache.set(
+      nodeId,
+      slabs
+        .filter((slab) => slab.nodeId === nodeId)
+        .map(({ height, width, x, y }) => ({ height, width, x, y })),
+    );
+  }
+
+  for (const node of nodes) {
+    if (!node.measure || measuredNodeIds.has(node.id)) continue;
+
+    const rects = ghostCache.get(node.id) ?? node.measure.estimate ?? [];
+
+    rects.forEach((rect, index) => {
+      const parent = slabByNode(slabs, treeParent.get(node.id)) ?? null;
+      let level = parent ? parent.level + 1 : 0;
+
+      for (const slab of slabs) {
+        if (slab !== parent && overlaps(slab, rect)) {
+          level = Math.max(level, slab.level + 1);
+        }
+      }
+
+      slabs.push({
+        ...roundRect(rect),
+        focused: false,
+        ghost: true,
+        key: `${node.id}:ghost:${index}`,
+        level,
+        marks: [],
+        nodeId: node.id,
+        painted: false,
+        parentKey: parent?.key ?? null,
+        portal: node.measure?.find !== undefined,
+        radius: 0,
+      });
+    });
+  }
+
   const width = round(maxX - minX);
   const height = round(maxY - minY);
 
   return {
+    fitLevels: structureFitLevels(structure),
     height,
     levels: Math.max(...slabs.map((slab) => slab.level)) + 1,
     signature: JSON.stringify([width, height, slabs]),
