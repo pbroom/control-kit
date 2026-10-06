@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { Plane, PlaneThumb, type PlaneValue } from '@pbroom/control-kit';
 
 const EXAMPLE_PLANE_CLASS_NAME =
-  'relative size-[240px] touch-none overflow-hidden rounded-2xl border border-white/12 [background-origin:border-box] bg-[#171718] max-sm:size-[220px]';
+  'relative size-[240px] touch-none rounded-2xl border border-white/12 [background-origin:border-box] bg-[#171718] max-sm:size-[220px]';
 
 function ExampleFrame({
   children,
@@ -46,20 +46,28 @@ export function SpatialAudioExample() {
         aria-label="Spatial audio source position"
         className={`${EXAMPLE_PLANE_CLASS_NAME} bg-[linear-gradient(rgb(255_255_255/0.04)_1px,transparent_1px),linear-gradient(90deg,rgb(255_255_255/0.04)_1px,transparent_1px),#12151c] bg-size-[20%_20%]`}
       >
+        {/* Clip the surface content, never the thumbs. */}
         <div
           aria-hidden="true"
-          className="absolute inset-3 rounded-xl border border-white/10"
+          className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]"
         >
-          <span className="absolute top-1/2 left-1/2 flex size-10 -translate-1/2 items-center justify-center rounded-full border border-violet-300/35 bg-violet-400/10 text-lg">
-            ◉
-          </span>
-          <span className="absolute top-2 left-2 text-xs text-white/35">L</span>
-          <span className="absolute top-2 right-2 text-xs text-white/35">
-            R
-          </span>
-          <span className="absolute bottom-2 left-1/2 -translate-x-1/2 text-[9px] text-white/35">
-            LISTENER
-          </span>
+          <div
+            aria-hidden="true"
+            className="absolute inset-3 rounded-xl border border-white/10"
+          >
+            <span className="absolute top-1/2 left-1/2 flex size-10 -translate-1/2 items-center justify-center rounded-full border border-violet-300/35 bg-violet-400/10 text-lg">
+              ◉
+            </span>
+            <span className="absolute top-2 left-2 text-xs text-white/35">
+              L
+            </span>
+            <span className="absolute top-2 right-2 text-xs text-white/35">
+              R
+            </span>
+            <span className="absolute bottom-2 left-1/2 -translate-x-1/2 text-[9px] text-white/35">
+              LISTENER
+            </span>
+          </div>
         </div>
         <PlaneThumb
           className="size-8 border-2 border-violet-100 bg-violet-500 text-white shadow-[0_0_0_6px_rgb(139_92_246/0.12),0_3px_12px_rgb(0_0_0/0.5)]"

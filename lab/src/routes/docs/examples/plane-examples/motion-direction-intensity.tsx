@@ -399,18 +399,24 @@ export function MotionDirectionIntensityExample() {
         <div className="flex flex-col items-center gap-4">
           <Plane
             aria-label="Motion direction and intensity"
-            className="relative size-[220px] touch-none overflow-hidden rounded-full border border-white/12 [background-origin:border-box] bg-[radial-gradient(circle,transparent_0_31%,rgb(255_255_255/0.06)_32%_32.5%,transparent_33%_64%,rgb(255_255_255/0.08)_65%_65.5%,transparent_66%)] bg-[#171718]"
+            className="relative size-[220px] touch-none rounded-full border border-white/12 [background-origin:border-box] bg-[radial-gradient(circle,transparent_0_31%,rgb(255_255_255/0.06)_32%_32.5%,transparent_33%_64%,rgb(255_255_255/0.08)_65%_65.5%,transparent_66%)] bg-[#171718]"
             data-motion-plane
           >
-            <div aria-hidden="true" className="absolute inset-0">
-              <span
-                className="absolute top-1/2 left-1/2 h-px origin-left bg-cyan-300/70"
-                style={{
-                  width: `${motion.magnitude * 50}%`,
-                  transform: `rotate(${-motion.angle}deg)`,
-                }}
-              />
-              <span className="absolute top-1/2 left-1/2 size-2 -translate-1/2 rounded-full bg-cyan-200" />
+            {/* Clip the surface content, never the thumbs. */}
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]"
+            >
+              <div aria-hidden="true" className="absolute inset-0">
+                <span
+                  className="absolute top-1/2 left-1/2 h-px origin-left bg-cyan-300/70"
+                  style={{
+                    width: `${motion.magnitude * 50}%`,
+                    transform: `rotate(${-motion.angle}deg)`,
+                  }}
+                />
+                <span className="absolute top-1/2 left-1/2 size-2 -translate-1/2 rounded-full bg-cyan-200" />
+              </div>
             </div>
             <PlaneThumb
               className="size-6 border-2 border-cyan-200 bg-cyan-400 shadow-[0_2px_10px_rgba(0,0,0,0.45)]"

@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { Plane, PlaneThumb, type PlaneValue } from '@pbroom/control-kit';
 
 const EXAMPLE_PLANE_CLASS_NAME =
-  'relative size-[240px] touch-none overflow-hidden rounded-2xl border border-white/12 [background-origin:border-box] bg-[#171718] max-sm:size-[220px]';
+  'relative size-[240px] touch-none rounded-2xl border border-white/12 [background-origin:border-box] bg-[#171718] max-sm:size-[220px]';
 const EXAMPLE_THUMB_CLASS_NAME =
   'size-6 border-2 border-white bg-[#171718] shadow-[0_2px_10px_rgba(0,0,0,0.45)]';
 
@@ -68,30 +68,36 @@ export function FluidFlowExample() {
         aria-label="Fluid flow direction"
         className={`${EXAMPLE_PLANE_CLASS_NAME} bg-linear-to-br from-sky-950 to-cyan-950`}
       >
+        {/* Clip the surface content, never the thumbs. */}
         <div
           aria-hidden="true"
-          className="absolute -inset-10"
-          style={{
-            transform: `rotate(${-vector.angle}deg)`,
-            opacity: 0.35 + vector.magnitude * 0.65,
-          }}
+          className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]"
         >
-          {streamOffsets.map((offset, index) => (
-            <svg
-              className="absolute left-0 h-8 w-full"
-              key={offset}
-              style={{ top: `${offset}%` }}
-              viewBox="0 0 100 20"
-              preserveAspectRatio="none"
-            >
-              <path
-                d={`M -5 ${8 + (index % 2)} C 20 ${2 + index}, 35 ${18 - index}, 55 10 S 85 ${3 + index}, 105 10`}
-                fill="none"
-                stroke="rgb(103 232 249 / 0.65)"
-                strokeWidth="1"
-              />
-            </svg>
-          ))}
+          <div
+            aria-hidden="true"
+            className="absolute -inset-10"
+            style={{
+              transform: `rotate(${-vector.angle}deg)`,
+              opacity: 0.35 + vector.magnitude * 0.65,
+            }}
+          >
+            {streamOffsets.map((offset, index) => (
+              <svg
+                className="absolute left-0 h-8 w-full"
+                key={offset}
+                style={{ top: `${offset}%` }}
+                viewBox="0 0 100 20"
+                preserveAspectRatio="none"
+              >
+                <path
+                  d={`M -5 ${8 + (index % 2)} C 20 ${2 + index}, 35 ${18 - index}, 55 10 S 85 ${3 + index}, 105 10`}
+                  fill="none"
+                  stroke="rgb(103 232 249 / 0.65)"
+                  strokeWidth="1"
+                />
+              </svg>
+            ))}
+          </div>
         </div>
         <PlaneThumb
           className={`${EXAMPLE_THUMB_CLASS_NAME} border-cyan-100 bg-cyan-500`}

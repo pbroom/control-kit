@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Plane, PlaneThumb, type PlaneValue } from '@pbroom/control-kit';
 
 const EXAMPLE_PLANE_CLASS_NAME =
-  'relative size-[240px] touch-none overflow-hidden rounded-2xl border border-white/12 [background-origin:border-box] bg-[#171718] max-sm:size-[220px]';
+  'relative size-[240px] touch-none rounded-2xl border border-white/12 [background-origin:border-box] bg-[#171718] max-sm:size-[220px]';
 const EXAMPLE_THUMB_CLASS_NAME =
   'size-6 border-2 border-white bg-[#171718] shadow-[0_2px_10px_rgba(0,0,0,0.45)]';
 const EMISSION_RATE = 24;
@@ -534,12 +534,18 @@ export function ParticleEmitterExample() {
         className={`${EXAMPLE_PLANE_CLASS_NAME} rounded-full bg-[#100d18]`}
         data-emitter-plane
       >
-        <ParticleEmitter emitter={emitter} />
-        <span
+        {/* Clip the surface content, never the thumbs. */}
+        <div
           aria-hidden="true"
-          className="pointer-events-none absolute top-1/2 left-1/2 z-[1] size-3 -translate-1/2 rounded-full border border-fuchsia-100/80 bg-fuchsia-400 shadow-[0_0_16px_rgb(217_70_239/0.95)]"
-          data-emitter-source
-        />
+          className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]"
+        >
+          <ParticleEmitter emitter={emitter} />
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute top-1/2 left-1/2 z-[1] size-3 -translate-1/2 rounded-full border border-fuchsia-100/80 bg-fuchsia-400 shadow-[0_0_16px_rgb(217_70_239/0.95)]"
+            data-emitter-source
+          />
+        </div>
         <PlaneThumb
           className={`${EXAMPLE_THUMB_CLASS_NAME} z-10 border-fuchsia-100 bg-fuchsia-500 shadow-[0_0_0_1px_rgb(217_70_239/0.65),0_2px_12px_rgba(0,0,0,0.65)]`}
           getAriaValueText={formatEmitter}

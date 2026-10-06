@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { Plane, PlaneThumb, type PlaneValue } from '@pbroom/control-kit';
 
 const EXAMPLE_PLANE_CLASS_NAME =
-  'relative size-[240px] touch-none overflow-hidden rounded-2xl border border-white/12 [background-origin:border-box] bg-[#171718] max-sm:size-[220px]';
+  'relative size-[240px] touch-none rounded-2xl border border-white/12 [background-origin:border-box] bg-[#171718] max-sm:size-[220px]';
 const EXAMPLE_THUMB_CLASS_NAME =
   "size-6 border-0 bg-transparent shadow-none transition-opacity data-[dragging]:opacity-20 after:absolute after:top-1/2 after:left-1/2 after:size-4 after:-translate-x-1/2 after:-translate-y-1/2 after:rounded-full after:border-2 after:border-white after:bg-white after:shadow-sm after:content-['']";
 
@@ -89,18 +89,24 @@ export function VariableFontAxesExample() {
         aria-label="Variable font weight and width"
         className={EXAMPLE_PLANE_CLASS_NAME}
       >
-        <AxisLabels axes={axes} />
-        <span
+        {/* Clip the surface content, never the thumbs. */}
+        <div
           aria-hidden="true"
-          className="absolute inset-0 flex items-center justify-center text-7xl leading-none text-white/18"
-          style={{
-            fontVariationSettings: `'wght' ${axes.weight}, 'wdth' ${axes.width}`,
-            fontWeight: axes.weight,
-            transform: `scaleX(${axes.width / 100})`,
-          }}
+          className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]"
         >
-          Aa
-        </span>
+          <AxisLabels axes={axes} />
+          <span
+            aria-hidden="true"
+            className="absolute inset-0 flex items-center justify-center text-7xl leading-none text-white/18"
+            style={{
+              fontVariationSettings: `'wght' ${axes.weight}, 'wdth' ${axes.width}`,
+              fontWeight: axes.weight,
+              transform: `scaleX(${axes.width / 100})`,
+            }}
+          >
+            Aa
+          </span>
+        </div>
         <PlaneThumb
           className={EXAMPLE_THUMB_CLASS_NAME}
           getAriaValueText={formatFontAxes}

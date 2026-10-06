@@ -24,28 +24,34 @@ export function RadiusBorderWidthExample() {
     <div className="flex min-h-[360px] flex-col items-center justify-center gap-4 p-6 max-sm:min-h-[340px] max-sm:p-4">
       <Plane
         aria-label="Radius and border width"
-        className="relative size-[240px] touch-none overflow-hidden rounded-2xl border border-white/12 [background-origin:border-box] bg-[#121827] max-sm:size-[220px]"
+        className="relative size-[240px] touch-none rounded-2xl border border-white/12 [background-origin:border-box] bg-[#121827] max-sm:size-[220px]"
       >
-        <div aria-hidden="true" className="absolute inset-0">
-          <span
-            className="absolute inset-y-0 w-px bg-white/12"
-            style={{ left: `${value.x * 100}%` }}
-          />
-          <span
-            className="absolute inset-x-0 h-px bg-white/12"
-            style={{ bottom: `${value.y * 100}%` }}
-          />
-        </div>
+        {/* Clip the surface content, never the thumbs. */}
         <div
           aria-hidden="true"
-          className="absolute top-1/2 left-1/2 size-24 -translate-x-1/2 -translate-y-1/2 bg-indigo-400/20"
-          style={{
-            borderColor: 'rgb(165 180 252 / 0.9)',
-            borderRadius: radius,
-            borderStyle: 'solid',
-            borderWidth,
-          }}
-        />
+          className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]"
+        >
+          <div aria-hidden="true" className="absolute inset-0">
+            <span
+              className="absolute inset-y-0 w-px bg-white/12"
+              style={{ left: `${value.x * 100}%` }}
+            />
+            <span
+              className="absolute inset-x-0 h-px bg-white/12"
+              style={{ bottom: `${value.y * 100}%` }}
+            />
+          </div>
+          <div
+            aria-hidden="true"
+            className="absolute top-1/2 left-1/2 size-24 -translate-x-1/2 -translate-y-1/2 bg-indigo-400/20"
+            style={{
+              borderColor: 'rgb(165 180 252 / 0.9)',
+              borderRadius: radius,
+              borderStyle: 'solid',
+              borderWidth,
+            }}
+          />
+        </div>
         <PlaneThumb
           aria-label="Surface style"
           className="size-6 border-2 border-white bg-[#171718] shadow-[0_2px_10px_rgba(0,0,0,0.45)]"

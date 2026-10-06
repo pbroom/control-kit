@@ -39,7 +39,7 @@ export type GravitySimulation = {
 };
 
 const EXAMPLE_PLANE_CLASS_NAME =
-  'relative size-[188px] touch-none overflow-hidden rounded-full border border-white/12 bg-[#11131a] p-0 [background-origin:border-box] max-sm:size-[200px]';
+  'relative size-[188px] touch-none rounded-full border border-white/12 bg-[#11131a] p-0 [background-origin:border-box] max-sm:size-[200px]';
 const EXAMPLE_THUMB_CLASS_NAME =
   'size-6 border-2 border-white bg-indigo-500 shadow-[0_2px_12px_rgba(0,0,0,0.5)]';
 
@@ -528,36 +528,47 @@ export function GravityVectorExample() {
             aria-label="Gravity vector"
             className={EXAMPLE_PLANE_CLASS_NAME}
           >
-            <svg
+            {/* Clip the surface content, never the thumbs. */}
+            <div
               aria-hidden="true"
-              className="pointer-events-none absolute inset-0 size-full"
-              viewBox="0 0 100 100"
+              className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]"
             >
-              <circle
-                cx="50"
-                cy="50"
-                fill="none"
-                r="24"
-                stroke="rgb(255 255 255 / 0.08)"
-              />
-              <circle
-                cx="50"
-                cy="50"
-                fill="none"
-                r="48"
-                stroke="rgb(255 255 255 / 0.08)"
-              />
-              <line
-                stroke="rgb(165 180 252 / 0.6)"
-                strokeLinecap="round"
-                strokeWidth="1.2"
-                x1="50"
-                x2={value.x * 100}
-                y1="50"
-                y2={(1 - value.y) * 100}
-              />
-              <circle cx="50" cy="50" fill="rgb(255 255 255 / 0.34)" r="1.5" />
-            </svg>
+              <svg
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 size-full"
+                viewBox="0 0 100 100"
+              >
+                <circle
+                  cx="50"
+                  cy="50"
+                  fill="none"
+                  r="24"
+                  stroke="rgb(255 255 255 / 0.08)"
+                />
+                <circle
+                  cx="50"
+                  cy="50"
+                  fill="none"
+                  r="48"
+                  stroke="rgb(255 255 255 / 0.08)"
+                />
+                <line
+                  stroke="rgb(165 180 252 / 0.6)"
+                  strokeLinecap="round"
+                  strokeWidth="1.2"
+                  x1="50"
+                  x2={value.x * 100}
+                  y1="50"
+                  y2={(1 - value.y) * 100}
+                />
+                <circle
+                  cx="50"
+                  cy="50"
+                  fill="rgb(255 255 255 / 0.34)"
+                  r="1.5"
+                />
+              </svg>
+            </div>
             <PlaneThumb
               className={`${EXAMPLE_THUMB_CLASS_NAME} border-indigo-200`}
               getAriaValueText={formatGravity}

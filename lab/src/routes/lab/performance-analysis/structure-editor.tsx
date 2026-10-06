@@ -157,7 +157,7 @@ function XYPad({
       // where it was grabbed, for finer placement.
       dragBehavior="relative"
       dragSensitivity={STRUCTURE_PAD_SENSITIVITY}
-      className="size-[104px] shrink-0 overflow-hidden rounded-[5px] border border-white/10 bg-[#151516] bg-[linear-gradient(to_right,transparent_calc(50%-0.5px),rgba(255,255,255,0.08)_calc(50%-0.5px),rgba(255,255,255,0.08)_calc(50%+0.5px),transparent_calc(50%+0.5px)),linear-gradient(to_bottom,transparent_calc(50%-0.5px),rgba(255,255,255,0.08)_calc(50%-0.5px),rgba(255,255,255,0.08)_calc(50%+0.5px),transparent_calc(50%+0.5px))]"
+      className="size-[104px] shrink-0 rounded-[5px] border border-white/10 bg-[#151516] bg-[linear-gradient(to_right,transparent_calc(50%-0.5px),rgba(255,255,255,0.08)_calc(50%-0.5px),rgba(255,255,255,0.08)_calc(50%+0.5px),transparent_calc(50%+0.5px)),linear-gradient(to_bottom,transparent_calc(50%-0.5px),rgba(255,255,255,0.08)_calc(50%-0.5px),rgba(255,255,255,0.08)_calc(50%+0.5px),transparent_calc(50%+0.5px))]"
       data-testid={testId}
     >
       <PlaneThumb

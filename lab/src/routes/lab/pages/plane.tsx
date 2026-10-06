@@ -46,7 +46,7 @@ function PlanePreview({ controller }: { controller: PlaneLabPageController }) {
       <Plane
         data-testid="plane-demo"
         aria-label="Normalized position"
-        className="size-[300px] overflow-hidden rounded-2xl border border-white/10 bg-[#151516] max-[520px]:size-[220px]"
+        className="size-[300px] rounded-2xl border border-white/10 bg-[#151516] max-[520px]:size-[220px]"
         disabled={controller.disabled}
         readOnly={controller.readOnly}
       >

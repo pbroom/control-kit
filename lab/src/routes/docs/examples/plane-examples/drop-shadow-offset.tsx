@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { Plane, PlaneThumb, type PlaneValue } from '@pbroom/control-kit';
 
 const EXAMPLE_PLANE_CLASS_NAME =
-  'relative size-[240px] touch-none overflow-hidden rounded-2xl border border-black/12 [background-origin:border-box] bg-[#e6e8ec] max-sm:size-[220px]';
+  'relative size-[240px] touch-none rounded-2xl border border-black/12 [background-origin:border-box] bg-[#e6e8ec] max-sm:size-[220px]';
 const EXAMPLE_THUMB_CLASS_NAME =
   'size-6 border-2 border-white bg-[#171718] shadow-[0_2px_10px_rgba(0,0,0,0.45)]';
 
@@ -51,18 +51,24 @@ export function DropShadowOffsetExample() {
         aria-label="Drop shadow offset"
         className={EXAMPLE_PLANE_CLASS_NAME}
       >
+        {/* Clip the surface content, never the thumbs. */}
         <div
           aria-hidden="true"
-          data-shadow-object
-          className="absolute top-1/2 left-1/2 size-20 -translate-1/2 rounded-2xl bg-gradient-to-br from-white to-white/75"
-          style={{
-            boxShadow: [
-              `${Math.round(offset.x * 0.38)}px ${Math.round(offset.y * 0.38)}px 4px rgb(25 29 37 / 0.16)`,
-              `${Math.round(offset.x * 0.7)}px ${Math.round(offset.y * 0.7)}px 10px rgb(25 29 37 / 0.12)`,
-              `${offset.x}px ${offset.y}px 22px rgb(25 29 37 / 0.08)`,
-            ].join(', '),
-          }}
-        />
+          className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]"
+        >
+          <div
+            aria-hidden="true"
+            data-shadow-object
+            className="absolute top-1/2 left-1/2 size-20 -translate-1/2 rounded-2xl bg-gradient-to-br from-white to-white/75"
+            style={{
+              boxShadow: [
+                `${Math.round(offset.x * 0.38)}px ${Math.round(offset.y * 0.38)}px 4px rgb(25 29 37 / 0.16)`,
+                `${Math.round(offset.x * 0.7)}px ${Math.round(offset.y * 0.7)}px 10px rgb(25 29 37 / 0.12)`,
+                `${offset.x}px ${offset.y}px 22px rgb(25 29 37 / 0.08)`,
+              ].join(', '),
+            }}
+          />
+        </div>
         <PlaneThumb
           className={EXAMPLE_THUMB_CLASS_NAME}
           getAriaValueText={formatLightSource}
