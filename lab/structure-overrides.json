@@ -206,12 +206,12 @@
     "checkbox": {
       "label": "Checkbox",
       "route": "/lab/checkbox",
-      "frame": false,
+      "frame": true,
       "explode": 0.75,
       "framing": {
         "mode": "manual",
-        "panX": -0.039,
-        "panY": -0.135,
+        "panX": 0.02,
+        "panY": -0.225,
         "zoom": 1.25
       },
       "layers": {
