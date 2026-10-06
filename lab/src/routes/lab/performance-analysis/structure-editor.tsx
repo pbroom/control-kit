@@ -226,9 +226,16 @@ export function StructurePropertiesSection({ pageKey }: { pageKey: string }) {
       data-testid="lab-primitive-structure-editor"
       ref={sectionRef}
     >
-      <div className="typeset typeset-lab w-full min-w-0 max-w-full">
-        <h2>Structure</h2>
-        <p>
+      {/*
+        Same look as the panel's section headings (.typeset-lab h2/p), but not
+        that class: the properties panel keeps a single .typeset-lab block,
+        the active page's own heading, which other code and tests look up.
+      */}
+      <div className="w-full min-w-0 max-w-full space-y-1">
+        <h2 className="m-0 text-[14px] leading-5 font-medium tracking-[-0.025em] text-white">
+          Structure
+        </h2>
+        <p className="text-[12px] leading-[1.625] text-white/55">
           Framing and layer placement for the Structure tab. Saved to
           lab/structure-overrides.json.
         </p>
