@@ -30,7 +30,7 @@
     "colorPlane": {
       "label": "ColorPlane",
       "route": "/lab/color-plane",
-      "frame": true,
+      "frame": false,
       "explode": 0.75,
       "framing": {
         "mode": "manual",
