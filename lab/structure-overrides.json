@@ -5,6 +5,7 @@
       "label": "Plane",
       "route": "/lab/plane",
       "frame": true,
+      "explode": 0.75,
       "framing": {
         "mode": "manual",
         "panX": 0.017,
@@ -30,6 +31,7 @@
       "label": "ColorPlane",
       "route": "/lab/color-plane",
       "frame": false,
+      "explode": 0.75,
       "framing": {
         "mode": "auto",
         "panX": 0,
@@ -85,6 +87,7 @@
       "label": "Control Input",
       "route": "/lab/input-primitive",
       "frame": false,
+      "explode": 0.75,
       "framing": {
         "mode": "auto",
         "panX": 0,
@@ -122,6 +125,7 @@
       "label": "Control Field",
       "route": "/lab/control-field",
       "frame": false,
+      "explode": 0.75,
       "framing": {
         "mode": "auto",
         "panX": 0,
@@ -170,12 +174,13 @@
     "inputMulti": {
       "label": "Input Multi",
       "route": "/lab/input-multi",
-      "frame": false,
+      "frame": true,
+      "explode": 0.75,
       "framing": {
-        "mode": "auto",
-        "panX": 0,
-        "panY": 0,
-        "zoom": 1
+        "mode": "manual",
+        "panX": 0.009,
+        "panY": -0.196,
+        "zoom": 1.4
       },
       "layers": {
         "group-shell": {
@@ -202,6 +207,7 @@
       "label": "Checkbox",
       "route": "/lab/checkbox",
       "frame": false,
+      "explode": 0.75,
       "framing": {
         "mode": "manual",
         "panX": -0.039,
@@ -239,6 +245,7 @@
       "label": "Slider",
       "route": "/lab/slider",
       "frame": false,
+      "explode": 0.75,
       "framing": {
         "mode": "manual",
         "panX": 0.033,
@@ -276,6 +283,7 @@
       "label": "Tooltip",
       "route": "/lab/tooltip",
       "frame": false,
+      "explode": 0.75,
       "framing": {
         "mode": "auto",
         "panX": 0,
@@ -301,6 +309,7 @@
       "label": "Menu",
       "route": "/lab/menu",
       "frame": false,
+      "explode": 0.75,
       "framing": {
         "mode": "auto",
         "panX": 0,
@@ -338,6 +347,7 @@
       "label": "Select",
       "route": "/lab/select",
       "frame": false,
+      "explode": 0.75,
       "framing": {
         "mode": "auto",
         "panX": 0,
@@ -369,6 +379,7 @@
       "label": "Tabs",
       "route": "/lab/tabs",
       "frame": false,
+      "explode": 0.75,
       "framing": {
         "mode": "auto",
         "panX": 0,
@@ -418,6 +429,7 @@
       "label": "Toggle Button",
       "route": "/lab/toggle-button",
       "frame": false,
+      "explode": 0.75,
       "framing": {
         "mode": "auto",
         "panX": 0,
@@ -443,6 +455,7 @@
       "label": "Toggle Group",
       "route": "/lab/toggle-group",
       "frame": false,
+      "explode": 0.75,
       "framing": {
         "mode": "auto",
         "panX": 0,
