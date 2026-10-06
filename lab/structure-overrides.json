@@ -30,13 +30,13 @@
     "colorPlane": {
       "label": "ColorPlane",
       "route": "/lab/color-plane",
-      "frame": false,
+      "frame": true,
       "explode": 0.75,
       "framing": {
-        "mode": "auto",
-        "panX": 0,
-        "panY": 0,
-        "zoom": 1
+        "mode": "manual",
+        "panX": 0.011,
+        "panY": -0.478,
+        "zoom": 1.05
       },
       "layers": {
         "plane-frame": {
