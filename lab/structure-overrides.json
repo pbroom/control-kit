@@ -8,7 +8,7 @@
       "explode": 0.75,
       "framing": {
         "mode": "manual",
-        "panX": 0.017,
+        "panX": 0.006,
         "panY": -0.251,
         "zoom": 1.1
       },
