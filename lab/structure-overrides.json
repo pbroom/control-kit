@@ -4,12 +4,12 @@
     "plane": {
       "label": "Plane",
       "route": "/lab/plane",
-      "frame": false,
+      "frame": true,
       "explode": 0.75,
       "framing": {
         "mode": "manual",
-        "panX": 0.006,
-        "panY": -0.251,
+        "panX": -0.003,
+        "panY": -0.108,
         "zoom": 1.1
       },
       "layers": {
@@ -244,13 +244,13 @@
     "slider": {
       "label": "Slider",
       "route": "/lab/slider",
-      "frame": false,
-      "explode": 0.75,
+      "frame": true,
+      "explode": 0.76,
       "framing": {
         "mode": "manual",
-        "panX": 0.033,
-        "panY": -0.454,
-        "zoom": 1.85
+        "panX": 0.436,
+        "panY": -0.5,
+        "zoom": 4
       },
       "layers": {
         "slider-target": {
