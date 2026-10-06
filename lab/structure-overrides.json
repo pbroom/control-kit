@@ -240,10 +240,10 @@
       "route": "/lab/slider",
       "frame": false,
       "framing": {
-        "mode": "auto",
-        "panX": 0,
-        "panY": 0,
-        "zoom": 1
+        "mode": "manual",
+        "panX": 0.033,
+        "panY": -0.454,
+        "zoom": 1.85
       },
       "layers": {
         "slider-target": {
