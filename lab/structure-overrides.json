@@ -174,7 +174,7 @@
     "inputMulti": {
       "label": "Input Multi",
       "route": "/lab/input-multi",
-      "frame": true,
+      "frame": false,
       "explode": 0.75,
       "framing": {
         "mode": "manual",
