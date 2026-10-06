@@ -441,8 +441,9 @@ test('starts the render at the demo default explode and saves a new one', async 
   await useCurrent.click();
   await expect.poll(() => saves.at(-1)?.file.demos.slider?.explode).toBe(0.7);
   await expect(explodeField).toHaveValue('0.7');
-  expect(saves.at(-1)!.raw).toContain(
-    '"frame": false,\n      "explode": 0.7,\n      "framing"',
+  // Key order: frame, explode, framing (frame's value is the working file's).
+  expect(saves.at(-1)!.raw).toMatch(
+    /"frame": (?:true|false),\n {6}"explode": 0\.7,\n {6}"framing"/,
   );
 
   // Typing a default saves it and moves the render there.

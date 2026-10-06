@@ -11,6 +11,7 @@ import type {
   MouseEvent as ReactMouseEvent,
   PointerEvent as ReactPointerEvent,
 } from 'react';
+import { flushSync } from 'react-dom';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger, type LabPageKey } from './shared.js';
 import { LAB_PERFORMANCE_ANALYSIS } from './performance-analysis/config.js';
@@ -149,7 +150,6 @@ function LabPerformanceAnalysisPanelComponent({
       );
       const resizeHandle = event.currentTarget;
       const pointerId = event.pointerId;
-      let resizeAnimationFrame = 0;
       const previousCursor = document.body.style.cursor;
       const previousUserSelect = document.body.style.userSelect;
       let isCleanedUp = false;
@@ -160,7 +160,6 @@ function LabPerformanceAnalysisPanelComponent({
         }
 
         isCleanedUp = true;
-        cancelAnimationFrame(resizeAnimationFrame);
         document.body.style.cursor = previousCursor;
         document.body.style.userSelect = previousUserSelect;
         window.removeEventListener('pointermove', handlePointerMove);
@@ -190,15 +189,16 @@ function LabPerformanceAnalysisPanelComponent({
 
         resizeState.lastHeight = nextHeight;
         suppressAnalysisSurfaceLayoutShifts();
-        cancelAnimationFrame(resizeAnimationFrame);
-        resizeAnimationFrame = requestAnimationFrame(() => {
+        // Apply the drag height while handling the event (pointermove is
+        // already frame-aligned) so the panel never lags a frame behind the
+        // pointer, and anything observing it after the event sees it.
+        flushSync(() => {
           setPanelHeight(nextHeight);
         });
       };
 
       const stopPanelResize = () => {
         suppressAnalysisSurfaceLayoutShifts();
-        cancelAnimationFrame(resizeAnimationFrame);
         const lastHeight =
           resizeStateRef.current?.lastHeight ?? panelHeightRef.current;
         const startedCollapsed =

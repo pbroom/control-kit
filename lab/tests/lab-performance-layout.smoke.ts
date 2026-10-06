@@ -751,12 +751,15 @@ test('keeps desktop performance panel layout, scrollbars, and resize behavior st
       .poll(async () => (await performancePanel.boundingBox())?.height ?? 0)
       .toBeLessThanOrEqual(LAB_COLLAPSED_PANEL_HANDLE_HEIGHT);
     await page.getByRole('link', { name: 'Input Multi', exact: true }).click();
-    await expect(performancePanel).toHaveAttribute(
+    // The panel is renamed for the page it now shows; look it up by that
+    // name (the Slider locator only matches until the rename lands).
+    const inputMultiPanel = performancePanelFor(page, 'Input Multi');
+    await expect(inputMultiPanel).toHaveAttribute(
       'data-lab-performance-panel-collapsed',
       'true',
     );
     await expect
-      .poll(async () => (await performancePanel.boundingBox())?.height ?? 0)
+      .poll(async () => (await inputMultiPanel.boundingBox())?.height ?? 0)
       .toBeLessThanOrEqual(LAB_COLLAPSED_PANEL_HANDLE_HEIGHT);
     await page.getByRole('link', { name: 'Slider', exact: true }).click();
     await expect(performancePanel).toHaveAttribute(
