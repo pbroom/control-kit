@@ -62,11 +62,18 @@ test('emits a bounded, continuously moving particle pool inside the Plane', asyn
 
   await expect(canvas).toHaveCount(1);
   await expect(source).toHaveCount(1);
+  // The canvas lives in the Plane's clipped surface layer (the Plane itself
+  // stays overflow-visible so the thumb is never cut at the rim).
   expect(
-    await canvas.evaluate(
-      (node) => node.parentElement?.hasAttribute('data-emitter-plane') ?? false,
-    ),
+    await canvas.evaluate((node) => {
+      const surface = node.parentElement;
+      return (
+        surface?.parentElement?.hasAttribute('data-emitter-plane') === true &&
+        getComputedStyle(surface).overflow === 'hidden'
+      );
+    }),
   ).toBe(true);
+  await expect(plane).toHaveCSS('overflow', 'visible');
   await expect(canvas).toHaveCSS('pointer-events', 'none');
   expect(
     Number(await thumb.evaluate((node) => getComputedStyle(node).zIndex)),
