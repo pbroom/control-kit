@@ -570,3 +570,68 @@ export function buildStructureFigure(
     slabs,
   };
 }
+
+/**
+ * Manual framing on top of the stable auto fit: zoom about the region's
+ * centre, then pan by a fraction of the render size.
+ */
+export function frameStructureCamera(
+  camera: StructureCamera,
+  region: StructureFigureRegion,
+  size: { height: number; width: number },
+  framing: { panX: number; panY: number; zoom: number } | null,
+): StructureCamera {
+  if (!framing) return camera;
+
+  const cx = (region.x0 + region.x1) / 2;
+  const cy = (region.y0 + region.y1) / 2;
+
+  return {
+    ...camera,
+    ox: cx + (camera.ox - cx) * framing.zoom + framing.panX * size.width,
+    oy: cy + (camera.oy - cy) * framing.zoom + framing.panY * size.height,
+    scale: camera.scale * framing.zoom,
+  };
+}
+
+/**
+ * Moves parts by manual offsets (x along the root's width, z along its depth
+ * = DOM y). Offsets are per node and already include the parent's.
+ */
+export function offsetStructureMeasurement(
+  measurement: StructureMeasurement,
+  offsets: ReadonlyMap<string, { x: number; z: number }>,
+): StructureMeasurement {
+  if (![...offsets.values()].some((offset) => offset.x || offset.z)) {
+    return measurement;
+  }
+
+  return {
+    ...measurement,
+    slabs: measurement.slabs.map((slab) => {
+      const offset = offsets.get(slab.nodeId);
+
+      if (!offset || (!offset.x && !offset.z)) return slab;
+
+      const dx = offset.x;
+      const dy = offset.z;
+      const move = <T extends StructureRect>(rect: T): T => ({
+        ...rect,
+        x: rect.x + dx,
+        y: rect.y + dy,
+      });
+
+      return {
+        ...move(slab),
+        marks: slab.marks.map((mark) =>
+          mark.kind === 'line' || mark.kind === 'dash'
+            ? {
+                ...mark,
+                points: mark.points.map(([x, y]) => [x + dx, y + dy] as const),
+              }
+            : { ...mark, rect: move(mark.rect) },
+        ),
+      };
+    }),
+  };
+}

@@ -10,8 +10,14 @@ import {
   useState,
 } from 'react';
 import {
+  StructureEditor,
+  type StructureEditorSaveState,
+} from './structure-editor.js';
+import {
   buildStructureFigure,
   fitStructureCamera,
+  frameStructureCamera,
+  offsetStructureMeasurement,
   type StructureFigureRegion,
   type StructureRect,
   unionRects,
@@ -23,6 +29,22 @@ import {
   type StructureGhostCache,
   type StructureMeasurement,
 } from './structure-measure.js';
+import {
+  STRUCTURE_OVERRIDES,
+  structureLayerOffsets,
+  structureOverrideDemo,
+} from './structure-overrides.js';
+import {
+  AUTO_FRAMING,
+  normalizeFraming,
+  normalizeLayer,
+  serializeStructureOverrides,
+  type StructureDemoOverride,
+  type StructureFramingOverride,
+  type StructureLayerOverride,
+  type StructureOverridesFile,
+} from './structure-overrides-schema.js';
+import { STRUCTURE_OVERRIDES_ENDPOINT } from './structure-overrides-server.js';
 import type {
   LabPrimitiveStructure,
   LabPrimitiveStructureNode,
@@ -89,6 +111,23 @@ type StructureNodeEntry = {
   state: LabPrimitiveStructureNodeState;
   treeDepth: number;
 };
+
+const STRUCTURE_SAVE_DEBOUNCE_MS = 300;
+const STRUCTURE_CLICK_SLOP_PX = 4;
+
+/** `?structureEdit=1&structureLayer=<node id>` opens the dev editor. */
+function readEditorParams() {
+  if (!import.meta.env.DEV || typeof window === 'undefined') {
+    return { edit: false, layer: null };
+  }
+
+  const params = new URLSearchParams(window.location.search);
+
+  return {
+    edit: params.get('structureEdit') === '1',
+    layer: params.get('structureLayer'),
+  };
+}
 
 /** Popup extents seen per lab page, kept for the session. */
 const FRAME_EXTENT_CACHE = new Map<string, StructureRect>();
@@ -489,10 +528,122 @@ export function LabPrimitiveStructureView({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<{
     pointerId: number;
+    pressedNode: string | null;
     startExplode: number;
+    startX: number;
     startY: number;
   } | null>(null);
   const [activeLayerId, setActiveLayerId] = useState<string | null>(null);
+  const [editorParams] = useState(readEditorParams);
+  const [isEditing, setIsEditing] = useState(editorParams.edit);
+  const [selectedLayerId, setSelectedLayerId] = useState<string | null>(
+    editorParams.layer,
+  );
+  // The committed overrides, plus unsaved edits. External writes (the mod
+  // pane, or our own save) arrive through HMR as a new STRUCTURE_OVERRIDES.
+  const [overrides, setOverrides] =
+    useState<StructureOverridesFile>(STRUCTURE_OVERRIDES);
+  const [saveState, setSaveState] = useState<StructureEditorSaveState>('idle');
+  const saveTimerRef = useRef<number | null>(null);
+
+  const seenFileRef = useRef(STRUCTURE_OVERRIDES);
+
+  useEffect(() => {
+    // An HMR re-run of the overrides module hands us a new object; adopt it
+    // unless a save of our own is still pending.
+    if (seenFileRef.current === STRUCTURE_OVERRIDES) return;
+
+    seenFileRef.current = STRUCTURE_OVERRIDES;
+
+    if (saveTimerRef.current === null) setOverrides(STRUCTURE_OVERRIDES);
+  });
+
+  useEffect(
+    () => () => {
+      if (saveTimerRef.current !== null) {
+        window.clearTimeout(saveTimerRef.current);
+      }
+    },
+    [],
+  );
+
+  const demoOverride: StructureDemoOverride | undefined =
+    overrides.demos[pageKey];
+  const overrideDemo = structureOverrideDemo(pageKey);
+
+  const updateDemo = useCallback(
+    (update: (demo: StructureDemoOverride) => StructureDemoOverride) => {
+      setOverrides((current) => {
+        const demo = current.demos[pageKey];
+
+        if (!demo) return current;
+
+        const next: StructureOverridesFile = {
+          ...current,
+          demos: { ...current.demos, [pageKey]: update(demo) },
+        };
+
+        if (saveTimerRef.current !== null) {
+          window.clearTimeout(saveTimerRef.current);
+        }
+        setSaveState('saving');
+        saveTimerRef.current = window.setTimeout(() => {
+          void fetch(STRUCTURE_OVERRIDES_ENDPOINT, {
+            body: serializeStructureOverrides(next),
+            headers: { 'content-type': 'application/json' },
+            method: 'POST',
+          })
+            .then((response) => setSaveState(response.ok ? 'saved' : 'error'))
+            .catch(() => setSaveState('error'))
+            .finally(() => {
+              saveTimerRef.current = null;
+            });
+        }, STRUCTURE_SAVE_DEBOUNCE_MS);
+
+        return next;
+      });
+    },
+    [pageKey],
+  );
+  const changeFraming = useCallback(
+    (patch: Partial<StructureFramingOverride>) =>
+      updateDemo((demo) => ({
+        ...demo,
+        framing: normalizeFraming({ ...demo.framing, ...patch }),
+      })),
+    [updateDemo],
+  );
+  const changeLayer = useCallback(
+    (id: string, patch: Partial<StructureLayerOverride>) =>
+      updateDemo((demo) => {
+        const layer = demo.layers[id];
+
+        return layer
+          ? {
+              ...demo,
+              layers: {
+                ...demo.layers,
+                [id]: normalizeLayer({ ...layer, ...patch }, layer.label),
+              },
+            }
+          : demo;
+      }),
+    [updateDemo],
+  );
+  const resetDemo = useCallback(
+    () =>
+      updateDemo((demo) => ({
+        ...demo,
+        framing: AUTO_FRAMING,
+        layers: Object.fromEntries(
+          Object.entries(demo.layers).map(([id, layer]) => [
+            id,
+            normalizeLayer(undefined, layer.label),
+          ]),
+        ),
+      })),
+    [updateDemo],
+  );
   const [explode, setExplode] = useState(STRUCTURE_DEFAULT_EXPLODE);
   const [isDragging, setIsDragging] = useState(false);
   const reducedMotion = usePrefersReducedMotion();
@@ -578,12 +729,43 @@ export function LabPrimitiveStructureView({
         : null,
     [fitLevels, frameExtent, region, rootHeight, rootWidth],
   );
+  // Overrides: manual framing only moves/zooms the stable fit; manual layer
+  // offsets only move their own part (and its children).
+  const framedCamera = useMemo(
+    () =>
+      camera
+        ? frameStructureCamera(
+            camera,
+            region,
+            size,
+            demoOverride?.framing.mode === 'manual'
+              ? demoOverride.framing
+              : null,
+          )
+        : null,
+    [camera, demoOverride?.framing, region, size],
+  );
+  const layerOffsets = useMemo(
+    () => structureLayerOffsets(pageKey, demoOverride),
+    [demoOverride, pageKey],
+  );
+  const placedMeasurement = useMemo(
+    () =>
+      measurement
+        ? offsetStructureMeasurement(measurement, layerOffsets)
+        : null,
+    [layerOffsets, measurement],
+  );
   const figure = useMemo(
     () =>
-      measurement && camera && size.width > 0
-        ? buildStructureFigure(measurement, displayedExplode, camera)
+      placedMeasurement && framedCamera && size.width > 0
+        ? buildStructureFigure(
+            placedMeasurement,
+            displayedExplode,
+            framedCamera,
+          )
         : null,
-    [camera, displayedExplode, measurement, size.width],
+    [displayedExplode, framedCamera, placedMeasurement, size.width],
   );
   const renderedNodeIds = useMemo(
     () =>
@@ -622,9 +804,13 @@ export function LabPrimitiveStructureView({
     rows: {},
   });
   const labelRowsKey = [
-    camera
-      ? `${camera.ox.toFixed(1)},${camera.oy.toFixed(1)},${camera.scale.toFixed(4)}`
+    framedCamera
+      ? `${framedCamera.ox.toFixed(1)},${framedCamera.oy.toFixed(1)},${framedCamera.scale.toFixed(4)}`
       : '',
+    // Manual layer offsets move parts on purpose; lay labels out again.
+    [...layerOffsets.values()]
+      .map((offset) => `${offset.x},${offset.z}`)
+      .join(';'),
     size.width,
     size.height,
     explode.toFixed(2),
@@ -660,17 +846,17 @@ export function LabPrimitiveStructureView({
       };
     }
   }
+  // Hover wins; in the editor the selected layer stays highlighted.
+  const highlightId = activeLayerId ?? (isEditing ? selectedLayerId : null);
   const activePath = useMemo(() => {
-    if (activeLayerId === null) {
+    if (highlightId === null) {
       return null;
     }
 
     return (
-      nodeEntries.find((node) => node.id === activeLayerId)?.path ?? [
-        activeLayerId,
-      ]
+      nodeEntries.find((node) => node.id === highlightId)?.path ?? [highlightId]
     );
-  }, [activeLayerId, nodeEntries]);
+  }, [highlightId, nodeEntries]);
 
   useEffect(() => {
     setActiveLayerId(null);
@@ -706,7 +892,12 @@ export function LabPrimitiveStructureView({
       event.currentTarget.setPointerCapture(event.pointerId);
       dragRef.current = {
         pointerId: event.pointerId,
+        pressedNode:
+          (event.target as Element)
+            .closest('[data-structure-node]')
+            ?.getAttribute('data-structure-node') ?? null,
         startExplode: explode,
+        startX: event.clientX,
         startY: event.clientY,
       };
       setIsDragging(true);
@@ -738,11 +929,22 @@ export function LabPrimitiveStructureView({
       dragRef.current = null;
       setIsDragging(false);
 
+      // In the editor a click (no real drag) on a slab selects that layer.
+      if (
+        isEditing &&
+        drag.pressedNode &&
+        event.type === 'pointerup' &&
+        Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) <
+          STRUCTURE_CLICK_SLOP_PX
+      ) {
+        setSelectedLayerId(drag.pressedNode);
+      }
+
       if (event.currentTarget.hasPointerCapture(event.pointerId)) {
         event.currentTarget.releasePointerCapture(event.pointerId);
       }
     },
-    [],
+    [isEditing],
   );
   const onRenderKeyDown = useCallback(
     (event: ReactKeyboardEvent<HTMLDivElement>) => {
@@ -770,12 +972,22 @@ export function LabPrimitiveStructureView({
   return (
     <div
       className="relative grid min-h-0 min-w-0 gap-4 lg:grid-cols-[minmax(320px,1fr)_minmax(260px,0.62fr)] lg:items-stretch"
+      data-primitive-structure-editing={isEditing ? 'true' : undefined}
       data-primitive-structure-hover-layer={activeLayerId ?? undefined}
+      data-primitive-structure-selected-layer={
+        isEditing ? (selectedLayerId ?? undefined) : undefined
+      }
       data-primitive-structure-label-renderer="svg-callouts"
       data-primitive-structure-schema="node-tree"
       data-testid="lab-primitive-structure-shell"
     >
-      <div className="flex min-h-0 min-w-0 flex-col">
+      <div
+        className={[
+          'flex min-h-0 min-w-0 flex-col',
+          // The editor makes the right column tall; keep the figure in view.
+          isEditing ? 'lg:sticky lg:top-0 lg:self-start' : '',
+        ].join(' ')}
+      >
         <div
           aria-label="Exploded structure; use Up/Down arrows to adjust spacing"
           aria-orientation="vertical"
@@ -785,6 +997,9 @@ export function LabPrimitiveStructureView({
           aria-valuetext={`Layer spacing ${explodePercent}%`}
           className={[
             'relative min-h-[320px] flex-1 touch-pan-y overflow-hidden rounded-md outline-none select-none',
+            isEditing
+              ? 'lg:h-[max(320px,min(var(--lab-performance-panel-body-max-height),560px))] lg:flex-none'
+              : '',
             'focus-visible:ring-1 focus-visible:ring-white/30',
             'pointer-fine:cursor-ns-resize',
           ].join(' ')}
@@ -828,8 +1043,8 @@ export function LabPrimitiveStructureView({
             viewBox={`0 0 ${Math.max(1, size.width)} ${Math.max(1, size.height)}`}
           >
             {figure?.slabs.map((slab) => {
-              const isLayerActive = activeLayerId === slab.nodeId;
-              const isMuted = activeLayerId !== null && !isLayerActive;
+              const isLayerActive = highlightId === slab.nodeId;
+              const isMuted = highlightId !== null && !isLayerActive;
               const markStroke = isLayerActive
                 ? 'var(--structure-hi)'
                 : isMuted
@@ -1012,9 +1227,8 @@ export function LabPrimitiveStructureView({
 
               if (!callout) return null;
 
-              const isMuted =
-                activeLayerId !== null && activeLayerId !== node.id;
-              const isCalloutActive = activeLayerId === node.id;
+              const isMuted = highlightId !== null && highlightId !== node.id;
+              const isCalloutActive = highlightId === node.id;
               const d = `M ${callout.targetX} ${callout.targetY} L ${callout.labelX} ${callout.labelY}`;
 
               return (
@@ -1055,8 +1269,8 @@ export function LabPrimitiveStructureView({
 
             if (!callout) return null;
 
-            const isMuted = activeLayerId !== null && activeLayerId !== node.id;
-            const isCalloutActive = activeLayerId === node.id;
+            const isMuted = highlightId !== null && highlightId !== node.id;
+            const isCalloutActive = highlightId === node.id;
 
             return (
               <span
@@ -1083,8 +1297,8 @@ export function LabPrimitiveStructureView({
 
             if (!callout) return null;
 
-            const isMuted = activeLayerId !== null && activeLayerId !== node.id;
-            const isCalloutActive = activeLayerId === node.id;
+            const isMuted = highlightId !== null && highlightId !== node.id;
+            const isCalloutActive = highlightId === node.id;
 
             return (
               <div
@@ -1117,13 +1331,45 @@ export function LabPrimitiveStructureView({
             {structure.summary}
           </p>
         </div>
+        {import.meta.env.DEV ? (
+          <button
+            aria-pressed={isEditing}
+            className={[
+              'h-6 rounded-[5px] border px-2 font-mono text-[10px] uppercase tracking-[0.08em]',
+              isEditing
+                ? 'border-[#4ba3ff]/60 text-white/90'
+                : 'border-white/10 text-white/50 hover:text-white/70',
+            ].join(' ')}
+            data-testid="lab-primitive-structure-edit-toggle"
+            onClick={() => setIsEditing((value) => !value)}
+            type="button"
+          >
+            Edit
+          </button>
+        ) : null}
+        {import.meta.env.DEV && isEditing && demoOverride && overrideDemo ? (
+          <StructureEditor
+            demo={demoOverride}
+            nodes={overrideDemo.nodes}
+            onChangeFraming={changeFraming}
+            onChangeLayer={changeLayer}
+            onReset={resetDemo}
+            onSelectLayer={setSelectedLayerId}
+            rootSize={{
+              height: measurement?.height ?? 0,
+              width: measurement?.width ?? 0,
+            }}
+            saveState={saveState}
+            selectedLayerId={selectedLayerId}
+          />
+        ) : null}
         <ul
           className="relative grid min-w-0 gap-1.5"
           data-testid="lab-primitive-structure-callout-labels"
         >
           {visibleNodeEntries.map((node) => {
             const isMuted = isStructureNodeMuted(node, activePath);
-            const isNodeActive = activeLayerId === node.id;
+            const isNodeActive = highlightId === node.id;
             const measured = renderedNodeIds.has(node.id);
             const firstSlab = measured
               ? measurement?.slabs.find(
@@ -1151,6 +1397,9 @@ export function LabPrimitiveStructureView({
                     : undefined
                 }
                 data-primitive-node={node.id}
+                onClick={
+                  isEditing ? () => setSelectedLayerId(node.id) : undefined
+                }
                 data-primitive-parent={node.parentId ?? undefined}
                 data-primitive-relation={node.relation}
                 data-primitive-slot={node.slot}

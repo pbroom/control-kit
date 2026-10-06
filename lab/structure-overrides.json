@@ -1,0 +1,461 @@
+{
+  "version": 1,
+  "demos": {
+    "plane": {
+      "label": "Plane",
+      "route": "/lab/plane",
+      "framing": {
+        "mode": "auto",
+        "panX": 0,
+        "panY": 0,
+        "zoom": 1
+      },
+      "layers": {
+        "plane-root": {
+          "label": "Plane",
+          "mode": "auto",
+          "x": 0,
+          "z": 0
+        },
+        "plane-thumb": {
+          "label": "Thumb",
+          "mode": "auto",
+          "x": 0,
+          "z": 0
+        }
+      }
+    },
+    "colorPlane": {
+      "label": "ColorPlane",
+      "route": "/lab/color-plane",
+      "framing": {
+        "mode": "auto",
+        "panX": 0,
+        "panY": 0,
+        "zoom": 1
+      },
+      "layers": {
+        "plane-frame": {
+          "label": "Frame",
+          "mode": "auto",
+          "x": 0,
+          "z": 0
+        },
+        "checkerboard-background": {
+          "label": "Background",
+          "mode": "auto",
+          "x": 0,
+          "z": 0
+        },
+        "gamut-raster": {
+          "label": "Gamut raster",
+          "mode": "auto",
+          "x": 0,
+          "z": 0
+        },
+        "overlay-boundaries": {
+          "label": "Overlay paths",
+          "mode": "auto",
+          "x": 0,
+          "z": 0
+        },
+        "gamut-boundaries": {
+          "label": "Gamut boundaries",
+          "mode": "auto",
+          "x": 0,
+          "z": 0
+        },
+        "fallback-points": {
+          "label": "Fallback points",
+          "mode": "auto",
+          "x": 0,
+          "z": 0
+        },
+        "active-thumb": {
+          "label": "Thumb",
+          "mode": "auto",
+          "x": 0,
+          "z": 0
+        }
+      }
+    },
+    "input": {
+      "label": "Control Input",
+      "route": "/lab/input-primitive",
+      "framing": {
+        "mode": "auto",
+        "panX": 0,
+        "panY": 0,
+        "zoom": 1
+      },
+      "layers": {
+        "control-input-root": {
+          "label": "Root",
+          "mode": "auto",
+          "x": 0,
+          "z": 0
+        },
+        "input-shell": {
+          "label": "Shell",
+          "mode": "auto",
+          "x": 0,
+          "z": 0
+        },
+        "scrub-handle": {
+          "label": "Scrub handle",
+          "mode": "auto",
+          "x": 0,
+          "z": 0
+        },
+        "value-cell": {
+          "label": "Value cell",
+          "mode": "auto",
+          "x": 0,
+          "z": 0
+        }
+      }
+    },
+    "controlField": {
+      "label": "Control Field",
+      "route": "/lab/control-field",
+      "framing": {
+        "mode": "auto",
+        "panX": 0,
+        "panY": 0,
+        "zoom": 1
+      },
+      "layers": {
+        "control-field-root": {
+          "label": "Root",
+          "mode": "auto",
+          "x": 0,
+          "z": 0
+        },
+        "control-field-group": {
+          "label": "Group",
+          "mode": "auto",
+          "x": 0,
+          "z": 0
+        },
+        "control-field-scrub-area": {
+          "label": "Scrub handle",
+          "mode": "auto",
+          "x": 0,
+          "z": 0
+        },
+        "control-field-input": {
+          "label": "Input",
+          "mode": "auto",
+          "x": 0,
+          "z": 0
+        },
+        "control-field-affix": {
+          "label": "Affix",
+          "mode": "auto",
+          "x": 0,
+          "z": 0
+        },
+        "control-field-steppers": {
+          "label": "Steppers",
+          "mode": "auto",
+          "x": 0,
+          "z": 0
+        }
+      }
+    },
+    "inputMulti": {
+      "label": "Input Multi",
+      "route": "/lab/input-multi",
+      "framing": {
+        "mode": "auto",
+        "panX": 0,
+        "panY": 0,
+        "zoom": 1
+      },
+      "layers": {
+        "group-shell": {
+          "label": "Group shell",
+          "mode": "auto",
+          "x": 0,
+          "z": 0
+        },
+        "channel-fields": {
+          "label": "Channel fields",
+          "mode": "auto",
+          "x": 0,
+          "z": 0
+        },
+        "channel-scrub": {
+          "label": "Scrub handles",
+          "mode": "auto",
+          "x": 0,
+          "z": 0
+        }
+      }
+    },
+    "checkbox": {
+      "label": "Checkbox",
+      "route": "/lab/checkbox",
+      "framing": {
+        "mode": "auto",
+        "panX": 0,
+        "panY": 0,
+        "zoom": 1
+      },
+      "layers": {
+        "row-target": {
+          "label": "Row target",
+          "mode": "auto",
+          "x": 0,
+          "z": 0
+        },
+        "indicator-box": {
+          "label": "Indicator",
+          "mode": "auto",
+          "x": 0,
+          "z": 0
+        },
+        "check-mark": {
+          "label": "State glyph",
+          "mode": "auto",
+          "x": 0,
+          "z": 0
+        },
+        "label-copy": {
+          "label": "Label",
+          "mode": "auto",
+          "x": 0,
+          "z": 0
+        }
+      }
+    },
+    "slider": {
+      "label": "Slider",
+      "route": "/lab/slider",
+      "framing": {
+        "mode": "auto",
+        "panX": 0,
+        "panY": 0,
+        "zoom": 1
+      },
+      "layers": {
+        "slider-target": {
+          "label": "Rail",
+          "mode": "auto",
+          "x": 0,
+          "z": 0
+        },
+        "slider-control": {
+          "label": "Control",
+          "mode": "auto",
+          "x": 0,
+          "z": 0
+        },
+        "slider-range": {
+          "label": "Active range",
+          "mode": "auto",
+          "x": 0,
+          "z": 0
+        },
+        "slider-thumb": {
+          "label": "Thumb",
+          "mode": "auto",
+          "x": 0,
+          "z": 0
+        }
+      }
+    },
+    "tooltip": {
+      "label": "Tooltip",
+      "route": "/lab/tooltip",
+      "framing": {
+        "mode": "auto",
+        "panX": 0,
+        "panY": 0,
+        "zoom": 1
+      },
+      "layers": {
+        "trigger": {
+          "label": "Trigger",
+          "mode": "auto",
+          "x": 0,
+          "z": 0
+        },
+        "content": {
+          "label": "Content",
+          "mode": "auto",
+          "x": 0,
+          "z": 0
+        }
+      }
+    },
+    "menu": {
+      "label": "Menu",
+      "route": "/lab/menu",
+      "framing": {
+        "mode": "auto",
+        "panX": 0,
+        "panY": 0,
+        "zoom": 1
+      },
+      "layers": {
+        "menu-trigger": {
+          "label": "Trigger",
+          "mode": "auto",
+          "x": 0,
+          "z": 0
+        },
+        "menu-content": {
+          "label": "Menu content",
+          "mode": "auto",
+          "x": 0,
+          "z": 0
+        },
+        "menu-items": {
+          "label": "Item rows",
+          "mode": "auto",
+          "x": 0,
+          "z": 0
+        },
+        "submenu-content": {
+          "label": "Submenu",
+          "mode": "auto",
+          "x": 0,
+          "z": 0
+        }
+      }
+    },
+    "select": {
+      "label": "Select",
+      "route": "/lab/select",
+      "framing": {
+        "mode": "auto",
+        "panX": 0,
+        "panY": 0,
+        "zoom": 1
+      },
+      "layers": {
+        "select-trigger": {
+          "label": "Trigger",
+          "mode": "auto",
+          "x": 0,
+          "z": 0
+        },
+        "select-content": {
+          "label": "Option list",
+          "mode": "auto",
+          "x": 0,
+          "z": 0
+        },
+        "active-option": {
+          "label": "Options",
+          "mode": "auto",
+          "x": 0,
+          "z": 0
+        }
+      }
+    },
+    "tabs": {
+      "label": "Tabs",
+      "route": "/lab/tabs",
+      "framing": {
+        "mode": "auto",
+        "panX": 0,
+        "panY": 0,
+        "zoom": 1
+      },
+      "layers": {
+        "tabs-root": {
+          "label": "Tabs",
+          "mode": "auto",
+          "x": 0,
+          "z": 0
+        },
+        "tabs-list": {
+          "label": "TabsList",
+          "mode": "auto",
+          "x": 0,
+          "z": 0
+        },
+        "inactive-tabs": {
+          "label": "TabsTrigger",
+          "mode": "auto",
+          "x": 0,
+          "z": 0
+        },
+        "active-tab": {
+          "label": "TabsTrigger",
+          "mode": "auto",
+          "x": 0,
+          "z": 0
+        },
+        "tab-content": {
+          "label": "TabsContent",
+          "mode": "auto",
+          "x": 0,
+          "z": 0
+        },
+        "inactive-tab-content": {
+          "label": "TabsContent",
+          "mode": "auto",
+          "x": 0,
+          "z": 0
+        }
+      }
+    },
+    "toggleButton": {
+      "label": "Toggle Button",
+      "route": "/lab/toggle-button",
+      "framing": {
+        "mode": "auto",
+        "panX": 0,
+        "panY": 0,
+        "zoom": 1
+      },
+      "layers": {
+        "toggle-hit-area": {
+          "label": "Hit area",
+          "mode": "auto",
+          "x": 0,
+          "z": 0
+        },
+        "content-layer": {
+          "label": "Content",
+          "mode": "auto",
+          "x": 0,
+          "z": 0
+        }
+      }
+    },
+    "toggle": {
+      "label": "Toggle Group",
+      "route": "/lab/toggle-group",
+      "framing": {
+        "mode": "auto",
+        "panX": 0,
+        "panY": 0,
+        "zoom": 1
+      },
+      "layers": {
+        "toggle-group-shell": {
+          "label": "Group shell",
+          "mode": "auto",
+          "x": 0,
+          "z": 0
+        },
+        "toggle-items": {
+          "label": "Toggle items",
+          "mode": "auto",
+          "x": 0,
+          "z": 0
+        },
+        "toggle-item-selected": {
+          "label": "Selected item",
+          "mode": "auto",
+          "x": 0,
+          "z": 0
+        }
+      }
+    }
+  }
+}
