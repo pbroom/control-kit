@@ -404,6 +404,14 @@ export function buildStructureFigure(
   measurement: StructureMeasurement,
   explode: number,
   camera: StructureCamera,
+  options: {
+    /**
+     * Draw the bounding-box guides between levels: the dashed drops from a
+     * part's floor to the layer below and its footprint traced there.
+     * Plates, frames, ghosts and marks are unaffected. Default true.
+     */
+    bounds?: boolean;
+  } = {},
 ): StructureFigure {
   const gap = Math.max(0, Math.min(1, explode)) * structureMaxGap(measurement);
   const frames = slabFrames(measurement, gap);
@@ -496,7 +504,11 @@ export function buildStructureFigure(
     const parent = slab.parentKey ? frameByKey.get(slab.parentKey) : undefined;
     const below = parent ? parent.z1 : 0;
 
-    if (z0 - below > 0.75 && (parent || slab.level > 0)) {
+    if (
+      options.bounds !== false &&
+      z0 - below > 0.75 &&
+      (parent || slab.level > 0)
+    ) {
       // Drop from the floor's leftmost, rightmost and nearest samples.
       const projected = floor.map((point, index) => ({ index, point }));
       const pick = (score: (point: Vec2) => number) =>
@@ -568,6 +580,49 @@ export function buildStructureFigure(
     bounds: { maxX, maxY, minX, minY },
     gap,
     slabs,
+  };
+}
+
+/**
+ * The dev-only render frame: the edge of the fixed render area and the
+ * auto-fit area inside it (padding applied, callout rail excluded), with a
+ * crosshair at the fit centre. Purely a guide; it never affects the fit.
+ */
+export function structureFrameOverlay(
+  size: { height: number; width: number },
+  region: StructureFigureRegion,
+) {
+  const inset = 0.5;
+  const cx = (region.x0 + region.x1) / 2;
+  const cy = (region.y0 + region.y1) / 2;
+  const arm = Math.min(
+    12,
+    (region.x1 - region.x0) / 4,
+    (region.y1 - region.y0) / 4,
+  );
+
+  return {
+    crosshair:
+      openPath([
+        [cx - arm, cy],
+        [cx + arm, cy],
+      ]) +
+      openPath([
+        [cx, cy - arm],
+        [cx, cy + arm],
+      ]),
+    edge: closedPath([
+      [inset, inset],
+      [size.width - inset, inset],
+      [size.width - inset, size.height - inset],
+      [inset, size.height - inset],
+    ]),
+    fit: closedPath([
+      [region.x0, region.y0],
+      [region.x1, region.y0],
+      [region.x1, region.y1],
+      [region.x0, region.y1],
+    ]),
   };
 }
 

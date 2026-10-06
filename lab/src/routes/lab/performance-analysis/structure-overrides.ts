@@ -78,6 +78,8 @@ function resolveDemo(
   }
 
   return {
+    // Only an explicit true shows the render frame.
+    frame: entry.frame === true,
     framing: normalizeFraming(
       isRecord(entry.framing) ? (entry.framing as never) : undefined,
     ),

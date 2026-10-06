@@ -18,6 +18,7 @@ import {
   buildStructureFigure,
   fitStructureCamera,
   frameStructureCamera,
+  structureFrameOverlay,
   offsetStructureMeasurement,
   type StructureFigureRegion,
   type StructureRect,
@@ -67,6 +68,7 @@ const STRUCTURE_PALETTE = {
   '--structure-accent': '#4ba3ff',
   '--structure-accent-top': 'color-mix(in srgb, #4ba3ff 22%, #26272b)',
   '--structure-edge': '#a6a9b1',
+  '--structure-frame': '#5b5e66',
   '--structure-hi': '#eef0f3',
   '--structure-lo': '#4b4d54',
   '--structure-mid': '#7b7e88',
@@ -842,6 +844,11 @@ export function LabPrimitiveStructureView({
   );
 
   const stroke = Math.max(0.5, 1 / devicePixelRatio);
+  // Dev only: outline the fixed render area and the auto-fit area within it.
+  const frameOverlay =
+    import.meta.env.DEV && demoOverride?.frame === true && size.width > 0
+      ? structureFrameOverlay(size, region)
+      : null;
   const explodePercent = Math.round(explode * 100);
 
   return (
@@ -1071,6 +1078,36 @@ export function LabPrimitiveStructureView({
                 </g>
               );
             })}
+            {frameOverlay ? (
+              <g
+                aria-hidden
+                data-structure-frame=""
+                fill="none"
+                pointerEvents="none"
+                stroke="var(--structure-frame)"
+                strokeWidth={stroke}
+                vectorEffect="non-scaling-stroke"
+              >
+                <path
+                  d={frameOverlay.edge}
+                  data-structure-frame-edge=""
+                  vectorEffect="non-scaling-stroke"
+                />
+                <path
+                  d={frameOverlay.fit}
+                  data-structure-frame-fit=""
+                  strokeDasharray="4 4"
+                  strokeOpacity={0.7}
+                  vectorEffect="non-scaling-stroke"
+                />
+                <path
+                  d={frameOverlay.crosshair}
+                  data-structure-frame-center=""
+                  strokeOpacity={0.7}
+                  vectorEffect="non-scaling-stroke"
+                />
+              </g>
+            ) : null}
           </svg>
           {figure === null ? (
             <p

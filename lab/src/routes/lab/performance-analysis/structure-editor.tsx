@@ -1,5 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import {
+  Checkbox,
   ControlField,
   Plane,
   PlaneThumb,
@@ -8,6 +9,7 @@ import {
   type PlaneValue,
 } from '@pbroom/control-kit';
 import {
+  changeStructureFrame,
   changeStructureFraming,
   changeStructureLayer,
   readStructureEditorParams,
@@ -40,6 +42,9 @@ const SEGMENTED_ITEM_CLASS =
   'h-full min-h-0 w-full min-w-0 flex-1 rounded-[5px] border border-transparent px-2 py-0 text-[11px] font-medium leading-4 tracking-[0.005em] text-white/50 transition-[background-color,color] hover:text-white/70 focus-visible:ring-2 focus-visible:ring-[#0d99ff]/80 data-[pressed]:border-[#4C4C4C] data-[pressed]:bg-[var(--ck-lab-segmented-active-bg,#171717)] data-[pressed]:text-white/90';
 const CHIP_CLASS =
   'h-6 rounded-[5px] border px-2 text-[11px] font-medium leading-4 transition-colors';
+
+/** Drag and keyboard sensitivity of the pan and layer pads. */
+const STRUCTURE_PAD_SENSITIVITY = 0.5;
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
@@ -144,14 +149,18 @@ function XYPad({
   return (
     <Plane
       aria-label={label}
+      // Half speed: a drag moves the thumb half as far as the pointer, from
+      // where it was grabbed, for finer placement.
+      dragBehavior="relative"
+      dragSensitivity={STRUCTURE_PAD_SENSITIVITY}
       className="size-[104px] shrink-0 overflow-hidden rounded-[5px] border border-white/10 bg-[#151516] bg-[linear-gradient(to_right,transparent_calc(50%-0.5px),rgba(255,255,255,0.08)_calc(50%-0.5px),rgba(255,255,255,0.08)_calc(50%+0.5px),transparent_calc(50%+0.5px)),linear-gradient(to_bottom,transparent_calc(50%-0.5px),rgba(255,255,255,0.08)_calc(50%-0.5px),rgba(255,255,255,0.08)_calc(50%+0.5px),transparent_calc(50%+0.5px))]"
       data-testid={testId}
     >
       <PlaneThumb
         className="size-3 border-white/30 bg-white shadow-none"
-        largeStep={0.1}
+        largeStep={0.1 * STRUCTURE_PAD_SENSITIVITY}
         onValueChange={onChange}
-        step={0.01}
+        step={0.01 * STRUCTURE_PAD_SENSITIVITY}
         value={value}
         xAriaLabel={`${label} horizontal`}
         yAriaLabel={`${label} vertical`}
@@ -200,6 +209,16 @@ export function StructurePropertiesSection({ pageKey }: { pageKey: string }) {
           lab/structure-overrides.json.
         </p>
       </div>
+
+      <Checkbox
+        checked={demo.frame}
+        data-testid="lab-primitive-structure-frame-toggle"
+        onCheckedChange={(checked) =>
+          changeStructureFrame(pageKey, checked === true)
+        }
+      >
+        Render frame
+      </Checkbox>
 
       <Field label="Framing">
         <ModeToggle

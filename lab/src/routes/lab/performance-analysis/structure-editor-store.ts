@@ -149,6 +149,10 @@ export function changeStructureFraming(
   }));
 }
 
+export function changeStructureFrame(pageKey: string, frame: boolean) {
+  updateDemo(pageKey, (demo) => ({ ...demo, frame }));
+}
+
 export function changeStructureLayer(
   pageKey: string,
   layerId: string,
@@ -172,6 +176,7 @@ export function changeStructureLayer(
 export function resetStructureDemo(pageKey: string) {
   updateDemo(pageKey, (demo) => ({
     ...demo,
+    frame: false,
     framing: AUTO_FRAMING,
     layers: Object.fromEntries(
       Object.entries(demo.layers).map(([id, layer]) => [

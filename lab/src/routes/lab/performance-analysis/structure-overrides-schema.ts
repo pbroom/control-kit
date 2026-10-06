@@ -10,6 +10,7 @@
  *     "<LabPageKey>": {
  *       "label": "Control Field",
  *       "route": "/lab/control-field",
+ *       "frame": false,
  *       "framing": { "mode": "auto", "panX": 0, "panY": 0, "zoom": 1 },
  *       "layers": {
  *         "<node id>": { "label": "Root", "mode": "auto", "x": 0, "z": 0 }
@@ -44,6 +45,11 @@ export type StructureLayerOverride = {
 };
 
 export type StructureDemoOverride = {
+  /**
+   * Dev builds: outline the fixed render area and the auto-fit area the
+   * figure is framed within. Missing = false.
+   */
+  frame: boolean;
   framing: StructureFramingOverride;
   label: string;
   layers: Record<string, StructureLayerOverride>;
@@ -144,6 +150,9 @@ export function validateStructureOverrides(value: unknown): string[] {
     }
     if (typeof demo.label !== 'string')
       errors.push(`${at}.label must be a string`);
+    if (demo.frame !== undefined && typeof demo.frame !== 'boolean') {
+      errors.push(`${at}.frame must be a boolean`);
+    }
     if (typeof demo.route !== 'string')
       errors.push(`${at}.route must be a string`);
 
@@ -213,6 +222,7 @@ export function serializeStructureOverrides(file: StructureOverridesFile) {
     demos[key] = {
       label: demo.label,
       route: demo.route,
+      frame: demo.frame === true,
       framing: normalizeFraming(demo.framing),
       layers,
     } as StructureDemoOverride;

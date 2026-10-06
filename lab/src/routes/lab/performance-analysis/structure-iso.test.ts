@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildStructureFigure,
   fitStructureCamera,
+  structureFrameOverlay,
   hull,
   project,
   roundedRing,
@@ -99,6 +100,38 @@ describe('structure isometric projection', () => {
     expect(open.slabs[1]!.guide).not.toBe('');
     expect(open.slabs[1]!.text).toMatch(/^M.*Z$/);
     expect(open.bounds.maxX).toBeLessThanOrEqual(region.x1 + 0.01);
+  });
+
+  it('outlines the render edge and the auto-fit area for the dev frame', () => {
+    const overlay = structureFrameOverlay(
+      { height: 320, width: 600 },
+      { x0: 18, x1: 384, y0: 18, y1: 302 },
+    );
+
+    expect(overlay.edge).toBe('M0.5 0.5L599.5 0.5L599.5 319.5L0.5 319.5Z');
+    expect(overlay.fit).toBe('M18 18L384 18L384 302L18 302Z');
+    // Crosshair centred on the fit area.
+    expect(overlay.crosshair).toContain('M189 160L213 160');
+    expect(overlay.crosshair).toContain('M201 148L201 172');
+  });
+
+  it('can omit the guides between levels (internal option)', () => {
+    const camera = fitStructureCamera(measurement, region);
+    const shown = buildStructureFigure(measurement, 0.75, camera);
+    const hidden = buildStructureFigure(measurement, 0.75, camera, {
+      bounds: false,
+    });
+
+    expect(shown.slabs[1]!.guide).not.toBe('');
+    expect(shown.slabs[1]!.footprint).not.toBe('');
+    expect(hidden.slabs.map((slab) => [slab.guide, slab.footprint])).toEqual([
+      ['', ''],
+      ['', ''],
+    ]);
+    // Plates, crease, marks and callout anchors are untouched.
+    expect(
+      hidden.slabs.map(({ footprint: _f, guide: _g, ...rest }) => rest),
+    ).toEqual(shown.slabs.map(({ footprint: _f, guide: _g, ...rest }) => rest));
   });
 
   it('frames from the root only, so other parts never refit the figure', () => {

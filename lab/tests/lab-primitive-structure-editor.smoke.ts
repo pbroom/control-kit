@@ -8,6 +8,7 @@ type SavedFile = {
   demos: Record<
     string,
     {
+      frame: boolean;
       framing: { mode: string; panX: number; panY: number; zoom: number };
       layers: Record<
         string,
@@ -60,6 +61,8 @@ test('edits a layer offset with the real primitives and saves the overrides file
     .getByTestId('lab-primitive-structure-editor');
 
   await expect(editor).toBeVisible();
+  // Start from auto/zero whatever the working copy of the file holds.
+  await editor.getByTestId('lab-primitive-structure-editor-reset').click();
   await expect(shell).toHaveAttribute(
     'data-primitive-structure-selected-layer',
     'control-field-input',
@@ -148,6 +151,61 @@ test('edits a layer offset with the real primitives and saves the overrides file
     'control-field-input',
   );
 
+  // Render frame (dev): outlines the render area and the auto-fit area,
+  // without touching the framing or hit-testing.
+  const canvas = panel.getByTestId('lab-primitive-structure-canvas');
+  const frame = canvas.locator('[data-structure-frame]');
+  const framedViewBox = await canvas.getAttribute('viewBox');
+  const framedRoot = await slabOrigin(panel, 'control-field-root');
+  const frameToggle = editor.getByRole('checkbox', { name: 'Render frame' });
+  await expect(frameToggle).not.toBeChecked();
+  await expect(frame).toHaveCount(0);
+  await frameToggle.click();
+  await expect(frameToggle).toBeChecked();
+  await expect(frame).toHaveCount(1);
+  await expect(frame.locator('[data-structure-frame-edge]')).toHaveCount(1);
+  await expect(frame.locator('[data-structure-frame-fit]')).toHaveCount(1);
+  await expect(frame).toHaveAttribute('pointer-events', 'none');
+  await expect(canvas).toHaveAttribute('viewBox', framedViewBox!);
+  expect(await slabOrigin(panel, 'control-field-root')).toBe(framedRoot);
+  await expect
+    .poll(() => saves.at(-1)?.file.demos.controlField?.frame)
+    .toBe(true);
+  expect(saves.at(-1)!.raw).toContain(
+    '"route": "/lab/control-field",\n      "frame": true,\n      "framing"',
+  );
+  await frameToggle.click();
+  await expect(frame).toHaveCount(0);
+  await expect
+    .poll(() => saves.at(-1)?.file.demos.controlField?.frame)
+    .toBe(false);
+
+  // The layer pad runs at half speed: a drag of N px moves the value half as
+  // far as an absolute 1:1 drag would (pad range is ±the root's larger side).
+  const readX = async () => Number(await xField.inputValue());
+  const pad = editor.getByTestId('lab-primitive-structure-layer-pad');
+  const padBox = (await pad.boundingBox())!;
+  const thumbBox = (await pad
+    .locator('[data-slot="plane-thumb"]')
+    .boundingBox())!;
+  const rootWidth = await page
+    .locator('[data-lab-component-preview] [data-slot="control-field"]')
+    .evaluate((element) => element.getBoundingClientRect().width);
+  const range = Math.max(24, rootWidth);
+  const dragPx = 30;
+  const xBefore = await readX();
+  const grabX = thumbBox.x + thumbBox.width / 2;
+  const grabY = thumbBox.y + thumbBox.height / 2;
+  await page.mouse.move(grabX, grabY);
+  await page.mouse.down();
+  await page.mouse.move(grabX + dragPx, grabY, { steps: 6 });
+  await page.mouse.up();
+  // The Plane maps its padding box (border excluded) to 0..1.
+  const absoluteDelta = (dragPx / (padBox.width - 2)) * 2 * range;
+  const delta = (await readX()) - xBefore;
+  expect(delta).toBeGreaterThan(absoluteDelta * 0.4);
+  expect(delta).toBeLessThan(absoluteDelta * 0.6);
+
   // Dragging on the render still opens the stack while editing.
   const render = panel.getByTestId('lab-primitive-structure-render');
   await render.focus();
@@ -194,7 +252,9 @@ test('manual framing zooms and pans the figure; auto ignores it', async ({
     .locator('#lab-properties-panel')
     .getByTestId('lab-primitive-structure-editor');
   await expect(editor).toBeVisible();
+  await editor.getByTestId('lab-primitive-structure-editor-reset').click();
   await expect.poll(() => slabOrigin(panel, 'plane-root')).not.toBeNull();
+  await page.waitForTimeout(400);
   const autoOrigin = await slabOrigin(panel, 'plane-root');
 
   const zoomField = editor

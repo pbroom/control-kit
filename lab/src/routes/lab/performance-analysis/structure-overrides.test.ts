@@ -52,6 +52,64 @@ describe('lab/structure-overrides.json', () => {
       Object.keys(file.demos),
     );
   });
+
+  it('orders each demo label, route, frame, framing, layers', () => {
+    for (const demo of Object.values(file.demos)) {
+      expect(Object.keys(demo)).toEqual([
+        'label',
+        'route',
+        'frame',
+        'framing',
+        'layers',
+      ]);
+      expect(typeof (demo as { frame?: unknown }).frame).toBe('boolean');
+    }
+  });
+});
+
+describe('frame', () => {
+  it('defaults to false when missing and is always written', () => {
+    const resolved = resolveStructureOverrides({
+      demos: { plane: { framing: {}, layers: {} } },
+      version: 1,
+    });
+
+    expect(resolved.demos.plane!.frame).toBe(false);
+    expect(resolveStructureOverrides({ demos: {} }).demos.tabs!.frame).toBe(
+      false,
+    );
+    expect(
+      resolveStructureOverrides({ demos: { plane: { frame: true } } }).demos
+        .plane!.frame,
+    ).toBe(true);
+    expect(serializeStructureOverrides(resolved)).toContain(
+      '"route": "/lab/plane",\n      "frame": false,\n      "framing"',
+    );
+  });
+
+  it('accepts booleans only', () => {
+    const demo = (frame: unknown) => ({
+      demos: {
+        plane: {
+          frame,
+          framing: { mode: 'auto', panX: 0, panY: 0, zoom: 1 },
+          label: 'Plane',
+          layers: {},
+          route: '/lab/plane',
+        },
+      },
+      version: 1,
+    });
+
+    expect(validateStructureOverrides(demo(false))).toEqual([]);
+    expect(validateStructureOverrides(demo(undefined))).toEqual([]);
+    expect(validateStructureOverrides(demo('no'))).toEqual([
+      'demos.plane.frame must be a boolean',
+    ]);
+    expect(validateStructureOverrides(demo(0))).toEqual([
+      'demos.plane.frame must be a boolean',
+    ]);
+  });
 });
 
 describe('structure overrides', () => {
