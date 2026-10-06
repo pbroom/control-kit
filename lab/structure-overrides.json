@@ -4,7 +4,7 @@
     "plane": {
       "label": "Plane",
       "route": "/lab/plane",
-      "frame": true,
+      "frame": false,
       "explode": 0.75,
       "framing": {
         "mode": "manual",
@@ -124,7 +124,7 @@
     "controlField": {
       "label": "Control Field",
       "route": "/lab/control-field",
-      "frame": true,
+      "frame": false,
       "explode": 0.75,
       "framing": {
         "mode": "manual",
