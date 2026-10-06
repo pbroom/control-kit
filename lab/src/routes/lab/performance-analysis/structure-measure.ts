@@ -203,6 +203,20 @@ function parseRadius(value: string, width: number, height: number) {
   return Math.max(0, Math.min(px, width / 2, height / 2));
 }
 
+// One measure pass reads each element's box at most once (the same element
+// can be a slab, a clipping ancestor and a positioning container).
+let passBoxes: Map<Element, DOMRect> | null = null;
+
+function clientBox(element: Element): DOMRect {
+  const cached = passBoxes?.get(element);
+
+  if (cached) return cached;
+
+  const box = element.getBoundingClientRect();
+  passBoxes?.set(element, box);
+  return box;
+}
+
 function intersect(
   a: LabPrimitiveStructureRect,
   b: LabPrimitiveStructureRect,
@@ -465,7 +479,7 @@ function collectMarks(
 
     if (clipped) marks.push(make(clipped));
   };
-  const slabBox = slabElement.getBoundingClientRect();
+  const slabBox = clientBox(slabElement);
   const slabStyle = getComputedStyle(slabElement);
 
   // The slab's own raster or gradient paint.
@@ -737,6 +751,58 @@ function hasPaint(element: Element) {
   );
 }
 
+/** The client rect an element clips its descendants to, or null if none. */
+function clipRectOf(
+  element: Element,
+  cache: Map<Element, LabPrimitiveStructureRect | null>,
+) {
+  if (cache.has(element)) return cache.get(element)!;
+
+  const style = getComputedStyle(element);
+  const clips = /(hidden|auto|scroll|clip)/.test(
+    `${style.overflowX} ${style.overflowY}`,
+  );
+  let rect: LabPrimitiveStructureRect | null = null;
+
+  if (clips) {
+    const box = clientBox(element);
+    rect = { height: box.height, width: box.width, x: box.left, y: box.top };
+  }
+
+  cache.set(element, rect);
+  return rect;
+}
+
+/**
+ * The part of `rect` (client coordinates) not clipped away by overflow
+ * ancestors, up to the preview host (or the body for portals). Null when
+ * nothing of it is visible.
+ */
+function visibleRect(
+  element: Element,
+  rect: LabPrimitiveStructureRect,
+  preview: Element,
+  cache: Map<Element, LabPrimitiveStructureRect | null>,
+): LabPrimitiveStructureRect | null {
+  let visible: LabPrimitiveStructureRect | null = rect;
+
+  for (
+    let ancestor = element.parentElement;
+    ancestor && ancestor !== preview && ancestor !== document.body;
+    ancestor = ancestor.parentElement
+  ) {
+    const clip = clipRectOf(ancestor, cache);
+
+    if (!clip) continue;
+
+    visible = intersect(visible, clip);
+
+    if (!visible) return null;
+  }
+
+  return visible;
+}
+
 function slabByNode(
   slabs: readonly StructureSlab[],
   nodeId: string | undefined,
@@ -909,13 +975,28 @@ export function measurePrimitiveStructure(
   preview: Element,
   ghostCache: StructureGhostCache = new Map(),
 ): StructureMeasurement | null {
+  passBoxes = new Map();
+
+  try {
+    return measurePass(structure, preview, ghostCache);
+  } finally {
+    passBoxes = null;
+  }
+}
+
+function measurePass(
+  structure: LabPrimitiveStructure,
+  preview: Element,
+  ghostCache: StructureGhostCache,
+): StructureMeasurement | null {
   const nodes = flattenNodes(structure.root);
   const treeParent = new Map<string, string>();
   for (const node of nodes) {
     for (const child of node.children ?? []) treeParent.set(child.id, node.id);
   }
-  const previewBox = preview.getBoundingClientRect();
+  const previewBox = clientBox(preview);
   const measured: MeasuredElement[] = [];
+  const clipCache = new Map<Element, LabPrimitiveStructureRect | null>();
   const seen = new Set<Element>();
 
   for (const node of nodes) {
@@ -935,13 +1016,15 @@ export function measurePrimitiveStructure(
           y: resolved.y + previewBox.top,
         };
       } else if (isRendered(element)) {
-        const box = element.getBoundingClientRect();
-        rect = {
-          height: box.height,
-          width: box.width,
-          x: box.left,
-          y: box.top,
-        };
+        const box = clientBox(element);
+        // Only the visible part: rows scrolled out of a popup's list (or
+        // anything clipped by an overflow ancestor) are not drawn.
+        rect = visibleRect(
+          element,
+          { height: box.height, width: box.width, x: box.left, y: box.top },
+          preview,
+          clipCache,
+        );
       }
 
       if (!rect || rect.width < MIN_SIZE || rect.height < MIN_SIZE) continue;
@@ -1173,7 +1256,7 @@ export function measurePrimitiveStructure(
 
     if (!(containerElement instanceof HTMLElement)) continue;
 
-    const box = containerElement.getBoundingClientRect();
+    const box = clientBox(containerElement);
     const container = {
       height: source === 'style' ? containerElement.clientHeight : box.height,
       width: source === 'style' ? containerElement.clientWidth : box.width,

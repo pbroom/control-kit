@@ -705,8 +705,6 @@ test('renders the primitive structure tab as a measured isometric figure', async
     thumbBox!.x + thumbBox!.width / 2,
     thumbBox!.y + thumbBox!.height / 2,
   );
-  // Let hover-driven re-measures finish; count from the press on.
-  await page.waitForTimeout(150);
   await previewPlane.evaluate((plane) => {
     let reads = 0;
     const original = plane.getBoundingClientRect.bind(plane);
@@ -714,6 +712,14 @@ test('renders the primitive structure tab as a measured isometric figure', async
       reads += 1;
       return original();
     };
+    // Count from the press on (a hover can still be settling before it).
+    window.addEventListener(
+      'pointerdown',
+      () => {
+        reads = 0;
+      },
+      { capture: true, once: true },
+    );
     Object.assign(window, { __planeRootReads: () => reads });
   });
   await page.mouse.down();

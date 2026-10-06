@@ -306,6 +306,8 @@ function useStructureMeasurement(
       pointerActive = true;
     };
     const onPointerEnd = () => {
+      if (!pointerActive) return;
+
       pointerActive = false;
 
       if (deferred) {
@@ -313,10 +315,39 @@ function useStructureMeasurement(
         schedule();
       }
     };
+    // A release can be lost (the window blurs or hides mid-gesture); a move
+    // with no buttons down also means the gesture is over.
+    const onPointerMove = (event: PointerEvent) => {
+      if (pointerActive && event.buttons === 0) onPointerEnd();
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') onPointerEnd();
+    };
+    // Scrolling a popup (e.g. the Select list) moves its parts; scrolling
+    // the lab's own panels does not.
+    const onScroll = (event: Event) => {
+      const target = event.target;
+
+      if (
+        target instanceof Element &&
+        target.closest('#lab-performance-panel, #lab-properties-panel')
+      ) {
+        return;
+      }
+
+      schedule();
+    };
 
     window.addEventListener('pointerdown', onPointerDown, true);
     window.addEventListener('pointerup', onPointerEnd, true);
     window.addEventListener('pointercancel', onPointerEnd, true);
+    window.addEventListener('pointermove', onPointerMove, true);
+    window.addEventListener('blur', onPointerEnd);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    document.addEventListener('scroll', onScroll, {
+      capture: true,
+      passive: true,
+    });
     portalObserver.observe(document.body, { childList: true });
     documentEvents.forEach((type) =>
       document.addEventListener(type, schedule, true),
@@ -338,6 +369,10 @@ function useStructureMeasurement(
       window.removeEventListener('pointerdown', onPointerDown, true);
       window.removeEventListener('pointerup', onPointerEnd, true);
       window.removeEventListener('pointercancel', onPointerEnd, true);
+      window.removeEventListener('pointermove', onPointerMove, true);
+      window.removeEventListener('blur', onPointerEnd);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      document.removeEventListener('scroll', onScroll, true);
     };
   }, [pageKey, structure]);
 

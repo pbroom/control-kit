@@ -82,22 +82,35 @@ const MENU_ROWS = [
 ].join(',');
 
 /** Open tooltip popups near the preview (tooltips portal to the body). */
-function openTooltipContent(preview: Element): readonly Element[] {
-  const bounds = preview.getBoundingClientRect();
+export function openTooltipContent(preview: Element): readonly Element[] {
+  // Only the preview's own trigger counts: Base UI marks the trigger whose
+  // tooltip is open with data-popup-open. A tooltip opened anywhere else
+  // (e.g. in the properties panel) leaves it unmarked.
+  const trigger = preview.querySelector(slot('tooltip-trigger'));
 
-  return Array.from(document.querySelectorAll(slot('tooltip-content'))).filter(
-    (popup) => {
-      const rect = popup.getBoundingClientRect();
+  if (!trigger?.hasAttribute('data-popup-open')) return [];
 
-      return (
-        rect.width > 0 &&
-        rect.right > bounds.left - 160 &&
-        rect.left < bounds.right + 160 &&
-        rect.bottom > bounds.top - 160 &&
-        rect.top < bounds.bottom + 160
-      );
-    },
-  );
+  const anchor = trigger.getBoundingClientRect();
+  const cx = anchor.left + anchor.width / 2;
+  const cy = anchor.top + anchor.height / 2;
+  const distance = (popup: Element) => {
+    const rect = popup.getBoundingClientRect();
+
+    return Math.hypot(
+      rect.left + rect.width / 2 - cx,
+      rect.top + rect.height / 2 - cy,
+    );
+  };
+  // Of the open popups, the one placed against that trigger.
+  const nearest = Array.from(document.querySelectorAll(slot('tooltip-content')))
+    .filter(
+      (popup) =>
+        popup.hasAttribute('data-open') &&
+        popup.getBoundingClientRect().width > 0,
+    )
+    .sort((a, b) => distance(a) - distance(b))[0];
+
+  return nearest ? [nearest] : [];
 }
 
 /** The ColorArea hides its DOM thumb; place it from its normalized value. */
