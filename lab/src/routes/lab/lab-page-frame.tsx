@@ -34,6 +34,8 @@ import {
   useLabPageSlotContent,
 } from './lab-page-slots.js';
 import { LabPerformanceAnalysisPanel } from './performance-analysis.js';
+import { StructurePropertiesSection } from './performance-analysis/structure-editor.js';
+import { readStructureEditorParams } from './performance-analysis/structure-editor-store.js';
 import type { LabPageKey } from './shared.js';
 import type {
   LabPageNavigationSection,
@@ -476,6 +478,15 @@ function LabPageFrameContent({
     useState(false);
   const [isPerformancePanelCollapsed, setIsPerformancePanelCollapsed] =
     useState(false);
+
+  // `?structureEdit=1` (dev): show both panels; the properties panel scrolls
+  // to its Structure section and the performance panel shows Structure.
+  useEffect(() => {
+    if (readStructureEditorParams().edit) {
+      setIsPropertiesPanelCollapsed(false);
+      setIsPerformancePanelCollapsed(false);
+    }
+  }, []);
   const isLabPageLoading = activeLabPage !== null && preview === null;
   const isDocsView = hasDocs && view === 'docs';
   const togglePropertiesPanel = useCallback(() => {
@@ -583,6 +594,14 @@ function LabPageFrameContent({
                   fallback={<LabPagePropertiesFallback />}
                   testId="lab-properties-crossfade"
                 />
+                {import.meta.env.DEV ? (
+                  <div className="mt-6 border-t border-white/8 pt-6">
+                    <StructurePropertiesSection
+                      key={activeLabPage}
+                      pageKey={activeLabPage}
+                    />
+                  </div>
+                ) : null}
               </div>
             </TooltipProvider>
           </ScrollArea>

@@ -54,16 +54,23 @@ test('edits a layer offset with the real primitives and saves the overrides file
   );
   const panel = performancePanelFor(page, 'Control Field');
   const shell = panel.getByTestId('lab-primitive-structure-shell');
-  const editor = panel.getByTestId('lab-primitive-structure-editor');
+  // The editor is the Structure section of the properties panel.
+  const editor = page
+    .locator('#lab-properties-panel')
+    .getByTestId('lab-primitive-structure-editor');
 
   await expect(editor).toBeVisible();
   await expect(shell).toHaveAttribute(
     'data-primitive-structure-selected-layer',
     'control-field-input',
   );
+  await expect(editor).toBeInViewport();
   await expect(
-    panel.getByTestId('lab-primitive-structure-edit-toggle'),
+    editor.locator('[data-structure-editor-layer="control-field-input"]'),
   ).toHaveAttribute('aria-pressed', 'true');
+  await expect(
+    editor.getByRole('textbox', { name: 'Zoom', exact: true }),
+  ).toBeVisible();
   await expect
     .poll(() => slabOrigin(panel, 'control-field-input'))
     .not.toBeNull();
@@ -114,6 +121,33 @@ test('edits a layer offset with the real primitives and saves the overrides file
     'control-field-steppers',
   ]);
 
+  // Clicking a slab selects that layer everywhere: render, list, editor.
+  const groupTop = panel
+    .locator('[data-structure-node="control-field-group"] [data-structure-top]')
+    .first();
+  const groupBox = (await groupTop.boundingBox())!;
+  await page.mouse.click(
+    groupBox.x + groupBox.width * 0.5,
+    groupBox.y + groupBox.height * 0.6,
+  );
+  await expect(shell).toHaveAttribute(
+    'data-primitive-structure-selected-layer',
+    /control-field-(group|root|input|scrub-area)/,
+  );
+  const clickedLayer = await shell.getAttribute(
+    'data-primitive-structure-selected-layer',
+  );
+  await expect(
+    editor.locator(`[data-structure-editor-layer="${clickedLayer}"]`),
+  ).toHaveAttribute('aria-pressed', 'true');
+  await editor
+    .locator('[data-structure-editor-layer="control-field-input"]')
+    .click();
+  await expect(shell).toHaveAttribute(
+    'data-primitive-structure-selected-layer',
+    'control-field-input',
+  );
+
   // Dragging on the render still opens the stack while editing.
   const render = panel.getByTestId('lab-primitive-structure-render');
   await render.focus();
@@ -155,7 +189,10 @@ test('manual framing zooms and pans the figure; auto ignores it', async ({
 
   await page.goto('/lab/plane?structureEdit=1');
   const panel = performancePanelFor(page, 'Plane');
-  const editor = panel.getByTestId('lab-primitive-structure-editor');
+  // The editor is the Structure section of the properties panel.
+  const editor = page
+    .locator('#lab-properties-panel')
+    .getByTestId('lab-primitive-structure-editor');
   await expect(editor).toBeVisible();
   await expect.poll(() => slabOrigin(panel, 'plane-root')).not.toBeNull();
   const autoOrigin = await slabOrigin(panel, 'plane-root');
