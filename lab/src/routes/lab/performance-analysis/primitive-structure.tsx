@@ -5,10 +5,18 @@ import {
   type RefObject,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
 } from 'react';
+import {
+  type LabelBody,
+  type LabelBounds,
+  type LabelTarget,
+  snapLabels,
+  stepLabels,
+} from './structure-labels.js';
 import {
   selectStructureLayer,
   setStructureRootSize,
@@ -28,6 +36,7 @@ import {
 import {
   findLabPreviewHost,
   measurePrimitiveStructure,
+  trackLiveSlabs,
   type StructureGhostCache,
   type StructureMeasurement,
 } from './structure-measure.js';
@@ -52,7 +61,8 @@ import type {
 const STRUCTURE_CALLOUT_LABEL_X = 70;
 const STRUCTURE_CALLOUT_LABEL_MIN_Y = 12;
 const STRUCTURE_CALLOUT_LABEL_MAX_Y = 88;
-const STRUCTURE_CALLOUT_LABEL_MIN_GAP_PX = 24;
+/** Clear space between two label boxes. */
+const STRUCTURE_CALLOUT_LABEL_GAP_PX = 4;
 const STRUCTURE_FIGURE_RIGHT = 0.64;
 const STRUCTURE_FIGURE_PADDING = 18;
 const STRUCTURE_DEFAULT_EXPLODE = 0.75;
@@ -79,6 +89,8 @@ const STRUCTURE_PALETTE = {
 } as CSSProperties;
 
 type StructureCalloutPosition = {
+  /** Horizontal slide (px) while passing another label. */
+  dx: number;
   labelX: number;
   labelY: number;
   targetX: number;
@@ -201,9 +213,12 @@ function useStructureMeasurement(
     let retryTimer = 0;
     let observedHost: Element | null = null;
     let signature = '';
-    // A drag in the preview mutates it every frame; measure once it ends.
+    // A drag in the preview mutates it every frame. While it lasts, only the
+    // percentage-positioned parts (thumbs) are moved, from their inline
+    // style/data values (no layout reads); a full measure follows release.
     let pointerActive = false;
     let deferred = false;
+    let latest: StructureMeasurement | null = null;
     const resizeObserver = new ResizeObserver(() => schedule());
     const mutationObserver = new MutationObserver(() => schedule());
     const portalObserver = new MutationObserver(() => schedule());
@@ -234,6 +249,16 @@ function useStructureMeasurement(
 
       if (pointerActive) {
         deferred = true;
+
+        if (latest) {
+          const tracked = trackLiveSlabs(latest);
+
+          if (tracked !== latest) {
+            latest = tracked;
+            setMeasurement(tracked);
+          }
+        }
+
         return;
       }
 
@@ -255,6 +280,7 @@ function useStructureMeasurement(
 
       if (nextSignature !== signature) {
         signature = nextSignature;
+        latest = next;
         setMeasurement(next);
       }
     };
@@ -406,53 +432,76 @@ function useDevicePixelRatio() {
 }
 
 /**
- * Spreads label rows along the rail near their targets' heights, keeping a
- * minimum gap between rows.
+ * Runs the label springs only while they are moving: a frame loop starts
+ * when targets change and stops once everything has settled.
  */
-function layoutLabelRows(
-  anchors: ReadonlyMap<string, Vec2>,
-  height: number,
-): Record<string, number> {
-  if (height <= 0) return {};
+function useLabelSprings(
+  targets: readonly LabelTarget[],
+  bounds: LabelBounds,
+  reducedMotion: boolean,
+) {
+  const [bodies, setBodies] = useState<LabelBody[]>([]);
+  const bodiesRef = useRef<LabelBody[]>([]);
+  const targetsRef = useRef(targets);
+  const boundsRef = useRef(bounds);
+  const frameRef = useRef(0);
+  const key = JSON.stringify([
+    bounds,
+    targets.map((target) => [
+      target.id,
+      Math.round(target.targetY * 10) / 10,
+      target.height,
+      target.width,
+    ]),
+  ]);
 
-  const minGap = clamp(
-    (STRUCTURE_CALLOUT_LABEL_MIN_GAP_PX / height) * 100,
-    5,
-    12,
-  );
-  const rows = Array.from(anchors, ([nodeId, anchor]) => ({
-    desired: clamp(
-      (anchor[1] / height) * 100,
-      STRUCTURE_CALLOUT_LABEL_MIN_Y,
-      STRUCTURE_CALLOUT_LABEL_MAX_Y,
-    ),
-    nodeId,
-    y: 0,
-  })).sort((left, right) => left.desired - right.desired);
+  useEffect(() => {
+    targetsRef.current = targets;
+    boundsRef.current = bounds;
 
-  let previous = STRUCTURE_CALLOUT_LABEL_MIN_Y - minGap;
-  for (const row of rows) {
-    row.y = Math.max(row.desired, previous + minGap);
-    previous = row.y;
-  }
+    const known = new Set(bodiesRef.current.map((body) => body.id));
+    const fresh =
+      bodiesRef.current.length === 0 ||
+      targets.every((target) => !known.has(target.id));
 
-  const overflow =
-    (rows.at(-1)?.y ?? STRUCTURE_CALLOUT_LABEL_MAX_Y) -
-    STRUCTURE_CALLOUT_LABEL_MAX_Y;
-
-  if (overflow > 0) {
-    for (let index = rows.length - 1; index >= 0; index -= 1) {
-      const next = rows[index + 1];
-      rows[index]!.y = Math.min(
-        rows[index]!.y - overflow,
-        next ? next.y - minGap : Infinity,
-      );
+    if (reducedMotion || fresh) {
+      window.cancelAnimationFrame(frameRef.current);
+      frameRef.current = 0;
+      bodiesRef.current = snapLabels(targets, bounds);
+      setBodies(bodiesRef.current);
+      return;
     }
-  }
 
-  return Object.fromEntries(
-    rows.map((row) => [row.nodeId, Number(row.y.toFixed(2))]),
+    if (frameRef.current !== 0) return;
+
+    let last = performance.now();
+    const tick = (now: number) => {
+      const result = stepLabels(
+        bodiesRef.current,
+        targetsRef.current,
+        boundsRef.current,
+        Math.max(0, now - last) / 1000,
+      );
+      last = now;
+      bodiesRef.current = result.bodies;
+      setBodies(result.bodies);
+      frameRef.current = result.settled
+        ? 0
+        : window.requestAnimationFrame(tick);
+    };
+
+    frameRef.current = window.requestAnimationFrame(tick);
+  }, [key, reducedMotion]);
+
+  useEffect(
+    () => () => {
+      window.cancelAnimationFrame(frameRef.current);
+      frameRef.current = 0;
+    },
+    [],
   );
+
+  return bodies;
 }
 
 function nodeMatchesActivePath(
@@ -673,47 +722,48 @@ export function LabPrimitiveStructureView({
         .map((node) => ({ node })),
     [anchors, nodeEntries],
   );
-  // Label rows are laid out once per framing, set of parts and gap; a part
-  // moving (or a popup swapping ghost for solid) only moves its leader's
-  // target, never the rows.
-  const labelRowsRef = useRef<{ key: string; rows: Record<string, number> }>({
-    key: '',
-    rows: {},
-  });
-  const labelRowsKey = [
-    framedCamera
-      ? `${framedCamera.ox.toFixed(1)},${framedCamera.oy.toFixed(1)},${framedCamera.scale.toFixed(4)}`
-      : '',
-    // Manual layer offsets move parts on purpose; lay labels out again.
-    [...layerOffsets.values()]
-      .map((offset) => `${offset.x},${offset.z}`)
-      .join(';'),
-    size.width,
-    size.height,
-    explode.toFixed(2),
-    isDragging ? 'drag' : '',
-    [...anchors.keys()].sort().join(','),
-  ].join('|');
+  // Labels trail their parts on a spring (and jump under reduced motion):
+  // each targets its leader anchor's height, neighbours keep their spacing,
+  // and a label trading places with another slides aside to pass it.
+  const labelElementsRef = useRef(new Map<string, HTMLElement>());
+  const [labelSizes, setLabelSizes] = useState<
+    Record<string, { height: number; width: number }>
+  >({});
+  const calloutIdsKey = calloutLayers.map(({ node }) => node.id).join(',');
 
-  if (labelRowsRef.current.key !== labelRowsKey && !isDragging) {
-    labelRowsRef.current = {
-      key: labelRowsKey,
-      rows: layoutLabelRows(anchors, size.height),
-    };
-  }
-
-  const labelRows = labelRowsRef.current.rows;
+  const labelTargets = useMemo<LabelTarget[]>(
+    () =>
+      calloutLayers.map(({ node }) => ({
+        height: labelSizes[node.id]?.height ?? 20,
+        id: node.id,
+        targetY: anchors.get(node.id)![1],
+        width: labelSizes[node.id]?.width ?? 100,
+      })),
+    [anchors, calloutLayers, labelSizes],
+  );
+  const labelBounds = useMemo<LabelBounds>(
+    () => ({
+      gap: STRUCTURE_CALLOUT_LABEL_GAP_PX,
+      maxY: (size.height * STRUCTURE_CALLOUT_LABEL_MAX_Y) / 100,
+      minY: (size.height * STRUCTURE_CALLOUT_LABEL_MIN_Y) / 100,
+    }),
+    [size.height],
+  );
+  const labelBodies = useLabelSprings(labelTargets, labelBounds, reducedMotion);
   const callouts: Record<string, StructureCalloutPosition> = {};
 
   if (size.width > 0 && size.height > 0) {
-    for (const [nodeId, anchor] of anchors) {
-      const labelY = labelRows[nodeId];
+    for (const body of labelBodies) {
+      const anchor = anchors.get(body.id);
 
-      if (labelY === undefined) continue;
+      if (!anchor) continue;
 
-      callouts[nodeId] = {
-        labelX: STRUCTURE_CALLOUT_LABEL_X,
-        labelY,
+      callouts[body.id] = {
+        dx: body.dx,
+        labelX: Number(
+          (STRUCTURE_CALLOUT_LABEL_X + (body.dx / size.width) * 100).toFixed(2),
+        ),
+        labelY: Number(((body.y / size.height) * 100).toFixed(2)),
         targetX: Number(
           clamp((anchor[0] / size.width) * 100, 0, 100).toFixed(2),
         ),
@@ -723,6 +773,24 @@ export function LabPrimitiveStructureView({
       };
     }
   }
+  const labelsShown = labelBodies.length > 0;
+
+  useLayoutEffect(() => {
+    // Our own label elements only, once per label set or panel width.
+    const next: Record<string, { height: number; width: number }> = {};
+
+    for (const [id, element] of labelElementsRef.current) {
+      next[id] = {
+        height: element.offsetHeight || 20,
+        width: element.offsetWidth || 100,
+      };
+    }
+
+    setLabelSizes((current) =>
+      JSON.stringify(current) === JSON.stringify(next) ? current : next,
+    );
+  }, [calloutIdsKey, labelsShown, size.width]);
+
   // Hover wins; in the editor the selected layer stays highlighted.
   const highlightId = activeLayerId ?? (isEditing ? selectedLayerId : null);
   const activePath = useMemo(() => {
@@ -1211,6 +1279,10 @@ export function LabPrimitiveStructureView({
                   isMuted ? 'opacity-30' : 'opacity-100',
                 ].join(' ')}
                 data-primitive-callout-label={node.id}
+                ref={(element) => {
+                  if (element) labelElementsRef.current.set(node.id, element);
+                  else labelElementsRef.current.delete(node.id);
+                }}
                 data-primitive-callout-label-text={node.id}
                 key={node.id}
                 style={{

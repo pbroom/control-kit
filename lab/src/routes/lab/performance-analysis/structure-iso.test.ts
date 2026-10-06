@@ -39,6 +39,7 @@ const measurement: StructureMeasurement = {
   fitLevels: 2,
   height: 24,
   levels: 2,
+  live: [],
   signature: '',
   slabs: [
     slab({}),

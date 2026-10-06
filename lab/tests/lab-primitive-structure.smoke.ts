@@ -101,7 +101,37 @@ async function expectStructureGeometryClearsCalloutLabels(panel: Locator) {
   ).toBeGreaterThanOrEqual(8);
 }
 
+/** Labels trail on a spring; wait until they have come to rest. */
+async function waitForLabelsToSettle(panel: Locator) {
+  const read = () =>
+    panel
+      .locator('[data-primitive-callout-label]')
+      .evaluateAll((labels) =>
+        labels
+          .map(
+            (label) =>
+              `${(label as HTMLElement).style.left}|${(label as HTMLElement).style.top}`,
+          )
+          .join(';'),
+      );
+  let previous = await read();
+
+  await expect
+    .poll(
+      async () => {
+        await panel.page().waitForTimeout(120);
+        const current = await read();
+        const stable = current === previous;
+        previous = current;
+        return stable;
+      },
+      { timeout: 4000 },
+    )
+    .toBe(true);
+}
+
 async function expectCalloutLinesAttachToLabels(panel: Locator) {
+  await waitForLabelsToSettle(panel);
   const calloutGeometry = await panel
     .locator('[data-primitive-callout-line]')
     .evaluateAll(
@@ -132,6 +162,7 @@ async function expectCalloutLinesAttachToLabels(panel: Locator) {
 }
 
 async function expectCalloutLabelsDoNotOverlap(panel: Locator) {
+  await waitForLabelsToSettle(panel);
   const labelBoxes = await panel
     .locator('[data-primitive-callout-label]')
     .evaluateAll((labels) =>
@@ -156,29 +187,78 @@ async function expectCalloutLabelsDoNotOverlap(panel: Locator) {
   }
 }
 
-/** What must not move when a part moves or appears: the frame and the root. */
+/**
+ * What must not move when a part moves or appears: the frame and the root.
+ * (Labels follow their parts, so they are not part of this.)
+ */
 async function readFraming(panel: Locator, rootNode: string) {
   const canvas = panel.getByTestId('lab-primitive-structure-canvas');
-  const [viewBox, slabs, labels] = await Promise.all([
+  const [viewBox, slabs] = await Promise.all([
     canvas.getAttribute('viewBox'),
     readSlabs(panel),
-    panel
-      .locator('[data-primitive-callout-label]')
-      .evaluateAll((items) =>
-        Object.fromEntries(
-          items.map((item) => [
-            item.getAttribute('data-primitive-callout-label'),
-            (item as HTMLElement).style.top,
-          ]),
-        ),
-      ),
   ]);
 
   return {
-    labels,
     rootOrigin: slabs.find((slab) => slab.node === rootNode)?.origin ?? null,
     viewBox,
   };
+}
+
+/**
+ * Samples every callout label's box on each animation frame for `ms`, and
+ * reports whether any two ever intersected.
+ */
+async function sampleLabelOverlaps(panel: Locator, ms: number) {
+  return panel.getByTestId('lab-primitive-structure-render').evaluate(
+    (render, duration) =>
+      new Promise<{ frames: number; overlaps: string[] }>((resolve) => {
+        const overlaps: string[] = [];
+        let frames = 0;
+        const start = performance.now();
+        const sample = () => {
+          frames += 1;
+          const boxes = Array.from(
+            render.querySelectorAll<HTMLElement>(
+              '[data-primitive-callout-label]',
+            ),
+          ).map((label) => {
+            const text = label.firstElementChild ?? label;
+            const rect = text.getBoundingClientRect();
+
+            return {
+              bottom: rect.bottom,
+              id: label.getAttribute('data-primitive-callout-label'),
+              left: rect.left,
+              right: rect.right,
+              top: rect.top,
+            };
+          });
+
+          for (let i = 0; i < boxes.length; i += 1) {
+            for (let j = i + 1; j < boxes.length; j += 1) {
+              const a = boxes[i]!;
+              const b = boxes[j]!;
+              if (
+                a.left < b.right - 0.5 &&
+                b.left < a.right - 0.5 &&
+                a.top < b.bottom - 0.5 &&
+                b.top < a.bottom - 0.5
+              ) {
+                overlaps.push(`${a.id}/${b.id}@${frames}`);
+              }
+            }
+          }
+
+          if (performance.now() - start < duration) {
+            requestAnimationFrame(sample);
+          } else {
+            resolve({ frames, overlaps });
+          }
+        };
+        requestAnimationFrame(sample);
+      }),
+    ms,
+  );
 }
 
 async function dragRender(page: Page, panel: Locator, deltaY: number) {
@@ -520,6 +600,30 @@ test('renders the primitive structure tab as a measured isometric figure', async
   await page.keyboard.press('End');
   await expect(render).toHaveAttribute('aria-valuenow', '100');
 
+  // Changing the gap: slabs move at once, labels trail on a spring and
+  // never overlap on any frame, then settle and stay put.
+  const labelTops = () =>
+    colorPlanePanel
+      .locator('[data-primitive-callout-label]')
+      .evaluateAll((labels) =>
+        labels.map((label) => (label as HTMLElement).style.top),
+      );
+  const settledOpen = await labelTops();
+  await page.keyboard.press('Home');
+  const closing = await sampleLabelOverlaps(colorPlanePanel, 1200);
+  expect(closing.frames).toBeGreaterThan(10);
+  expect(closing.overlaps).toEqual([]);
+  const settledClosed = await labelTops();
+  expect(settledClosed).not.toEqual(settledOpen);
+  await page.waitForTimeout(250);
+  expect(await labelTops()).toEqual(settledClosed);
+  await page.keyboard.press('End');
+  expect((await sampleLabelOverlaps(colorPlanePanel, 1200)).overlaps).toEqual(
+    [],
+  );
+  await expectCalloutLabelsDoNotOverlap(colorPlanePanel);
+  await expectCalloutLinesAttachToLabels(colorPlanePanel);
+
   await metricsTab.click();
   await expect(canvas).toHaveCount(0);
   await structureTab.click();
@@ -579,7 +683,65 @@ test('renders the primitive structure tab as a measured isometric figure', async
         )?.d,
     )
     .not.toBe(thumbBefore);
-  // Only the thumb moved: same frame, same root, same label rows.
+  // Only the thumb moved: same frame, same root.
+  expect(await readFraming(planePanel, 'plane-root')).toEqual(planeFraming);
+
+  // Dragging the thumb moves its slab every frame of the drag (sampled
+  // before release), without layout reads on the Plane root.
+  const previewThumb = page.locator(
+    '[data-lab-component-preview] [data-slot="plane-thumb"]',
+  );
+  const previewPlane = page.locator(
+    '[data-lab-component-preview] [data-slot="plane"]',
+  );
+  const [planeBox, thumbBox] = await Promise.all([
+    previewPlane.boundingBox(),
+    previewThumb.boundingBox(),
+  ]);
+  const thumbSlab = async () =>
+    (await readSlabs(planePanel)).find((slab) => slab.node === 'plane-thumb')!;
+  const beforeDrag = await thumbSlab();
+  await page.mouse.move(
+    thumbBox!.x + thumbBox!.width / 2,
+    thumbBox!.y + thumbBox!.height / 2,
+  );
+  // Let hover-driven re-measures finish; count from the press on.
+  await page.waitForTimeout(150);
+  await previewPlane.evaluate((plane) => {
+    let reads = 0;
+    const original = plane.getBoundingClientRect.bind(plane);
+    plane.getBoundingClientRect = () => {
+      reads += 1;
+      return original();
+    };
+    Object.assign(window, { __planeRootReads: () => reads });
+  });
+  await page.mouse.down();
+  await page.mouse.move(
+    planeBox!.x + planeBox!.width * 0.25,
+    planeBox!.y + planeBox!.height * 0.3,
+    { steps: 12 },
+  );
+  await page.waitForTimeout(60);
+  const midDrag = await thumbSlab();
+  const midDragReads = await page.evaluate(() =>
+    (
+      window as unknown as { __planeRootReads: () => number }
+    ).__planeRootReads(),
+  );
+  await page.mouse.move(
+    planeBox!.x + planeBox!.width * 0.15,
+    planeBox!.y + planeBox!.height * 0.7,
+    { steps: 12 },
+  );
+  await page.waitForTimeout(60);
+  const laterDrag = await thumbSlab();
+  await page.mouse.up();
+  expect(midDrag.origin).not.toBe(beforeDrag.origin);
+  expect(laterDrag.origin).not.toBe(midDrag.origin);
+  // The Plane's own reads at drag start (it allows itself two); none of
+  // ours while the drag runs.
+  expect(midDragReads).toBeLessThanOrEqual(2);
   expect(await readFraming(planePanel, 'plane-root')).toEqual(planeFraming);
 
   await page.getByRole('link', { name: 'Checkbox', exact: true }).click();
@@ -754,7 +916,16 @@ test('jumps the explode gap under reduced motion', async ({
   await page.keyboard.press('Home');
   // Eased, the stack needs ~0.5s to settle; reduced motion lands at once.
   await page.waitForTimeout(60);
+  const labelTops = () =>
+    panel
+      .locator('[data-primitive-callout-label]')
+      .evaluateAll((labels) =>
+        labels.map((label) => (label as HTMLElement).style.top),
+      );
   const settled = (await readSlabs(panel)).map((slab) => slab.top);
+  // Labels jump to their solved rows too (no spring).
+  const settledLabels = await labelTops();
   await page.waitForTimeout(400);
   expect((await readSlabs(panel)).map((slab) => slab.top)).toEqual(settled);
+  expect(await labelTops()).toEqual(settledLabels);
 });

@@ -19,7 +19,12 @@ export type StructureMark =
   | { kind: 'text'; rect: LabPrimitiveStructureRect }
   | { kind: 'line'; points: readonly StructurePoint[] }
   /** A construction line (drawn dashed), e.g. a thumb's crosshair. */
-  | { kind: 'dash'; points: readonly StructurePoint[] }
+  | {
+      kind: 'dash';
+      points: readonly StructurePoint[];
+      /** The slab whose centre this crosshair follows. */
+      sourceKey?: string;
+    }
   | { kind: 'ring'; radius: number; rect: LabPrimitiveStructureRect }
   | {
       axis: 'grid' | 'x';
@@ -60,6 +65,11 @@ export type StructureMeasurement = {
   /** The root part's height; slabs are placed relative to its origin. */
   height: number;
   levels: number;
+  /**
+   * Parts positioned by percentages (thumbs): enough to move them during a
+   * drag from their style/data values alone, without a layout read.
+   */
+  live: readonly StructureLiveSlab[];
   signature: string;
   slabs: readonly StructureSlab[];
   /** The root part's width. */
@@ -94,6 +104,48 @@ export function structureFitLevels(structure: LabPrimitiveStructure) {
     1,
     measuredDepth(structure.root) + (hasFloatingPart(structure.root) ? 1 : 0),
   );
+}
+
+export type StructureLiveSlab = {
+  /** Root-coordinate box the percentages are relative to. */
+  container: LabPrimitiveStructureRect;
+  element: HTMLElement;
+  key: string;
+  /** Measured position minus the percentage position (centring etc.). */
+  offsetX: number;
+  offsetY: number;
+  source: 'data' | 'style';
+};
+
+/** Fractions (0..1) the element is positioned at, read without layout. */
+function readLiveFractions(
+  element: HTMLElement,
+  source: StructureLiveSlab['source'],
+): { x: number | null; y: number | null } {
+  if (source === 'data') {
+    const x = Number(element.getAttribute('data-x'));
+    const y = Number(element.getAttribute('data-y'));
+
+    return {
+      x: Number.isFinite(x) ? x : null,
+      y: Number.isFinite(y) ? y : null,
+    };
+  }
+
+  const style = element.style;
+  const percent = (value: string) =>
+    value.trim().endsWith('%') ? Number.parseFloat(value) / 100 : null;
+  const bottom = percent(style.bottom || style.insetBlockEnd);
+  const right = percent(style.right || style.insetInlineEnd);
+
+  return {
+    x:
+      percent(style.left || style.insetInlineStart) ??
+      (right === null ? null : 1 - right),
+    y:
+      percent(style.top || style.insetBlockStart) ??
+      (bottom === null ? null : 1 - bottom),
+  };
 }
 
 type MeasuredElement = {
@@ -694,6 +746,133 @@ function slabByNode(
     : slabs.find((slab) => slab.nodeId === nodeId);
 }
 
+function crosshairMarks(
+  below: LabPrimitiveStructureRect,
+  cx: number,
+  cy: number,
+  sourceKey: string,
+): StructureMark[] {
+  return [
+    {
+      kind: 'dash',
+      points: [
+        [round(below.x), round(cy)],
+        [round(below.x + below.width), round(cy)],
+      ],
+      sourceKey,
+    },
+    {
+      kind: 'dash',
+      points: [
+        [round(cx), round(below.y)],
+        [round(cx), round(below.y + below.height)],
+      ],
+      sourceKey,
+    },
+  ];
+}
+
+/**
+ * Moves the percentage-positioned parts (thumbs) to where their current
+ * style/data values put them, with their crosshairs. Reads only inline
+ * styles and attributes, so it is safe to run every frame of a drag.
+ * Returns the same object when nothing moved.
+ */
+export function trackLiveSlabs(
+  measurement: StructureMeasurement,
+): StructureMeasurement {
+  const moves = new Map<string, { dx: number; dy: number }>();
+  const slabByKey = new Map(measurement.slabs.map((slab) => [slab.key, slab]));
+
+  for (const live of measurement.live) {
+    const slab = slabByKey.get(live.key);
+
+    if (!slab || !live.element.isConnected) continue;
+
+    const fractions = readLiveFractions(live.element, live.source);
+    const x =
+      fractions.x === null
+        ? slab.x
+        : live.container.x + fractions.x * live.container.width + live.offsetX;
+    const y =
+      fractions.y === null
+        ? slab.y
+        : live.container.y + fractions.y * live.container.height + live.offsetY;
+    const dx = round(x - slab.x);
+    const dy = round(y - slab.y);
+
+    if (dx !== 0 || dy !== 0) moves.set(live.key, { dx, dy });
+  }
+
+  if (moves.size === 0) return measurement;
+
+  const moveRect = <T extends LabPrimitiveStructureRect>(
+    rect: T,
+    move: { dx: number; dy: number },
+  ): T => ({ ...rect, x: round(rect.x + move.dx), y: round(rect.y + move.dy) });
+  const moved = measurement.slabs.map((slab) => {
+    const move = moves.get(slab.key);
+
+    return move
+      ? {
+          ...moveRect(slab, move),
+          marks: slab.marks.map((mark) =>
+            mark.kind === 'line' || mark.kind === 'dash'
+              ? {
+                  ...mark,
+                  points: mark.points.map(
+                    ([px, py]) =>
+                      [round(px + move.dx), round(py + move.dy)] as const,
+                  ),
+                }
+              : { ...mark, rect: moveRect(mark.rect, move) },
+          ),
+        }
+      : slab;
+  });
+  const movedByKey = new Map(moved.map((slab) => [slab.key, slab]));
+
+  // Crosshairs drawn on other slabs follow their (moved) source.
+  const slabs = moved.map((slab) => {
+    if (!slab.marks.some((mark) => mark.kind === 'dash' && mark.sourceKey)) {
+      return slab;
+    }
+
+    const marks: StructureMark[] = [];
+    const redrawn = new Set<string>();
+
+    for (const mark of slab.marks) {
+      const sourceKey = mark.kind === 'dash' ? mark.sourceKey : undefined;
+      const source = sourceKey ? movedByKey.get(sourceKey) : undefined;
+
+      if (!sourceKey || !source || !moves.has(sourceKey)) {
+        marks.push(mark);
+        continue;
+      }
+
+      if (redrawn.has(sourceKey)) continue;
+
+      redrawn.add(sourceKey);
+      marks.push(
+        ...crosshairMarks(
+          slab,
+          source.x + source.width / 2,
+          source.y + source.height / 2,
+          sourceKey,
+        ),
+      );
+    }
+
+    return { ...slab, marks };
+  });
+
+  return {
+    ...measurement,
+    signature: JSON.stringify([measurement.width, measurement.height, slabs]),
+    slabs,
+  };
+}
+
 function round(value: number) {
   return Math.round(value * 10) / 10;
 }
@@ -919,20 +1098,7 @@ export function measurePrimitiveStructure(
       if (below) {
         below.marks = [
           ...below.marks,
-          {
-            kind: 'dash',
-            points: [
-              [round(below.x), round(cy)],
-              [round(below.x + below.width), round(cy)],
-            ],
-          },
-          {
-            kind: 'dash',
-            points: [
-              [round(cx), round(below.y)],
-              [round(cx), round(below.y + below.height)],
-            ],
-          },
+          ...crosshairMarks(below, cx, cy, slab.key),
         ];
       }
     }
@@ -982,10 +1148,62 @@ export function measurePrimitiveStructure(
 
   const width = round(maxX - minX);
   const height = round(maxY - minY);
+  const live: StructureLiveSlab[] = [];
+
+  for (const entry of measured) {
+    const slab = slabByElement.get(entry.element);
+
+    if (!slab || !(entry.element instanceof HTMLElement)) continue;
+
+    const source: StructureLiveSlab['source'] = entry.element.hasAttribute(
+      'data-x',
+    )
+      ? 'data'
+      : 'style';
+    const fractions = readLiveFractions(entry.element, source);
+
+    if (fractions.x === null && fractions.y === null) continue;
+
+    // The box the percentages refer to: the containing block's padding box,
+    // or for data-positioned thumbs, their parent.
+    const containerElement =
+      source === 'style'
+        ? entry.element.offsetParent
+        : entry.element.parentElement;
+
+    if (!(containerElement instanceof HTMLElement)) continue;
+
+    const box = containerElement.getBoundingClientRect();
+    const container = {
+      height: source === 'style' ? containerElement.clientHeight : box.height,
+      width: source === 'style' ? containerElement.clientWidth : box.width,
+      x:
+        box.left +
+        (source === 'style' ? containerElement.clientLeft : 0) -
+        minX,
+      y: box.top + (source === 'style' ? containerElement.clientTop : 0) - minY,
+    };
+
+    live.push({
+      container,
+      element: entry.element,
+      key: slab.key,
+      offsetX:
+        fractions.x === null
+          ? 0
+          : slab.x - (container.x + fractions.x * container.width),
+      offsetY:
+        fractions.y === null
+          ? 0
+          : slab.y - (container.y + fractions.y * container.height),
+      source,
+    });
+  }
 
   return {
     fitLevels: structureFitLevels(structure),
     height,
+    live,
     levels: Math.max(...slabs.map((slab) => slab.level)) + 1,
     signature: JSON.stringify([width, height, slabs]),
     slabs,
