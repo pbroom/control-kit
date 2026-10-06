@@ -10,6 +10,7 @@ import {
 } from '@pbroom/control-kit';
 import {
   changeStructureFrame,
+  commitStructureOverrides,
   changeStructureFraming,
   changeStructureLayer,
   readStructureEditorParams,
@@ -40,6 +41,8 @@ const SEGMENTED_GROUP_CLASS =
   'box-border flex h-6 min-h-6 w-full min-w-0 max-w-full justify-start gap-0 overflow-hidden rounded-[5px] border-0 bg-[#383838] p-0 shadow-none';
 const SEGMENTED_ITEM_CLASS =
   'h-full min-h-0 w-full min-w-0 flex-1 rounded-[5px] border border-transparent px-2 py-0 text-[11px] font-medium leading-4 tracking-[0.005em] text-white/50 transition-[background-color,color] hover:text-white/70 focus-visible:ring-2 focus-visible:ring-[#0d99ff]/80 data-[pressed]:border-[#4C4C4C] data-[pressed]:bg-[var(--ck-lab-segmented-active-bg,#171717)] data-[pressed]:text-white/90';
+const ACTION_BUTTON_CLASS =
+  'h-6 rounded-[5px] border border-white/10 px-2 text-[11px] font-medium text-white/70 hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent';
 const CHIP_CLASS =
   'h-6 rounded-[5px] border px-2 text-[11px] font-medium leading-4 transition-colors';
 
@@ -170,8 +173,26 @@ function XYPad({
 }
 
 export function StructurePropertiesSection({ pageKey }: { pageKey: string }) {
-  const { overrides, rootSizes, saveState, selectedLayerId } =
-    useStructureEditorState();
+  const {
+    commitNote,
+    committing,
+    dirty,
+    overrides,
+    rootSizes,
+    saveState,
+    selectedLayerId,
+  } = useStructureEditorState();
+  const statusText =
+    saveState === 'saving'
+      ? 'Saving…'
+      : saveState === 'error'
+        ? 'Save failed'
+        : (commitNote ??
+          (saveState === 'saved'
+            ? 'Saved'
+            : dirty
+              ? 'Uncommitted changes'
+              : 'No unsaved changes'));
   const sectionRef = useRef<HTMLElement | null>(null);
   const demo = overrides.demos[pageKey];
   const nodes = structureOverrideDemo(pageKey)?.nodes ?? [];
@@ -361,23 +382,30 @@ export function StructurePropertiesSection({ pageKey }: { pageKey: string }) {
         <span
           className="min-w-0 truncate text-[11px] leading-4 text-white/45"
           data-testid="lab-primitive-structure-editor-status"
+          title={statusText}
         >
-          {saveState === 'saving'
-            ? 'Saving…'
-            : saveState === 'saved'
-              ? 'Saved'
-              : saveState === 'error'
-                ? 'Save failed'
-                : 'No unsaved changes'}
+          {statusText}
         </span>
-        <button
-          className="h-6 shrink-0 rounded-[5px] border border-white/10 px-2 text-[11px] font-medium text-white/70 hover:bg-white/5"
-          data-testid="lab-primitive-structure-editor-reset"
-          onClick={() => resetStructureDemo(pageKey)}
-          type="button"
-        >
-          Reset demo
-        </button>
+        <div className="flex shrink-0 gap-1">
+          <button
+            className={ACTION_BUTTON_CLASS}
+            data-testid="lab-primitive-structure-editor-reset"
+            onClick={() => resetStructureDemo(pageKey)}
+            type="button"
+          >
+            Reset demo
+          </button>
+          <button
+            className={ACTION_BUTTON_CLASS}
+            data-testid="lab-primitive-structure-editor-commit"
+            disabled={committing || saveState === 'saving' || dirty === false}
+            onClick={() => void commitStructureOverrides()}
+            title="git commit lab/structure-overrides.json (only that file; no push)"
+            type="button"
+          >
+            {committing ? 'Committing…' : 'Commit'}
+          </button>
+        </div>
       </div>
     </section>
   );

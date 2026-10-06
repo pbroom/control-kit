@@ -27,11 +27,46 @@ async function slabOrigin(panel: Locator, node: string) {
 }
 
 /** Intercepts the dev-server save so the committed file is never touched. */
-async function captureSaves(page: Page) {
-  const saves: { raw: string; file: SavedFile }[] = [];
+type CommitReply = { body: unknown; status?: number };
 
+/**
+ * Intercepts every dev-server structure route: saves are recorded, status is
+ * scripted, and commits are answered here, so tests never write the file or
+ * run git.
+ */
+async function captureSaves(
+  page: Page,
+  options: {
+    commit?: () => CommitReply;
+    dirty?: () => boolean;
+  } = {},
+) {
+  const saves: { raw: string; file: SavedFile }[] = [];
+  const events: string[] = [];
+
+  await page.route('**/__lab/structure-overrides/status', (route) => {
+    events.push('status');
+    return route.fulfill({
+      body: JSON.stringify({ dirty: options.dirty?.() ?? false }),
+      contentType: 'application/json',
+      status: 200,
+    });
+  });
+  await page.route('**/__lab/structure-overrides/commit', (route) => {
+    events.push('commit');
+    const reply = options.commit?.() ?? {
+      body: { error: 'unexpected commit in test', ok: false },
+      status: 500,
+    };
+    return route.fulfill({
+      body: JSON.stringify(reply.body),
+      contentType: 'application/json',
+      status: reply.status ?? 200,
+    });
+  });
   await page.route('**/__lab/structure-overrides', async (route) => {
     const raw = route.request().postData() ?? '';
+    events.push('save');
     saves.push({ file: JSON.parse(raw) as SavedFile, raw });
     await route.fulfill({
       body: '{"ok":true}',
@@ -40,7 +75,7 @@ async function captureSaves(page: Page) {
     });
   });
 
-  return saves;
+  return Object.assign(saves, { events });
 }
 
 test('edits a layer offset with the real primitives and saves the overrides file', async ({
@@ -277,4 +312,76 @@ test('manual framing zooms and pans the figure; auto ignores it', async ({
 
   await editor.getByTestId('lab-primitive-structure-editor-reset').click();
   await expect.poll(() => saves.at(-1)?.file.demos.plane?.framing.zoom).toBe(1);
+});
+
+test('commits the overrides file from the Structure section', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'desktop editor coverage');
+  let dirty = false;
+  let commitReply: CommitReply = {
+    body: {
+      commit: 'abc1234',
+      message: 'Update structure framing (Control Field)',
+      ok: true,
+    },
+  };
+  const saves = await captureSaves(page, {
+    commit: () => {
+      dirty = false;
+      return commitReply;
+    },
+    dirty: () => dirty,
+  });
+
+  await page.goto(
+    '/lab/control-field?structureEdit=1&structureLayer=control-field-input',
+  );
+  const editor = page
+    .locator('#lab-properties-panel')
+    .getByTestId('lab-primitive-structure-editor');
+  const commit = editor.getByTestId('lab-primitive-structure-editor-commit');
+  const status = editor.getByTestId('lab-primitive-structure-editor-status');
+
+  // Nothing differs from HEAD: nothing to commit.
+  await expect(commit).toBeDisabled();
+
+  // An edit makes it committable; Commit flushes the save, then commits.
+  dirty = true;
+  const xField = editor
+    .getByTestId('lab-primitive-structure-layer-x')
+    .getByRole('textbox');
+  await xField.click();
+  await xField.press('ControlOrMeta+a');
+  await xField.pressSequentially('12');
+  await expect(commit).toBeDisabled(); // while the save is pending
+  await expect(commit).toBeEnabled();
+  await commit.click();
+  await expect(status).toHaveText('Committed abc1234');
+  const commitIndex = saves.events.indexOf('commit');
+  expect(saves.events.slice(0, commitIndex)).toContain('save');
+  expect(
+    saves.at(-1)!.file.demos.controlField!.layers['control-field-input'],
+  ).toEqual({ label: 'Input', mode: 'manual', x: 12, z: 0 });
+  await expect(commit).toBeDisabled();
+
+  // "Nothing to commit" and git errors show in the status line.
+  dirty = true;
+  commitReply = { body: { commit: null, ok: true } };
+  await editor.getByTestId('lab-primitive-structure-editor-reset').click();
+  await expect(commit).toBeEnabled();
+  await commit.click();
+  await expect(status).toHaveText('Nothing to commit');
+
+  dirty = true;
+  commitReply = {
+    body: { error: 'HEAD is detached', ok: false },
+    status: 409,
+  };
+  await xField.click();
+  await xField.press('ControlOrMeta+a');
+  await xField.pressSequentially('3');
+  await expect(commit).toBeEnabled();
+  await commit.click();
+  await expect(status).toHaveText('HEAD is detached');
 });

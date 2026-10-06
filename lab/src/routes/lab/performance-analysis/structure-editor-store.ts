@@ -10,6 +10,10 @@ import {
   type StructureLayerOverride,
   type StructureOverridesFile,
 } from './structure-overrides-schema.js';
+import {
+  STRUCTURE_OVERRIDES_COMMIT_ENDPOINT,
+  STRUCTURE_OVERRIDES_STATUS_ENDPOINT,
+} from './structure-overrides-git.js';
 import { STRUCTURE_OVERRIDES_ENDPOINT } from './structure-overrides-server.js';
 
 /*
@@ -22,6 +26,12 @@ import { STRUCTURE_OVERRIDES_ENDPOINT } from './structure-overrides-server.js';
 export type StructureEditorSaveState = 'idle' | 'saving' | 'saved' | 'error';
 
 type StructureEditorState = {
+  /** A commit request is in flight. */
+  committing: boolean;
+  /** Result of the last commit ("Committed abc1234", or git's error). */
+  commitNote: string | null;
+  /** The file differs from HEAD (null until the dev server answers). */
+  dirty: boolean | null;
   overrides: StructureOverridesFile;
   /** Measured root size per page, for the layer pad's range. */
   rootSizes: Record<string, { height: number; width: number }>;
@@ -58,17 +68,22 @@ let state: StructureEditorState = hotData?.state
         : STRUCTURE_OVERRIDES,
     }
   : {
+      committing: false,
+      commitNote: null,
+      dirty: null,
       overrides: STRUCTURE_OVERRIDES,
       rootSizes: {},
       saveState: 'idle',
       selectedLayerId: readStructureEditorParams().layer,
     };
 let saveTimer: number | null = null;
+let pendingDoc: StructureOverridesFile | null = null;
+let inFlight: Promise<void> | null = null;
 const listeners = new Set<() => void>();
 
 import.meta.hot?.dispose((data: HotData) => {
   data.state = state;
-  data.pending = saveTimer !== null;
+  data.pending = saveTimer !== null || inFlight !== null;
 });
 
 function setState(patch: Partial<StructureEditorState>) {
@@ -103,23 +118,102 @@ export function selectStructureLayer(layerId: string | null) {
   if (state.selectedLayerId !== layerId) setState({ selectedLayerId: layerId });
 }
 
+/** Asks the dev server whether the file differs from HEAD. */
+export function refreshStructureDirty() {
+  if (!import.meta.env.DEV || typeof fetch === 'undefined') return;
+
+  void fetch(STRUCTURE_OVERRIDES_STATUS_ENDPOINT)
+    .then((response) => (response.ok ? response.json() : null))
+    .then((body: unknown) => {
+      if (
+        typeof body === 'object' &&
+        body !== null &&
+        typeof (body as { dirty?: unknown }).dirty === 'boolean'
+      ) {
+        setState({ dirty: (body as { dirty: boolean }).dirty });
+      }
+    })
+    .catch(() => {});
+}
+
+function postSave(doc: StructureOverridesFile) {
+  const request: Promise<void> = fetch(STRUCTURE_OVERRIDES_ENDPOINT, {
+    body: serializeStructureOverrides(doc),
+    headers: { 'content-type': 'application/json' },
+    method: 'POST',
+  })
+    .then((response) =>
+      setState({ saveState: response.ok ? 'saved' : 'error' }),
+    )
+    .catch(() => setState({ saveState: 'error' }))
+    .finally(() => {
+      if (inFlight === request) inFlight = null;
+      if (saveTimer === null && inFlight === null) refreshStructureDirty();
+    });
+
+  inFlight = request;
+  return request;
+}
+
 function scheduleSave(next: StructureOverridesFile) {
+  pendingDoc = next;
   if (saveTimer !== null) window.clearTimeout(saveTimer);
 
   saveTimer = window.setTimeout(() => {
-    void fetch(STRUCTURE_OVERRIDES_ENDPOINT, {
-      body: serializeStructureOverrides(next),
-      headers: { 'content-type': 'application/json' },
-      method: 'POST',
-    })
-      .then((response) =>
-        setState({ saveState: response.ok ? 'saved' : 'error' }),
-      )
-      .catch(() => setState({ saveState: 'error' }))
-      .finally(() => {
-        saveTimer = null;
-      });
+    saveTimer = null;
+    const doc = pendingDoc;
+    pendingDoc = null;
+    if (doc) void postSave(doc);
   }, STRUCTURE_SAVE_DEBOUNCE_MS);
+}
+
+/** Sends a debounced save now and waits for any save in flight. */
+async function flushSave() {
+  if (saveTimer !== null) {
+    window.clearTimeout(saveTimer);
+    saveTimer = null;
+    const doc = pendingDoc;
+    pendingDoc = null;
+    if (doc) await postSave(doc);
+  }
+
+  while (inFlight) await inFlight;
+}
+
+/**
+ * Commits lab/structure-overrides.json (that path only) through the dev
+ * server, after flushing any pending save. Never pushes.
+ */
+export async function commitStructureOverrides() {
+  if (state.committing) return;
+
+  setState({ commitNote: null, committing: true });
+
+  try {
+    await flushSave();
+    const response = await fetch(STRUCTURE_OVERRIDES_COMMIT_ENDPOINT, {
+      method: 'POST',
+    });
+    const body = (await response.json().catch(() => ({}))) as {
+      commit?: string | null;
+      error?: string;
+      ok?: boolean;
+    };
+
+    setState({
+      commitNote:
+        response.ok && body.ok
+          ? body.commit
+            ? `Committed ${body.commit}`
+            : 'Nothing to commit'
+          : (body.error ?? `Commit failed (${response.status})`),
+    });
+  } catch (error) {
+    setState({ commitNote: `Commit failed: ${String(error)}` });
+  } finally {
+    setState({ committing: false });
+    refreshStructureDirty();
+  }
 }
 
 function updateDemo(
@@ -135,7 +229,7 @@ function updateDemo(
     demos: { ...state.overrides.demos, [pageKey]: update(demo) },
   };
 
-  setState({ overrides, saveState: 'saving' });
+  setState({ commitNote: null, dirty: true, overrides, saveState: 'saving' });
   scheduleSave(overrides);
 }
 
@@ -185,4 +279,9 @@ export function resetStructureDemo(pageKey: string) {
       ]),
     ),
   }));
+}
+
+// Dev: learn whether there is anything to commit (again after each HMR run).
+if (import.meta.env.DEV && typeof window !== 'undefined') {
+  refreshStructureDirty();
 }
