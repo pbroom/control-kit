@@ -8,6 +8,7 @@ type SavedFile = {
   demos: Record<
     string,
     {
+      explode: number;
       frame: boolean;
       framing: { mode: string; panX: number; panY: number; zoom: number };
       layers: Record<
@@ -207,7 +208,7 @@ test('edits a layer offset with the real primitives and saves the overrides file
     .poll(() => saves.at(-1)?.file.demos.controlField?.frame)
     .toBe(true);
   expect(saves.at(-1)!.raw).toContain(
-    '"route": "/lab/control-field",\n      "frame": true,\n      "framing"',
+    '"route": "/lab/control-field",\n      "frame": true,\n      "explode": 0.75,\n      "framing"',
   );
   await frameToggle.click();
   await expect(frame).toHaveCount(0);
@@ -384,4 +385,79 @@ test('commits the overrides file from the Structure section', async ({
   await expect(commit).toBeEnabled();
   await commit.click();
   await expect(status).toHaveText('HEAD is detached');
+});
+
+test('starts the render at the demo default explode and saves a new one', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'desktop editor coverage');
+  const saves = await captureSaves(page);
+  // Serve the overrides module with Slider's default gap set to 0.3.
+  await page.route('**/structure-overrides.json?*', async (route) => {
+    const response = await route.fetch();
+    const text = await response.text();
+    await route.fulfill({
+      body: text.replace(
+        /("slider":\{"label":"Slider","route":"\/lab\/slider","frame":(?:true|false),"explode":)[\d.]+/,
+        '$10.3',
+      ),
+      contentType: 'application/javascript',
+      status: 200,
+    });
+  });
+
+  await page.goto('/lab/slider?structureEdit=1');
+  const panel = performancePanelFor(page, 'Slider');
+  const render = panel.getByTestId('lab-primitive-structure-render');
+  const editor = page
+    .locator('#lab-properties-panel')
+    .getByTestId('lab-primitive-structure-editor');
+  const explodeField = editor
+    .getByTestId('lab-primitive-structure-explode')
+    .getByRole('textbox');
+  const useCurrent = editor.getByTestId(
+    'lab-primitive-structure-explode-use-current',
+  );
+
+  // The render starts from the file's default; the field shows it.
+  await expect(render).toHaveAttribute(
+    'data-primitive-structure-explode',
+    '0.30',
+  );
+  await expect(explodeField).toHaveValue('0.3');
+  await expect(useCurrent).toBeDisabled();
+
+  // Changing the live gap does not save; "Use current" saves it.
+  await render.focus();
+  await page.keyboard.press('PageUp');
+  await page.keyboard.press('PageUp');
+  await expect(render).toHaveAttribute(
+    'data-primitive-structure-explode',
+    '0.70',
+  );
+  await page.waitForTimeout(400);
+  expect(saves).toHaveLength(0);
+  await expect(useCurrent).toBeEnabled();
+  await useCurrent.click();
+  await expect.poll(() => saves.at(-1)?.file.demos.slider?.explode).toBe(0.7);
+  await expect(explodeField).toHaveValue('0.7');
+  expect(saves.at(-1)!.raw).toContain(
+    '"frame": false,\n      "explode": 0.7,\n      "framing"',
+  );
+
+  // Typing a default saves it and moves the render there.
+  await explodeField.click();
+  await explodeField.press('ControlOrMeta+a');
+  await explodeField.pressSequentially('0.45');
+  await explodeField.press('Enter');
+  await expect.poll(() => saves.at(-1)?.file.demos.slider?.explode).toBe(0.45);
+  await expect(render).toHaveAttribute(
+    'data-primitive-structure-explode',
+    '0.45',
+  );
+
+  // Reset demo restores 0.75.
+  await editor.getByTestId('lab-primitive-structure-editor-reset').click();
+  await expect.poll(() => saves.at(-1)?.file.demos.slider?.explode).toBe(0.75);
+  await expect(explodeField).toHaveValue('0.75');
 });

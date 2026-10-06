@@ -53,17 +53,63 @@ describe('lab/structure-overrides.json', () => {
     );
   });
 
-  it('orders each demo label, route, frame, framing, layers', () => {
+  it('orders each demo label, route, frame, explode, framing, layers', () => {
     for (const demo of Object.values(file.demos)) {
       expect(Object.keys(demo)).toEqual([
         'label',
         'route',
         'frame',
+        'explode',
         'framing',
         'layers',
       ]);
       expect(typeof (demo as { frame?: unknown }).frame).toBe('boolean');
     }
+  });
+});
+
+describe('explode', () => {
+  it('defaults to 0.75, clamps on read, and is always written', () => {
+    const resolved = resolveStructureOverrides({
+      demos: {
+        checkbox: { explode: 0.3 },
+        plane: { framing: {}, layers: {} },
+        slider: { explode: 7 },
+        tabs: { explode: 'wide' },
+      },
+      version: 1,
+    });
+
+    expect(resolved.demos.plane!.explode).toBe(0.75);
+    expect(resolved.demos.checkbox!.explode).toBe(0.3);
+    expect(resolved.demos.slider!.explode).toBe(1);
+    expect(resolved.demos.tabs!.explode).toBe(0.75);
+    expect(serializeStructureOverrides(resolved)).toContain(
+      '"frame": false,\n      "explode": 0.3,\n      "framing"',
+    );
+  });
+
+  it('accepts numbers in 0..1 only', () => {
+    const demo = (explode: unknown) => ({
+      demos: {
+        plane: {
+          explode,
+          frame: false,
+          framing: { mode: 'auto', panX: 0, panY: 0, zoom: 1 },
+          label: 'Plane',
+          layers: {},
+          route: '/lab/plane',
+        },
+      },
+      version: 1,
+    });
+    const message = 'demos.plane.explode must be a number in 0..1';
+
+    expect(validateStructureOverrides(demo(0))).toEqual([]);
+    expect(validateStructureOverrides(demo(1))).toEqual([]);
+    expect(validateStructureOverrides(demo(1.5))).toEqual([message]);
+    expect(validateStructureOverrides(demo(-0.1))).toEqual([message]);
+    expect(validateStructureOverrides(demo('0.5'))).toEqual([message]);
   });
 });
 
@@ -83,7 +129,7 @@ describe('frame', () => {
         .plane!.frame,
     ).toBe(true);
     expect(serializeStructureOverrides(resolved)).toContain(
-      '"route": "/lab/plane",\n      "frame": false,\n      "framing"',
+      '"route": "/lab/plane",\n      "frame": false,\n      "explode"',
     );
   });
 

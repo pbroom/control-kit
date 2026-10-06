@@ -2,7 +2,9 @@ import { useSyncExternalStore } from 'react';
 import { STRUCTURE_OVERRIDES } from './structure-overrides.js';
 import {
   AUTO_FRAMING,
+  normalizeExplode,
   normalizeFraming,
+  STRUCTURE_DEFAULT_EXPLODE,
   normalizeLayer,
   serializeStructureOverrides,
   type StructureDemoOverride,
@@ -32,6 +34,8 @@ type StructureEditorState = {
   commitNote: string | null;
   /** The file differs from HEAD (null until the dev server answers). */
   dirty: boolean | null;
+  /** The render's current (unsaved) explode gap per page. */
+  liveExplode: Record<string, number>;
   overrides: StructureOverridesFile;
   /** Measured root size per page, for the layer pad's range. */
   rootSizes: Record<string, { height: number; width: number }>;
@@ -71,6 +75,7 @@ let state: StructureEditorState = hotData?.state
       committing: false,
       commitNote: null,
       dirty: null,
+      liveExplode: {},
       overrides: STRUCTURE_OVERRIDES,
       rootSizes: {},
       saveState: 'idle',
@@ -243,6 +248,20 @@ export function changeStructureFraming(
   }));
 }
 
+export function setStructureLiveExplode(pageKey: string, explode: number) {
+  if (state.liveExplode[pageKey] === explode) return;
+
+  setState({ liveExplode: { ...state.liveExplode, [pageKey]: explode } });
+}
+
+/** The demo's saved default gap (0..1). */
+export function changeStructureExplode(pageKey: string, explode: number) {
+  updateDemo(pageKey, (demo) => ({
+    ...demo,
+    explode: normalizeExplode(Math.round(explode * 100) / 100),
+  }));
+}
+
 export function changeStructureFrame(pageKey: string, frame: boolean) {
   updateDemo(pageKey, (demo) => ({ ...demo, frame }));
 }
@@ -270,6 +289,7 @@ export function changeStructureLayer(
 export function resetStructureDemo(pageKey: string) {
   updateDemo(pageKey, (demo) => ({
     ...demo,
+    explode: STRUCTURE_DEFAULT_EXPLODE,
     frame: false,
     framing: AUTO_FRAMING,
     layers: Object.fromEntries(

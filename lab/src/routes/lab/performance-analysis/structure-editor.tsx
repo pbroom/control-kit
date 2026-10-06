@@ -9,6 +9,7 @@ import {
   type PlaneValue,
 } from '@pbroom/control-kit';
 import {
+  changeStructureExplode,
   changeStructureFrame,
   commitStructureOverrides,
   changeStructureFraming,
@@ -177,6 +178,7 @@ export function StructurePropertiesSection({ pageKey }: { pageKey: string }) {
     commitNote,
     committing,
     dirty,
+    liveExplode: liveExplodeByPage,
     overrides,
     rootSizes,
     saveState,
@@ -195,6 +197,7 @@ export function StructurePropertiesSection({ pageKey }: { pageKey: string }) {
               : 'No unsaved changes'));
   const sectionRef = useRef<HTMLElement | null>(null);
   const demo = overrides.demos[pageKey];
+  const liveExplode = liveExplodeByPage[pageKey];
   const nodes = structureOverrideDemo(pageKey)?.nodes ?? [];
 
   // `?structureEdit=1` brings this section into view.
@@ -240,6 +243,41 @@ export function StructurePropertiesSection({ pageKey }: { pageKey: string }) {
       >
         Render frame
       </Checkbox>
+
+      <Field label="Explode">
+        <div className="flex gap-2">
+          <div className="min-w-0 flex-1">
+            <NumberField
+              ariaLabel="Default explode"
+              handle="↕"
+              max={1}
+              min={0}
+              onChange={(value) => changeStructureExplode(pageKey, value)}
+              precision={2}
+              step={0.01}
+              testId="lab-primitive-structure-explode"
+              value={demo.explode}
+            />
+          </div>
+          <button
+            className={ACTION_BUTTON_CLASS}
+            data-testid="lab-primitive-structure-explode-use-current"
+            disabled={
+              liveExplode === undefined ||
+              Math.round(liveExplode * 100) === Math.round(demo.explode * 100)
+            }
+            onClick={() => {
+              if (liveExplode !== undefined) {
+                changeStructureExplode(pageKey, liveExplode);
+              }
+            }}
+            title="Save the Structure tab's current gap as this demo's default"
+            type="button"
+          >
+            Use current
+          </button>
+        </div>
+      </Field>
 
       <Field label="Framing">
         <ModeToggle

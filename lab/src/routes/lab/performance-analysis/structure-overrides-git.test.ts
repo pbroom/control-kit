@@ -55,6 +55,16 @@ describe('structure overrides commit message', () => {
     );
   });
 
+  it('counts an explode-only change', () => {
+    const explodeOnly = edited((file) => {
+      file.demos.slider!.explode = 0.4;
+    });
+
+    expect(buildStructureCommitMessage(head, explodeOnly)).toBe(
+      'Update structure framing (Slider)',
+    );
+  });
+
   it('is null when nothing changed', () => {
     expect(buildStructureCommitMessage(head, head)).toBeNull();
   });

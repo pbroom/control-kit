@@ -19,6 +19,7 @@ import {
 } from './structure-labels.js';
 import {
   selectStructureLayer,
+  setStructureLiveExplode,
   setStructureRootSize,
   useStructureEditorState,
 } from './structure-editor-store.js';
@@ -41,7 +42,10 @@ import {
   type StructureMeasurement,
 } from './structure-measure.js';
 import { structureLayerOffsets } from './structure-overrides.js';
-import type { StructureDemoOverride } from './structure-overrides-schema.js';
+import {
+  STRUCTURE_DEFAULT_EXPLODE,
+  type StructureDemoOverride,
+} from './structure-overrides-schema.js';
 import type {
   LabPrimitiveStructure,
   LabPrimitiveStructureNode,
@@ -65,7 +69,6 @@ const STRUCTURE_CALLOUT_LABEL_MAX_Y = 88;
 const STRUCTURE_CALLOUT_LABEL_GAP_PX = 4;
 const STRUCTURE_FIGURE_RIGHT = 0.64;
 const STRUCTURE_FIGURE_PADDING = 18;
-const STRUCTURE_DEFAULT_EXPLODE = 0.75;
 const STRUCTURE_EXPLODE_SMOOTHING_MS = 90;
 /** Vertical drag distance, as a share of the render height, for the full range. */
 const STRUCTURE_DRAG_RANGE = 0.6;
@@ -456,6 +459,10 @@ function useLabelSprings(
   ]);
 
   useEffect(() => {
+    // A resized render area is not motion to animate: labels snap.
+    const resized =
+      boundsRef.current.minY !== bounds.minY ||
+      boundsRef.current.maxY !== bounds.maxY;
     targetsRef.current = targets;
     boundsRef.current = bounds;
 
@@ -464,7 +471,7 @@ function useLabelSprings(
       bodiesRef.current.length === 0 ||
       targets.every((target) => !known.has(target.id));
 
-    if (reducedMotion || fresh) {
+    if (reducedMotion || fresh || resized) {
       window.cancelAnimationFrame(frameRef.current);
       frameRef.current = 0;
       bodiesRef.current = snapLabels(targets, bounds);
@@ -564,7 +571,19 @@ export function LabPrimitiveStructureView({
   const selectedLayerId = editorState.selectedLayerId;
   const demoOverride: StructureDemoOverride | undefined =
     editorState.overrides.demos[pageKey];
-  const [explode, setExplode] = useState(STRUCTURE_DEFAULT_EXPLODE);
+  // The gap starts at the demo's saved default; drag/keys change it live
+  // without saving. A new saved default (editor or file change) applies
+  // unless a drag is in progress.
+  const savedExplode = demoOverride?.explode ?? STRUCTURE_DEFAULT_EXPLODE;
+  const [explode, setExplode] = useState(savedExplode);
+
+  useEffect(() => {
+    if (!dragRef.current) setExplode(savedExplode);
+  }, [savedExplode]);
+
+  useEffect(() => {
+    setStructureLiveExplode(pageKey, explode);
+  }, [explode, pageKey]);
   const [isDragging, setIsDragging] = useState(false);
   const reducedMotion = usePrefersReducedMotion();
   // A drag follows the pointer directly; keys ease unless motion is reduced.

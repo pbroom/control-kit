@@ -3,6 +3,7 @@ import { PAGE_ROUTE_REGISTRY } from '../lab-page-runtime.js';
 import type { LabPageKey } from '../shared.js';
 import { LAB_PERFORMANCE_ANALYSIS } from './config.js';
 import {
+  normalizeExplode,
   normalizeFraming,
   normalizeLayer,
   STRUCTURE_OVERRIDES_VERSION,
@@ -78,6 +79,7 @@ function resolveDemo(
   }
 
   return {
+    explode: normalizeExplode(entry.explode),
     // Only an explicit true shows the render frame.
     frame: entry.frame === true,
     framing: normalizeFraming(

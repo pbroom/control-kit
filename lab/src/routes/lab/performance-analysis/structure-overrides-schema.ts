@@ -11,6 +11,7 @@
  *       "label": "Control Field",
  *       "route": "/lab/control-field",
  *       "frame": false,
+ *       "explode": 0.75,
  *       "framing": { "mode": "auto", "panX": 0, "panY": 0, "zoom": 1 },
  *       "layers": {
  *         "<node id>": { "label": "Root", "mode": "auto", "x": 0, "z": 0 }
@@ -45,6 +46,8 @@ export type StructureLayerOverride = {
 };
 
 export type StructureDemoOverride = {
+  /** Default layer gap, 0..1 (the render's explode control). Missing = 0.75. */
+  explode: number;
   /**
    * Dev builds: outline the fixed render area and the auto-fit area the
    * figure is framed within. Missing = false.
@@ -66,6 +69,14 @@ export const STRUCTURE_PAN_LIMIT = 0.5;
 export const STRUCTURE_ZOOM_MIN = 0.25;
 export const STRUCTURE_ZOOM_MAX = 4;
 export const STRUCTURE_OFFSET_LIMIT = 2000;
+export const STRUCTURE_DEFAULT_EXPLODE = 0.75;
+
+/** A stored explode value, clamped to 0..1; anything else is the default. */
+export function normalizeExplode(value: unknown) {
+  return typeof value === 'number' && Number.isFinite(value)
+    ? clamp(value, 0, 1)
+    : STRUCTURE_DEFAULT_EXPLODE;
+}
 
 export const AUTO_FRAMING: StructureFramingOverride = {
   mode: 'auto',
@@ -150,6 +161,12 @@ export function validateStructureOverrides(value: unknown): string[] {
     }
     if (typeof demo.label !== 'string')
       errors.push(`${at}.label must be a string`);
+    if (
+      demo.explode !== undefined &&
+      (!finite(demo.explode) || demo.explode < 0 || demo.explode > 1)
+    ) {
+      errors.push(`${at}.explode must be a number in 0..1`);
+    }
     if (demo.frame !== undefined && typeof demo.frame !== 'boolean') {
       errors.push(`${at}.frame must be a boolean`);
     }
@@ -223,6 +240,7 @@ export function serializeStructureOverrides(file: StructureOverridesFile) {
       label: demo.label,
       route: demo.route,
       frame: demo.frame === true,
+      explode: normalizeExplode(demo.explode),
       framing: normalizeFraming(demo.framing),
       layers,
     } as StructureDemoOverride;
