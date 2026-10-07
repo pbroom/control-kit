@@ -12,7 +12,8 @@ the package adheres to [Semantic Versioning](https://semver.org/).
   top-level thumbs) accepts `snap` targets: `grid` (always quantizes, with an
   optional `origin`), magnetic `line` and `point` targets within `snapRadius`
   CSS pixels (default `8`, converted per axis) with 1.5× release hysteresis,
-  and `custom` resolvers. Priority is custom, point, line, then grid. Snapping
+  and `custom` resolvers. Priority is custom, point, line, then grid; lines
+  apply per axis, so perpendicular lines combine. Snapping
   applies to the resulting value after relative drag and before clamping.
   Nested thumbs snap in their local space. Controlled values are not snapped.
 - `snapBypass` (default `'alt'`) disables snapping while the modifier is held
@@ -22,15 +23,18 @@ the package adheres to [Semantic Versioning](https://semver.org/).
   grid-rounded `largeStep` jumps, and Alt/Option steps by `smallStep` ignoring
   the grid. Axis inputs expose the grid size as their native `step` when the
   value is on the grid.
-- `PlaneValueChangeDetails.snap`, `usePlaneThumbContext().snapped`, and
-  `data-snapped` / `data-snapped-axis` / `data-snap-transition` thumb
-  attributes report the active snap target.
+- Optional `PlaneValueChangeDetails.snap` and
+  `usePlaneThumbContext().snapped` (omitted when nothing snapped, so details
+  are unchanged without snapping), and `data-snapped` / `data-snapped-axis` /
+  `data-snap-transition` thumb attributes report the active snap targets.
 - A presentation layer: `motion` accepts a `PlaneMotion`, and
-  `springMotion({ stiffness, damping, mass })` is built in (instant under
-  `prefers-reduced-motion`). Callbacks always receive the logical value
+  `springMotion({ stiffness, damping, mass, smoothDrag })` is built in
+  (instant under `prefers-reduced-motion`). Motion animates snap transitions,
+  keyboard, and programmatic changes; free drags follow the pointer unless
+  `smoothDrag` is set. Callbacks always receive the logical value
   immediately; the default is instant.
 - `resolvePlaneSnap`, the pure snap resolver, plus the `PlaneSnapTarget`,
-  `PlaneSnapHit`, `PlaneSnapAxis`, `PlaneAxisLock`, `PlaneSnapBypass`,
+  `PlaneSnapHit`, `PlaneSnapHitPart`, `PlaneMotionReason`, `PlaneSnapAxis`, `PlaneAxisLock`, `PlaneSnapBypass`,
   `PlaneSnapProps`, `PlaneMotion`, `PlaneSnapContext`, `PlaneSnapResult`,
   `PlaneSnapSpace`, and `PlaneSpringOptions` types.
 

@@ -251,3 +251,30 @@ test('snapped drags do not add Plane layout reads', async ({ page }) => {
   expect(profile.planeBoundsReads).toBeLessThanOrEqual(2);
   expect(browserErrors).toEqual([]);
 });
+
+test('combines perpendicular guide lines and highlights both', async ({
+  page,
+}) => {
+  const { plane, thumb, readout, snapReadout } = await openPlane(page);
+  await page
+    .getByRole('checkbox', { name: 'Snap guides', exact: true })
+    .click();
+  await plane.scrollIntoViewIfNeeded();
+  const bounds = await planeInputBounds(plane);
+  await page.mouse.move(
+    bounds.x + bounds.width * 0.9,
+    bounds.y + bounds.height * 0.9,
+  );
+  await page.mouse.down();
+  // 4px right of and 3px below the centre, where the two lines cross.
+  await page.mouse.move(
+    bounds.x + bounds.width * 0.5 + 4,
+    bounds.y + bounds.height * 0.5 + 3,
+    { steps: 8 },
+  );
+  await expect(thumb).toHaveAttribute('data-snapped-axis', 'both');
+  await expect(plane.locator('[data-plane-guide][data-active]')).toHaveCount(2);
+  await page.mouse.up();
+  await expect(readout).toHaveText('X 0.50 · Y 0.50');
+  await expect(snapReadout).toHaveText('2 targets · xy');
+});

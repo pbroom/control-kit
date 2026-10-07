@@ -39,6 +39,7 @@ function describeSnap(hit: PlaneSnapHit | null) {
   if (!hit) return 'Free';
   const { target } = hit;
   const axes = hit.axes.join('');
+  if (hit.parts) return `${hit.parts.length} targets · ${axes}`;
   if (target.type === 'point')
     return `Point ${target.id ?? hit.index} · ${axes}`;
   if (target.type === 'line')
@@ -82,11 +83,11 @@ function usePlaneLabPageController() {
 
 type PlaneLabPageController = ReturnType<typeof usePlaneLabPageController>;
 
-function PlaneGuides({ activeIndex }: { activeIndex: number | null }) {
+function PlaneGuides({ active: activeSet }: { active: ReadonlySet<number> }) {
   return (
     <div aria-hidden="true" className="pointer-events-none absolute inset-0">
       {GUIDE_TARGETS.map((target, index) => {
-        const active = index === activeIndex;
+        const active = activeSet.has(index);
         const tone = active ? 'bg-sky-400/80' : 'bg-white/15';
         if (target.type === 'line') {
           return (
@@ -155,10 +156,14 @@ function PlanePreview({ controller }: { controller: PlaneLabPageController }) {
     return targets.length > 0 ? targets : undefined;
   }, [gridX, gridY, guides]);
   const guideOffset = gridX > 0 || gridY > 0 ? 1 : 0;
-  const activeGuideIndex =
-    snapHit && guides && snapHit.target.type !== 'grid'
-      ? snapHit.index - guideOffset
-      : null;
+  // Perpendicular lines can apply together; highlight every applied guide.
+  const activeGuides = new Set(
+    snapHit && guides
+      ? (snapHit.parts ?? [snapHit])
+          .filter((part) => part.target.type !== 'grid')
+          .map((part) => part.index - guideOffset)
+      : [],
+  );
   const motion = useMemo(
     () => (snapTransition === 'spring' ? springMotion() : undefined),
     [snapTransition],
@@ -175,13 +180,13 @@ function PlanePreview({ controller }: { controller: PlaneLabPageController }) {
         readOnly={controller.readOnly}
         dragBehavior={controller.relativeDrag ? 'relative' : 'absolute'}
       >
-        {guides ? <PlaneGuides activeIndex={activeGuideIndex} /> : null}
+        {guides ? <PlaneGuides active={activeGuides} /> : null}
         <PlaneThumb
           data-testid="plane-demo-thumb"
           value={value}
           onValueChange={(next, details) => {
             setValue(next);
-            setSnapHit(details.snap);
+            setSnapHit(details.snap ?? null);
           }}
           onValueCommitted={controller.setValue}
           step={0.01}

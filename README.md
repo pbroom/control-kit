@@ -301,9 +301,11 @@ while `line` and `point` targets are magnetic within `snapRadius` CSS pixels
 bypass snapping (`snapBypass="meta" | false` changes that). `axisLock` restricts
 drags to one axis, or to the dominant axis while Shift is held. With a grid,
 arrow keys move to the next grid line. Callbacks report the hit as
-`details.snap`, and the thumb gets `data-snapped`. Snapping is instant by
-default: animate `left`/`top` under `[data-snap-transition]`, or pass
-`motion={springMotion()}`; the reported value never lags.
+`details.snap` (omitted when nothing snapped), and the thumb gets
+`data-snapped`. Snapping is instant by default: animate `left`/`top` under
+`[data-snap-transition]`, or pass a hoisted `motion={spring}` from
+`springMotion()`, which animates snaps and keyboard jumps while free drags
+follow the pointer; the reported value never lags.
 
 ## Development
 

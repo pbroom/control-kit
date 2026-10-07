@@ -70,7 +70,7 @@ const PLANE_PROPS = [
     type: 'PlaneMotion | undefined',
     defaultValue: 'instant',
     description:
-      'Presentation-only motion toward the logical value, for example springMotion(). Callbacks never lag.',
+      'Presentation-only motion for snap transitions, keyboard, and programmatic changes; free drags follow the pointer. Hoist or memoize springMotion(). Callbacks never lag.',
   },
   {
     name: 'onHoverValueChange',
@@ -286,7 +286,7 @@ const PLANE_THUMB_PROPS = [
     type: 'PlaneMotion | undefined',
     defaultValue: 'instant',
     description:
-      'Presentation-only motion toward the logical value, for example springMotion(). Callbacks never lag.',
+      'Presentation-only motion for snap transitions, keyboard, and programmatic changes; free drags follow the pointer. Hoist or memoize springMotion(). Callbacks never lag.',
   },
 ] satisfies readonly PropReference[];
 
