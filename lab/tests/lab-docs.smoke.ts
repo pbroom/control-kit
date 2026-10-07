@@ -949,14 +949,15 @@ test('routes between Plane docs and Lab and exposes tabs only on documented page
   await expect(
     page.getByRole('heading', { name: 'API reference', exact: true }),
   ).toBeVisible();
-  await expect(page.locator('pre[data-language="tsx"]')).toHaveCount(9);
+  // Includes the "don't clip the Plane root" snippet in Usage guidelines.
+  await expect(page.locator('pre[data-language="tsx"]')).toHaveCount(10);
   const codeBlocks = page.locator('[data-docs-code-block]');
   const copyButtons = page.getByRole('button', {
     name: 'Copy code',
     exact: true,
   });
-  await expect(codeBlocks).toHaveCount(9);
-  await expect(copyButtons).toHaveCount(9);
+  await expect(codeBlocks).toHaveCount(10);
+  await expect(copyButtons).toHaveCount(10);
   expect(
     await codeBlocks.evaluateAll((blocks) =>
       blocks.every((block) => block.classList.contains('not-typeset')),

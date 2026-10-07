@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { Plane, PlaneThumb, type PlaneValue } from '@pbroom/control-kit';
 
 const EXAMPLE_PLANE_CLASS_NAME =
-  'relative size-[240px] touch-none overflow-hidden rounded-2xl border border-white/12 [background-origin:border-box] bg-[#171718] max-sm:size-[220px]';
+  'relative size-[240px] touch-none rounded-2xl border border-white/12 [background-origin:border-box] bg-[#171718] max-sm:size-[220px]';
 const EXAMPLE_THUMB_CLASS_NAME =
   'size-6 border-2 border-white bg-[#171718] shadow-[0_2px_10px_rgba(0,0,0,0.45)]';
 
@@ -71,7 +71,13 @@ export function PatternOffsetExample() {
           backgroundSize: '32px 32px',
         }}
       >
-        <CrosshairLayer value={value} />
+        {/* Clip the surface content, never the thumbs. */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]"
+        >
+          <CrosshairLayer value={value} />
+        </div>
         <PlaneThumb
           className={EXAMPLE_THUMB_CLASS_NAME}
           getAriaValueText={formatPatternOffset}

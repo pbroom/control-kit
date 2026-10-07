@@ -18,21 +18,27 @@ export function RecommendationMatrixExample() {
     <div className="flex min-h-[360px] flex-col items-center justify-center gap-4 p-6 max-sm:min-h-[340px] max-sm:p-4">
       <Plane
         aria-label="Recommendation style"
-        className="relative size-[240px] touch-none overflow-hidden rounded-2xl border border-white/12 [background-origin:border-box] bg-[linear-gradient(135deg,#24324a_0%,#253e35_48%,#6c3a2e_100%)] max-sm:size-[220px]"
+        className="relative size-[240px] touch-none rounded-2xl border border-white/12 [background-origin:border-box] bg-[linear-gradient(135deg,#24324a_0%,#253e35_48%,#6c3a2e_100%)] max-sm:size-[220px]"
       >
-        <div aria-hidden="true" className="absolute inset-0">
-          <span className="absolute top-2 left-2 rounded bg-black/35 px-1.5 py-1 text-[9px] font-medium tracking-wide text-white/70 backdrop-blur-sm">
-            Familiar · adventurous
-          </span>
-          <span className="absolute top-2 right-2 rounded bg-black/35 px-1.5 py-1 text-[9px] font-medium tracking-wide text-white/70 backdrop-blur-sm">
-            Novel · adventurous
-          </span>
-          <span className="absolute bottom-2 left-2 rounded bg-black/35 px-1.5 py-1 text-[9px] font-medium tracking-wide text-white/70 backdrop-blur-sm">
-            Familiar · safe
-          </span>
-          <span className="absolute right-2 bottom-2 rounded bg-black/35 px-1.5 py-1 text-[9px] font-medium tracking-wide text-white/70 backdrop-blur-sm">
-            Novel · safe
-          </span>
+        {/* Clip the surface content, never the thumbs. */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]"
+        >
+          <div aria-hidden="true" className="absolute inset-0">
+            <span className="absolute top-2 left-2 rounded bg-black/35 px-1.5 py-1 text-[9px] font-medium tracking-wide text-white/70 backdrop-blur-sm">
+              Familiar · adventurous
+            </span>
+            <span className="absolute top-2 right-2 rounded bg-black/35 px-1.5 py-1 text-[9px] font-medium tracking-wide text-white/70 backdrop-blur-sm">
+              Novel · adventurous
+            </span>
+            <span className="absolute bottom-2 left-2 rounded bg-black/35 px-1.5 py-1 text-[9px] font-medium tracking-wide text-white/70 backdrop-blur-sm">
+              Familiar · safe
+            </span>
+            <span className="absolute right-2 bottom-2 rounded bg-black/35 px-1.5 py-1 text-[9px] font-medium tracking-wide text-white/70 backdrop-blur-sm">
+              Novel · safe
+            </span>
+          </div>
         </div>
         <PlaneThumb
           aria-label="Recommendation balance"

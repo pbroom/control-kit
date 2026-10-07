@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { Plane, PlaneThumb, type PlaneValue } from '@pbroom/control-kit';
 
 const EXAMPLE_PLANE_CLASS_NAME =
-  'relative size-[240px] touch-none overflow-hidden rounded-2xl border border-white/12 [background-origin:border-box] bg-[#171718] max-sm:size-[220px]';
+  'relative size-[240px] touch-none rounded-2xl border border-white/12 [background-origin:border-box] bg-[#171718] max-sm:size-[220px]';
 const EXAMPLE_THUMB_CLASS_NAME =
   'size-6 border-2 border-white bg-[#171718] shadow-[0_2px_10px_rgba(0,0,0,0.45)]';
 
@@ -68,24 +68,30 @@ export function FilterCutoffResonanceExample() {
         aria-label="Filter cutoff and resonance"
         className={`${EXAMPLE_PLANE_CLASS_NAME} bg-[#101418]`}
       >
-        <GridLayer subdivisions={6} />
-        <svg
+        {/* Clip the surface content, never the thumbs. */}
+        <div
           aria-hidden="true"
-          className="absolute inset-0 size-full"
-          viewBox="0 0 100 100"
-          preserveAspectRatio="none"
+          className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]"
         >
-          <path
-            d={`M 0 78 L ${Math.max(0, cutoffX - 14)} 78 C ${cutoffX - 8} 78, ${cutoffX - 5} ${peakY}, ${cutoffX} ${peakY} C ${cutoffX + 5} ${peakY}, ${cutoffX + 8} 92, 100 96`}
-            fill="none"
-            stroke="rgb(74 222 128)"
-            strokeWidth="2"
-          />
-          <path
-            d={`M 0 78 L ${Math.max(0, cutoffX - 14)} 78 C ${cutoffX - 8} 78, ${cutoffX - 5} ${peakY}, ${cutoffX} ${peakY} C ${cutoffX + 5} ${peakY}, ${cutoffX + 8} 92, 100 96 L 100 100 L 0 100 Z`}
-            fill="rgb(74 222 128 / 0.12)"
-          />
-        </svg>
+          <GridLayer subdivisions={6} />
+          <svg
+            aria-hidden="true"
+            className="absolute inset-0 size-full"
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+          >
+            <path
+              d={`M 0 78 L ${Math.max(0, cutoffX - 14)} 78 C ${cutoffX - 8} 78, ${cutoffX - 5} ${peakY}, ${cutoffX} ${peakY} C ${cutoffX + 5} ${peakY}, ${cutoffX + 8} 92, 100 96`}
+              fill="none"
+              stroke="rgb(74 222 128)"
+              strokeWidth="2"
+            />
+            <path
+              d={`M 0 78 L ${Math.max(0, cutoffX - 14)} 78 C ${cutoffX - 8} 78, ${cutoffX - 5} ${peakY}, ${cutoffX} ${peakY} C ${cutoffX + 5} ${peakY}, ${cutoffX + 8} 92, 100 96 L 100 100 L 0 100 Z`}
+              fill="rgb(74 222 128 / 0.12)"
+            />
+          </svg>
+        </div>
         <PlaneThumb
           className={`${EXAMPLE_THUMB_CLASS_NAME} border-green-200 bg-green-500`}
           getAriaValueText={formatFilter}

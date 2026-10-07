@@ -18,30 +18,36 @@ export function ImportanceUrgencyExample() {
     <div className="flex min-h-[360px] flex-col items-center justify-center gap-4 p-6 max-sm:min-h-[340px] max-sm:p-4">
       <Plane
         aria-label="Importance and urgency matrix"
-        className="relative size-[240px] touch-none overflow-hidden rounded-2xl border border-white/12 [background-origin:border-box] bg-[linear-gradient(45deg,#25332e_0%,#3b3425_48%,#682f36_100%)] max-sm:size-[220px]"
+        className="relative size-[240px] touch-none rounded-2xl border border-white/12 [background-origin:border-box] bg-[linear-gradient(45deg,#25332e_0%,#3b3425_48%,#682f36_100%)] max-sm:size-[220px]"
       >
+        {/* Clip the surface content, never the thumbs. */}
         <div
           aria-hidden="true"
-          className="absolute inset-0"
-          style={{
-            backgroundImage:
-              'linear-gradient(to right, rgb(255 255 255 / 0.12) 1px, transparent 1px), linear-gradient(to bottom, rgb(255 255 255 / 0.12) 1px, transparent 1px)',
-            backgroundSize: '50% 50%',
-          }}
-        />
-        <div aria-hidden="true" className="absolute inset-0">
-          <span className="absolute top-2 left-2 rounded bg-black/35 px-1.5 py-1 text-[9px] font-medium tracking-wide text-white/70 backdrop-blur-sm">
-            Delegate
-          </span>
-          <span className="absolute top-2 right-2 rounded bg-black/35 px-1.5 py-1 text-[9px] font-medium tracking-wide text-white/70 backdrop-blur-sm">
-            Do now
-          </span>
-          <span className="absolute bottom-2 left-2 rounded bg-black/35 px-1.5 py-1 text-[9px] font-medium tracking-wide text-white/70 backdrop-blur-sm">
-            Eliminate
-          </span>
-          <span className="absolute right-2 bottom-2 rounded bg-black/35 px-1.5 py-1 text-[9px] font-medium tracking-wide text-white/70 backdrop-blur-sm">
-            Schedule
-          </span>
+          className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]"
+        >
+          <div
+            aria-hidden="true"
+            className="absolute inset-0"
+            style={{
+              backgroundImage:
+                'linear-gradient(to right, rgb(255 255 255 / 0.12) 1px, transparent 1px), linear-gradient(to bottom, rgb(255 255 255 / 0.12) 1px, transparent 1px)',
+              backgroundSize: '50% 50%',
+            }}
+          />
+          <div aria-hidden="true" className="absolute inset-0">
+            <span className="absolute top-2 left-2 rounded bg-black/35 px-1.5 py-1 text-[9px] font-medium tracking-wide text-white/70 backdrop-blur-sm">
+              Delegate
+            </span>
+            <span className="absolute top-2 right-2 rounded bg-black/35 px-1.5 py-1 text-[9px] font-medium tracking-wide text-white/70 backdrop-blur-sm">
+              Do now
+            </span>
+            <span className="absolute bottom-2 left-2 rounded bg-black/35 px-1.5 py-1 text-[9px] font-medium tracking-wide text-white/70 backdrop-blur-sm">
+              Eliminate
+            </span>
+            <span className="absolute right-2 bottom-2 rounded bg-black/35 px-1.5 py-1 text-[9px] font-medium tracking-wide text-white/70 backdrop-blur-sm">
+              Schedule
+            </span>
+          </div>
         </div>
         <PlaneThumb
           aria-label="Work priority"

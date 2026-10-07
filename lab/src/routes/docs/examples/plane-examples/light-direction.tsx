@@ -37,23 +37,29 @@ export function LightDirectionExample() {
     <div className="flex min-h-[360px] flex-col items-center justify-center gap-4 p-6 max-sm:min-h-[340px] max-sm:p-4">
       <Plane
         aria-label="Light direction"
-        className="relative size-[240px] touch-none overflow-hidden rounded-full border border-white/12 [background-origin:border-box] bg-[radial-gradient(circle,#30343b_0_32%,#15171b_33%_100%)] max-sm:size-[220px]"
+        className="relative size-[240px] touch-none rounded-full border border-white/12 [background-origin:border-box] bg-[radial-gradient(circle,#30343b_0_32%,#15171b_33%_100%)] max-sm:size-[220px]"
       >
-        <span
+        {/* Clip the surface content, never the thumbs. */}
+        <div
           aria-hidden="true"
-          className="absolute top-1/2 left-1/2 h-px origin-left bg-amber-200/60"
-          style={{
-            transform: `rotate(${-vector.angle}deg)`,
-            width: `${vector.magnitude * 50}%`,
-          }}
-        />
-        <span
-          aria-hidden="true"
-          className="absolute top-1/2 left-1/2 size-16 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle_at_35%_30%,#f4f4f5,#9ca3af_55%,#34383f)]"
-          style={{
-            boxShadow: `${-vector.x * 16}px ${vector.y * 16}px 20px rgb(0 0 0 / 0.72)`,
-          }}
-        />
+          className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]"
+        >
+          <span
+            aria-hidden="true"
+            className="absolute top-1/2 left-1/2 h-px origin-left bg-amber-200/60"
+            style={{
+              transform: `rotate(${-vector.angle}deg)`,
+              width: `${vector.magnitude * 50}%`,
+            }}
+          />
+          <span
+            aria-hidden="true"
+            className="absolute top-1/2 left-1/2 size-16 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle_at_35%_30%,#f4f4f5,#9ca3af_55%,#34383f)]"
+            style={{
+              boxShadow: `${-vector.x * 16}px ${vector.y * 16}px 20px rgb(0 0 0 / 0.72)`,
+            }}
+          />
+        </div>
         <PlaneThumb
           aria-label="Directional light"
           className="size-6 border-2 border-amber-100 bg-amber-300 shadow-[0_2px_10px_rgba(0,0,0,0.45)]"

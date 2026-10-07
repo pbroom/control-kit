@@ -7,27 +7,6 @@ export type LabPerformanceAnalysis = {
   primitiveStructure: LabPrimitiveStructure;
 };
 
-export type LabPrimitiveStructureGridSpan =
-  | 1
-  | 2
-  | 3
-  | 4
-  | 5
-  | 6
-  | 7
-  | 8
-  | 9
-  | 10
-  | 11
-  | 12;
-
-export type LabPrimitiveStructureGridLayout = {
-  column?: number;
-  height?: LabPrimitiveStructureGridSpan;
-  row?: number;
-  width?: LabPrimitiveStructureGridSpan;
-};
-
 export type LabPrimitiveStructureNodeRelation =
   | 'root'
   | 'child'
@@ -49,16 +28,44 @@ export type LabPrimitiveStructureNodeState =
   | 'optional'
   | 'implicit';
 
-export type LabPrimitiveStructureNodeView = {
-  color: string;
-  depth?: number;
-  height?: number;
-  layout?: LabPrimitiveStructureGridLayout;
-  offsetX?: number;
-  offsetY?: number;
-  offsetZ?: number;
-  opacity?: number;
-  width?: number;
+/** A rect in CSS px, relative to the measured root's border box. */
+export type LabPrimitiveStructureRect = {
+  height: number;
+  width: number;
+  x: number;
+  y: number;
+};
+
+/**
+ * Where a structure node lives in the rendered preview. The structure view
+ * measures these elements (getBoundingClientRect + computed style) instead of
+ * using authored geometry.
+ */
+export type LabPrimitiveStructureNodeMeasure = {
+  /** Matches every element (true) or only the first one (default). */
+  all?: boolean;
+  /**
+   * Where the part is expected to appear, relative to the root part, until
+   * it has been measured once (popups that are closed at first). Drawn as a
+   * ghost outline and included in the framing.
+   */
+  estimate?: readonly LabPrimitiveStructureRect[];
+  /** Trace the element's centre across the surface below it (2D thumbs). */
+  crosshair?: boolean;
+  /**
+   * Geometry for an element that is not laid out itself (e.g. a thumb hidden
+   * in favour of a canvas-drawn one), relative to the root. Null skips it.
+   */
+  resolveRect?: (
+    element: Element,
+    root: Element,
+  ) => LabPrimitiveStructureRect | null;
+  /**
+   * Custom lookup, for parts that live outside the preview (portals reached
+   * through aria-controls). Used instead of `selector` when present.
+   */
+  find?: (preview: Element) => readonly Element[];
+  selector?: string;
 };
 
 export type LabPrimitiveStructureNode = {
@@ -67,18 +74,16 @@ export type LabPrimitiveStructureNode = {
   detail: string;
   id: string;
   label: string;
+  measure?: LabPrimitiveStructureNodeMeasure;
   relation: LabPrimitiveStructureNodeRelation;
   slot?: LabPrimitiveStructureNodeSlot;
   state?: LabPrimitiveStructureNodeState;
-  view?: LabPrimitiveStructureNodeView;
 };
 
 export type LabPrimitiveStructure = {
-  defaultLayerGap?: number;
   root: LabPrimitiveStructureNode;
   summary: string;
   title: string;
-  visibleDepth?: number;
 };
 
 export type LabPerformanceResourceStats = {

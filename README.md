@@ -294,6 +294,26 @@ child's value.
 Ordinary child buttons and fields work directly inside a thumb. Add the optional
 `PlaneAttachment` for collision-aware positioning and portaling of attached UI.
 
+Don't clip the Plane root. A thumb is centred on its value, so at an edge or
+corner half of it lies outside the plane; `overflow: hidden` on the root cuts it
+in half. Keep the root `overflow: visible` (the default) and put any clipped
+surface content in an inner layer:
+
+```tsx
+<Plane
+  aria-label="Position"
+  className="relative size-72 rounded-xl border bg-zinc-900"
+>
+  <div
+    aria-hidden="true"
+    className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]"
+  >
+    {/* Images, canvases, oversized guides: clipped here. */}
+  </div>
+  <PlaneThumb value={point} onValueChange={setPoint} />
+</Plane>
+```
+
 ## Development
 
 ```sh

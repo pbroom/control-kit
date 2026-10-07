@@ -1,216 +1,141 @@
 import {
-  type Dispatch,
+  type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
   type RefObject,
-  type SetStateAction,
+  useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
 } from 'react';
+import {
+  type LabelBody,
+  type LabelBounds,
+  type LabelTarget,
+  snapLabels,
+  stepLabels,
+} from './structure-labels.js';
+import {
+  selectStructureLayer,
+  setStructureLiveExplode,
+  setStructureRootSize,
+  useStructureEditorState,
+} from './structure-editor-store.js';
+import {
+  buildStructureFigure,
+  fitStructureCamera,
+  frameStructureCamera,
+  structureFrameOverlay,
+  offsetStructureMeasurement,
+  type StructureFigureRegion,
+  type StructureRect,
+  unionRects,
+  type Vec2,
+} from './structure-iso.js';
+import {
+  findLabPreviewHost,
+  measurePrimitiveStructure,
+  trackLiveSlabs,
+  type StructureGhostCache,
+  type StructureMeasurement,
+} from './structure-measure.js';
+import { structureLayerOffsets } from './structure-overrides.js';
+import {
+  STRUCTURE_DEFAULT_EXPLODE,
+  type StructureDemoOverride,
+} from './structure-overrides-schema.js';
 import type {
   LabPrimitiveStructure,
   LabPrimitiveStructureNode,
   LabPrimitiveStructureNodeRelation,
   LabPrimitiveStructureNodeSlot,
   LabPrimitiveStructureNodeState,
-  LabPrimitiveStructureNodeView,
 } from './types.js';
 
-type ThreeModule = typeof import('three');
-type ThreeObject3D = InstanceType<ThreeModule['Object3D']>;
-type ThreeOrthographicCamera = InstanceType<ThreeModule['OrthographicCamera']>;
-type ThreeMesh = InstanceType<ThreeModule['Mesh']>;
-type ThreeMeshBasicMaterial = InstanceType<ThreeModule['MeshBasicMaterial']>;
-type ThreeLineBasicMaterial = InstanceType<ThreeModule['LineBasicMaterial']>;
+/*
+ * The Structure tab: the selected primitive, measured from the live preview
+ * and drawn as an exploded isometric line figure in the manner of Hairline
+ * (https://github.com/lucasmarkes/hairline, MIT). The figure is plain SVG:
+ * filled plates painted back to front, 1-device-pixel non-scaling strokes,
+ * DOM hit-testing for hover, and no frame loop unless the gap is animating.
+ */
 
-const STRUCTURE_CAMERA_DISTANCE = 8.2;
-const STRUCTURE_FRUSTUM_SIZE = 7.35;
-const STRUCTURE_CAMERA_PADDING = 1.24;
-const STRUCTURE_CAMERA_SCREEN_OFFSET_X = 0.1;
-const STRUCTURE_LAYER_GAP_Y = 0.64;
-// Authored spans use twelfths; the resolver maps them onto a 24-cell grid
-// so odd spans still center cleanly inside a parent.
-const STRUCTURE_GRID_SIZE = 24;
-const STRUCTURE_GRID_SPAN_UNITS = 12;
-const STRUCTURE_GRID_CELLS_PER_SPAN_UNIT =
-  STRUCTURE_GRID_SIZE / STRUCTURE_GRID_SPAN_UNITS;
-const STRUCTURE_ROOT_GRID_WORLD_SIZE = 4.8;
-const STRUCTURE_DEFAULT_VISIBLE_DEPTH = 1;
-const STRUCTURE_MAX_PIXEL_RATIO = 2;
-const STRUCTURE_CALLOUT_LABEL_X = 68;
-const STRUCTURE_CALLOUT_LABEL_MIN_Y = 18;
-const STRUCTURE_CALLOUT_LABEL_MAX_Y = 84;
-const STRUCTURE_CALLOUT_LABEL_MIN_GAP_PX = 28;
+const STRUCTURE_CALLOUT_LABEL_X = 70;
+const STRUCTURE_CALLOUT_LABEL_MIN_Y = 12;
+const STRUCTURE_CALLOUT_LABEL_MAX_Y = 88;
+/** Clear space between two label boxes. */
+const STRUCTURE_CALLOUT_LABEL_GAP_PX = 4;
+const STRUCTURE_FIGURE_RIGHT = 0.64;
+const STRUCTURE_FIGURE_PADDING = 18;
+const STRUCTURE_EXPLODE_SMOOTHING_MS = 90;
+/** Vertical drag distance, as a share of the render height, for the full range. */
+const STRUCTURE_DRAG_RANGE = 0.6;
+const STRUCTURE_KEY_STEP = 0.05;
+const STRUCTURE_PAGE_STEP = 0.2;
 
-const STRUCTURE_LAYER_CALLOUTS = [
-  {
-    labelX: STRUCTURE_CALLOUT_LABEL_X,
-    labelY: 78,
-    targetX: 59,
-    targetY: 78,
-  },
-  {
-    labelX: STRUCTURE_CALLOUT_LABEL_X,
-    labelY: 66,
-    targetX: 58,
-    targetY: 66,
-  },
-  {
-    labelX: STRUCTURE_CALLOUT_LABEL_X,
-    labelY: 56,
-    targetX: 52,
-    targetY: 56,
-  },
-  {
-    labelX: STRUCTURE_CALLOUT_LABEL_X,
-    labelY: 45,
-    targetX: 58,
-    targetY: 45,
-  },
-  {
-    labelX: STRUCTURE_CALLOUT_LABEL_X,
-    labelY: 36,
-    targetX: 44,
-    targetY: 36,
-  },
-] as const;
+const STRUCTURE_PALETTE = {
+  // Lids are a lighter neutral than the panel (#171717), sides darker, so
+  // painted parts read as solid plates; strokes step down edge > text > mid > lo.
+  '--structure-accent': '#4ba3ff',
+  '--structure-accent-top': 'color-mix(in srgb, #4ba3ff 22%, #26272b)',
+  '--structure-edge': '#a6a9b1',
+  '--structure-frame': '#5b5e66',
+  '--structure-hi': '#eef0f3',
+  '--structure-lo': '#4b4d54',
+  '--structure-mid': '#7b7e88',
+  '--structure-plate': '#26272b',
+  '--structure-side': '#0e0e10',
+  '--structure-text': '#b9bdc5',
+  '--structure-text-fill': '#3a3c42',
+} as CSSProperties;
 
 type StructureCalloutPosition = {
+  /** Horizontal slide (px) while passing another label. */
+  dx: number;
   labelX: number;
   labelY: number;
   targetX: number;
   targetY: number;
 };
 
-type StructureCalloutPositions = Record<string, StructureCalloutPosition>;
-
-type StructureLayerFrame = {
-  height: number;
-  width: number;
-  x: number;
-  z: number;
-};
-
-type StructureRenderLayer = {
-  color: string;
-  component: string;
-  detail: string;
-  height: number;
-  id: string;
-  label: string;
-  layerIndex: number;
-  opacity: number;
-  parentId: string | null;
-  path: readonly string[];
-  relation: LabPrimitiveStructureNodeRelation;
-  slot?: LabPrimitiveStructureNodeSlot;
-  state: LabPrimitiveStructureNodeState;
-  treeDepth: number;
-  width: number;
-  x: number;
-  y: number;
-  z: number;
-};
-
 type StructureNodeEntry = {
   component: string;
   detail: string;
   id: string;
+  index: number;
   label: string;
+  /** The config points this node at rendered element(s). */
+  measurable: boolean;
   parentId: string | null;
   path: readonly string[];
   relation: LabPrimitiveStructureNodeRelation;
   slot?: LabPrimitiveStructureNodeSlot;
   state: LabPrimitiveStructureNodeState;
   treeDepth: number;
-  view?: LabPrimitiveStructureNodeView;
 };
 
-type StructureLayerSceneBinding = {
-  anchor: ThreeObject3D;
-  baseColor: InstanceType<ThreeModule['Color']>;
-  edgeColor: InstanceType<ThreeModule['Color']>;
-  edgeMaterial: ThreeLineBasicMaterial;
-  edgeOpacity: number;
-  edges: ThreeObject3D;
-  layerId: string;
-  layerIndex: number;
-  material: ThreeMeshBasicMaterial;
-  mesh: ThreeMesh;
-  mutedOpacity: number;
-  opacity: number;
-};
+const STRUCTURE_CLICK_SLOP_PX = 4;
 
-type StructureSceneControls = {
-  resize: () => void;
-  setActiveLayer: (layerId: string | null) => void;
-};
+/** Popup extents seen per lab page, kept for the session. */
+const FRAME_EXTENT_CACHE = new Map<string, StructureRect>();
+/** Last measured rects per page and node, for ghost outlines. */
+const GHOST_CACHE = new Map<string, StructureGhostCache>();
+
+function ghostCacheFor(pageKey: string) {
+  let cache = GHOST_CACHE.get(pageKey);
+
+  if (!cache) {
+    cache = new Map();
+    GHOST_CACHE.set(pageKey, cache);
+  }
+
+  return cache;
+}
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
-}
-
-function gridSpanToCellSpan(span: number) {
-  return (
-    clamp(span, 1, STRUCTURE_GRID_SPAN_UNITS) *
-    STRUCTURE_GRID_CELLS_PER_SPAN_UNIT
-  );
-}
-
-function gridTrackStart(track: number | undefined, cellSpan: number) {
-  return clamp(
-    track ?? (STRUCTURE_GRID_SIZE - cellSpan) / 2,
-    0,
-    Math.max(0, STRUCTURE_GRID_SIZE - cellSpan),
-  );
-}
-
-function resolveLayerFrame(
-  view: LabPrimitiveStructureNodeView,
-  parentFrame: StructureLayerFrame | null,
-): StructureLayerFrame {
-  if (view.layout) {
-    const parent = parentFrame ?? {
-      height: STRUCTURE_ROOT_GRID_WORLD_SIZE,
-      width: STRUCTURE_ROOT_GRID_WORLD_SIZE,
-      x: 0,
-      z: 0,
-    };
-    const widthCellSpan = gridSpanToCellSpan(
-      view.layout.width ?? STRUCTURE_GRID_SPAN_UNITS,
-    );
-    const heightCellSpan = gridSpanToCellSpan(
-      view.layout.height ?? STRUCTURE_GRID_SPAN_UNITS,
-    );
-    const column = gridTrackStart(view.layout.column, widthCellSpan);
-    const row = gridTrackStart(view.layout.row, heightCellSpan);
-    const width = parent.width * (widthCellSpan / STRUCTURE_GRID_SIZE);
-    const height = parent.height * (heightCellSpan / STRUCTURE_GRID_SIZE);
-    const x =
-      parent.x -
-      parent.width / 2 +
-      ((column + widthCellSpan / 2) / STRUCTURE_GRID_SIZE) * parent.width;
-    const z =
-      parent.z +
-      parent.height / 2 -
-      ((row + heightCellSpan / 2) / STRUCTURE_GRID_SIZE) * parent.height;
-
-    return { height, width, x, z };
-  }
-
-  const parent = parentFrame ?? {
-    height: STRUCTURE_ROOT_GRID_WORLD_SIZE,
-    width: STRUCTURE_ROOT_GRID_WORLD_SIZE,
-    x: 0,
-    z: 0,
-  };
-
-  return {
-    height: view.height ?? parent.height,
-    width: view.width ?? parent.width,
-    x: parent.x + (view.offsetX ?? 0),
-    z: parent.z - (view.offsetY ?? 0),
-  };
 }
 
 function createStructureNodeEntries(
@@ -230,14 +155,15 @@ function createStructureNodeEntries(
       component: node.component,
       detail: node.detail,
       id: node.id,
+      index: entries.length,
       label: node.label,
+      measurable: node.measure !== undefined,
       parentId,
       path,
       relation: node.relation,
       slot: node.slot,
       state: node.state ?? 'default',
       treeDepth,
-      view: node.view,
     });
 
     node.children?.forEach((childNode) => {
@@ -250,662 +176,374 @@ function createStructureNodeEntries(
   return entries;
 }
 
-function createStructureRenderLayers(
+function usePrefersReducedMotion() {
+  const [reduced, setReduced] = useState(
+    () =>
+      typeof window !== 'undefined' &&
+      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true,
+  );
+
+  useEffect(() => {
+    const query = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+
+    if (!query) return;
+
+    const onChange = () => setReduced(query.matches);
+    query.addEventListener('change', onChange);
+
+    return () => query.removeEventListener('change', onChange);
+  }, []);
+
+  return reduced;
+}
+
+/**
+ * Measures the primitive in the preview and keeps the result current. All
+ * triggers (resize, DOM/attribute changes, portals opening, focus, transitions)
+ * coalesce into at most one read pass per frame, and an unchanged snapshot
+ * does not re-render.
+ */
+function useStructureMeasurement(
   structure: LabPrimitiveStructure,
-): readonly StructureRenderLayer[] {
-  const layers: StructureRenderLayer[] = [];
-  const visibleDepth =
-    structure.visibleDepth ?? STRUCTURE_DEFAULT_VISIBLE_DEPTH;
-  const layerGap = structure.defaultLayerGap ?? STRUCTURE_LAYER_GAP_Y;
+  pageKey: string,
+) {
+  const [measurement, setMeasurement] = useState<StructureMeasurement | null>(
+    null,
+  );
 
-  const visitNode = (
-    node: LabPrimitiveStructureNode,
-    treeDepth: number,
-    renderDepth: number,
-    parentFrame: StructureLayerFrame | null,
-    parentId: string | null,
-    parentPath: readonly string[],
-  ) => {
-    const path = [...parentPath, node.id];
-    const nextRenderDepth = node.view ? renderDepth + 1 : renderDepth;
-    const frame = node.view
-      ? resolveLayerFrame(node.view, parentFrame)
-      : parentFrame;
+  useEffect(() => {
+    let frame = 0;
+    let retryTimer = 0;
+    let observedHost: Element | null = null;
+    let signature = '';
+    // A drag in the preview mutates it every frame. While it lasts, only the
+    // percentage-positioned parts (thumbs) are moved, from their inline
+    // style/data values (no layout reads); a full measure follows release.
+    let pointerActive = false;
+    let deferred = false;
+    let latest: StructureMeasurement | null = null;
+    const resizeObserver = new ResizeObserver(() => schedule());
+    const mutationObserver = new MutationObserver(() => schedule());
+    const portalObserver = new MutationObserver(() => schedule());
 
-    if (node.view && nextRenderDepth <= visibleDepth) {
-      const layerIndex = layers.length;
+    const observeHost = (host: Element | null) => {
+      if (host === observedHost) return;
 
-      layers.push({
-        color: node.view.color,
-        component: node.component,
-        detail: node.detail,
-        height: frame?.height ?? STRUCTURE_ROOT_GRID_WORLD_SIZE,
-        id: node.id,
-        label: node.label,
-        layerIndex,
-        opacity: node.view.opacity ?? 0.82,
-        parentId,
-        path,
-        relation: node.relation,
-        slot: node.slot,
-        state: node.state ?? 'default',
-        treeDepth,
-        width: frame?.width ?? STRUCTURE_ROOT_GRID_WORLD_SIZE,
-        x: frame?.x ?? 0,
-        y: layerIndex * layerGap + (node.view.offsetZ ?? 0) * 0.1,
-        z: frame?.z ?? 0,
+      resizeObserver.disconnect();
+      mutationObserver.disconnect();
+      observedHost = host;
+
+      if (!host) return;
+
+      resizeObserver.observe(host);
+      for (const child of Array.from(host.querySelectorAll('*')).slice(0, 8)) {
+        resizeObserver.observe(child);
+      }
+      mutationObserver.observe(host, {
+        attributes: true,
+        characterData: true,
+        childList: true,
+        subtree: true,
       });
-    }
-
-    node.children?.forEach((childNode) => {
-      visitNode(
-        childNode,
-        treeDepth + 1,
-        nextRenderDepth,
-        frame,
-        node.id,
-        path,
-      );
-    });
-  };
-
-  visitNode(structure.root, 0, -1, null, null, []);
-
-  return layers;
-}
-
-function structureLayerCallout(layerIndex: number) {
-  return STRUCTURE_LAYER_CALLOUTS[
-    Math.min(layerIndex, STRUCTURE_LAYER_CALLOUTS.length - 1)
-  ];
-}
-
-function createStructureMaterial(
-  THREE: ThreeModule,
-  color: string,
-  opacity: number,
-) {
-  return new THREE.MeshBasicMaterial({
-    color: new THREE.Color(color),
-    depthWrite: false,
-    opacity,
-    side: THREE.DoubleSide,
-    transparent: true,
-  });
-}
-
-function createLayerGroup(THREE: ThreeModule, layer: StructureRenderLayer) {
-  const group = new THREE.Group();
-  const opacity = layer.opacity;
-  const geometry = new THREE.PlaneGeometry(layer.width, layer.height);
-  const baseColor = new THREE.Color(layer.color);
-  const edgeColor = baseColor.clone().lerp(new THREE.Color('#ffffff'), 0.48);
-  const material = createStructureMaterial(THREE, layer.color, opacity);
-  const mesh = new THREE.Mesh(geometry, material);
-  mesh.rotation.x = -Math.PI / 2;
-  mesh.name = layer.id;
-  mesh.userData.component = layer.component;
-  mesh.userData.layerId = layer.id;
-  mesh.userData.layerIndex = layer.layerIndex;
-  mesh.userData.parentId = layer.parentId;
-  mesh.userData.path = layer.path.join('/');
-  mesh.userData.relation = layer.relation;
-  mesh.userData.slot = layer.slot;
-  mesh.userData.state = layer.state;
-  mesh.userData.treeDepth = layer.treeDepth;
-  mesh.renderOrder = layer.layerIndex * 2;
-
-  const edgeOpacity = layer.layerIndex === 0 ? 0.48 : 0.72;
-  const edgeMaterial = new THREE.LineBasicMaterial({
-    color: edgeColor,
-    depthWrite: false,
-    opacity: edgeOpacity,
-    transparent: true,
-  });
-  const edges = new THREE.LineSegments(
-    new THREE.EdgesGeometry(geometry),
-    edgeMaterial,
-  );
-  edges.rotation.x = -Math.PI / 2;
-  edges.name = `${layer.id}-edges`;
-  edges.renderOrder = mesh.renderOrder + 1;
-
-  const anchor = new THREE.Object3D();
-  anchor.name = `${layer.id}-callout-anchor`;
-  anchor.position.set(layer.width * 0.3, 0, 0);
-
-  group.name = `${layer.id}-assembly-layer`;
-  group.position.set(layer.x, layer.y, layer.z);
-  group.add(mesh, edges, anchor);
-
-  return {
-    anchor,
-    baseColor,
-    edgeColor,
-    edgeMaterial,
-    edgeOpacity,
-    edges,
-    group,
-    layerId: layer.id,
-    layerIndex: layer.layerIndex,
-    material,
-    mesh,
-    mutedOpacity: Math.max(0.14, opacity * 0.38),
-    opacity,
-  };
-}
-
-function fitCameraToContainer(
-  camera: ThreeOrthographicCamera,
-  width: number,
-  height: number,
-) {
-  const aspect = width / height;
-  camera.left = (-STRUCTURE_FRUSTUM_SIZE * aspect) / 2;
-  camera.right = (STRUCTURE_FRUSTUM_SIZE * aspect) / 2;
-  camera.top = STRUCTURE_FRUSTUM_SIZE / 2;
-  camera.bottom = -STRUCTURE_FRUSTUM_SIZE / 2;
-  camera.updateProjectionMatrix();
-}
-
-function fitCameraToStructure(
-  THREE: ThreeModule,
-  camera: ThreeOrthographicCamera,
-  root: ThreeObject3D,
-  width: number,
-  height: number,
-) {
-  const aspect = width / height;
-  const bounds = new THREE.Box3().setFromObject(root);
-
-  if (bounds.isEmpty()) {
-    fitCameraToContainer(camera, width, height);
-    return;
-  }
-
-  const center = bounds.getCenter(new THREE.Vector3());
-  camera.position.set(
-    center.x + STRUCTURE_CAMERA_DISTANCE * 0.86,
-    center.y + STRUCTURE_CAMERA_DISTANCE * 0.72,
-    center.z + STRUCTURE_CAMERA_DISTANCE,
-  );
-  camera.lookAt(center);
-  camera.updateMatrixWorld(true);
-
-  const min = bounds.min;
-  const max = bounds.max;
-  const cameraSpaceCorners = [
-    new THREE.Vector3(min.x, min.y, min.z),
-    new THREE.Vector3(min.x, min.y, max.z),
-    new THREE.Vector3(min.x, max.y, min.z),
-    new THREE.Vector3(min.x, max.y, max.z),
-    new THREE.Vector3(max.x, min.y, min.z),
-    new THREE.Vector3(max.x, min.y, max.z),
-    new THREE.Vector3(max.x, max.y, min.z),
-    new THREE.Vector3(max.x, max.y, max.z),
-  ].map((corner) => corner.applyMatrix4(camera.matrixWorldInverse));
-  const viewBounds = cameraSpaceCorners.reduce(
-    (result, corner) => ({
-      maxX: Math.max(result.maxX, corner.x),
-      maxY: Math.max(result.maxY, corner.y),
-      minX: Math.min(result.minX, corner.x),
-      minY: Math.min(result.minY, corner.y),
-    }),
-    {
-      maxX: Number.NEGATIVE_INFINITY,
-      maxY: Number.NEGATIVE_INFINITY,
-      minX: Number.POSITIVE_INFINITY,
-      minY: Number.POSITIVE_INFINITY,
-    },
-  );
-  const viewWidth =
-    (viewBounds.maxX - viewBounds.minX) * STRUCTURE_CAMERA_PADDING;
-  const viewHeight =
-    (viewBounds.maxY - viewBounds.minY) * STRUCTURE_CAMERA_PADDING;
-  const frustumHeight = Math.max(viewHeight, viewWidth / aspect);
-  const frustumWidth = frustumHeight * aspect;
-  const centerX =
-    (viewBounds.minX + viewBounds.maxX) / 2 +
-    frustumWidth * STRUCTURE_CAMERA_SCREEN_OFFSET_X;
-  const centerY = (viewBounds.minY + viewBounds.maxY) / 2;
-
-  camera.left = centerX - frustumWidth / 2;
-  camera.right = centerX + frustumWidth / 2;
-  camera.top = centerY + frustumHeight / 2;
-  camera.bottom = centerY - frustumHeight / 2;
-  camera.updateProjectionMatrix();
-}
-
-function projectLayerAnchor(
-  THREE: ThreeModule,
-  anchor: ThreeObject3D,
-  camera: ThreeOrthographicCamera,
-) {
-  const worldPosition = new THREE.Vector3();
-  anchor.getWorldPosition(worldPosition);
-  worldPosition.project(camera);
-
-  return {
-    x: (worldPosition.x * 0.5 + 0.5) * 100,
-    y: (1 - (worldPosition.y * 0.5 + 0.5)) * 100,
-  };
-}
-
-function createProjectedCallouts(
-  THREE: ThreeModule,
-  layerBindings: StructureLayerSceneBinding[],
-  camera: ThreeOrthographicCamera,
-  height: number,
-) {
-  const labelMinGap = clamp(
-    (STRUCTURE_CALLOUT_LABEL_MIN_GAP_PX / height) * 100,
-    6.4,
-    11,
-  );
-  const projectedEntries = layerBindings
-    .map((binding) => {
-      const projected = projectLayerAnchor(THREE, binding.anchor, camera);
-
-      return {
-        binding,
-        desiredLabelY: clamp(
-          projected.y,
-          STRUCTURE_CALLOUT_LABEL_MIN_Y,
-          STRUCTURE_CALLOUT_LABEL_MAX_Y,
-        ),
-        targetX: clamp(projected.x, 4, STRUCTURE_CALLOUT_LABEL_X - 5),
-        targetY: clamp(projected.y, 10, 90),
-      };
-    })
-    .sort((left, right) => left.desiredLabelY - right.desiredLabelY);
-
-  let previousY = STRUCTURE_CALLOUT_LABEL_MIN_Y - labelMinGap;
-  const spacedEntries = projectedEntries.map((entry) => {
-    const labelY = Math.max(entry.desiredLabelY, previousY + labelMinGap);
-    previousY = labelY;
-
-    return {
-      ...entry,
-      labelY,
-    };
-  });
-  const overflow =
-    (spacedEntries.at(-1)?.labelY ?? STRUCTURE_CALLOUT_LABEL_MAX_Y) -
-    STRUCTURE_CALLOUT_LABEL_MAX_Y;
-
-  if (overflow > 0) {
-    spacedEntries.forEach((entry) => {
-      entry.labelY -= overflow;
-    });
-
-    for (let index = spacedEntries.length - 2; index >= 0; index -= 1) {
-      spacedEntries[index]!.labelY = Math.min(
-        spacedEntries[index]!.labelY,
-        spacedEntries[index + 1]!.labelY - labelMinGap,
-      );
-    }
-  }
-
-  return spacedEntries.reduce<StructureCalloutPositions>((callouts, entry) => {
-    callouts[entry.binding.layerId] = {
-      labelX: STRUCTURE_CALLOUT_LABEL_X,
-      labelY: Number(
-        clamp(
-          entry.labelY,
-          STRUCTURE_CALLOUT_LABEL_MIN_Y,
-          STRUCTURE_CALLOUT_LABEL_MAX_Y,
-        ).toFixed(2),
-      ),
-      targetX: Number(entry.targetX.toFixed(2)),
-      targetY: Number(entry.targetY.toFixed(2)),
     };
 
-    return callouts;
-  }, {});
-}
+    const measure = () => {
+      frame = 0;
 
-function areCalloutPositionsEqual(
-  left: StructureCalloutPositions,
-  right: StructureCalloutPositions,
-) {
-  const leftEntries = Object.entries(left);
+      if (pointerActive) {
+        deferred = true;
 
-  if (leftEntries.length !== Object.keys(right).length) {
-    return false;
-  }
+        if (latest) {
+          const tracked = trackLiveSlabs(latest);
 
-  return leftEntries.every(([layerId, leftCallout]) => {
-    const rightCallout = right[layerId];
+          if (tracked !== latest) {
+            latest = tracked;
+            setMeasurement(tracked);
+          }
+        }
 
-    return (
-      rightCallout !== undefined &&
-      leftCallout.labelX === rightCallout.labelX &&
-      leftCallout.labelY === rightCallout.labelY &&
-      leftCallout.targetX === rightCallout.targetX &&
-      leftCallout.targetY === rightCallout.targetY
-    );
-  });
-}
+        return;
+      }
 
-function disposeObject(THREE: ThreeModule, object: ThreeObject3D) {
-  object.traverse((child) => {
-    if (child instanceof THREE.Mesh || child instanceof THREE.LineSegments) {
-      child.geometry.dispose();
+      const host = findLabPreviewHost(pageKey);
+      observeHost(host);
 
-      if (Array.isArray(child.material)) {
-        child.material.forEach((material) => material.dispose());
-      } else {
-        child.material.dispose();
+      if (!host) {
+        window.clearTimeout(retryTimer);
+        retryTimer = window.setTimeout(schedule, 200);
+        return;
+      }
+
+      const next = measurePrimitiveStructure(
+        structure,
+        host,
+        ghostCacheFor(pageKey),
+      );
+      const nextSignature = next?.signature ?? '';
+
+      if (nextSignature !== signature) {
+        signature = nextSignature;
+        latest = next;
+        setMeasurement(next);
+      }
+    };
+
+    function schedule() {
+      if (frame === 0) {
+        frame = window.requestAnimationFrame(measure);
       }
     }
-  });
+
+    const documentEvents = [
+      'focusin',
+      'focusout',
+      'input',
+      'transitionend',
+      'animationend',
+    ] as const;
+
+    const onPointerDown = () => {
+      pointerActive = true;
+    };
+    const onPointerEnd = () => {
+      if (!pointerActive) return;
+
+      pointerActive = false;
+
+      if (deferred) {
+        deferred = false;
+        schedule();
+      }
+    };
+    // A release can be lost (the window blurs or hides mid-gesture); a move
+    // with no buttons down also means the gesture is over.
+    const onPointerMove = (event: PointerEvent) => {
+      if (pointerActive && event.buttons === 0) onPointerEnd();
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') onPointerEnd();
+    };
+    // Scrolling a popup (e.g. the Select list) moves its parts; scrolling
+    // the lab's own panels does not.
+    const onScroll = (event: Event) => {
+      const target = event.target;
+
+      if (
+        target instanceof Element &&
+        target.closest('#lab-performance-panel, #lab-properties-panel')
+      ) {
+        return;
+      }
+
+      schedule();
+    };
+
+    window.addEventListener('pointerdown', onPointerDown, true);
+    window.addEventListener('pointerup', onPointerEnd, true);
+    window.addEventListener('pointercancel', onPointerEnd, true);
+    window.addEventListener('pointermove', onPointerMove, true);
+    window.addEventListener('blur', onPointerEnd);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    document.addEventListener('scroll', onScroll, {
+      capture: true,
+      passive: true,
+    });
+    portalObserver.observe(document.body, { childList: true });
+    documentEvents.forEach((type) =>
+      document.addEventListener(type, schedule, true),
+    );
+    window.addEventListener('resize', schedule);
+    setMeasurement(null);
+    measure();
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(retryTimer);
+      resizeObserver.disconnect();
+      mutationObserver.disconnect();
+      portalObserver.disconnect();
+      documentEvents.forEach((type) =>
+        document.removeEventListener(type, schedule, true),
+      );
+      window.removeEventListener('resize', schedule);
+      window.removeEventListener('pointerdown', onPointerDown, true);
+      window.removeEventListener('pointerup', onPointerEnd, true);
+      window.removeEventListener('pointercancel', onPointerEnd, true);
+      window.removeEventListener('pointermove', onPointerMove, true);
+      window.removeEventListener('blur', onPointerEnd);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      document.removeEventListener('scroll', onScroll, true);
+    };
+  }, [pageKey, structure]);
+
+  return measurement;
 }
 
-function usePrimitiveStructureScene(
-  structureTitle: string,
-  layers: readonly StructureRenderLayer[],
-  containerRef: RefObject<HTMLDivElement | null>,
-  isActive: boolean,
-  activeLayerId: string | null,
-  setActiveLayerId: Dispatch<SetStateAction<string | null>>,
-  setProjectedCallouts: Dispatch<SetStateAction<StructureCalloutPositions>>,
+/** Follows `target` with a short exponential ease, or jumps when `immediate`. */
+function useEasedValue(target: number, immediate: boolean) {
+  const [value, setValue] = useState(target);
+  const valueRef = useRef(target);
+
+  useEffect(() => {
+    if (immediate) {
+      valueRef.current = target;
+      setValue(target);
+      return;
+    }
+
+    let frame = 0;
+    let last = performance.now();
+
+    const step = (now: number) => {
+      const dt = Math.min(64, now - last);
+      last = now;
+      const current = valueRef.current;
+      const next =
+        current +
+        (target - current) *
+          (1 - Math.exp(-dt / STRUCTURE_EXPLODE_SMOOTHING_MS));
+      const done = Math.abs(target - next) < 0.002;
+      valueRef.current = done ? target : next;
+      setValue(valueRef.current);
+
+      if (!done) {
+        frame = window.requestAnimationFrame(step);
+      }
+    };
+
+    if (valueRef.current !== target) {
+      frame = window.requestAnimationFrame(step);
+    }
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [immediate, target]);
+
+  return value;
+}
+
+function useElementSize(ref: RefObject<HTMLElement | null>) {
+  const [size, setSize] = useState({ height: 0, width: 0 });
+
+  useEffect(() => {
+    const element = ref.current;
+
+    if (!element) return;
+
+    const update = () => {
+      const width = Math.floor(element.clientWidth);
+      const height = Math.floor(element.clientHeight);
+      setSize((current) =>
+        current.width === width && current.height === height
+          ? current
+          : { height, width },
+      );
+    };
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+    update();
+
+    return () => observer.disconnect();
+  }, [ref]);
+
+  return size;
+}
+
+function useDevicePixelRatio() {
+  const [ratio, setRatio] = useState(() =>
+    typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1,
+  );
+
+  useEffect(() => {
+    const query = window.matchMedia?.(
+      `(resolution: ${window.devicePixelRatio || 1}dppx)`,
+    );
+
+    if (!query) return;
+
+    const onChange = () => setRatio(window.devicePixelRatio || 1);
+    query.addEventListener('change', onChange);
+
+    return () => query.removeEventListener('change', onChange);
+  }, [ratio]);
+
+  return ratio;
+}
+
+/**
+ * Runs the label springs only while they are moving: a frame loop starts
+ * when targets change and stops once everything has settled.
+ */
+function useLabelSprings(
+  targets: readonly LabelTarget[],
+  bounds: LabelBounds,
+  reducedMotion: boolean,
 ) {
-  const sceneControlsRef = useRef<StructureSceneControls | null>(null);
-  const activeLayerIdRef = useRef(activeLayerId);
-
-  useEffect(() => {
-    activeLayerIdRef.current = activeLayerId;
-    sceneControlsRef.current?.setActiveLayer(activeLayerId);
-  }, [activeLayerId]);
-
-  useEffect(() => {
-    if (!isActive) {
-      return;
-    }
-
-    let firstFrame = 0;
-    let secondFrame = 0;
-
-    firstFrame = requestAnimationFrame(() => {
-      sceneControlsRef.current?.resize();
-      secondFrame = requestAnimationFrame(() => {
-        sceneControlsRef.current?.resize();
-      });
-    });
-
-    return () => {
-      cancelAnimationFrame(firstFrame);
-      cancelAnimationFrame(secondFrame);
-    };
-  }, [isActive]);
-
-  useEffect(() => {
-    const container = containerRef.current;
-
-    if (!container) {
-      return;
-    }
-
-    let cleanupScene: (() => void) | null = null;
-    let isDisposed = false;
-
-    setProjectedCallouts({});
-
-    void import('three')
-      .then((THREE) => {
-        if (isDisposed) {
-          return;
-        }
-
-        let renderer: InstanceType<ThreeModule['WebGLRenderer']>;
-
-        try {
-          renderer = new THREE.WebGLRenderer({
-            alpha: true,
-            antialias: true,
-            preserveDrawingBuffer: true,
-          });
-        } catch {
-          container.setAttribute(
-            'data-primitive-structure-renderer',
-            'fallback',
-          );
-          return;
-        }
-
-        container.setAttribute('data-primitive-structure-renderer', 'webgl');
-        renderer.setClearColor(0x000000, 0);
-        renderer.setPixelRatio(
-          Math.min(window.devicePixelRatio || 1, STRUCTURE_MAX_PIXEL_RATIO),
-        );
-        renderer.domElement.setAttribute('aria-label', structureTitle);
-        renderer.domElement.setAttribute(
-          'data-testid',
-          'lab-primitive-structure-canvas',
-        );
-        renderer.domElement.setAttribute('data-primitive-structure-axis', 'y');
-        renderer.domElement.setAttribute(
-          'data-primitive-structure-geometry',
-          'plane-grid',
-        );
-        renderer.domElement.setAttribute(
-          'data-primitive-structure-layout',
-          '24-grid',
-        );
-        renderer.domElement.setAttribute(
-          'data-primitive-structure-layer-gap',
-          'uniform',
-        );
-        renderer.domElement.setAttribute(
-          'data-primitive-structure-guides',
-          'callouts',
-        );
-        renderer.domElement.setAttribute(
-          'data-primitive-structure-interaction',
-          'raycast',
-        );
-        renderer.domElement.setAttribute(
-          'data-primitive-structure-motion',
-          'static',
-        );
-        renderer.domElement.setAttribute(
-          'data-primitive-structure-palette',
-          'layer-colors',
-        );
-        renderer.domElement.setAttribute('role', 'img');
-        renderer.domElement.className = 'h-full w-full';
-        renderer.domElement.style.display = 'block';
-        container.appendChild(renderer.domElement);
-
-        const scene = new THREE.Scene();
-        const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 80);
-
-        const root = new THREE.Group();
-        root.rotation.y = -0.12;
-        scene.add(root);
-
-        const layerBindings = layers.map((layer) => {
-          const binding = createLayerGroup(THREE, layer);
-          root.add(binding.group);
-
-          return binding;
-        });
-        const pickableMeshes = layerBindings.map((binding) => binding.mesh);
-        const raycaster = new THREE.Raycaster();
-        const pointer = new THREE.Vector2();
-        let canvasHoverLayerId: string | null = null;
-        const previousCursor = renderer.domElement.style.cursor;
-
-        const renderScene = () => {
-          renderer.render(scene, camera);
-        };
-
-        const setActiveLayer = (nextActiveLayerId: string | null) => {
-          layerBindings.forEach((binding) => {
-            const isActive = nextActiveLayerId === binding.layerId;
-            const isMuted =
-              nextActiveLayerId !== null &&
-              nextActiveLayerId !== binding.layerId;
-            const activeColor = binding.baseColor
-              .clone()
-              .lerp(new THREE.Color('#ffffff'), 0.16);
-
-            binding.material.color.copy(
-              isActive ? activeColor : binding.baseColor,
-            );
-            binding.material.opacity = isActive
-              ? Math.min(0.98, binding.opacity + 0.16)
-              : isMuted
-                ? binding.mutedOpacity
-                : binding.opacity;
-            binding.edgeMaterial.color.copy(
-              isActive
-                ? new THREE.Color('#ffffff')
-                : isMuted
-                  ? binding.edgeColor
-                      .clone()
-                      .lerp(new THREE.Color('#0b0f14'), 0.2)
-                  : binding.edgeColor,
-            );
-            binding.edgeMaterial.opacity = isActive
-              ? 0.92
-              : isMuted
-                ? 0.24
-                : binding.edgeOpacity;
-          });
-
-          renderScene();
-        };
-
-        const commitProjectedCallouts = (height: number) => {
-          const nextCallouts = createProjectedCallouts(
-            THREE,
-            layerBindings,
-            camera,
-            height,
-          );
-          setProjectedCallouts((currentCallouts) =>
-            areCalloutPositionsEqual(currentCallouts, nextCallouts)
-              ? currentCallouts
-              : nextCallouts,
-          );
-        };
-
-        const pickLayerAtPointer = (event: PointerEvent) => {
-          const rect = renderer.domElement.getBoundingClientRect();
-
-          if (rect.width <= 0 || rect.height <= 0) {
-            return null;
-          }
-
-          pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-          pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-          raycaster.setFromCamera(pointer, camera);
-
-          const [intersection] = raycaster.intersectObjects(
-            pickableMeshes,
-            false,
-          );
-
-          return typeof intersection?.object.userData.layerId === 'string'
-            ? intersection.object.userData.layerId
-            : null;
-        };
-
-        const onCanvasPointerMove = (event: PointerEvent) => {
-          const nextLayerId = pickLayerAtPointer(event);
-
-          if (nextLayerId === canvasHoverLayerId) {
-            return;
-          }
-
-          canvasHoverLayerId = nextLayerId;
-          renderer.domElement.style.cursor = nextLayerId
-            ? 'pointer'
-            : previousCursor;
-          setActiveLayerId(nextLayerId);
-        };
-
-        const onCanvasPointerLeave = () => {
-          canvasHoverLayerId = null;
-          renderer.domElement.style.cursor = previousCursor;
-          setActiveLayerId(null);
-        };
-
-        renderer.domElement.addEventListener(
-          'pointermove',
-          onCanvasPointerMove,
-        );
-        renderer.domElement.addEventListener(
-          'pointerleave',
-          onCanvasPointerLeave,
-        );
-
-        const resize = () => {
-          const rect = container.getBoundingClientRect();
-          const width = Math.floor(rect.width);
-          const height = Math.floor(rect.height);
-
-          if (width < 2 || height < 2) {
-            return;
-          }
-
-          renderer.setPixelRatio(
-            Math.min(window.devicePixelRatio || 1, STRUCTURE_MAX_PIXEL_RATIO),
-          );
-          renderer.setSize(width, height, false);
-          fitCameraToStructure(THREE, camera, root, width, height);
-          commitProjectedCallouts(height);
-          renderScene();
-        };
-
-        resize();
-        setActiveLayer(activeLayerIdRef.current);
-        sceneControlsRef.current = {
-          resize,
-          setActiveLayer,
-        };
-
-        const resizeObserver = new ResizeObserver(resize);
-        resizeObserver.observe(container);
-
-        cleanupScene = () => {
-          sceneControlsRef.current = null;
-          renderer.domElement.removeEventListener(
-            'pointermove',
-            onCanvasPointerMove,
-          );
-          renderer.domElement.removeEventListener(
-            'pointerleave',
-            onCanvasPointerLeave,
-          );
-          resizeObserver.disconnect();
-          disposeObject(THREE, root);
-          renderer.dispose();
-          renderer.domElement.remove();
-          container.removeAttribute('data-primitive-structure-renderer');
-        };
-      })
-      .catch(() => {
-        if (!isDisposed) {
-          container.setAttribute(
-            'data-primitive-structure-renderer',
-            'fallback',
-          );
-        }
-      });
-
-    return () => {
-      isDisposed = true;
-      cleanupScene?.();
-    };
-  }, [
-    containerRef,
-    layers,
-    setActiveLayerId,
-    setProjectedCallouts,
-    structureTitle,
+  const [bodies, setBodies] = useState<LabelBody[]>([]);
+  const bodiesRef = useRef<LabelBody[]>([]);
+  const targetsRef = useRef(targets);
+  const boundsRef = useRef(bounds);
+  const frameRef = useRef(0);
+  const key = JSON.stringify([
+    bounds,
+    targets.map((target) => [
+      target.id,
+      Math.round(target.targetY * 10) / 10,
+      target.height,
+      target.width,
+    ]),
   ]);
+
+  useEffect(() => {
+    // A resized render area is not motion to animate: labels snap.
+    const resized =
+      boundsRef.current.minY !== bounds.minY ||
+      boundsRef.current.maxY !== bounds.maxY;
+    targetsRef.current = targets;
+    boundsRef.current = bounds;
+
+    const known = new Set(bodiesRef.current.map((body) => body.id));
+    const fresh =
+      bodiesRef.current.length === 0 ||
+      targets.every((target) => !known.has(target.id));
+
+    if (reducedMotion || fresh || resized) {
+      window.cancelAnimationFrame(frameRef.current);
+      frameRef.current = 0;
+      bodiesRef.current = snapLabels(targets, bounds);
+      setBodies(bodiesRef.current);
+      return;
+    }
+
+    if (frameRef.current !== 0) return;
+
+    let last = performance.now();
+    const tick = (now: number) => {
+      const result = stepLabels(
+        bodiesRef.current,
+        targetsRef.current,
+        boundsRef.current,
+        Math.max(0, now - last) / 1000,
+      );
+      last = now;
+      bodiesRef.current = result.bodies;
+      setBodies(result.bodies);
+      frameRef.current = result.settled
+        ? 0
+        : window.requestAnimationFrame(tick);
+    };
+
+    frameRef.current = window.requestAnimationFrame(tick);
+  }, [key, reducedMotion]);
+
+  useEffect(
+    () => () => {
+      window.cancelAnimationFrame(frameRef.current);
+      frameRef.current = 0;
+    },
+    [],
+  );
+
+  return bodies;
 }
 
 function nodeMatchesActivePath(
@@ -945,15 +583,49 @@ function formatComponentTag(component: string) {
 
 export function LabPrimitiveStructureView({
   isActive,
+  pageKey,
   structure,
 }: {
   isActive: boolean;
+  pageKey: string;
   structure: LabPrimitiveStructure;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const dragRef = useRef<{
+    pointerId: number;
+    pressedNode: string | null;
+    startExplode: number;
+    startX: number;
+    startY: number;
+  } | null>(null);
   const [activeLayerId, setActiveLayerId] = useState<string | null>(null);
-  const [projectedCallouts, setProjectedCallouts] =
-    useState<StructureCalloutPositions>({});
+  // Overrides and the selected layer are shared with the properties panel's
+  // Structure section (dev builds edit them there).
+  const editorState = useStructureEditorState();
+  const isEditing = import.meta.env.DEV;
+  const selectedLayerId = editorState.selectedLayerId;
+  const demoOverride: StructureDemoOverride | undefined =
+    editorState.overrides.demos[pageKey];
+  // The gap starts at the demo's saved default; drag/keys change it live
+  // without saving. A new saved default (editor or file change) applies
+  // unless a drag is in progress.
+  const savedExplode = demoOverride?.explode ?? STRUCTURE_DEFAULT_EXPLODE;
+  const [explode, setExplode] = useState(savedExplode);
+
+  useEffect(() => {
+    if (!dragRef.current) setExplode(savedExplode);
+  }, [savedExplode]);
+
+  useEffect(() => {
+    setStructureLiveExplode(pageKey, explode);
+  }, [explode, pageKey]);
+  const [isDragging, setIsDragging] = useState(false);
+  const reducedMotion = usePrefersReducedMotion();
+  // A drag follows the pointer directly; keys ease unless motion is reduced.
+  const displayedExplode = useEasedValue(explode, reducedMotion || isDragging);
+  const measurement = useStructureMeasurement(structure, pageKey);
+  const size = useElementSize(containerRef);
+  const devicePixelRatio = useDevicePixelRatio();
   const nodeEntries = useMemo(
     () => createStructureNodeEntries(structure),
     [structure],
@@ -962,166 +634,723 @@ export function LabPrimitiveStructureView({
     () => nodeEntries.filter((node) => node.parentId !== null),
     [nodeEntries],
   );
-  const layers = useMemo(
-    () => createStructureRenderLayers(structure),
-    [structure],
+  const region = useMemo<StructureFigureRegion>(
+    () => ({
+      x0: STRUCTURE_FIGURE_PADDING,
+      x1: Math.max(
+        STRUCTURE_FIGURE_PADDING + 1,
+        size.width * STRUCTURE_FIGURE_RIGHT,
+      ),
+      y0: STRUCTURE_FIGURE_PADDING,
+      y1: Math.max(
+        STRUCTURE_FIGURE_PADDING + 1,
+        size.height - STRUCTURE_FIGURE_PADDING,
+      ),
+    }),
+    [size.height, size.width],
   );
+  // The camera depends only on the root part's size, the structure's level
+  // budget and the panel size, so moving or appearing parts never refit it.
+  const rootWidth = measurement?.width ?? 0;
+  const rootHeight = measurement?.height ?? 0;
+
+  useEffect(() => {
+    if (rootWidth > 0 && rootHeight > 0) {
+      setStructureRootSize(pageKey, { height: rootHeight, width: rootWidth });
+    }
+  }, [pageKey, rootHeight, rootWidth]);
+  const fitLevels = measurement?.fitLevels ?? 1;
+  // Popups are framed from the start (config reserve plus anything seen
+  // before for this page), so opening one never moves or rescales the figure.
+  const [frameExtent, setFrameExtent] = useState<StructureRect | null>(
+    () => FRAME_EXTENT_CACHE.get(pageKey) ?? null,
+  );
+
+  useEffect(() => {
+    setFrameExtent(FRAME_EXTENT_CACHE.get(pageKey) ?? null);
+  }, [pageKey, structure]);
+
+  useEffect(() => {
+    // Ghosts are present from the first measurement, so this normally only
+    // grows when a popup opens somewhere other than where it was expected.
+    const popups = (measurement?.slabs ?? []).filter(
+      (slab) => slab.portal || slab.ghost,
+    );
+
+    if (popups.length === 0) return;
+
+    setFrameExtent((current) => {
+      const next = unionRects([current, ...popups]);
+
+      if (
+        !next ||
+        (current &&
+          next.x >= current.x - 0.5 &&
+          next.y >= current.y - 0.5 &&
+          next.width <= current.width + 0.5 &&
+          next.height <= current.height + 0.5)
+      ) {
+        return current;
+      }
+
+      FRAME_EXTENT_CACHE.set(pageKey, next);
+      return next;
+    });
+  }, [measurement, pageKey]);
+
+  const camera = useMemo(
+    () =>
+      rootWidth > 0 && rootHeight > 0
+        ? fitStructureCamera(
+            { fitLevels, height: rootHeight, width: rootWidth },
+            region,
+            frameExtent,
+          )
+        : null,
+    [fitLevels, frameExtent, region, rootHeight, rootWidth],
+  );
+  // Overrides: manual framing only moves/zooms the stable fit; manual layer
+  // offsets only move their own part (and its children).
+  const framedCamera = useMemo(
+    () =>
+      camera
+        ? frameStructureCamera(
+            camera,
+            region,
+            size,
+            demoOverride?.framing.mode === 'manual'
+              ? demoOverride.framing
+              : null,
+          )
+        : null,
+    [camera, demoOverride?.framing, region, size],
+  );
+  const layerOffsets = useMemo(
+    () => structureLayerOffsets(pageKey, demoOverride),
+    [demoOverride, pageKey],
+  );
+  const placedMeasurement = useMemo(
+    () =>
+      measurement
+        ? offsetStructureMeasurement(measurement, layerOffsets)
+        : null,
+    [layerOffsets, measurement],
+  );
+  const figure = useMemo(
+    () =>
+      placedMeasurement && framedCamera && size.width > 0
+        ? buildStructureFigure(
+            placedMeasurement,
+            displayedExplode,
+            framedCamera,
+          )
+        : null,
+    [displayedExplode, framedCamera, placedMeasurement, size.width],
+  );
+  const renderedNodeIds = useMemo(
+    () =>
+      new Set(
+        (measurement?.slabs ?? [])
+          .filter((slab) => !slab.ghost)
+          .map((slab) => slab.nodeId),
+      ),
+    [measurement],
+  );
+  // Each node's leader lands on the rightmost lid point of its slabs.
+  const anchors = useMemo(() => {
+    const result = new Map<string, Vec2>();
+
+    for (const slab of figure?.slabs ?? []) {
+      const current = result.get(slab.nodeId);
+      if (!current || slab.anchor[0] > current[0]) {
+        result.set(slab.nodeId, slab.anchor);
+      }
+    }
+
+    return result;
+  }, [figure]);
+  const calloutLayers = useMemo(
+    () =>
+      nodeEntries
+        .filter((node) => anchors.has(node.id))
+        .map((node) => ({ node })),
+    [anchors, nodeEntries],
+  );
+  // Labels trail their parts on a spring (and jump under reduced motion):
+  // each targets its leader anchor's height, neighbours keep their spacing,
+  // and a label trading places with another slides aside to pass it.
+  const labelElementsRef = useRef(new Map<string, HTMLElement>());
+  const [labelSizes, setLabelSizes] = useState<
+    Record<string, { height: number; width: number }>
+  >({});
+  const calloutIdsKey = calloutLayers.map(({ node }) => node.id).join(',');
+
+  const labelTargets = useMemo<LabelTarget[]>(
+    () =>
+      calloutLayers.map(({ node }) => ({
+        height: labelSizes[node.id]?.height ?? 20,
+        id: node.id,
+        targetY: anchors.get(node.id)![1],
+        width: labelSizes[node.id]?.width ?? 100,
+      })),
+    [anchors, calloutLayers, labelSizes],
+  );
+  const labelBounds = useMemo<LabelBounds>(
+    () => ({
+      gap: STRUCTURE_CALLOUT_LABEL_GAP_PX,
+      maxY: (size.height * STRUCTURE_CALLOUT_LABEL_MAX_Y) / 100,
+      minY: (size.height * STRUCTURE_CALLOUT_LABEL_MIN_Y) / 100,
+    }),
+    [size.height],
+  );
+  const labelBodies = useLabelSprings(labelTargets, labelBounds, reducedMotion);
+  const callouts: Record<string, StructureCalloutPosition> = {};
+
+  if (size.width > 0 && size.height > 0) {
+    for (const body of labelBodies) {
+      const anchor = anchors.get(body.id);
+
+      if (!anchor) continue;
+
+      callouts[body.id] = {
+        dx: body.dx,
+        labelX: Number(
+          (STRUCTURE_CALLOUT_LABEL_X + (body.dx / size.width) * 100).toFixed(2),
+        ),
+        labelY: Number(((body.y / size.height) * 100).toFixed(2)),
+        targetX: Number(
+          clamp((anchor[0] / size.width) * 100, 0, 100).toFixed(2),
+        ),
+        targetY: Number(
+          clamp((anchor[1] / size.height) * 100, 0, 100).toFixed(2),
+        ),
+      };
+    }
+  }
+  const labelsShown = labelBodies.length > 0;
+
+  useLayoutEffect(() => {
+    // Our own label elements only, once per label set or panel width.
+    const next: Record<string, { height: number; width: number }> = {};
+
+    for (const [id, element] of labelElementsRef.current) {
+      next[id] = {
+        height: element.offsetHeight || 20,
+        width: element.offsetWidth || 100,
+      };
+    }
+
+    setLabelSizes((current) =>
+      JSON.stringify(current) === JSON.stringify(next) ? current : next,
+    );
+  }, [calloutIdsKey, labelsShown, size.width]);
+
+  // Hover wins; in the editor the selected layer stays highlighted.
+  const highlightId = activeLayerId ?? (isEditing ? selectedLayerId : null);
   const activePath = useMemo(() => {
-    if (activeLayerId === null) {
+    if (highlightId === null) {
       return null;
     }
 
     return (
-      nodeEntries.find((node) => node.id === activeLayerId)?.path ?? [
-        activeLayerId,
-      ]
+      nodeEntries.find((node) => node.id === highlightId)?.path ?? [highlightId]
     );
-  }, [activeLayerId, nodeEntries]);
+  }, [highlightId, nodeEntries]);
+
   useEffect(() => {
     setActiveLayerId(null);
   }, [structure]);
-  usePrimitiveStructureScene(
-    structure.title,
-    layers,
-    containerRef,
-    isActive,
-    activeLayerId,
-    setActiveLayerId,
-    setProjectedCallouts,
+
+  useEffect(() => {
+    if (!isActive) setActiveLayerId(null);
+  }, [isActive]);
+
+  const onFigurePointerMove = useCallback(
+    (event: ReactPointerEvent<SVGSVGElement>) => {
+      // While dragging the gap, keep the highlight where the drag began.
+      if (dragRef.current) return;
+
+      const target = (event.target as Element).closest('[data-structure-node]');
+      const nextLayerId = target?.getAttribute('data-structure-node') ?? null;
+      setActiveLayerId((current) =>
+        current === nextLayerId ? current : nextLayerId,
+      );
+    },
+    [],
   );
-  const calloutEntries = useMemo(
-    () =>
-      layers
-        .map((layer, layerIndex) => ({
-          callout:
-            projectedCallouts[layer.id] ?? structureLayerCallout(layerIndex),
-          layer,
-          layerIndex,
-        }))
-        .reverse(),
-    [layers, projectedCallouts],
+  const onFigurePointerLeave = useCallback(() => {
+    if (!dragRef.current) setActiveLayerId(null);
+  }, []);
+
+  // Drag up opens the stack, drag down closes it. Touch is ignored so the
+  // page keeps scrolling on phones.
+  const onRenderPointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (event.pointerType === 'touch' || event.button !== 0) return;
+
+      event.currentTarget.setPointerCapture(event.pointerId);
+      dragRef.current = {
+        pointerId: event.pointerId,
+        pressedNode:
+          (event.target as Element)
+            .closest('[data-structure-node]')
+            ?.getAttribute('data-structure-node') ?? null,
+        startExplode: explode,
+        startX: event.clientX,
+        startY: event.clientY,
+      };
+      setIsDragging(true);
+    },
+    [explode],
   );
+  const onRenderPointerMove = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      const drag = dragRef.current;
+
+      if (!drag || drag.pointerId !== event.pointerId) return;
+
+      const range = Math.max(
+        80,
+        event.currentTarget.clientHeight * STRUCTURE_DRAG_RANGE,
+      );
+      setExplode(
+        clamp(drag.startExplode + (drag.startY - event.clientY) / range, 0, 1),
+      );
+    },
+    [],
+  );
+  const onRenderPointerEnd = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      const drag = dragRef.current;
+
+      if (!drag || drag.pointerId !== event.pointerId) return;
+
+      dragRef.current = null;
+      setIsDragging(false);
+
+      // In the editor a click (no real drag) on a slab selects that layer.
+      if (
+        isEditing &&
+        drag.pressedNode &&
+        event.type === 'pointerup' &&
+        Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) <
+          STRUCTURE_CLICK_SLOP_PX
+      ) {
+        selectStructureLayer(drag.pressedNode);
+      }
+
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+    },
+    [isEditing],
+  );
+  const onRenderKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLDivElement>) => {
+      const steps: Record<string, (value: number) => number> = {
+        ArrowDown: (value) => value - STRUCTURE_KEY_STEP,
+        ArrowUp: (value) => value + STRUCTURE_KEY_STEP,
+        End: () => 1,
+        Home: () => 0,
+        PageDown: (value) => value - STRUCTURE_PAGE_STEP,
+        PageUp: (value) => value + STRUCTURE_PAGE_STEP,
+      };
+      const step = steps[event.key];
+
+      if (!step) return;
+
+      event.preventDefault();
+      setExplode((value) => Math.round(clamp(step(value), 0, 1) * 100) / 100);
+    },
+    [],
+  );
+
+  const stroke = Math.max(0.5, 1 / devicePixelRatio);
+  // Dev only: outline the fixed render area and the auto-fit area within it.
+  const frameOverlay =
+    import.meta.env.DEV &&
+    editorState.local.frame[pageKey] === true &&
+    size.width > 0
+      ? structureFrameOverlay(size, region)
+      : null;
+  const explodePercent = Math.round(explode * 100);
 
   return (
     <div
       className="relative grid min-h-0 min-w-0 gap-4 lg:grid-cols-[minmax(320px,1fr)_minmax(260px,0.62fr)] lg:items-stretch"
       data-primitive-structure-hover-layer={activeLayerId ?? undefined}
+      data-primitive-structure-selected-layer={
+        isEditing ? (selectedLayerId ?? undefined) : undefined
+      }
       data-primitive-structure-label-renderer="svg-callouts"
       data-primitive-structure-schema="node-tree"
       data-testid="lab-primitive-structure-shell"
     >
-      <div
-        aria-label={`${structure.title} orthographic render`}
-        className="relative min-h-[320px] overflow-hidden"
-        data-primitive-structure-surface="transparent"
-        data-testid="lab-primitive-structure-render"
-        ref={containerRef}
-      >
-        <svg
-          aria-hidden
-          className="pointer-events-none absolute inset-0 z-[1] h-full w-full"
-          data-testid="lab-primitive-structure-callouts"
-          preserveAspectRatio="none"
-          viewBox="0 0 100 100"
+      <div className={['flex min-h-0 min-w-0 flex-col'].join(' ')}>
+        <div
+          aria-label="Exploded structure; use Up/Down arrows to adjust spacing"
+          aria-orientation="vertical"
+          aria-valuemax={100}
+          aria-valuemin={0}
+          aria-valuenow={explodePercent}
+          aria-valuetext={`Layer spacing ${explodePercent}%`}
+          className={[
+            'relative min-h-[320px] flex-1 touch-pan-y overflow-hidden rounded-md outline-none select-none',
+            'focus-visible:ring-1 focus-visible:ring-white/30',
+            'pointer-fine:cursor-ns-resize',
+          ].join(' ')}
+          data-primitive-structure-dragging={isDragging ? 'true' : undefined}
+          data-primitive-structure-explode={explode.toFixed(2)}
+          data-primitive-structure-renderer="svg"
+          data-primitive-structure-surface="transparent"
+          data-testid="lab-primitive-structure-render"
+          onKeyDown={onRenderKeyDown}
+          onLostPointerCapture={onRenderPointerEnd}
+          onPointerCancel={onRenderPointerEnd}
+          onPointerDown={onRenderPointerDown}
+          onPointerMove={onRenderPointerMove}
+          onPointerUp={onRenderPointerEnd}
+          ref={containerRef}
+          role="slider"
+          style={STRUCTURE_PALETTE}
+          tabIndex={0}
         >
-          {calloutEntries.map(({ callout, layer }) => {
-            const isMuted =
-              activeLayerId !== null && activeLayerId !== layer.id;
-            const isActive = activeLayerId === layer.id;
+          <svg
+            aria-label={structure.title}
+            className="absolute inset-0 h-full w-full"
+            data-primitive-structure-axis="z"
+            data-primitive-structure-geometry="measured-dom"
+            data-primitive-structure-guides="callouts"
+            data-primitive-structure-interaction="hit-test"
+            data-primitive-structure-layer-gap="adjustable"
+            data-primitive-structure-layout="dom-rects"
+            data-primitive-structure-motion={
+              reducedMotion ? 'reduced' : 'on-demand'
+            }
+            data-primitive-structure-palette="hairline"
+            data-primitive-structure-slabs={figure?.slabs.length ?? 0}
+            data-testid="lab-primitive-structure-canvas"
+            onPointerLeave={onFigurePointerLeave}
+            onPointerMove={onFigurePointerMove}
+            role="img"
+            shapeRendering="geometricPrecision"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            viewBox={`0 0 ${Math.max(1, size.width)} ${Math.max(1, size.height)}`}
+          >
+            {figure?.slabs.map((slab) => {
+              const isLayerActive = highlightId === slab.nodeId;
+              const isMuted = highlightId !== null && !isLayerActive;
+              const markStroke = isLayerActive
+                ? 'var(--structure-hi)'
+                : isMuted
+                  ? 'var(--structure-lo)'
+                  : 'var(--structure-mid)';
+              const textStroke = isLayerActive
+                ? 'var(--structure-hi)'
+                : isMuted
+                  ? 'var(--structure-mid)'
+                  : 'var(--structure-text)';
+              const edgeStroke = isLayerActive
+                ? 'var(--structure-accent)'
+                : isMuted
+                  ? 'var(--structure-mid)'
+                  : 'var(--structure-edge)';
+              const strokeProps = {
+                fill: 'none',
+                pointerEvents: 'none' as const,
+                strokeWidth: stroke,
+                vectorEffect: 'non-scaling-stroke' as const,
+              };
 
-            return (
+              return (
+                <g
+                  data-structure-ghost={slab.ghost ? 'true' : undefined}
+                  data-structure-level={slab.level}
+                  data-structure-origin={`${slab.origin[0].toFixed(2)},${slab.origin[1].toFixed(2)}`}
+                  data-structure-node={slab.nodeId}
+                  data-structure-painted={slab.painted ? 'true' : 'false'}
+                  data-structure-slab={slab.key}
+                  key={slab.key}
+                >
+                  {slab.footprint && !slab.ghost ? (
+                    <path
+                      {...strokeProps}
+                      d={slab.footprint}
+                      data-structure-footprint=""
+                      stroke={
+                        isLayerActive
+                          ? 'var(--structure-accent)'
+                          : 'var(--structure-lo)'
+                      }
+                      strokeDasharray="2 3"
+                    />
+                  ) : null}
+                  {slab.guide ? (
+                    <path
+                      {...strokeProps}
+                      d={slab.guide}
+                      data-structure-guide=""
+                      stroke={
+                        isLayerActive
+                          ? 'var(--structure-mid)'
+                          : 'var(--structure-lo)'
+                      }
+                      strokeDasharray="1 3"
+                    />
+                  ) : null}
+                  {slab.side ? (
+                    <path d={slab.side} fill="var(--structure-side)" />
+                  ) : null}
+                  <path
+                    d={slab.top}
+                    data-structure-top=""
+                    fill={
+                      slab.ghost
+                        ? 'none'
+                        : slab.painted
+                          ? isLayerActive
+                            ? 'var(--structure-accent-top)'
+                            : 'var(--structure-plate)'
+                          : 'transparent'
+                    }
+                    pointerEvents={slab.ghost ? 'none' : undefined}
+                    stroke={
+                      slab.ghost
+                        ? isLayerActive
+                          ? 'var(--structure-accent)'
+                          : 'var(--structure-lo)'
+                        : slab.painted
+                          ? 'none'
+                          : isLayerActive
+                            ? 'var(--structure-accent)'
+                            : markStroke
+                    }
+                    strokeDasharray={
+                      slab.ghost ? '1 3' : slab.painted ? undefined : '2 3'
+                    }
+                    strokeWidth={stroke}
+                    vectorEffect="non-scaling-stroke"
+                  />
+                  {slab.hatch ? (
+                    <path
+                      {...strokeProps}
+                      d={slab.hatch}
+                      stroke={
+                        isLayerActive
+                          ? 'var(--structure-mid)'
+                          : 'var(--structure-lo)'
+                      }
+                    />
+                  ) : null}
+                  {slab.dashes ? (
+                    <path
+                      {...strokeProps}
+                      d={slab.dashes}
+                      data-structure-crosshair=""
+                      stroke={
+                        isMuted ? 'var(--structure-lo)' : 'var(--structure-mid)'
+                      }
+                      strokeDasharray="3 3"
+                    />
+                  ) : null}
+                  {slab.rings ? (
+                    <path {...strokeProps} d={slab.rings} stroke={markStroke} />
+                  ) : null}
+                  {slab.text ? (
+                    <path
+                      {...strokeProps}
+                      d={slab.text}
+                      data-structure-text=""
+                      fill="var(--structure-text-fill)"
+                      stroke={textStroke}
+                    />
+                  ) : null}
+                  {slab.lines ? (
+                    <path
+                      {...strokeProps}
+                      d={slab.lines}
+                      data-structure-icon=""
+                      stroke={
+                        isMuted ? 'var(--structure-lo)' : 'var(--structure-hi)'
+                      }
+                    />
+                  ) : null}
+                  {slab.crease ? (
+                    <path
+                      {...strokeProps}
+                      d={slab.crease}
+                      stroke={markStroke}
+                    />
+                  ) : null}
+                  {slab.side ? (
+                    <path
+                      {...strokeProps}
+                      d={slab.side}
+                      data-structure-silhouette=""
+                      stroke={edgeStroke}
+                    />
+                  ) : null}
+                  {slab.focus ? (
+                    <path
+                      {...strokeProps}
+                      d={slab.focus}
+                      stroke="var(--structure-accent)"
+                      strokeDasharray="3 2"
+                    />
+                  ) : null}
+                </g>
+              );
+            })}
+            {frameOverlay ? (
               <g
-                className={[
-                  'transition-opacity duration-300',
-                  isMuted ? 'opacity-30' : 'opacity-100',
-                ]
-                  .filter(Boolean)
-                  .join(' ')}
-                data-primitive-callout={layer.id}
-                key={layer.id}
+                aria-hidden
+                data-structure-frame=""
+                fill="none"
+                pointerEvents="none"
+                stroke="var(--structure-frame)"
+                strokeWidth={stroke}
+                vectorEffect="non-scaling-stroke"
               >
                 <path
-                  d={`M ${callout.targetX} ${callout.targetY} L ${callout.labelX} ${callout.labelY}`}
-                  data-primitive-callout-hit={layer.id}
-                  fill="none"
-                  stroke="rgba(255,255,255,0.001)"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="8"
+                  d={frameOverlay.edge}
+                  data-structure-frame-edge=""
                   vectorEffect="non-scaling-stroke"
                 />
                 <path
-                  className={isActive ? 'stroke-white/72' : 'stroke-white/42'}
-                  d={`M ${callout.targetX} ${callout.targetY} L ${callout.labelX} ${callout.labelY}`}
-                  data-primitive-callout-line={layer.id}
-                  fill="none"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="1"
+                  d={frameOverlay.fit}
+                  data-structure-frame-fit=""
+                  strokeDasharray="4 4"
+                  strokeOpacity={0.7}
                   vectorEffect="non-scaling-stroke"
                 />
-                <circle
-                  className="fill-transparent"
-                  cx={callout.targetX}
-                  cy={callout.targetY}
-                  data-primitive-callout-target={layer.id}
-                  r="3.2"
+                <path
+                  d={frameOverlay.crosshair}
+                  data-structure-frame-center=""
+                  strokeOpacity={0.7}
+                  vectorEffect="non-scaling-stroke"
                 />
               </g>
+            ) : null}
+          </svg>
+          {figure === null ? (
+            <p
+              className="absolute inset-0 flex items-center justify-center font-mono text-[10px] uppercase tracking-[0.08em] text-white/30"
+              data-testid="lab-primitive-structure-empty"
+            >
+              Waiting for the preview to render
+            </p>
+          ) : null}
+          <svg
+            aria-hidden
+            className="pointer-events-none absolute inset-0 z-[1] h-full w-full"
+            data-testid="lab-primitive-structure-callouts"
+            preserveAspectRatio="none"
+            viewBox="0 0 100 100"
+          >
+            {calloutLayers.map(({ node }) => {
+              const callout = callouts[node.id];
+
+              if (!callout) return null;
+
+              const isMuted = highlightId !== null && highlightId !== node.id;
+              const isCalloutActive = highlightId === node.id;
+              const d = `M ${callout.targetX} ${callout.targetY} L ${callout.labelX} ${callout.labelY}`;
+
+              return (
+                <g
+                  className={[
+                    'transition-opacity duration-300',
+                    isMuted ? 'opacity-30' : 'opacity-100',
+                  ].join(' ')}
+                  data-primitive-callout={node.id}
+                  key={node.id}
+                >
+                  <path
+                    d={d}
+                    data-primitive-callout-hit={node.id}
+                    fill="none"
+                    stroke="rgba(255,255,255,0.001)"
+                    strokeWidth="8"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                  <path
+                    d={d}
+                    data-primitive-callout-line={node.id}
+                    fill="none"
+                    stroke={
+                      isCalloutActive
+                        ? 'var(--structure-accent)'
+                        : 'var(--structure-edge)'
+                    }
+                    strokeWidth={stroke}
+                    vectorEffect="non-scaling-stroke"
+                  />
+                </g>
+              );
+            })}
+          </svg>
+          {calloutLayers.map(({ node }) => {
+            const callout = callouts[node.id];
+
+            if (!callout) return null;
+
+            const isMuted = highlightId !== null && highlightId !== node.id;
+            const isCalloutActive = highlightId === node.id;
+
+            return (
+              <span
+                aria-hidden
+                className={[
+                  'pointer-events-none absolute z-[2] size-[5px] -translate-x-1/2 -translate-y-1/2 rounded-full border bg-[var(--structure-plate)]',
+                  'transition-[border-color,opacity] duration-300',
+                  isCalloutActive
+                    ? 'border-[var(--structure-accent)]'
+                    : 'border-[var(--structure-hi)]',
+                  isMuted ? 'opacity-35' : 'opacity-100',
+                ].join(' ')}
+                data-primitive-callout-dot={node.id}
+                key={node.id}
+                style={{
+                  left: `${callout.targetX}%`,
+                  top: `${callout.targetY}%`,
+                }}
+              />
             );
           })}
-        </svg>
-        {calloutEntries.map(({ callout, layer }) => {
-          const isMuted = activeLayerId !== null && activeLayerId !== layer.id;
-          const isActive = activeLayerId === layer.id;
+          {calloutLayers.map(({ node }) => {
+            const callout = callouts[node.id];
 
-          return (
-            <span
-              aria-hidden
-              className={[
-                'pointer-events-none absolute z-[2] size-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full border bg-[#111827]',
-                'shadow-[0_0_0_1px_rgba(0,0,0,0.28)] transition-[border-color,opacity] duration-300',
-                isActive ? 'border-white/90' : 'border-white/60',
-                isMuted ? 'opacity-35' : 'opacity-100',
-              ]
-                .filter(Boolean)
-                .join(' ')}
-              data-primitive-callout-dot={layer.id}
-              key={layer.id}
-              style={{
-                left: `${callout.targetX}%`,
-                top: `${callout.targetY}%`,
-              }}
-            />
-          );
-        })}
-        {calloutEntries.map(({ callout, layer }) => {
-          const isMuted = activeLayerId !== null && activeLayerId !== layer.id;
-          const isActive = activeLayerId === layer.id;
+            if (!callout) return null;
 
-          return (
-            <div
-              className={[
-                'absolute z-[2] flex min-h-5 w-[min(128px,29%)] -translate-y-1/2 items-center rounded-none px-2 py-0',
-                'bg-[#151515]/86 text-[10px] font-medium leading-3 text-white/78',
-                'transition-[color,opacity] duration-300',
-                isActive ? 'text-white/92' : null,
-                isMuted ? 'opacity-30' : 'opacity-100',
-              ]
-                .filter(Boolean)
-                .join(' ')}
-              data-primitive-callout-label={layer.id}
-              data-primitive-callout-label-text={layer.id}
-              key={layer.id}
-              style={{
-                left: `${callout.labelX}%`,
-                top: `${callout.labelY}%`,
-              }}
-            >
-              <span className="min-w-0 truncate">{layer.label}</span>
-            </div>
-          );
-        })}
+            const isMuted = highlightId !== null && highlightId !== node.id;
+            const isCalloutActive = highlightId === node.id;
+
+            return (
+              <div
+                className={[
+                  'absolute z-[2] flex min-h-5 max-w-[31%] -translate-y-1/2 items-baseline gap-2 rounded-none py-0 pl-1.5',
+                  'font-mono text-[10px] leading-3 transition-[color,opacity] duration-300',
+                  isCalloutActive ? 'text-white/92' : 'text-white/62',
+                  isMuted ? 'opacity-30' : 'opacity-100',
+                ].join(' ')}
+                data-primitive-callout-label={node.id}
+                ref={(element) => {
+                  if (element) labelElementsRef.current.set(node.id, element);
+                  else labelElementsRef.current.delete(node.id);
+                }}
+                data-primitive-callout-label-text={node.id}
+                key={node.id}
+                style={{
+                  left: `${callout.labelX}%`,
+                  top: `${callout.labelY}%`,
+                }}
+              >
+                <span className="min-w-0 truncate">{node.label}</span>
+              </div>
+            );
+          })}
+        </div>
       </div>
       <div className="relative z-[2] min-h-0 min-w-0 space-y-3">
         <div className="space-y-1">
@@ -1138,26 +1367,37 @@ export function LabPrimitiveStructureView({
         >
           {visibleNodeEntries.map((node) => {
             const isMuted = isStructureNodeMuted(node, activePath);
-            const isActive = activeLayerId === node.id;
-            const hasRenderLayer = layers.some((layer) => layer.id === node.id);
+            const isNodeActive = highlightId === node.id;
+            const measured = renderedNodeIds.has(node.id);
+            const firstSlab = measured
+              ? measurement?.slabs.find(
+                  (slab) => !slab.ghost && slab.nodeId === node.id,
+                )
+              : undefined;
             const displayDepth = Math.max(0, node.treeDepth - 1);
 
             return (
               <li
                 className={[
                   'min-w-0 border-t border-white/8 pt-1.5 transition-opacity duration-300 first:border-t-0 first:pt-0',
-                  isActive ? 'text-white' : null,
+                  isNodeActive ? 'text-white' : null,
                   isMuted ? 'opacity-35' : 'opacity-100',
                 ]
                   .filter(Boolean)
                   .join(' ')}
-                data-primitive-callout-layer={
-                  hasRenderLayer ? 'true' : undefined
-                }
+                data-primitive-callout-layer={measured ? 'true' : undefined}
                 data-primitive-component={node.component}
                 data-primitive-depth={node.treeDepth}
                 data-primitive-layer={node.id}
+                data-primitive-measured={
+                  firstSlab
+                    ? `${firstSlab.width}x${firstSlab.height}`
+                    : undefined
+                }
                 data-primitive-node={node.id}
+                onClick={
+                  isEditing ? () => selectStructureLayer(node.id) : undefined
+                }
                 data-primitive-parent={node.parentId ?? undefined}
                 data-primitive-relation={node.relation}
                 data-primitive-slot={node.slot}
@@ -1172,6 +1412,7 @@ export function LabPrimitiveStructureView({
                   </span>
                   <code className="block truncate font-mono text-[9px] font-medium leading-3 text-white/34">
                     {formatComponentTag(node.component)}
+                    {!measured && node.measurable ? ' · not rendered' : ''}
                   </code>
                   <span className="block text-[11px] leading-4 text-white/46">
                     {node.detail}
