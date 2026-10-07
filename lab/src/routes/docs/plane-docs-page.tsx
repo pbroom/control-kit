@@ -3,6 +3,8 @@ import { PlaneExample } from './examples/plane-basic-example.js';
 import basicExampleCode from './examples/plane-basic-example.tsx?raw';
 import { MultipleThumbsExample } from './examples/plane-multiple-thumbs-example.js';
 import multipleThumbsExampleCode from './examples/plane-multiple-thumbs-example.tsx?raw';
+import { PlaneSnappingExample } from './examples/plane-snapping-example.js';
+import snappingExampleCode from './examples/plane-snapping-example.tsx?raw';
 import { MarkdownDocsPage } from './markdown-docs-page.js';
 import {
   PropReferenceTable,
@@ -385,6 +387,11 @@ export function PlaneDocsPage() {
         'demo:multiple': (
           <DocsExample code={multipleThumbsExampleCode} label="Multiple thumbs">
             <MultipleThumbsExample />
+          </DocsExample>
+        ),
+        'demo:snapping': (
+          <DocsExample code={snappingExampleCode} label="Snapping">
+            <PlaneSnappingExample />
           </DocsExample>
         ),
         'props:plane': <PropReferenceTable name="Plane" props={PLANE_PROPS} />,

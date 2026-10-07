@@ -949,16 +949,17 @@ test('routes between Plane docs and Lab and exposes tabs only on documented page
   await expect(
     page.getByRole('heading', { name: 'API reference', exact: true }),
   ).toBeVisible();
-  // Includes the "don't clip the Plane root" snippet (one tsx) and the
-  // snapping and motion examples (two tsx, one css).
-  await expect(page.locator('pre[data-language="tsx"]')).toHaveCount(12);
+  // Includes the "don't clip the Plane root" snippet (one tsx), the
+  // snapping and motion examples (two tsx, one css), and the Snapping demo
+  // source (one tsx).
+  await expect(page.locator('pre[data-language="tsx"]')).toHaveCount(13);
   const codeBlocks = page.locator('[data-docs-code-block]');
   const copyButtons = page.getByRole('button', {
     name: 'Copy code',
     exact: true,
   });
-  await expect(codeBlocks).toHaveCount(13);
-  await expect(copyButtons).toHaveCount(13);
+  await expect(codeBlocks).toHaveCount(14);
+  await expect(copyButtons).toHaveCount(14);
   expect(
     await codeBlocks.evaluateAll((blocks) =>
       blocks.every((block) => block.classList.contains('not-typeset')),
@@ -969,8 +970,9 @@ test('routes between Plane docs and Lab and exposes tabs only on documented page
     name: 'Show code',
     exact: true,
   });
-  await expect(exampleSources).toHaveCount(2);
-  await expect(exampleToggles).toHaveCount(2);
+  // Basic, multiple thumbs, and snapping demos.
+  await expect(exampleSources).toHaveCount(3);
+  await expect(exampleToggles).toHaveCount(3);
   const firstExampleSource = exampleSources.first();
   const firstExampleCode = firstExampleSource.locator(
     '[data-docs-example-code]',

@@ -150,6 +150,10 @@ Pressing anywhere except the focal point selects the image-pan thumb, the only e
 
 Pass `snap` to quantize or attract a thumb's value. Targets are expressed in the thumb's own space: `0` to `1` for top-level thumbs, `-1` to `1` for nested offsets. Set targets on `Plane` to give every top-level thumb the same defaults; a thumb's own `snap` replaces them.
 
+Drag near the guide lines and points, change the grid, lock an axis, or pick a snap transition. Hold Alt/Option while dragging to bypass snapping.
+
+<!-- demo:snapping -->
+
 ```tsx
 <Plane snap={[{ type: 'grid', x: 0.1, y: 0.1 }]}>
   <PlaneThumb

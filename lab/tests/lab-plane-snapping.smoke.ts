@@ -356,3 +356,145 @@ test('snapped and spring-animated thumbs reach every corner unclipped', async ({
     expect(clippedBy, name).toEqual([]);
   }
 });
+
+test('the docs Snapping demo snaps, reports, and bypasses with Alt', async ({
+  page,
+}) => {
+  const browserErrors = await collectBrowserErrors(page);
+  await page.goto('/docs/plane#snapping');
+  const demo = page.getByRole('figure', { name: 'Snapping demo', exact: true });
+  await demo.scrollIntoViewIfNeeded();
+  const plane = demo.locator('[data-slot="plane"]');
+  const thumb = demo.locator('[data-slot="plane-thumb"]');
+  const readout = demo.locator('[data-snapping-readout]');
+  await expect(readout).toContainText('free');
+  await expect(demo.locator('[data-snap-guide]')).toHaveCount(4);
+  await expect(
+    page.getByRole('figure', { name: 'Snapping demo code', exact: true }),
+  ).toBeVisible();
+
+  const bounds = await planeInputBounds(plane);
+  const thumbBox = (await thumb.boundingBox())!;
+  // 4px right of point A (0.25, 0.75).
+  const nearA = {
+    x: bounds.x + bounds.width * 0.25 + 4,
+    y: bounds.y + bounds.height * 0.25,
+  };
+  await page.mouse.move(
+    thumbBox.x + thumbBox.width / 2,
+    thumbBox.y + thumbBox.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(nearA.x, nearA.y, { steps: 8 });
+  await expect(thumb).toHaveAttribute('data-snapped', 'true');
+  await expect(demo.locator('[data-snap-guide="2"]')).toHaveAttribute(
+    'data-active',
+    'true',
+  );
+  await page.mouse.up();
+  await expect(readout).toHaveText('X 0.250 · Y 0.750 · point A (xy)');
+
+  // Alt bypasses every target, including the grid.
+  const snapped = (await thumb.boundingBox())!;
+  await page.mouse.move(
+    snapped.x + snapped.width / 2,
+    snapped.y + snapped.height / 2,
+  );
+  await page.keyboard.down('Alt');
+  try {
+    await page.mouse.down();
+    await page.mouse.move(nearA.x + 3, nearA.y + 2, { steps: 4 });
+    await page.mouse.up();
+  } finally {
+    await page.keyboard.up('Alt');
+  }
+  await expect(readout).toContainText('free');
+  await expect(thumb).not.toHaveAttribute('data-snapped');
+
+  // Locking to X keeps Y while the grid quantizes X.
+  await demo.getByRole('button', { name: 'X only', exact: true }).click();
+  const lockedY = (await readout.textContent())?.split('·')[1];
+  const locked = (await thumb.boundingBox())!;
+  await page.mouse.move(
+    locked.x + locked.width / 2,
+    locked.y + locked.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(
+    bounds.x + bounds.width * 0.87,
+    bounds.y + bounds.height * 0.9,
+    { steps: 6 },
+  );
+  await page.mouse.up();
+  await expect(readout).toContainText('X 0.875');
+  expect((await readout.textContent())?.split('·')[1]).toBe(lockedY);
+  expect(browserErrors).toEqual([]);
+});
+
+test('the docs Snapping demo thumb stays whole at every corner', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'desktop pointer coverage');
+  await page.goto('/docs/plane#snapping');
+  const demo = page.getByRole('figure', { name: 'Snapping demo', exact: true });
+  await demo.scrollIntoViewIfNeeded();
+  await demo.getByRole('button', { name: 'Spring', exact: true }).click();
+  const plane = demo.locator('[data-slot="plane"]');
+  const thumb = demo.locator('[data-slot="plane-thumb"]');
+  await expect(plane).toHaveCSS('overflow-x', 'visible');
+  const box = (await plane.boundingBox())!;
+  const corners: Array<[string, number, number]> = [
+    ['top-left', box.x - 60, box.y - 60],
+    ['top-right', box.x + box.width + 60, box.y - 60],
+    ['bottom-left', box.x - 60, box.y + box.height + 60],
+    ['bottom-right', box.x + box.width + 60, box.y + box.height + 60],
+  ];
+  for (const [name, x, y] of corners) {
+    const current = (await thumb.boundingBox())!;
+    await page.mouse.move(
+      current.x + current.width / 2,
+      current.y + current.height / 2,
+    );
+    await page.mouse.down();
+    await page.mouse.move(x, y, { steps: 8 });
+    await page.mouse.up();
+    await expect
+      .poll(async () => {
+        const t = (await thumb.boundingBox())!;
+        const cx = t.x + t.width / 2;
+        const cy = t.y + t.height / 2;
+        return (
+          Math.min(Math.abs(cx - box.x), Math.abs(cx - box.x - box.width)) <
+            3 &&
+          Math.min(Math.abs(cy - box.y), Math.abs(cy - box.y - box.height)) < 3
+        );
+      }, name)
+      .toBe(true);
+    const clippedBy = await thumb.evaluate((node) => {
+      const rect = node.getBoundingClientRect();
+      const clips: string[] = [];
+      for (
+        let ancestor = node.parentElement;
+        ancestor && ancestor !== document.documentElement;
+        ancestor = ancestor.parentElement
+      ) {
+        const style = getComputedStyle(ancestor);
+        if (style.overflowX === 'visible' && style.overflowY === 'visible') {
+          continue;
+        }
+        const clip = ancestor.getBoundingClientRect();
+        if (
+          rect.left < clip.left - 0.5 ||
+          rect.right > clip.right + 0.5 ||
+          rect.top < clip.top - 0.5 ||
+          rect.bottom > clip.bottom + 0.5
+        ) {
+          clips.push(`${ancestor.tagName}.${String(ancestor.className)}`);
+        }
+        if (ancestor.matches('[data-docs-example-preview]')) break;
+      }
+      return clips;
+    });
+    expect(clippedBy, name).toEqual([]);
+  }
+});
