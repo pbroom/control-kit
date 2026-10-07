@@ -4,6 +4,7 @@ import {
   NestedThumbSlotContext,
   PlaneContext,
   PlaneThumbContext,
+  PresentedWorldValueContext,
   assignRef,
 } from './context.js';
 import {
@@ -542,9 +543,11 @@ export function Plane({
         }}
       >
         <PlaneThumbContext.Provider value={null}>
-          <NestedThumbSlotContext.Provider value={null}>
-            {children}
-          </NestedThumbSlotContext.Provider>
+          <PresentedWorldValueContext.Provider value={null}>
+            <NestedThumbSlotContext.Provider value={null}>
+              {children}
+            </NestedThumbSlotContext.Provider>
+          </PresentedWorldValueContext.Provider>
         </PlaneThumbContext.Provider>
       </div>
     </PlaneContext.Provider>

@@ -95,9 +95,10 @@ function mount(
 }
 
 function SnappedProbe() {
-  const { snapped } = usePlaneThumbContext();
+  const context = usePlaneThumbContext();
+  const { snapped } = context;
   return (
-    <output data-testid="snapped">
+    <output data-testid="snapped" data-has-key={'snapped' in context}>
       {snapped ? `${snapped.target.type}:${snapped.axes.join('')}` : 'none'}
     </output>
   );
@@ -174,13 +175,37 @@ afterEach(() => {
 describe('PlaneThumb snapping', () => {
   const grid: PlaneSnapTarget = { type: 'grid', x: 0.25, y: 0.1 };
 
-  it('has no snap attributes and reports snap: null without targets', () => {
-    const { plane, thumb, onValueChange, onValueCommitted } = mount();
+  it('leaves details, context, and attributes untouched without snapping', () => {
+    const { plane, thumb, axis, container, onValueChange, onValueCommitted } =
+      mount();
     drag(plane, plane, [at(0.33, 0.46)]);
     expect(lastValue(onValueChange).x).toBeCloseTo(0.33);
     expect(lastValue(onValueChange).y).toBeCloseTo(0.46);
-    expect(lastDetails(onValueChange).snap).toBeNull();
-    expect(lastDetails(onValueCommitted).snap).toBeNull();
+    // Exactly the pre-snapping details: no `snap` key at all.
+    for (const fn of [onValueChange, onValueCommitted]) {
+      const details = lastDetails(fn);
+      expect(details).toEqual({
+        interaction: 'pointer',
+        reason: 'plane-press',
+        originalEvent: expect.any(Event),
+      });
+      expect(Object.keys(details).sort()).toEqual([
+        'interaction',
+        'originalEvent',
+        'reason',
+      ]);
+    }
+    key(axis('x'), 'ArrowRight');
+    expect(Object.keys(lastDetails(onValueChange)).sort()).toEqual([
+      'interaction',
+      'originalEvent',
+      'reason',
+    ]);
+    expect(
+      container
+        .querySelector('[data-testid="snapped"]')!
+        .getAttribute('data-has-key'),
+    ).toBe('false');
     expect(thumb.hasAttribute('data-snapped')).toBe(false);
     expect(thumb.hasAttribute('data-snap-transition')).toBe(false);
     expect(thumb.querySelector('input')!.step).toBe('any');
@@ -230,7 +255,7 @@ describe('PlaneThumb snapping', () => {
     expect(lastValue(onValueChange)).toEqual({ x: 0.5, y: 0.5 });
     act(() => pointer(plane, 'pointermove', at(0.565, 0.5)));
     expect(lastValue(onValueChange).x).toBeCloseTo(0.565);
-    expect(lastDetails(onValueChange).snap).toBeNull();
+    expect(lastDetails(onValueChange).snap).toBeUndefined();
     expect(thumb.hasAttribute('data-snapped')).toBe(false);
     // Moving back to 10px does not re-engage (hysteresis was reset).
     act(() => pointer(plane, 'pointermove', at(0.55, 0.5)));
@@ -261,7 +286,7 @@ describe('PlaneThumb snapping', () => {
     const { plane, thumb, onValueChange } = mount({ snap: [grid] });
     drag(plane, plane, [{ ...at(0.33, 0.46), altKey: true }]);
     expect(lastValue(onValueChange).x).toBeCloseTo(0.33);
-    expect(lastDetails(onValueChange).snap).toBeNull();
+    expect(lastDetails(onValueChange).snap).toBeUndefined();
     expect(thumb.hasAttribute('data-snapped')).toBe(false);
     // Meta does nothing by default.
     drag(plane, plane, [{ ...at(0.61, 0.46), metaKey: true }]);
@@ -448,6 +473,105 @@ describe('PlaneThumb snapping', () => {
   });
 });
 
+describe('PlaneThumb snapping regressions', () => {
+  it('positions thumbs of a Plane nested inside another thumb in their own plane', () => {
+    const { container } = render(
+      <Plane>
+        <PlaneThumb thumbId="outer" defaultValue={{ x: 0.5, y: 0.5 }}>
+          <Plane>
+            <PlaneThumb thumbId="inner" defaultValue={{ x: 0.2, y: 0.2 }} />
+          </Plane>
+        </PlaneThumb>
+      </Plane>,
+    );
+    const inner = container.querySelector(
+      '[data-thumb-id="inner"]',
+    ) as HTMLElement;
+    expect(inner.style.left).toBe('20%');
+    expect(inner.style.top).toBe('80%');
+  });
+
+  it('drops the snapped state when the targets are removed or replaced', () => {
+    const point: PlaneSnapTarget = { type: 'point', x: 0.5, y: 0.5 };
+    const { plane, thumb, container, rerenderThumb, onValueCommitted } = mount({
+      snap: [point],
+      defaultValue: { x: 0.2, y: 0.2 },
+    });
+    const probe = () =>
+      container.querySelector('[data-testid="snapped"]')!.textContent;
+    drag(plane, plane, [at(0.52, 0.5)]);
+    expect(thumb.dataset.snapped).toBe('true');
+    expect(probe()).toBe('point:xy');
+    rerenderThumb({ snap: [{ type: 'point', x: 0.25, y: 0.25 }] });
+    expect(thumb.hasAttribute('data-snapped')).toBe(false);
+    expect(thumb.hasAttribute('data-snap-transition')).toBe(false);
+    expect(probe()).toBe('none');
+    rerenderThumb({ snap: [point] });
+    expect(thumb.dataset.snapped).toBe('true');
+    rerenderThumb({ snap: undefined });
+    expect(thumb.hasAttribute('data-snapped')).toBe(false);
+    expect(lastDetails(onValueCommitted).snap).toEqual({
+      target: point,
+      index: 0,
+      axes: ['x', 'y'],
+    });
+  });
+
+  it('keeps the snapped state when equal targets are recreated', () => {
+    const { plane, thumb, rerenderThumb } = mount({
+      snap: [{ type: 'line', axis: 'x', at: 0.5 }],
+    });
+    drag(plane, plane, [at(0.52, 0.3)]);
+    expect(thumb.dataset.snappedAxis).toBe('x');
+    rerenderThumb({ snap: [{ type: 'line', axis: 'x', at: 0.5 }] });
+    expect(thumb.dataset.snappedAxis).toBe('x');
+  });
+
+  it('snaps both axes to perpendicular lines and reports both parts', () => {
+    const vertical: PlaneSnapTarget = { type: 'line', axis: 'x', at: 0.5 };
+    const horizontal: PlaneSnapTarget = { type: 'line', axis: 'y', at: 0.5 };
+    const { plane, thumb, onValueChange } = mount({
+      snap: [vertical, horizontal],
+      defaultValue: { x: 0.1, y: 0.1 },
+    });
+    drag(plane, plane, [at(0.51, 0.49)]);
+    expect(lastValue(onValueChange)).toEqual({ x: 0.5, y: 0.5 });
+    expect(thumb.dataset.snappedAxis).toBe('both');
+    expect(lastDetails(onValueChange).snap.parts).toHaveLength(2);
+  });
+
+  it('reaches both bounds when the grid does not divide the range', () => {
+    const { axis, onValueChange } = mount({
+      snap: [{ type: 'grid', x: 0.3 }],
+      defaultValue: { x: 0.95, y: 0.5 },
+    });
+    // The last grid line (0.9) is behind the value: End goes to the bound.
+    key(axis('x'), 'End');
+    expect(lastValue(onValueChange).x).toBe(1);
+    key(axis('x'), 'ArrowLeft');
+    expect(lastValue(onValueChange).x).toBe(0.9);
+    key(axis('x'), 'ArrowRight');
+    expect(lastValue(onValueChange).x).toBe(1);
+    key(axis('x'), 'Home');
+    expect(lastValue(onValueChange).x).toBe(0);
+  });
+
+  it('only reports keyboard grid hits for axes the grid moved', () => {
+    const { axis, thumb, onValueChange } = mount({
+      snap: [{ type: 'grid', x: 0.25 }],
+      defaultValue: { x: 0.3, y: 0.3 },
+    });
+    key(axis('x'), 'ArrowRight');
+    expect(lastDetails(onValueChange).snap.axes).toEqual(['x']);
+    expect(thumb.dataset.snapTransition).toBe('true');
+    // y has no grid: no hit and no snap transition.
+    key(axis('x'), 'ArrowUp');
+    expect(lastDetails(onValueChange).snap).toBeUndefined();
+    expect(thumb.hasAttribute('data-snapped')).toBe(false);
+    expect(thumb.hasAttribute('data-snap-transition')).toBe(false);
+  });
+});
+
 describe('PlaneThumb keyboard snapping', () => {
   const grid: PlaneSnapTarget = { type: 'grid', x: 0.25 };
 
@@ -483,7 +607,7 @@ describe('PlaneThumb keyboard snapping', () => {
     });
     key(axis('x'), 'ArrowRight', { altKey: true });
     expect(lastValue(onValueChange).x).toBeCloseTo(0.501);
-    expect(lastDetails(onValueChange).snap).toBeNull();
+    expect(lastDetails(onValueChange).snap).toBeUndefined();
     key(axis('x'), 'ArrowRight');
     expect(lastValue(onValueChange).x).toBe(0.55);
     key(axis('x'), 'ArrowRight', { shiftKey: true });
@@ -501,7 +625,7 @@ describe('PlaneThumb keyboard snapping', () => {
     });
     key(axis('x'), 'ArrowRight');
     expect(lastValue(onValueChange)).toEqual({ x: 0.51, y: 0.5 });
-    expect(lastDetails(onValueChange).snap).toBeNull();
+    expect(lastDetails(onValueChange).snap).toBeUndefined();
   });
 
   it('exposes the grid size as the native step and the snapped value as text', () => {
@@ -540,15 +664,18 @@ describe('PlaneThumb motion', () => {
   function stubAnimationFrames() {
     let callbacks: FrameRequestCallback[] = [];
     let now = 0;
+    const counts = { requested: 0, cancelled: 0 };
     vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      counts.requested += 1;
       callbacks.push(cb);
       return callbacks.length;
     });
     vi.stubGlobal('cancelAnimationFrame', () => {
+      counts.cancelled += 1;
       callbacks = [];
     });
-    vi.spyOn(performance, 'now').mockImplementation(() => now);
     return {
+      counts,
       pending: () => callbacks.length,
       frame(ms = 16) {
         now += ms;
@@ -556,38 +683,118 @@ describe('PlaneThumb motion', () => {
         callbacks = [];
         act(() => run.forEach((cb) => cb(now)));
       },
+      settle() {
+        for (let i = 0; i < 20 && callbacks.length > 0; i += 1) this.frame();
+      },
     };
   }
 
   // Moves halfway to the target each frame; done within 0.01.
-  const halfway: PlaneMotion = {
-    step(current, target) {
-      const value = {
-        x: current.x + (target.x - current.x) / 2,
-        y: current.y + (target.y - current.y) / 2,
-      };
-      const done =
-        Math.abs(value.x - target.x) < 0.01 &&
-        Math.abs(value.y - target.y) < 0.01;
-      return { value: done ? target : value, done };
-    },
-  };
+  function createHalfway(smoothDrag = false) {
+    const calls: { reason: string; dtMs: number }[] = [];
+    const motion: PlaneMotion = {
+      smoothDrag,
+      step(current, target, dtMs, info) {
+        calls.push({ reason: info.reason, dtMs });
+        const value = {
+          x: current.x + (target.x - current.x) / 2,
+          y: current.y + (target.y - current.y) / 2,
+        };
+        const done =
+          Math.abs(value.x - target.x) < 0.01 &&
+          Math.abs(value.y - target.y) < 0.01;
+        return { value: done ? target : value, done };
+      },
+    };
+    return { motion, calls };
+  }
 
-  it('animates the presented position while the logical value never lags', () => {
+  it('follows free drags instantly and animates snap transitions', () => {
     const frames = stubAnimationFrames();
-    const { plane, thumb, axis, onValueChange } = mount({
-      motion: halfway,
-      defaultValue: { x: 0.2, y: 0.5 },
+    const { motion, calls } = createHalfway();
+    const point: PlaneSnapTarget = { type: 'point', x: 0.5, y: 0.5 };
+    const { plane, thumb, onValueChange } = mount({
+      motion,
+      snap: [point],
+      defaultValue: { x: 0.2, y: 0.2 },
     });
+    act(() => pointer(plane, 'pointerdown', at(0.2, 0.2)));
+    act(() => pointer(plane, 'pointermove', at(0.3, 0.5)));
+    // Free drag: drawn at the pointer, no frames.
+    expect(thumb.style.left).toBe('30%');
     expect(frames.pending()).toBe(0);
-    drag(plane, plane, [at(0.6, 0.5)]);
-    expect(lastValue(onValueChange)).toEqual({ x: 0.6, y: 0.5 });
-    expect(axis('x').value).toBe('0.6');
-    expect(thumb.style.left).toBe('20%');
+    // Entering the point animates; the logical value is immediate.
+    act(() => pointer(plane, 'pointermove', at(0.53, 0.5)));
+    expect(lastValue(onValueChange)).toEqual({ x: 0.5, y: 0.5 });
+    expect(thumb.style.left).toBe('30%');
     frames.frame();
     expect(parseFloat(thumb.style.left)).toBeCloseTo(40);
-    for (let i = 0; i < 10 && frames.pending() > 0; i += 1) frames.frame();
-    expect(thumb.style.left).toBe('60%');
+    expect(calls[0].reason).toBe('snap');
+    frames.settle();
+    expect(thumb.style.left).toBe('50%');
+    // The next free move after leaving jumps to the pointer.
+    act(() => pointer(plane, 'pointermove', at(0.7, 0.5)));
+    act(() => pointer(plane, 'pointermove', at(0.75, 0.5)));
+    expect(thumb.style.left).toBe('75%');
+    act(() => pointer(plane, 'pointerup', at(0.75, 0.5)));
+  });
+
+  it('animates keyboard and programmatic changes', () => {
+    const frames = stubAnimationFrames();
+    const { motion, calls } = createHalfway();
+    const { thumb, axis, rerenderThumb, onValueChange } = mount({
+      motion,
+      snap: [{ type: 'grid', x: 0.25 }],
+      value: { x: 0.25, y: 0.5 },
+    });
+    key(axis('x'), 'ArrowRight');
+    expect(lastValue(onValueChange)).toEqual({ x: 0.5, y: 0.5 });
+    rerenderThumb({ value: { x: 0.5, y: 0.5 } });
+    expect(thumb.style.left).toBe('25%');
+    frames.frame();
+    expect(calls[calls.length - 1].reason).toBe('keyboard');
+    frames.settle();
+    expect(thumb.style.left).toBe('50%');
+    rerenderThumb({ value: { x: 0.9, y: 0.5 } });
+    expect(thumb.style.left).toBe('50%');
+    frames.frame();
+    expect(calls[calls.length - 1].reason).toBe('programmatic');
+    expect(parseFloat(thumb.style.left)).toBeCloseTo(70);
+  });
+
+  it('smooths free drags when the motion opts in', () => {
+    const frames = stubAnimationFrames();
+    const { motion, calls } = createHalfway(true);
+    const { plane, thumb } = mount({
+      motion,
+      defaultValue: { x: 0.2, y: 0.5 },
+    });
+    drag(plane, plane, [at(0.6, 0.5)]);
+    expect(thumb.style.left).toBe('20%');
+    frames.frame();
+    expect(calls[0].reason).toBe('drag');
+    expect(parseFloat(thumb.style.left)).toBeCloseTo(40);
+  });
+
+  it('runs one frame loop that retargets without restarting and uses frame timestamps', () => {
+    const frames = stubAnimationFrames();
+    const { motion, calls } = createHalfway();
+    const { thumb, rerenderThumb } = mount({
+      motion,
+      value: { x: 0.1, y: 0.5 },
+    });
+    rerenderThumb({ value: { x: 0.5, y: 0.5 } });
+    frames.frame(16);
+    frames.frame(20);
+    const requestedBefore = frames.counts.requested;
+    rerenderThumb({ value: { x: 0.9, y: 0.5 } });
+    // Retargeting mid-animation neither cancels nor requests a new frame.
+    expect(frames.counts.cancelled).toBe(0);
+    expect(frames.counts.requested).toBe(requestedBefore);
+    frames.frame(24);
+    expect(calls.map((call) => call.dtMs).slice(1, 3)).toEqual([20, 24]);
+    frames.settle();
+    expect(thumb.style.left).toBe('90%');
     expect(frames.pending()).toBe(0);
   });
 
@@ -601,16 +808,24 @@ describe('PlaneThumb motion', () => {
 
   it('inherits motion from Plane and moves nested thumbs with the presented parent', () => {
     const frames = stubAnimationFrames();
-    const { container, plane } = render(
-      <Plane motion={halfway}>
-        <PlaneThumb thumbId="parent" defaultValue={{ x: 0.2, y: 0.5 }}>
+    const { motion } = createHalfway();
+    const { container } = render(
+      <Plane motion={motion}>
+        <PlaneThumb
+          thumbId="parent"
+          defaultValue={{ x: 0.2, y: 0.5 }}
+          largeStep={0.4}
+        >
           <PlaneThumb thumbId="child" defaultValue={{ x: 0.1, y: 0 }} />
         </PlaneThumb>
       </Plane>,
     );
     const thumb = (id: string) =>
       container.querySelector(`[data-thumb-id="${id}"]`) as HTMLElement;
-    drag(plane, thumb('parent'), [at(0.2, 0.5), at(0.6, 0.5)]);
+    const parentAxis = thumb('parent').querySelector(
+      ':scope > [data-plane-axis="x"]',
+    )!;
+    key(parentAxis, 'PageUp');
     expect(thumb('parent').style.left).toBe('20%');
     expect(parseFloat(thumb('child').style.left)).toBeCloseTo(30);
     frames.frame();
@@ -620,11 +835,12 @@ describe('PlaneThumb motion', () => {
 
   it('hit-tests against the logical value during motion', () => {
     stubAnimationFrames();
-    const { plane, thumb, onValueChange } = mount(
-      { motion: halfway, defaultValue: { x: 0.2, y: 0.5 } },
+    const { motion } = createHalfway();
+    const { plane, thumb, axis, onValueChange } = mount(
+      { motion, defaultValue: { x: 0.2, y: 0.5 }, largeStep: 0.6 },
       { pressBehavior: 'nearest' },
     );
-    drag(plane, plane, [at(0.8, 0.5)]);
+    key(axis('x'), 'PageUp');
     // Presented still at 20%, but the logical position (80%) is what a
     // nearest-thumb press measures from.
     expect(thumb.style.left).toBe('20%');

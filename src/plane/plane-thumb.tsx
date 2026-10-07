@@ -4,6 +4,7 @@ import { cn } from '../utils.js';
 import {
   NestedThumbSlotContext,
   PlaneThumbContext,
+  PresentedWorldValueContext,
   assignRef,
   useInternalPlaneContext,
   type NestedThumbSlotContextValue,
@@ -37,6 +38,7 @@ import {
   getPlaneGridAxes,
   getPlaneGridHit,
   isOnGridLine,
+  isSnapHitCurrent,
   planeSnapHitsEqual,
   quantizeToGrid,
   resolvePlaneSnap,
@@ -44,6 +46,7 @@ import {
 import { usePlaneThumbHover } from './use-plane-thumb-hover.js';
 import type {
   PlaneKeyboardReason,
+  PlaneMotionReason,
   PlaneResolvedPointerValue,
   PlaneSnapHit,
   PlaneThumbContextValue,
@@ -60,10 +63,6 @@ type PlaneSnapState = {
   hit: PlaneSnapHit | null;
   transition: boolean;
 };
-
-// Nested thumbs position relative to their parent's presented (possibly
-// animating) position, while hit-testing keeps using logical values.
-const PresentedWorldValueContext = React.createContext<PlaneValue | null>(null);
 
 function getDefaultAriaValueText(value: PlaneValue) {
   return `${Math.round(value.x * 100)}% horizontal, ${Math.round(value.y * 100)}% vertical`;
@@ -115,7 +114,9 @@ export function PlaneThumb({
   const context = useInternalPlaneContext();
   const parentThumb = React.useContext(PlaneThumbContext);
   const parentSlot = React.useContext(NestedThumbSlotContext);
-  const parentPresentedWorld = React.useContext(PresentedWorldValueContext);
+  const presentedWorldContext = React.useContext(PresentedWorldValueContext);
+  // Only a parent thumb's drawn position applies; a Plane resets the context.
+  const parentPresentedWorld = parentThumb ? presentedWorldContext : null;
   const { snapDefaults } = context;
   // Plane snap targets are in plane space, so nested thumbs do not inherit them.
   const snapTargets = snapProp ?? (parentThumb ? undefined : snapDefaults.snap);
@@ -196,16 +197,26 @@ export function PlaneThumb({
   const snapStateRef = React.useRef<PlaneSnapState | null>(null);
   // Hysteresis input for the next pointer sample of the current drag.
   const pointerSnapRef = React.useRef<PlaneSnapHit | null>(null);
-  // Controlled values set by the parent are not snapped; a stale hit for a
-  // different value is dropped.
-  const snapped =
-    snapState && planeValuesEqual(snapState.value, renderedValue)
-      ? snapState.hit
-      : null;
-  const snapTransition = Boolean(
-    snapState?.transition && planeValuesEqual(snapState.value, renderedValue),
+  // Controlled values set by the parent are not snapped: a hit recorded for a
+  // different value is dropped, as is a hit for removed or replaced targets.
+  const snapStateCurrent = Boolean(
+    snapState &&
+    planeValuesEqual(snapState.value, renderedValue) &&
+    (!snapState.hit || isSnapHitCurrent(snapState.hit, snapTargets)),
   );
-  const presentedLocal = usePlaneMotion(renderedValue, motion);
+  const snapped = snapStateCurrent ? (snapState?.hit ?? null) : null;
+  const snapTransition = snapStateCurrent && Boolean(snapState?.transition);
+  // Why the latest value changed, for the motion layer.
+  const motionChangeRef = React.useRef<{
+    value: PlaneValue;
+    reason: PlaneMotionReason;
+  } | null>(null);
+  const motionChange = motionChangeRef.current;
+  const motionReason: PlaneMotionReason =
+    motionChange && planeValuesEqual(motionChange.value, renderedValue)
+      ? motionChange.reason
+      : 'programmatic';
+  const presentedLocal = usePlaneMotion(renderedValue, motionReason, motion);
   const presentedWorld = React.useMemo(
     () => ({
       x: (parentPresentedWorld?.x ?? parentX) + presentedLocal.x,
@@ -306,38 +317,38 @@ export function PlaneThumb({
     renderedValue,
   ]);
 
+  // Returns whether the change entered, moved between, or left snap
+  // positions. Leaving only counts for pointer input.
   const recordSnap = React.useCallback(
-    (value: PlaneValue, hit: PlaneSnapHit | null) => {
+    (value: PlaneValue, hit: PlaneSnapHit | null, pointer: boolean) => {
       const previous = snapStateRef.current;
       const previousHit =
         previous &&
         planeValuesEqual(previous.value, interactionValueRef.current)
           ? previous.hit
           : null;
-      // A free move after a free (or leaving) value clears the record. Without
-      // snapping this never sets state.
-      if (!hit && !previousHit) {
+      const transition = hit !== null || (pointer && previousHit !== null);
+      // A free change after a free (or leaving) value clears the record.
+      // Without snapping this never sets state.
+      if (!transition) {
         if (previous) {
           snapStateRef.current = null;
           setSnapState(null);
         }
-        return;
+        return false;
       }
-      const next: PlaneSnapState = {
-        value,
-        hit,
-        transition: hit !== null || previousHit !== null,
-      };
+      const next: PlaneSnapState = { value, hit, transition };
       if (
         previous &&
         planeValuesEqual(previous.value, next.value) &&
         planeSnapHitsEqual(previous.hit, next.hit) &&
         previous.transition === next.transition
       ) {
-        return;
+        return transition;
       }
       snapStateRef.current = next;
       setSnapState(next);
+      return transition;
     },
     [],
   );
@@ -355,7 +366,12 @@ export function PlaneThumb({
         return false;
       }
 
-      recordSnap(normalizedValue, hit);
+      const pointer = source.interaction === 'pointer';
+      const transition = recordSnap(normalizedValue, hit, pointer);
+      motionChangeRef.current = {
+        value: normalizedValue,
+        reason: pointer ? (transition ? 'snap' : 'drag') : 'keyboard',
+      };
       interactionValueRef.current = normalizedValue;
       if (!isControlled) setUncontrolledValue(normalizedValue);
       onValueChange?.(
@@ -377,7 +393,9 @@ export function PlaneThumb({
 
   const getCurrentSnapHit = () => {
     const state = snapStateRef.current;
-    return state && planeValuesEqual(state.value, interactionValueRef.current)
+    return state?.hit &&
+      planeValuesEqual(state.value, interactionValueRef.current) &&
+      isSnapHitCurrent(state.hit, snapTargets)
       ? state.hit
       : null;
   };
@@ -387,14 +405,22 @@ export function PlaneThumb({
       nextValue: PlaneValue,
       reason: PlaneKeyboardReason,
       originalEvent?: Event,
+      gridStepped = true,
     ) => {
-      // Keyboard and input changes only report grid hits; magnetic targets
-      // do not affect them.
+      // Keyboard and input changes only report grid hits, and only for the
+      // axes this change moved onto a grid line. Magnetic targets do not
+      // affect them.
       const normalizedValue = normalizeValue(nextValue);
+      const current = interactionValueRef.current;
+      const movedAxes = (['x', 'y'] as const).filter(
+        (axis) => normalizedValue[axis] !== current[axis],
+      );
       const changed = publishValue(
         normalizedValue,
         { interaction: 'keyboard', reason, originalEvent },
-        hasGrid ? getPlaneGridHit(normalizedValue, snapTargets) : null,
+        hasGrid && gridStepped
+          ? getPlaneGridHit(normalizedValue, snapTargets, movedAxes)
+          : null,
       );
       keyboardDirtyRef.current ||= changed;
       return changed;
@@ -436,6 +462,7 @@ export function PlaneThumb({
       getChordValue(interactionValueRef.current),
       'keyboard',
       keyboardOriginalEventRef.current,
+      !modifierKeysRef.current.alt,
     );
   };
 
@@ -591,7 +618,8 @@ export function PlaneThumb({
       focusVisible,
       disabled: isDisabled,
       readOnly: isReadOnly,
-      snapped,
+      // Omitted entirely when unsnapped.
+      ...(snapped ? { snapped } : null),
     }),
     [
       snapped,
@@ -835,7 +863,12 @@ export function PlaneThumb({
             ?.focus({ preventScroll: true });
         }
         keyboardOriginalEventRef.current = event.nativeEvent;
-        setKeyboardValue(nextValue, 'keyboard', event.nativeEvent);
+        setKeyboardValue(
+          nextValue,
+          'keyboard',
+          event.nativeEvent,
+          !event.altKey,
+        );
       }}
       onKeyUp={(event) => {
         onKeyUp?.(event);

@@ -10,6 +10,14 @@ export const PlaneContext =
 export const PlaneThumbContext =
   React.createContext<PlaneThumbContextValue | null>(null);
 
+// A thumb's drawn (possibly animating) world position. Nested thumbs draw
+// relative to it, while hit-testing keeps using logical values. Each Plane
+// resets it, like the other thumb contexts.
+export const PresentedWorldValueContext = React.createContext<{
+  x: number;
+  y: number;
+} | null>(null);
+
 // Nested thumbs render outside their parent's element so their percentage
 // positions resolve against the plane. Each parent owns a `display: contents`
 // container placed directly after its own element, so descendants keep the

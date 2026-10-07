@@ -29,13 +29,23 @@ export type PlaneSnapTarget =
   /** Consulted first, in declaration order. Return null to defer. */
   | { type: 'custom'; resolve: (value: PlaneValue) => PlaneValue | null };
 
-export type PlaneSnapHit = {
-  /** The highest-priority target that changed the value. */
+/** One target that contributed to a snap. */
+export type PlaneSnapHitPart = {
   target: PlaneSnapTarget;
   /** The target's index in the resolved `snap` array. */
   index: number;
-  /** Every axis whose value snapping changed or fixed in place. */
+  /** The axes this target fixed. */
   axes: PlaneSnapAxis[];
+};
+
+export type PlaneSnapHit = PlaneSnapHitPart & {
+  /**
+   * Present when more than one target applied, for example a vertical and a
+   * horizontal line, or a line plus a grid on the other axis. Lists every
+   * applied target in priority order; the hit's own `target`/`index` is the
+   * first of them and its `axes` is the union of all parts' axes.
+   */
+  parts?: PlaneSnapHitPart[];
 };
 
 /**
@@ -49,16 +59,30 @@ export type PlaneAxisLock = PlaneSnapAxis | 'dominant-with-shift';
 export type PlaneSnapBypass = 'alt' | 'meta' | false;
 
 /**
+ * Why the presented position is moving:
+ * - `'drag'`: a pointer drag sample that did not change the snap state.
+ * - `'snap'`: a pointer sample that entered, left, or moved between snap
+ *   positions (including grid steps).
+ * - `'keyboard'`: a keyboard or native input change.
+ * - `'programmatic'`: any other value change, such as a controlled update.
+ */
+export type PlaneMotionReason = 'drag' | 'snap' | 'keyboard' | 'programmatic';
+
+/**
  * Presentation-only motion. Moves the rendered thumb from its current
  * presented position toward the logical value; the logical value (and every
- * callback) never lags.
+ * callback) never lags. Free drag samples (`'drag'`) follow the pointer
+ * instantly unless `smoothDrag` is true.
  */
 export type PlaneMotion = {
   step(
     current: PlaneValue,
     target: PlaneValue,
     dtMs: number,
+    info: { reason: PlaneMotionReason },
   ): { value: PlaneValue; done: boolean };
+  /** Also animate free drag samples. @default false */
+  smoothDrag?: boolean;
 };
 
 export type PlaneValueChangeDetails = {
@@ -66,8 +90,8 @@ export type PlaneValueChangeDetails = {
   reason: PlaneValueChangeReason;
   thumbId?: string;
   originalEvent?: Event;
-  /** The snap target that produced this value, or null when unsnapped. */
-  snap: PlaneSnapHit | null;
+  /** The snap that produced this value. Omitted when nothing snapped. */
+  snap?: PlaneSnapHit;
 };
 
 export type PlanePoint = {
@@ -95,7 +119,8 @@ export type PlaneHoverValueChangeDetails = {
 export type PlaneSnapProps = {
   /**
    * Snap targets. Grids always quantize; lines and points are magnetic within
-   * `snapRadius`. Priority: custom > point > line > grid. A thumb's own
+   * `snapRadius`. Priority: custom > point > line > grid; lines apply per
+   * axis, so perpendicular lines combine. A thumb's own
    * `snap` replaces the Plane default. Nested thumbs do not inherit the Plane
    * `snap` targets, because they use a different (parent-relative) space.
    */
@@ -106,7 +131,12 @@ export type PlaneSnapProps = {
   axisLock?: PlaneAxisLock;
   /** Modifier that disables snapping during a pointer drag. @default 'alt' */
   snapBypass?: PlaneSnapBypass;
-  /** Presentation motion toward the logical value. @default instant */
+  /**
+   * Presentation motion toward the logical value for snap transitions,
+   * keyboard, and programmatic changes; free drags follow the pointer unless
+   * `motion.smoothDrag`. Hoist or memoize it (for example a module-level
+   * `springMotion()`). @default instant
+   */
   motion?: PlaneMotion;
 };
 
@@ -189,8 +219,8 @@ export type PlaneThumbContextValue = {
   focusVisible: boolean;
   disabled: boolean;
   readOnly: boolean;
-  /** The snap target the current value is resting on, or null. */
-  snapped: PlaneSnapHit | null;
+  /** The snap the current value rests on. Omitted when unsnapped. */
+  snapped?: PlaneSnapHit;
 };
 
 // Internal types shared between Plane and PlaneThumb. Not exported publicly.

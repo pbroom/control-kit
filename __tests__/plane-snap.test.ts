@@ -157,7 +157,15 @@ describe('resolvePlaneSnap', () => {
     // Far from the point: the line fixes x, the grid quantizes y.
     expect(resolvePlaneSnap({ x: 0.53, y: 0.23 }, ctx(targets))).toEqual({
       value: { x: 0.52, y: 0.2 },
-      hit: { target: line, index: 1, axes: ['x', 'y'] },
+      hit: {
+        target: line,
+        index: 1,
+        axes: ['x', 'y'],
+        parts: [
+          { target: line, index: 1, axes: ['x'] },
+          { target: grid, index: 0, axes: ['y'] },
+        ],
+      },
     });
     // Away from magnetic targets: grid only.
     expect(resolvePlaneSnap({ x: 0.83, y: 0.23 }, ctx(targets))).toEqual({
@@ -279,7 +287,7 @@ describe('resolvePlaneSnap', () => {
     expect(resolvePlaneSnap({ x: 0.61, y: 0.5 }, ctx([point, custom]))).toEqual(
       {
         value: { x: 1, y: 0.5 },
-        hit: { target: custom, index: 1, axes: ['x', 'y'] },
+        hit: { target: custom, index: 1, axes: ['x'] },
       },
     );
     expect(resolvePlaneSnap({ x: 0.2, y: 0.5 }, ctx([custom])).hit).toBeNull();
@@ -289,6 +297,72 @@ describe('resolvePlaneSnap', () => {
       resolve: () => ({ x: Number.NaN, y: 0 }),
     };
     expect(resolvePlaneSnap({ x: 0.2, y: 0.5 }, ctx([broken])).hit).toBeNull();
+  });
+
+  it('defers custom results that clamp back to the raw value', () => {
+    const outside: PlaneSnapTarget = {
+      type: 'custom',
+      resolve: (value) => ({ x: 1.5, y: value.y }),
+    };
+    const point: PlaneSnapTarget = { type: 'point', x: 1, y: 0.5 };
+    // Raw x is already past the edge, so x = 1.5 changes nothing once
+    // clamped; the point gets its turn.
+    expect(
+      resolvePlaneSnap({ x: 1.02, y: 0.5 }, ctx([outside, point])),
+    ).toEqual({
+      value: { x: 1, y: 0.5 },
+      hit: { target: point, index: 1, axes: ['x', 'y'] },
+    });
+    expect(resolvePlaneSnap({ x: 1.2, y: 0.5 }, ctx([outside])).hit).toBeNull();
+    // Inside the range it still applies (clamping happens later).
+    expect(resolvePlaneSnap({ x: 0.9, y: 0.5 }, ctx([outside]))).toEqual({
+      value: { x: 1.5, y: 0.5 },
+      hit: { target: outside, index: 0, axes: ['x'] },
+    });
+  });
+
+  it('combines perpendicular lines with per-axis hysteresis', () => {
+    const vertical: PlaneSnapTarget = { type: 'line', axis: 'x', at: 0.5 };
+    const horizontal: PlaneSnapTarget = { type: 'line', axis: 'y', at: 0.5 };
+    const targets = [vertical, horizontal];
+    const both = resolvePlaneSnap({ x: 0.51, y: 0.49 }, ctx(targets));
+    expect(both).toEqual({
+      value: { x: 0.5, y: 0.5 },
+      hit: {
+        target: vertical,
+        index: 0,
+        axes: ['x', 'y'],
+        parts: [
+          { target: vertical, index: 0, axes: ['x'] },
+          { target: horizontal, index: 1, axes: ['y'] },
+        ],
+      },
+    });
+    // 10px from both: outside the radius, but both are held.
+    expect(
+      resolvePlaneSnap({ x: 0.6, y: 0.4 }, ctx(targets, { previous: both.hit }))
+        .value,
+    ).toEqual({ x: 0.5, y: 0.5 });
+    // 13px on x releases only x.
+    const released = resolvePlaneSnap(
+      { x: 0.63, y: 0.4 },
+      ctx(targets, { previous: both.hit }),
+    );
+    expect(released.value.x).toBeCloseTo(0.63);
+    expect(released.value.y).toBe(0.5);
+    expect(released.hit).toEqual({
+      target: horizontal,
+      index: 1,
+      axes: ['y'],
+    });
+    // A point near the intersection overrides both lines.
+    const point: PlaneSnapTarget = { type: 'point', x: 0.52, y: 0.52 };
+    expect(
+      resolvePlaneSnap(
+        { x: 0.53, y: 0.53 },
+        ctx([...targets, point], { previous: both.hit }),
+      ).hit,
+    ).toEqual({ target: point, index: 2, axes: ['x', 'y'] });
   });
 
   it('does not clamp; callers clamp afterwards', () => {
@@ -438,6 +512,14 @@ describe('keyboard grid stepping', () => {
     expect(getGridAxisStep(0.6, 1, false, grid, 0.1, 0)).toBe(0.75);
     expect(getGridAxisStep(0.6, -1, false, grid, 0.1, 0)).toBe(0.5);
     expect(getGridAxisStep(1, 1, false, grid, 0.1, 0)).toBe(1);
+    // Past the last line of a grid that does not divide the range, step to
+    // the bound.
+    const third = { size: 0.3, origin: 0 };
+    expect(getGridAxisStep(0.9, 1, false, third, 0.1, 0)).toBe(1);
+    expect(getGridAxisStep(0.95, 1, true, third, 0.1, 0)).toBe(1);
+    expect(
+      getGridAxisStep(0.05, -1, false, { size: 0.3, origin: 0.1 }, 0.1, 0),
+    ).toBe(0);
     expect(getGridAxisStep(-1, -1, false, grid, 0.1, -1)).toBe(-1);
   });
 
@@ -496,6 +578,13 @@ describe('keyboard grid stepping', () => {
       x: 0,
       y: 0.5,
     });
+    // Home/End never move away from their bound.
+    expect(
+      getGridAxisKeyValue('x', 'End', { x: 0.95, y: 0.5 }, 0.1, axes, 0),
+    ).toEqual({ x: 1, y: 0.5 });
+    expect(
+      getGridAxisKeyValue('x', 'End', { x: 0.9, y: 0.5 }, 0.1, axes, 0),
+    ).toEqual({ x: 1, y: 0.5 });
     expect(getGridAxisKeyValue('y', 'End', value, 0.1, axes, 0)).toBeNull();
     expect(getGridAxisKeyValue('x', 'Tab', value, 0.1, axes, 0)).toBeNull();
   });
@@ -509,7 +598,7 @@ describe('springMotion', () => {
     let done = false;
     let frames = 0;
     while (!done && frames < 600) {
-      const result = motion.step(value, target, 16);
+      const result = motion.step(value, target, 16, { reason: 'snap' });
       value = result.value;
       done = result.done;
       frames += 1;
@@ -522,12 +611,36 @@ describe('springMotion', () => {
   it('tracks velocity per presented value', () => {
     const motion = springMotion();
     const target = { x: 1, y: 0 };
-    const first = motion.step({ x: 0, y: 0 }, target, 16).value;
-    const second = motion.step(first, target, 16).value;
+    const first = motion.step({ x: 0, y: 0 }, target, 16, {
+      reason: 'snap',
+    }).value;
+    const second = motion.step(first, target, 16, { reason: 'snap' }).value;
     // A fresh value with the same coordinates starts at rest, so it moves
     // less than one that carries velocity.
-    const fresh = motion.step({ ...first }, target, 16).value;
+    const fresh = motion.step({ ...first }, target, 16, {
+      reason: 'snap',
+    }).value;
     expect(second.x - first.x).toBeGreaterThan(fresh.x - first.x);
+  });
+
+  it('keeps momentum when a new instance with the same options takes over', () => {
+    const target = { x: 1, y: 0 };
+    const info = { reason: 'snap' as const };
+    const first = springMotion().step({ x: 0, y: 0 }, target, 16, info).value;
+    const continued = springMotion().step(first, target, 16, info).value;
+    const same = springMotion();
+    const reference = same.step(
+      same.step({ x: 0, y: 0 }, target, 16, info).value,
+      target,
+      16,
+      info,
+    ).value;
+    expect(continued).toEqual(reference);
+  });
+
+  it('opts into drag smoothing only when asked', () => {
+    expect(springMotion().smoothDrag).toBe(false);
+    expect(springMotion({ smoothDrag: true }).smoothDrag).toBe(true);
   });
 
   it('settles instantly under prefers-reduced-motion', () => {
@@ -535,7 +648,9 @@ describe('springMotion', () => {
     vi.stubGlobal('matchMedia', matchMedia);
     try {
       const target = { x: 1, y: 1 };
-      expect(springMotion().step({ x: 0, y: 0 }, target, 16)).toEqual({
+      expect(
+        springMotion().step({ x: 0, y: 0 }, target, 16, { reason: 'snap' }),
+      ).toEqual({
         value: target,
         done: true,
       });

@@ -102,6 +102,8 @@ export function getValueChangeDetails(
   thumbId: string | undefined,
   snap: PlaneSnapHit | null = null,
 ): PlaneValueChangeDetails {
+  // Without snapping the details are exactly the source (plus thumbId).
+  if (!snap) return thumbId ? { ...source, thumbId } : source;
   return thumbId ? { ...source, thumbId, snap } : { ...source, snap };
 }
 

@@ -4,6 +4,7 @@
 import type {
   PlaneSnapAxis,
   PlaneSnapHit,
+  PlaneSnapHitPart,
   PlaneSnapTarget,
   PlaneValue,
 } from './types.js';
@@ -132,7 +133,38 @@ function sameTarget(a: PlaneSnapTarget, b: PlaneSnapTarget) {
   if (a.type === 'line' && b.type === 'line') {
     return a.axis === b.axis && a.at === b.at;
   }
-  return false;
+  if (a.type === 'grid' && b.type === 'grid') {
+    return (
+      a.x === b.x &&
+      a.y === b.y &&
+      a.origin?.x === b.origin?.x &&
+      a.origin?.y === b.origin?.y
+    );
+  }
+  // Custom resolvers are commonly recreated each render; at the same index
+  // they count as the same target.
+  return a.type === 'custom';
+}
+
+function getHitParts(hit: PlaneSnapHit): readonly PlaneSnapHitPart[] {
+  return hit.parts ?? [hit];
+}
+
+/**
+ * True while every target a hit refers to is still present at its index in
+ * `targets`. Hits for removed or replaced targets are stale.
+ */
+export function isSnapHitCurrent(
+  hit: PlaneSnapHit,
+  targets: readonly PlaneSnapTarget[] | undefined,
+) {
+  if (!targets) return false;
+  return getHitParts(hit).every(
+    (part) =>
+      part.index >= 0 &&
+      part.index < targets.length &&
+      sameTarget(targets[part.index], part.target),
+  );
 }
 
 function getMagneticDistancePx(
@@ -174,15 +206,26 @@ function isUsableMagnetic(
   return false;
 }
 
-const MAGNETIC_PRIORITY = { point: 2, line: 1 } as const;
+// A point fixes both axes; a line fixes the axis it is named after.
+type MagneticKind = 'point' | PlaneSnapAxis;
 
+function getMagneticKind(target: MagneticCandidate['target']): MagneticKind {
+  return target.type === 'point' ? 'point' : target.axis;
+}
+
+/**
+ * Picks the magnetic targets that apply: one point, or up to one line per
+ * axis. Each kind has its own hysteresis: a previously held target stays held
+ * until the value moves beyond the release radius. A point (held or within
+ * the radius) overrides lines.
+ */
 function pickMagnetic(
   raw: PlaneValue,
   ctx: PlaneSnapContext,
   min: number,
   max: number,
   lockedAxis: PlaneSnapAxis | null,
-): MagneticCandidate | null {
+): MagneticCandidate[] {
   const { boundsPx, radiusPx, targets, previous } = ctx;
   if (
     !(boundsPx.width > 0) ||
@@ -190,60 +233,95 @@ function pickMagnetic(
     !(radiusPx >= 0) ||
     !Number.isFinite(radiusPx)
   ) {
-    return null;
+    return [];
   }
 
-  // Nearest within the radius per type; ties keep declaration order.
-  const best: Partial<Record<'point' | 'line', MagneticCandidate>> = {};
+  // Nearest within the radius per kind; ties keep declaration order.
+  const best: Partial<Record<MagneticKind, MagneticCandidate>> = {};
   targets.forEach((target, index) => {
     if (!isUsableMagnetic(target, min, max, lockedAxis)) return;
     const distancePx = getMagneticDistancePx(target, raw, boundsPx);
     if (distancePx > radiusPx) return;
-    const current = best[target.type];
+    const kind = getMagneticKind(target);
+    const current = best[kind];
     if (!current || distancePx < current.distancePx) {
-      best[target.type] = { target, index, distancePx };
+      best[kind] = { target, index, distancePx };
     }
   });
 
-  // Hysteresis: a previously held magnetic target stays held until the value
-  // moves beyond the release radius, unless a higher-priority target engages.
-  let held: MagneticCandidate | null = null;
-  if (previous && previous.index >= 0 && previous.index < targets.length) {
-    const target = targets[previous.index];
+  const held: Partial<Record<MagneticKind, MagneticCandidate>> = {};
+  for (const part of previous ? getHitParts(previous) : []) {
+    if (part.index < 0 || part.index >= targets.length) continue;
+    const target = targets[part.index];
     if (
-      sameTarget(target, previous.target) &&
-      isUsableMagnetic(target, min, max, lockedAxis)
+      !sameTarget(target, part.target) ||
+      !isUsableMagnetic(target, min, max, lockedAxis)
     ) {
-      const distancePx = getMagneticDistancePx(target, raw, boundsPx);
-      if (distancePx <= radiusPx * SNAP_RELEASE_FACTOR) {
-        held = { target, index: previous.index, distancePx };
-      }
+      continue;
+    }
+    const distancePx = getMagneticDistancePx(target, raw, boundsPx);
+    if (distancePx <= radiusPx * SNAP_RELEASE_FACTOR) {
+      held[getMagneticKind(target)] = {
+        target,
+        index: part.index,
+        distancePx,
+      };
     }
   }
 
-  let winner: MagneticCandidate | null = best.point ?? best.line ?? null;
-  if (
-    held &&
-    (!winner ||
-      MAGNETIC_PRIORITY[held.target.type] >=
-        MAGNETIC_PRIORITY[winner.target.type])
-  ) {
-    winner = held;
+  const point = held.point ?? best.point;
+  if (point) return [point];
+  const lines: MagneticCandidate[] = [];
+  for (const axis of ['x', 'y'] as const) {
+    const line = held[axis] ?? best[axis];
+    if (line) lines.push(line);
   }
-  return winner;
+  return lines;
+}
+
+function addPart(
+  parts: PlaneSnapHitPart[],
+  target: PlaneSnapTarget,
+  index: number,
+  axis: PlaneSnapAxis,
+) {
+  const part = parts.find((entry) => entry.index === index);
+  if (part) part.axes.push(axis);
+  else parts.push({ target, index, axes: [axis] });
+}
+
+function toHit(
+  parts: PlaneSnapHitPart[],
+  axes: PlaneSnapAxis[],
+): PlaneSnapHit | null {
+  if (parts.length === 0) return null;
+  const [primary] = parts;
+  const hit: PlaneSnapHit = {
+    target: primary.target,
+    index: primary.index,
+    axes,
+  };
+  if (parts.length > 1) hit.parts = parts;
+  return hit;
 }
 
 /**
  * Resolves a raw value against snap targets.
  *
- * - Custom resolvers run first, in declaration order; the first non-null
- *   result wins.
- * - Otherwise the nearest magnetic point, then line, within `radiusPx`
- *   (measured in pixels, so it is aspect-correct) engages. A held target
- *   (`previous`) releases only beyond 1.5x the radius.
+ * - Custom resolvers run first, in declaration order. The first non-null
+ *   result that still differs from the raw value once both are limited to
+ *   the space's range wins; other results defer.
+ * - Otherwise the nearest magnetic point within `radiusPx` (measured in
+ *   pixels, so it is aspect-correct) fixes both axes. Without a point, the
+ *   nearest line on each axis fixes that axis, so perpendicular lines
+ *   combine. A held target (`previous`) releases only beyond 1.5x the radius.
  * - Grids quantize every axis no magnetic target fixed.
  * - Targets outside the space's range are ignored. The result is not
  *   clamped; callers clamp afterwards.
+ *
+ * `hit.target`/`hit.index` name the highest-priority target applied and
+ * `hit.axes` every snapped axis. When several targets applied, `hit.parts`
+ * lists each one with its own axes, in priority order.
  */
 export function resolvePlaneSnap(
   raw: PlaneValue,
@@ -254,8 +332,8 @@ export function resolvePlaneSnap(
 
   const { min, max } = getSnapRange(ctx.space);
   const lockedAxis = ctx.lockedAxis ?? null;
-  const restoreLocked = (value: PlaneValue): PlaneValue =>
-    lockedAxis ? { ...value, [lockedAxis]: raw[lockedAxis] } : value;
+  const freeAxes = (['x', 'y'] as const).filter((axis) => axis !== lockedAxis);
+  const limit = (value: number) => Math.min(max, Math.max(min, value));
 
   for (let index = 0; index < targets.length; index += 1) {
     const target = targets[index];
@@ -264,50 +342,62 @@ export function resolvePlaneSnap(
     }
     const resolved = target.resolve(raw);
     if (
-      resolved &&
-      Number.isFinite(resolved.x) &&
-      Number.isFinite(resolved.y)
+      !resolved ||
+      !Number.isFinite(resolved.x) ||
+      !Number.isFinite(resolved.y)
     ) {
-      const axes = (['x', 'y'] as const).filter((axis) => axis !== lockedAxis);
-      return {
-        value: restoreLocked({ x: resolved.x, y: resolved.y }),
-        hit: { target, index, axes },
-      };
+      continue;
     }
+    const value = { ...raw };
+    const axes: PlaneSnapAxis[] = [];
+    for (const axis of freeAxes) {
+      value[axis] = resolved[axis];
+      if (limit(resolved[axis]) !== limit(raw[axis])) axes.push(axis);
+    }
+    // A result that clamps back to the raw value changes nothing: defer.
+    if (axes.length === 0) continue;
+    return { value, hit: { target, index, axes } };
   }
 
   const value = { ...raw };
-  const axes: PlaneSnapAxis[] = [];
-  let primary: { target: PlaneSnapTarget; index: number } | null = null;
+  const parts: PlaneSnapHitPart[] = [];
+  const fixed = new Set<PlaneSnapAxis>();
 
-  const magnetic = pickMagnetic(raw, ctx, min, max, lockedAxis);
-  if (magnetic) {
-    const { target } = magnetic;
+  for (const { target, index } of pickMagnetic(
+    raw,
+    ctx,
+    min,
+    max,
+    lockedAxis,
+  )) {
     if (target.type === 'point') {
       value.x = target.x;
       value.y = target.y;
-      axes.push('x', 'y');
+      parts.push({ target, index, axes: ['x', 'y'] });
+      fixed.add('x').add('y');
     } else {
       value[target.axis] = target.at;
-      axes.push(target.axis);
+      parts.push({ target, index, axes: [target.axis] });
+      fixed.add(target.axis);
     }
-    primary = { target, index: magnetic.index };
   }
 
   const grid = getPlaneGridAxes(targets);
-  for (const axis of ['x', 'y'] as const) {
+  for (const axis of freeAxes) {
     const gridAxis = grid[axis];
-    if (!gridAxis || axes.includes(axis) || axis === lockedAxis) continue;
+    if (!gridAxis || fixed.has(axis)) continue;
     const line = quantizeToGrid(raw[axis], gridAxis, min, max);
     if (line === null) continue;
     value[axis] = line;
-    axes.push(axis);
-    primary ??= { target: targets[gridAxis.index], index: gridAxis.index };
+    fixed.add(axis);
+    addPart(parts, targets[gridAxis.index], gridAxis.index, axis);
   }
 
-  if (!primary) return { value: raw, hit: null };
-  axes.sort();
-  return { value, hit: { ...primary, axes } };
+  const hit = toHit(
+    parts,
+    (['x', 'y'] as const).filter((axis) => fixed.has(axis)),
+  );
+  return hit ? { value, hit } : { value: raw, hit: null };
 }
 
 /** True when `value` lies on a line of `grid`. */
@@ -321,24 +411,40 @@ export function isOnGridLine(
 
 /**
  * The grid hit for a value that did not come from a pointer (keyboard or
- * input change): reports the axes resting on a grid line. Magnetic targets
- * are not considered.
+ * input change): reports which of `axes` (default both) rest on a grid line.
+ * Magnetic targets are not considered.
  */
 export function getPlaneGridHit(
   value: PlaneValue,
   targets: readonly PlaneSnapTarget[] | undefined,
+  axes: readonly PlaneSnapAxis[] = ['x', 'y'],
 ): PlaneSnapHit | null {
+  if (!targets) return null;
   const grid = getPlaneGridAxes(targets);
-  const axes: PlaneSnapAxis[] = [];
-  let index = -1;
+  const parts: PlaneSnapHitPart[] = [];
+  const snapped: PlaneSnapAxis[] = [];
   for (const axis of ['x', 'y'] as const) {
     const gridAxis = grid[axis];
-    if (!gridAxis || !isOnGridLine(value[axis], gridAxis)) continue;
-    axes.push(axis);
-    if (index < 0) index = gridAxis.index;
+    if (
+      !axes.includes(axis) ||
+      !gridAxis ||
+      !isOnGridLine(value[axis], gridAxis)
+    ) {
+      continue;
+    }
+    snapped.push(axis);
+    addPart(parts, targets[gridAxis.index], gridAxis.index, axis);
   }
-  if (!targets || index < 0) return null;
-  return { target: targets[index], index, axes };
+  return toHit(parts, snapped);
+}
+
+function partsEqual(a: PlaneSnapHitPart, b: PlaneSnapHitPart) {
+  return (
+    a.index === b.index &&
+    sameTarget(a.target, b.target) &&
+    a.axes.length === b.axes.length &&
+    a.axes.every((axis, i) => axis === b.axes[i])
+  );
 }
 
 /** Value-equality for hits, ignoring array identity. */
@@ -347,12 +453,12 @@ export function planeSnapHitsEqual(
   b: PlaneSnapHit | null,
 ) {
   if (a === b) return true;
-  if (!a || !b) return false;
+  if (!a || !b || !partsEqual(a, b)) return false;
+  const aParts = a.parts ?? [];
+  const bParts = b.parts ?? [];
   return (
-    a.index === b.index &&
-    sameTarget(a.target, b.target) &&
-    a.axes.length === b.axes.length &&
-    a.axes.every((axis, i) => axis === b.axes[i])
+    aParts.length === bParts.length &&
+    aParts.every((part, i) => partsEqual(part, bParts[i]))
   );
 }
 

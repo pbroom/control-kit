@@ -96,7 +96,8 @@ export type PlaneKeyboardSteps = {
 /**
  * Moves one axis on a grid. A plain step goes to the next grid line in
  * `direction`; a large step goes `largeStep` further, rounded to the grid, but
- * always at least one line. Stays put when no line exists in that direction.
+ * always at least one line. Past the last line in that direction it moves to
+ * the bound, so grids that do not divide the range still reach both ends.
  */
 export function getGridAxisStep(
   value: number,
@@ -107,7 +108,9 @@ export function getGridAxisStep(
   minimum: number,
 ): number {
   const next = getNextGridLine(value, direction, grid, minimum, 1);
-  if (next === null) return value;
+  // Past the last grid line, step to the bound so it stays reachable.
+  if (next === null)
+    return direction > 0 ? Math.max(value, 1) : Math.min(value, minimum);
   if (!large) return next;
   const rounded = quantizeToGrid(
     value + direction * largeStep,
@@ -179,8 +182,14 @@ export function getGridAxisKeyValue(
   if (!gridAxis) return null;
   const next = { ...value };
   if (key === 'Home' || key === 'End') {
+    // The outermost grid line when it lies beyond the value, otherwise the
+    // bound itself: Home/End never move away from their bound.
     const bound = key === 'Home' ? minimum : 1;
-    next[axis] = quantizeToGrid(bound, gridAxis, minimum, 1) ?? bound;
+    const line = quantizeToGrid(bound, gridAxis, minimum, 1);
+    const beyond =
+      line !== null &&
+      (key === 'Home' ? line < value[axis] - 1e-9 : line > value[axis] + 1e-9);
+    next[axis] = beyond ? line : bound;
   } else if (key === 'PageUp' || key === 'PageDown') {
     next[axis] = getGridAxisStep(
       value[axis],
