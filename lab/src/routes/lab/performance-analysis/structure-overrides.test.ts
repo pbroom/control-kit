@@ -53,17 +53,15 @@ describe('lab/structure-overrides.json', () => {
     );
   });
 
-  it('orders each demo label, route, frame, explode, framing, layers', () => {
+  it('orders each demo label, route, explode, framing, layers', () => {
     for (const demo of Object.values(file.demos)) {
       expect(Object.keys(demo)).toEqual([
         'label',
         'route',
-        'frame',
         'explode',
         'framing',
         'layers',
       ]);
-      expect(typeof (demo as { frame?: unknown }).frame).toBe('boolean');
     }
   });
 });
@@ -85,7 +83,7 @@ describe('explode', () => {
     expect(resolved.demos.slider!.explode).toBe(1);
     expect(resolved.demos.tabs!.explode).toBe(0.75);
     expect(serializeStructureOverrides(resolved)).toContain(
-      '"frame": false,\n      "explode": 0.3,\n      "framing"',
+      '"route": "/lab/checkbox",\n      "explode": 0.3,\n      "framing"',
     );
   });
 
@@ -94,7 +92,6 @@ describe('explode', () => {
       demos: {
         plane: {
           explode,
-          frame: false,
           framing: { mode: 'auto', panX: 0, panY: 0, zoom: 1 },
           label: 'Plane',
           layers: {},
@@ -113,48 +110,40 @@ describe('explode', () => {
   });
 });
 
-describe('frame', () => {
-  it('defaults to false when missing and is always written', () => {
-    const resolved = resolveStructureOverrides({
-      demos: { plane: { framing: {}, layers: {} } },
-      version: 1,
-    });
-
-    expect(resolved.demos.plane!.frame).toBe(false);
-    expect(resolveStructureOverrides({ demos: {} }).demos.tabs!.frame).toBe(
-      false,
-    );
-    expect(
-      resolveStructureOverrides({ demos: { plane: { frame: true } } }).demos
-        .plane!.frame,
-    ).toBe(true);
-    expect(serializeStructureOverrides(resolved)).toContain(
-      '"route": "/lab/plane",\n      "frame": false,\n      "explode"',
-    );
+describe('legacy frame key', () => {
+  // The render frame moved to lab/structure-editor.local.json; old files
+  // that still carry "frame" load fine and lose it on the next write.
+  const legacy = (frame: unknown) => ({
+    demos: {
+      plane: {
+        explode: 0.75,
+        frame,
+        framing: { mode: 'auto', panX: 0, panY: 0, zoom: 1 },
+        label: 'Plane',
+        layers: {},
+        route: '/lab/plane',
+      },
+    },
+    version: 1,
   });
 
-  it('accepts booleans only', () => {
-    const demo = (frame: unknown) => ({
-      demos: {
-        plane: {
-          frame,
-          framing: { mode: 'auto', panX: 0, panY: 0, zoom: 1 },
-          label: 'Plane',
-          layers: {},
-          route: '/lab/plane',
-        },
-      },
-      version: 1,
-    });
+  it('is accepted by the validator whatever its value', () => {
+    expect(validateStructureOverrides(legacy(true))).toEqual([]);
+    expect(validateStructureOverrides(legacy('no'))).toEqual([]);
+  });
 
-    expect(validateStructureOverrides(demo(false))).toEqual([]);
-    expect(validateStructureOverrides(demo(undefined))).toEqual([]);
-    expect(validateStructureOverrides(demo('no'))).toEqual([
-      'demos.plane.frame must be a boolean',
-    ]);
-    expect(validateStructureOverrides(demo(0))).toEqual([
-      'demos.plane.frame must be a boolean',
-    ]);
+  it('is dropped when read and when written', () => {
+    const resolved = resolveStructureOverrides(legacy(true));
+
+    expect('frame' in resolved.demos.plane!).toBe(false);
+    expect(serializeStructureOverrides(resolved)).not.toContain('"frame"');
+    expect(
+      serializeStructureOverrides(
+        legacy(true) as unknown as Parameters<
+          typeof serializeStructureOverrides
+        >[0],
+      ),
+    ).not.toContain('"frame"');
   });
 });
 

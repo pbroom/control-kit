@@ -10,7 +10,6 @@
  *     "<LabPageKey>": {
  *       "label": "Control Field",
  *       "route": "/lab/control-field",
- *       "frame": false,
  *       "explode": 0.75,
  *       "framing": { "mode": "auto", "panX": 0, "panY": 0, "zoom": 1 },
  *       "layers": {
@@ -48,11 +47,6 @@ export type StructureLayerOverride = {
 export type StructureDemoOverride = {
   /** Default layer gap, 0..1 (the render's explode control). Missing = 0.75. */
   explode: number;
-  /**
-   * Dev builds: outline the fixed render area and the auto-fit area the
-   * figure is framed within. Missing = false.
-   */
-  frame: boolean;
   framing: StructureFramingOverride;
   label: string;
   layers: Record<string, StructureLayerOverride>;
@@ -167,9 +161,8 @@ export function validateStructureOverrides(value: unknown): string[] {
     ) {
       errors.push(`${at}.explode must be a number in 0..1`);
     }
-    if (demo.frame !== undefined && typeof demo.frame !== 'boolean') {
-      errors.push(`${at}.frame must be a boolean`);
-    }
+    // A legacy "frame" key (now a local editor preference, see
+    // structure-editor-local.json) is ignored here and dropped on write.
     if (typeof demo.route !== 'string')
       errors.push(`${at}.route must be a string`);
 
@@ -239,7 +232,6 @@ export function serializeStructureOverrides(file: StructureOverridesFile) {
     demos[key] = {
       label: demo.label,
       route: demo.route,
-      frame: demo.frame === true,
       explode: normalizeExplode(demo.explode),
       framing: normalizeFraming(demo.framing),
       layers,

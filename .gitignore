@@ -4,3 +4,5 @@ dist-lab
 output
 .DS_Store
 *.tgz
+# Per-developer Structure editor preferences (lab dev server)
+lab/structure-editor.local.json

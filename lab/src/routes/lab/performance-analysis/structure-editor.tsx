@@ -10,13 +10,13 @@ import {
 } from '@pbroom/control-kit';
 import {
   changeStructureExplode,
-  changeStructureFrame,
   commitStructureOverrides,
   changeStructureFraming,
   changeStructureLayer,
   readStructureEditorParams,
   resetStructureDemo,
   selectStructureLayer,
+  setStructureFrame,
   useStructureEditorState,
 } from './structure-editor-store.js';
 import { structureOverrideDemo } from './structure-overrides.js';
@@ -179,6 +179,7 @@ export function StructurePropertiesSection({ pageKey }: { pageKey: string }) {
     committing,
     dirty,
     liveExplode: liveExplodeByPage,
+    local,
     overrides,
     rootSizes,
     saveState,
@@ -241,11 +242,12 @@ export function StructurePropertiesSection({ pageKey }: { pageKey: string }) {
         </p>
       </div>
 
+      {/* A local view preference: never saved to the overrides or committed. */}
       <Checkbox
-        checked={demo.frame}
+        checked={local.frame[pageKey] === true}
         data-testid="lab-primitive-structure-frame-toggle"
         onCheckedChange={(checked) =>
-          changeStructureFrame(pageKey, checked === true)
+          setStructureFrame(pageKey, checked === true)
         }
       >
         Render frame

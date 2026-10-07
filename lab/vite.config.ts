@@ -12,6 +12,10 @@ import {
   handleStructureOverridesWrite,
   STRUCTURE_OVERRIDES_ENDPOINT,
 } from './src/routes/lab/performance-analysis/structure-overrides-server.js';
+import {
+  handleStructureEditorLocalWrite,
+  STRUCTURE_EDITOR_LOCAL_ENDPOINT,
+} from './src/routes/lab/performance-analysis/structure-editor-local-schema.js';
 
 const fromLab = (path: string) => new URL(path, import.meta.url).pathname;
 
@@ -108,9 +112,40 @@ function structureOverridesWriter(): Plugin {
     readWorking: async () => (await loadFs()).readFile(file, 'utf8'),
   };
 
+  const localFile = fromLab('./structure-editor.local.json');
+
   return {
     apply: 'serve',
     configureServer(server) {
+      // Local, gitignored editor preferences (render frame per demo).
+      server.middlewares.use(
+        STRUCTURE_EDITOR_LOCAL_ENDPOINT,
+        (request, response) => {
+          const req = request as unknown as DevRequest;
+          const res = response as unknown as DevResponse;
+
+          if (req.method !== 'POST') {
+            res.statusCode = 405;
+            res.setHeader('allow', 'POST');
+            res.end();
+            return;
+          }
+
+          void readBody(req)
+            .then((body) =>
+              handleStructureEditorLocalWrite(body, async (text) => {
+                await (await loadFs()).writeFile(localFile, text, 'utf8');
+              }),
+            )
+            .then((result) => sendJson(res, result))
+            .catch((error: unknown) =>
+              sendJson(res, {
+                body: JSON.stringify({ errors: [String(error)], ok: false }),
+                status: 500,
+              }),
+            );
+        },
+      );
       // Registered before the save route, which would match these as a prefix.
       server.middlewares.use(
         STRUCTURE_OVERRIDES_STATUS_ENDPOINT,

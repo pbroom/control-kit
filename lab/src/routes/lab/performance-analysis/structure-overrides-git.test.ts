@@ -8,6 +8,10 @@ import {
   STRUCTURE_OVERRIDES_PATH,
 } from './structure-overrides-git.js';
 import { createStructureOverridesSeed } from './structure-overrides.js';
+import {
+  handleStructureEditorLocalWrite,
+  serializeStructureEditorLocal,
+} from './structure-editor-local-schema.js';
 import { serializeStructureOverrides } from './structure-overrides-schema.js';
 
 const head = serializeStructureOverrides(createStructureOverridesSeed());
@@ -22,7 +26,7 @@ function edited(
 
 const working = edited((file) => {
   file.demos.plane!.framing = { mode: 'manual', panX: 0.1, panY: 0, zoom: 1.2 };
-  file.demos.checkbox!.frame = true;
+  file.demos.checkbox!.explode = 0.4;
 });
 
 /** A fake git that records calls and answers from a script. */
@@ -75,7 +79,7 @@ describe('structure overrides commit message', () => {
     );
     const hostile = edited((file) => {
       file.demos.menu!.label = 'Menu $(touch x)';
-      file.demos.menu!.frame = true;
+      file.demos.menu!.explode = 0.2;
     });
     expect(buildStructureCommitMessage(head, hostile)).toBe(
       'Update structure framing (Menu touch x)',
@@ -170,5 +174,45 @@ describe('structure overrides commit handler', () => {
 
     expect(JSON.parse(clean.body)).toEqual({ dirty: false });
     expect(JSON.parse(dirty.body)).toEqual({ dirty: true });
+  });
+});
+
+describe('render frame (lab/structure-editor.local.json)', () => {
+  // The render frame is a local view preference: toggling it writes the
+  // gitignored local file only, so it never shows up in status or a commit.
+  it('never changes status and never appears in a commit', async () => {
+    const files: Record<string, string> = {
+      [STRUCTURE_OVERRIDES_PATH]: working,
+    };
+    const readWorking = async () => files[STRUCTURE_OVERRIDES_PATH]!;
+    const { calls, git } = fakeGit();
+
+    const before = await handleStructureOverridesStatus({ git, readWorking });
+    const toggle = await handleStructureEditorLocalWrite(
+      serializeStructureEditorLocal({ frame: { plane: true }, version: 1 }),
+      async (text) => {
+        files['lab/structure-editor.local.json'] = text;
+      },
+    );
+    const after = await handleStructureOverridesStatus({ git, readWorking });
+
+    expect(toggle.status).toBe(200);
+    expect(after).toEqual(before);
+    expect(files[STRUCTURE_OVERRIDES_PATH]).toBe(working);
+    expect(files[STRUCTURE_OVERRIDES_PATH]).not.toContain('"frame"');
+
+    const commit = await handleStructureOverridesCommit({ git, readWorking });
+    const staged = calls.filter(([command]) =>
+      ['add', 'commit'].includes(command!),
+    );
+
+    expect(JSON.parse(commit.body).message).toBe(
+      'Update structure framing (Plane, Checkbox)',
+    );
+    expect(staged).toHaveLength(2);
+    for (const args of staged) {
+      expect(args.slice(-2)).toEqual(['--', STRUCTURE_OVERRIDES_PATH]);
+      expect(args.join(' ')).not.toContain('structure-editor.local');
+    }
   });
 });

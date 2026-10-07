@@ -968,7 +968,9 @@ export function LabPrimitiveStructureView({
   const stroke = Math.max(0.5, 1 / devicePixelRatio);
   // Dev only: outline the fixed render area and the auto-fit area within it.
   const frameOverlay =
-    import.meta.env.DEV && demoOverride?.frame === true && size.width > 0
+    import.meta.env.DEV &&
+    editorState.local.frame[pageKey] === true &&
+    size.width > 0
       ? structureFrameOverlay(size, region)
       : null;
   const explodePercent = Math.round(explode * 100);

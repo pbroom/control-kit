@@ -17,6 +17,12 @@ import {
   STRUCTURE_OVERRIDES_STATUS_ENDPOINT,
 } from './structure-overrides-git.js';
 import { STRUCTURE_OVERRIDES_ENDPOINT } from './structure-overrides-server.js';
+import { STRUCTURE_EDITOR_LOCAL } from './structure-editor-local.js';
+import {
+  serializeStructureEditorLocal,
+  STRUCTURE_EDITOR_LOCAL_ENDPOINT,
+  type StructureEditorLocalFile,
+} from './structure-editor-local-schema.js';
 
 /*
  * Shared state for the structure overrides: the Structure tab (render, node
@@ -36,6 +42,11 @@ type StructureEditorState = {
   dirty: boolean | null;
   /** The render's current (unsaved) explode gap per page. */
   liveExplode: Record<string, number>;
+  /**
+   * Local, uncommitted view preferences (lab/structure-editor.local.json):
+   * never part of the overrides, the dirty state or a commit.
+   */
+  local: StructureEditorLocalFile;
   overrides: StructureOverridesFile;
   /** Measured root size per page, for the layer pad's range. */
   rootSizes: Record<string, { height: number; width: number }>;
@@ -59,7 +70,11 @@ export function readStructureEditorParams() {
   };
 }
 
-type HotData = { pending?: boolean; state?: StructureEditorState };
+type HotData = {
+  localPending?: boolean;
+  pending?: boolean;
+  state?: StructureEditorState;
+};
 const hotData = import.meta.hot?.data as HotData | undefined;
 
 // Across HMR re-runs (the JSON changed on disk) keep the selection, and keep
@@ -67,6 +82,9 @@ const hotData = import.meta.hot?.data as HotData | undefined;
 let state: StructureEditorState = hotData?.state
   ? {
       ...hotData.state,
+      local: hotData.localPending
+        ? hotData.state.local
+        : STRUCTURE_EDITOR_LOCAL,
       overrides: hotData.pending
         ? hotData.state.overrides
         : STRUCTURE_OVERRIDES,
@@ -76,6 +94,7 @@ let state: StructureEditorState = hotData?.state
       commitNote: null,
       dirty: null,
       liveExplode: {},
+      local: STRUCTURE_EDITOR_LOCAL,
       overrides: STRUCTURE_OVERRIDES,
       rootSizes: {},
       saveState: 'idle',
@@ -84,11 +103,13 @@ let state: StructureEditorState = hotData?.state
 let saveTimer: number | null = null;
 let pendingDoc: StructureOverridesFile | null = null;
 let inFlight: Promise<void> | null = null;
+let localInFlight: Promise<void> | null = null;
 const listeners = new Set<() => void>();
 
 import.meta.hot?.dispose((data: HotData) => {
   data.state = state;
   data.pending = saveTimer !== null || inFlight !== null;
+  data.localPending = localInFlight !== null;
 });
 
 function setState(patch: Partial<StructureEditorState>) {
@@ -117,6 +138,33 @@ export function setStructureRootSize(
   if (current?.width === size.width && current.height === size.height) return;
 
   setState({ rootSizes: { ...state.rootSizes, [pageKey]: size } });
+}
+
+/**
+ * Shows or hides a demo's render frame. Saved to the local preferences file
+ * only: the overrides, their dirty state and Commit are untouched.
+ */
+export function setStructureFrame(pageKey: string, on: boolean) {
+  const frame = { ...state.local.frame };
+
+  if (on) frame[pageKey] = true;
+  else delete frame[pageKey];
+
+  const local: StructureEditorLocalFile = { ...state.local, frame };
+  setState({ local });
+
+  const request: Promise<void> = fetch(STRUCTURE_EDITOR_LOCAL_ENDPOINT, {
+    body: serializeStructureEditorLocal(local),
+    headers: { 'content-type': 'application/json' },
+    method: 'POST',
+  })
+    .then(() => {})
+    .catch(() => {})
+    .finally(() => {
+      if (localInFlight === request) localInFlight = null;
+    });
+
+  localInFlight = request;
 }
 
 export function selectStructureLayer(layerId: string | null) {
@@ -262,10 +310,6 @@ export function changeStructureExplode(pageKey: string, explode: number) {
   }));
 }
 
-export function changeStructureFrame(pageKey: string, frame: boolean) {
-  updateDemo(pageKey, (demo) => ({ ...demo, frame }));
-}
-
 export function changeStructureLayer(
   pageKey: string,
   layerId: string,
@@ -290,7 +334,6 @@ export function resetStructureDemo(pageKey: string) {
   updateDemo(pageKey, (demo) => ({
     ...demo,
     explode: STRUCTURE_DEFAULT_EXPLODE,
-    frame: false,
     framing: AUTO_FRAMING,
     layers: Object.fromEntries(
       Object.entries(demo.layers).map(([id, layer]) => [

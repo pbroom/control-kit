@@ -9,7 +9,6 @@ type SavedFile = {
     string,
     {
       explode: number;
-      frame: boolean;
       framing: { mode: string; panX: number; panY: number; zoom: number };
       layers: Record<
         string,
@@ -44,6 +43,26 @@ async function captureSaves(
 ) {
   const saves: { raw: string; file: SavedFile }[] = [];
   const events: string[] = [];
+  const localSaves: string[] = [];
+
+  // The developer's own lab/structure-editor.local.json (if any) must not
+  // leak into tests: serve "no preferences" in its place.
+  await page.route('**/structure-editor.local.json?*', (route) =>
+    route.fulfill({
+      body: 'export default "{\\"version\\":1,\\"frame\\":{}}"',
+      contentType: 'application/javascript',
+      status: 200,
+    }),
+  );
+  await page.route('**/__lab/structure-editor-local', (route) => {
+    events.push('local');
+    localSaves.push(route.request().postData() ?? '');
+    return route.fulfill({
+      body: '{"ok":true}',
+      contentType: 'application/json',
+      status: 200,
+    });
+  });
 
   await page.route('**/__lab/structure-overrides/status', (route) => {
     events.push('status');
@@ -76,7 +95,7 @@ async function captureSaves(
     });
   });
 
-  return Object.assign(saves, { events });
+  return Object.assign(saves, { events, localSaves });
 }
 
 test('edits a layer offset with the real primitives and saves the overrides file', async ({
@@ -204,17 +223,22 @@ test('edits a layer offset with the real primitives and saves the overrides file
   await expect(frame).toHaveAttribute('pointer-events', 'none');
   await expect(canvas).toHaveAttribute('viewBox', framedViewBox!);
   expect(await slabOrigin(panel, 'control-field-root')).toBe(framedRoot);
+  // A local view preference: written to lab/structure-editor.local.json,
+  // never to the overrides file.
+  const savesBeforeFrame = saves.length;
   await expect
-    .poll(() => saves.at(-1)?.file.demos.controlField?.frame)
-    .toBe(true);
-  expect(saves.at(-1)!.raw).toContain(
-    '"route": "/lab/control-field",\n      "frame": true,\n      "explode": 0.75,\n      "framing"',
-  );
+    .poll(() => saves.localSaves.at(-1))
+    .toBe(
+      '{\n  "version": 1,\n  "frame": {\n    "controlField": true\n  }\n}\n',
+    );
   await frameToggle.click();
   await expect(frame).toHaveCount(0);
   await expect
-    .poll(() => saves.at(-1)?.file.demos.controlField?.frame)
-    .toBe(false);
+    .poll(() => saves.localSaves.at(-1))
+    .toBe('{\n  "version": 1,\n  "frame": {}\n}\n');
+  expect(saves.localSaves).toHaveLength(2);
+  await page.waitForTimeout(400);
+  expect(saves).toHaveLength(savesBeforeFrame);
 
   // The layer pad runs at half speed: a drag of N px moves the value half as
   // far as an absolute 1:1 drag would (pad range is ±the root's larger side).
@@ -347,6 +371,23 @@ test('commits the overrides file from the Structure section', async ({
   // Nothing differs from HEAD: nothing to commit.
   await expect(commit).toBeDisabled();
 
+  // The render frame is local: toggling it writes only the local file, never
+  // saves the overrides, never asks for status, and leaves Commit disabled.
+  await expect.poll(() => saves.events.includes('status')).toBe(true);
+  const statusChecks = saves.events.filter((e) => e === 'status').length;
+  const frameToggle = editor.getByRole('checkbox', { name: 'Render frame' });
+  await frameToggle.click();
+  await expect(frameToggle).toBeChecked();
+  await expect.poll(() => saves.localSaves.length).toBe(1);
+  await page.waitForTimeout(400);
+  await expect(commit).toBeDisabled();
+  expect(saves).toHaveLength(0);
+  expect(saves.events.filter((e) => e === 'status')).toHaveLength(statusChecks);
+  await frameToggle.click();
+  await expect.poll(() => saves.localSaves.length).toBe(2);
+  await expect(commit).toBeDisabled();
+  expect(saves.events).not.toContain('commit');
+
   // An edit makes it committable; Commit flushes the save, then commits.
   dirty = true;
   const xField = editor
@@ -398,7 +439,7 @@ test('starts the render at the demo default explode and saves a new one', async 
     const text = await response.text();
     await route.fulfill({
       body: text.replace(
-        /("slider":\{"label":"Slider","route":"\/lab\/slider","frame":(?:true|false),"explode":)[\d.]+/,
+        /("slider":\{"label":"Slider","route":"\/lab\/slider","explode":)[\d.]+/,
         '$10.3',
       ),
       contentType: 'application/javascript',
@@ -441,10 +482,11 @@ test('starts the render at the demo default explode and saves a new one', async 
   await useCurrent.click();
   await expect.poll(() => saves.at(-1)?.file.demos.slider?.explode).toBe(0.7);
   await expect(explodeField).toHaveValue('0.7');
-  // Key order: frame, explode, framing (frame's value is the working file's).
-  expect(saves.at(-1)!.raw).toMatch(
-    /"frame": (?:true|false),\n {6}"explode": 0\.7,\n {6}"framing"/,
+  // Key order: route, explode, framing; no render frame in the file.
+  expect(saves.at(-1)!.raw).toContain(
+    '"route": "/lab/slider",\n      "explode": 0.7,\n      "framing"',
   );
+  expect(saves.at(-1)!.raw).not.toContain('"frame"');
 
   // Typing a default saves it and moves the render there.
   await explodeField.click();

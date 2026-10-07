@@ -4,7 +4,6 @@
     "plane": {
       "label": "Plane",
       "route": "/lab/plane",
-      "frame": false,
       "explode": 0.75,
       "framing": {
         "mode": "manual",
@@ -30,7 +29,6 @@
     "colorPlane": {
       "label": "ColorPlane",
       "route": "/lab/color-plane",
-      "frame": false,
       "explode": 0.75,
       "framing": {
         "mode": "manual",
@@ -86,7 +84,6 @@
     "input": {
       "label": "Control Input",
       "route": "/lab/input-primitive",
-      "frame": false,
       "explode": 0.75,
       "framing": {
         "mode": "auto",
@@ -124,7 +121,6 @@
     "controlField": {
       "label": "Control Field",
       "route": "/lab/control-field",
-      "frame": false,
       "explode": 0.75,
       "framing": {
         "mode": "manual",
@@ -174,7 +170,6 @@
     "inputMulti": {
       "label": "Input Multi",
       "route": "/lab/input-multi",
-      "frame": false,
       "explode": 0.75,
       "framing": {
         "mode": "manual",
@@ -206,7 +201,6 @@
     "checkbox": {
       "label": "Checkbox",
       "route": "/lab/checkbox",
-      "frame": true,
       "explode": 0.75,
       "framing": {
         "mode": "manual",
@@ -244,7 +238,6 @@
     "slider": {
       "label": "Slider",
       "route": "/lab/slider",
-      "frame": true,
       "explode": 0.76,
       "framing": {
         "mode": "manual",
@@ -282,7 +275,6 @@
     "tooltip": {
       "label": "Tooltip",
       "route": "/lab/tooltip",
-      "frame": false,
       "explode": 0.75,
       "framing": {
         "mode": "auto",
@@ -308,7 +300,6 @@
     "menu": {
       "label": "Menu",
       "route": "/lab/menu",
-      "frame": false,
       "explode": 0.75,
       "framing": {
         "mode": "auto",
@@ -346,7 +337,6 @@
     "select": {
       "label": "Select",
       "route": "/lab/select",
-      "frame": false,
       "explode": 0.75,
       "framing": {
         "mode": "auto",
@@ -378,7 +368,6 @@
     "tabs": {
       "label": "Tabs",
       "route": "/lab/tabs",
-      "frame": false,
       "explode": 0.75,
       "framing": {
         "mode": "auto",
@@ -428,7 +417,6 @@
     "toggleButton": {
       "label": "Toggle Button",
       "route": "/lab/toggle-button",
-      "frame": false,
       "explode": 0.75,
       "framing": {
         "mode": "auto",
@@ -454,7 +442,6 @@
     "toggle": {
       "label": "Toggle Group",
       "route": "/lab/toggle-group",
-      "frame": false,
       "explode": 0.75,
       "framing": {
         "mode": "auto",
