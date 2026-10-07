@@ -13,6 +13,31 @@ export type PlaneValueChangeReason =
   | 'keyboard'
   | 'input-change';
 
+export type PlaneSnapAxis = 'x' | 'y';
+
+/**
+ * A snap target, expressed in the thumb's own value space: [0, 1] for root
+ * thumbs, [-1, 1] parent-relative offsets for nested thumbs.
+ */
+export type PlaneSnapTarget =
+  /** Quantizes each given axis to `origin + k * size`. An omitted axis stays free. */
+  | { type: 'grid'; x?: number; y?: number; origin?: PlaneValue }
+  /** Magnetic guide line. `axis: 'x'` is a vertical line at `x = at`. */
+  | { type: 'line'; axis: PlaneSnapAxis; at: number }
+  /** Magnetic point. */
+  | { type: 'point'; x: number; y: number; id?: string }
+  /** Consulted first, in declaration order. Return null to defer. */
+  | { type: 'custom'; resolve: (value: PlaneValue) => PlaneValue | null };
+
+export type PlaneSnapHit = {
+  /** The highest-priority target that changed the value. */
+  target: PlaneSnapTarget;
+  /** The target's index in the resolved `snap` array. */
+  index: number;
+  /** Every axis whose value snapping changed or fixed in place. */
+  axes: PlaneSnapAxis[];
+};
+
 export type PlaneValueChangeDetails = {
   interaction: PlaneInteraction;
   reason: PlaneValueChangeReason;
