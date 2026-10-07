@@ -294,6 +294,19 @@ child's value.
 Ordinary child buttons and fields work directly inside a thumb. Add the optional
 `PlaneAttachment` for collision-aware positioning and portaling of attached UI.
 
+Pass `snap` (on a thumb, or on `Plane` as a default for top-level thumbs) to
+snap values per axis: `{ type: 'grid', x?, y?, origin? }` always quantizes,
+while `line` and `point` targets are magnetic within `snapRadius` CSS pixels
+(default `8`) and release at 1.5× the radius. Hold Alt/Option while dragging to
+bypass snapping (`snapBypass="meta" | false` changes that). `axisLock` restricts
+drags to one axis, or to the dominant axis while Shift is held. With a grid,
+arrow keys move to the next grid line. Value callbacks report the hit as
+`details.snap` (omitted when nothing snapped); `onSnapChange` reports every snap
+change, even without a value change, and the thumb gets `data-snapped`. Snapping is instant by default: animate `left`/`top` under
+`[data-snap-transition~="x"]` / `~="y"` (the axes a snap made jump), or pass a hoisted `motion={spring}` from
+`springMotion()`, which animates snaps and keyboard jumps while free drags
+follow the pointer; the reported value never lags.
+
 Don't clip the Plane root. A thumb is centred on its value, so at an edge or
 corner half of it lies outside the plane; `overflow: hidden` on the root cuts it
 in half. Keep the root `overflow: visible` (the default) and put any clipped

@@ -3,6 +3,8 @@ import { PlaneExample } from './examples/plane-basic-example.js';
 import basicExampleCode from './examples/plane-basic-example.tsx?raw';
 import { MultipleThumbsExample } from './examples/plane-multiple-thumbs-example.js';
 import multipleThumbsExampleCode from './examples/plane-multiple-thumbs-example.tsx?raw';
+import { PlaneSnappingExample } from './examples/plane-snapping-example.js';
+import snappingExampleCode from './examples/plane-snapping-example.tsx?raw';
 import { MarkdownDocsPage } from './markdown-docs-page.js';
 import {
   PropReferenceTable,
@@ -33,6 +35,51 @@ const PLANE_PROPS = [
     defaultValue: '1',
     description:
       'Scales pointer distance during relative dragging. Smaller values provide finer control.',
+  },
+  {
+    name: 'snap',
+    shortType: 'PlaneSnapTarget[]',
+    type: 'readonly PlaneSnapTarget[] | undefined',
+    description:
+      'Default snap targets for top-level thumbs, in 0–1 plane space. Nested thumbs do not inherit them.',
+  },
+  {
+    name: 'snapRadius',
+    shortType: 'number',
+    type: 'number | undefined',
+    defaultValue: '8',
+    description:
+      'Magnetic radius for line and point targets, in CSS pixels, converted per axis from the measured plane size.',
+  },
+  {
+    name: 'axisLock',
+    shortType: "'x' | 'y' | 'dominant-with-shift'",
+    type: 'PlaneAxisLock | undefined',
+    description:
+      'Restricts pointer movement to one axis. dominant-with-shift locks to the axis of greater travel while Shift is held during a drag.',
+  },
+  {
+    name: 'snapBypass',
+    shortType: "'alt' | 'meta' | false",
+    type: 'PlaneSnapBypass | undefined',
+    defaultValue: "'alt'",
+    description:
+      'Modifier that disables snapping while held during a pointer drag. false never bypasses.',
+  },
+  {
+    name: 'motion',
+    shortType: 'PlaneMotion',
+    type: 'PlaneMotion | undefined',
+    defaultValue: 'instant',
+    description:
+      'Presentation-only motion for snap transitions, keyboard, and programmatic changes; free drags follow the pointer. Hoist or memoize springMotion(). Callbacks never lag.',
+  },
+  {
+    name: 'onSnapChange',
+    shortType: 'function',
+    type: '(hit: PlaneSnapHit | undefined, details: PlaneSnapChangeDetails) => void',
+    description:
+      'Default for top-level thumbs: called whenever the snap changes, even without a value change. Nested thumbs do not inherit it.',
   },
   {
     name: 'onHoverValueChange',
@@ -212,6 +259,51 @@ const PLANE_THUMB_PROPS = [
     shortType: 'string',
     description: 'The ID of the form associated with both axis inputs.',
   },
+  {
+    name: 'snap',
+    shortType: 'PlaneSnapTarget[]',
+    type: 'readonly PlaneSnapTarget[] | undefined',
+    description:
+      "Grid, line, point, and custom targets in this thumb's own space. Replaces the Plane default.",
+  },
+  {
+    name: 'snapRadius',
+    shortType: 'number',
+    type: 'number | undefined',
+    defaultValue: '8',
+    description:
+      'Magnetic radius for line and point targets, in CSS pixels, converted per axis from the measured plane size.',
+  },
+  {
+    name: 'axisLock',
+    shortType: "'x' | 'y' | 'dominant-with-shift'",
+    type: 'PlaneAxisLock | undefined',
+    description:
+      'Restricts pointer movement to one axis. dominant-with-shift locks to the axis of greater travel while Shift is held during a drag.',
+  },
+  {
+    name: 'snapBypass',
+    shortType: "'alt' | 'meta' | false",
+    type: 'PlaneSnapBypass | undefined',
+    defaultValue: "'alt'",
+    description:
+      'Modifier that disables snapping while held during a pointer drag. false never bypasses.',
+  },
+  {
+    name: 'motion',
+    shortType: 'PlaneMotion',
+    type: 'PlaneMotion | undefined',
+    defaultValue: 'instant',
+    description:
+      'Presentation-only motion for snap transitions, keyboard, and programmatic changes; free drags follow the pointer. Hoist or memoize springMotion(). Callbacks never lag.',
+  },
+  {
+    name: 'onSnapChange',
+    shortType: 'function',
+    type: '(hit: PlaneSnapHit | undefined, details: PlaneSnapChangeDetails) => void',
+    description:
+      'Called whenever the snap changes (enter, leave, switch), even without a value change; after onValueChange. hit is undefined when the snap ends.',
+  },
 ] satisfies readonly PropReference[];
 
 const PLANE_ATTACHMENT_PROPS = [
@@ -309,6 +401,11 @@ export function PlaneDocsPage() {
         'demo:multiple': (
           <DocsExample code={multipleThumbsExampleCode} label="Multiple thumbs">
             <MultipleThumbsExample />
+          </DocsExample>
+        ),
+        'demo:snapping': (
+          <DocsExample code={snappingExampleCode} label="Snapping">
+            <PlaneSnappingExample />
           </DocsExample>
         ),
         'props:plane': <PropReferenceTable name="Plane" props={PLANE_PROPS} />,

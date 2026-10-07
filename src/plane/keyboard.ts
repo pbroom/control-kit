@@ -1,5 +1,11 @@
 import * as React from 'react';
 import { getModifiedStep } from '../number-value.js';
+import {
+  getNextGridLine,
+  quantizeToGrid,
+  type PlaneGridAxes,
+  type PlaneGridAxis,
+} from './snap.js';
 import type { PlaneValue } from './types.js';
 
 export type PlaneAxis = 'x' | 'y';
@@ -79,6 +85,124 @@ export function getAxisKeyValue(
 
   // Unclamped; the thumb clamps to its own range when publishing.
   return nextValue;
+}
+
+export type PlaneKeyboardSteps = {
+  smallStep: number;
+  step: number;
+  largeStep: number;
+};
+
+/**
+ * Moves one axis on a grid. A plain step goes to the next grid line in
+ * `direction`; a large step goes `largeStep` further, rounded to the grid, but
+ * always at least one line. Past the last line in that direction it moves to
+ * the bound, so grids that do not divide the range still reach both ends.
+ */
+export function getGridAxisStep(
+  value: number,
+  direction: 1 | -1,
+  large: boolean,
+  grid: Pick<PlaneGridAxis, 'size' | 'origin'>,
+  largeStep: number,
+  minimum: number,
+): number {
+  const next = getNextGridLine(value, direction, grid, minimum, 1);
+  // Past the last grid line, step to the bound so it stays reachable.
+  if (next === null)
+    return direction > 0 ? Math.max(value, 1) : Math.min(value, minimum);
+  if (!large) return next;
+  const rounded = quantizeToGrid(
+    value + direction * largeStep,
+    grid,
+    minimum,
+    1,
+  );
+  if (rounded === null) return next;
+  return direction > 0 ? Math.max(rounded, next) : Math.min(rounded, next);
+}
+
+/**
+ * Arrow-chord stepping with grid snapping. Axes without a grid, and every
+ * axis while Alt is held, step by the regular (modified) step amount.
+ */
+export function getGridArrowChordValue(
+  value: PlaneValue,
+  keys: ReadonlySet<PlaneArrowKey>,
+  steps: PlaneKeyboardSteps,
+  modifiers: { alt: boolean; shift: boolean },
+  grid: PlaneGridAxes,
+  minimum: number,
+): PlaneValue {
+  const amount = getArrowStep(
+    steps.smallStep,
+    steps.step,
+    steps.largeStep,
+    modifiers.alt,
+    modifiers.shift,
+  );
+  const next = { ...value };
+  const directions: Record<PlaneAxis, number> = {
+    x: (keys.has('ArrowRight') ? 1 : 0) - (keys.has('ArrowLeft') ? 1 : 0),
+    y: (keys.has('ArrowUp') ? 1 : 0) - (keys.has('ArrowDown') ? 1 : 0),
+  };
+  for (const axis of ['x', 'y'] as const) {
+    const direction = directions[axis];
+    if (direction === 0) continue;
+    const gridAxis = grid[axis];
+    next[axis] =
+      gridAxis && !modifiers.alt
+        ? getGridAxisStep(
+            value[axis],
+            direction > 0 ? 1 : -1,
+            modifiers.shift,
+            gridAxis,
+            steps.largeStep,
+            minimum,
+          )
+        : value[axis] + direction * amount;
+  }
+  return next;
+}
+
+/**
+ * Home/End/PageUp/PageDown with a grid on `axis`: Home/End go to the
+ * outermost grid line, Page keys take a large grid step. Returns null for
+ * other keys or when the axis has no grid.
+ */
+export function getGridAxisKeyValue(
+  axis: PlaneAxis,
+  key: string,
+  value: PlaneValue,
+  largeStep: number,
+  grid: PlaneGridAxes,
+  minimum: number,
+): PlaneValue | null {
+  const gridAxis = grid[axis];
+  if (!gridAxis) return null;
+  const next = { ...value };
+  if (key === 'Home' || key === 'End') {
+    // The outermost grid line when it lies beyond the value, otherwise the
+    // bound itself: Home/End never move away from their bound.
+    const bound = key === 'Home' ? minimum : 1;
+    const line = quantizeToGrid(bound, gridAxis, minimum, 1);
+    const beyond =
+      line !== null &&
+      (key === 'Home' ? line < value[axis] - 1e-9 : line > value[axis] + 1e-9);
+    next[axis] = beyond ? line : bound;
+  } else if (key === 'PageUp' || key === 'PageDown') {
+    next[axis] = getGridAxisStep(
+      value[axis],
+      key === 'PageUp' ? 1 : -1,
+      true,
+      gridAxis,
+      largeStep,
+      minimum,
+    );
+  } else {
+    return null;
+  }
+  return next;
 }
 
 export function isOwnThumbEvent(event: React.SyntheticEvent<HTMLElement>) {

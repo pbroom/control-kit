@@ -6,6 +6,46 @@ the package adheres to [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+### Added
+
+- Per-axis snapping for `Plane`. `PlaneThumb` (and `Plane`, as a default for
+  top-level thumbs) accepts `snap` targets: `grid` (always quantizes, with an
+  optional `origin`), magnetic `line` and `point` targets within `snapRadius`
+  CSS pixels (default `8`, converted per axis) with 1.5× release hysteresis,
+  and `custom` resolvers. Priority is custom, point, line, then grid; lines
+  apply per axis, so perpendicular lines combine. Snapping
+  applies to the resulting value after relative drag and before clamping.
+  Nested thumbs snap in their local space. Controlled values are not snapped.
+- `snapBypass` (default `'alt'`) disables snapping while the modifier is held
+  during a drag; `axisLock` (`'x'`, `'y'`, or `'dominant-with-shift'`)
+  restricts drags to one axis.
+- With a grid, arrow keys move to the next grid line, Shift and Page keys take
+  grid-rounded `largeStep` jumps, and Alt/Option steps by `smallStep` ignoring
+  the grid. Axis inputs expose the grid size as their native `step` when the
+  value is on the grid.
+- Optional `PlaneValueChangeDetails.snap` and
+  `usePlaneThumbContext().snapped` (omitted when nothing snapped, so details
+  are unchanged without snapping), and `data-snapped` / `data-snapped-axis` /
+  `data-snap-transition` thumb attributes report the active snap targets.
+  `data-snap-transition` lists only the axes snapping made jump, including
+  grid steps (`"x"`, `"y"`, or `"x y"`), never an axis tracking the pointer
+  continuously.
+- `onSnapChange(hit, details)` on `PlaneThumb` (and `Plane` for top-level
+  thumbs) fires whenever the snap changes, including snaps that leave the
+  value unchanged, and when a snap ends because a controlled value or the
+  targets changed (`interaction: 'programmatic'`).
+- A presentation layer: `motion` accepts a `PlaneMotion`, and
+  `springMotion({ stiffness, damping, mass, smoothDrag })` is built in
+  (closed-form and stable for all options, instant under
+  `prefers-reduced-motion`; drawn positions stay in range). Motion animates snap transitions,
+  keyboard, and programmatic changes; free drags follow the pointer unless
+  `smoothDrag` is set. Callbacks always receive the logical value
+  immediately; the default is instant.
+- `resolvePlaneSnap`, the pure snap resolver, plus the `PlaneSnapTarget`,
+  `PlaneSnapHit`, `PlaneSnapHitPart`, `PlaneSnapChangeDetails`, `PlaneMotionReason`, `PlaneSnapAxis`, `PlaneAxisLock`, `PlaneSnapBypass`,
+  `PlaneSnapProps`, `PlaneMotion`, `PlaneSnapContext`, `PlaneSnapResult`,
+  `PlaneSnapSpace`, and `PlaneSpringOptions` types.
+
 ## 0.1.0-next.0 - 2026-10-05
 
 ### Added

@@ -1,6 +1,7 @@
 import type {
   PlaneBounds,
   PlanePoint,
+  PlaneSnapHit,
   PlaneThumbRegistration,
   PlaneThumbSize,
   PlaneValue,
@@ -99,8 +100,11 @@ export function planeValuesEqual(a: PlaneValue | null, b: PlaneValue | null) {
 export function getValueChangeDetails(
   source: PlaneValueChangeSource,
   thumbId: string | undefined,
+  snap: PlaneSnapHit | null = null,
 ): PlaneValueChangeDetails {
-  return thumbId ? { ...source, thumbId } : source;
+  // Without snapping the details are exactly the source (plus thumbId).
+  if (!snap) return thumbId ? { ...source, thumbId } : source;
+  return thumbId ? { ...source, thumbId, snap } : { ...source, snap };
 }
 
 export function normalizePlaneStep(value: number, fallback: number) {
