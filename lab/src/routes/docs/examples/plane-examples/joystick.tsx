@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { Plane, PlaneThumb, type PlaneValue } from '@pbroom/control-kit';
 
 const EXAMPLE_PLANE_CLASS_NAME =
-  'relative size-[240px] touch-none overflow-hidden rounded-2xl border border-white/12 [background-origin:border-box] bg-[#171718] max-sm:size-[220px]';
+  'relative size-[240px] touch-none rounded-2xl border border-white/12 [background-origin:border-box] bg-[#171718] max-sm:size-[220px]';
 
 function ExampleFrame({
   children,
@@ -65,14 +65,20 @@ export function JoystickExample() {
         aria-label="Virtual joystick"
         className={`${EXAMPLE_PLANE_CLASS_NAME} rounded-full border-white/20 bg-[radial-gradient(circle,#27272a_0_20%,#18181b_21%_58%,#0d0d0f_59%)] shadow-[inset_0_5px_18px_rgb(0_0_0/0.6)]`}
       >
-        <span
+        {/* Clip the surface content, never the thumbs. */}
+        <div
           aria-hidden="true"
-          className="absolute top-1/2 left-1/2 h-2 origin-left rounded-full bg-zinc-500 shadow-sm"
-          style={{
-            width: `${vector.magnitude * 50}%`,
-            transform: `translateY(-50%) rotate(${-vector.angle}deg)`,
-          }}
-        />
+          className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]"
+        >
+          <span
+            aria-hidden="true"
+            className="absolute top-1/2 left-1/2 h-2 origin-left rounded-full bg-zinc-500 shadow-sm"
+            style={{
+              width: `${vector.magnitude * 50}%`,
+              transform: `translateY(-50%) rotate(${-vector.angle}deg)`,
+            }}
+          />
+        </div>
         <PlaneThumb
           className="size-12 border-2 border-zinc-300 bg-linear-to-b from-zinc-500 to-zinc-800 shadow-[0_8px_14px_rgb(0_0_0/0.55),inset_0_1px_0_rgb(255_255_255/0.35)]"
           getAriaValueText={formatJoystick}

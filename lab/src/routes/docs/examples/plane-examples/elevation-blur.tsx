@@ -24,25 +24,31 @@ export function ElevationBlurExample() {
     <div className="flex min-h-[360px] flex-col items-center justify-center gap-4 p-6 max-sm:min-h-[340px] max-sm:p-4">
       <Plane
         aria-label="Elevation and blur"
-        className="relative size-[240px] touch-none overflow-hidden rounded-2xl border border-white/12 [background-origin:border-box] bg-[#25272c] max-sm:size-[220px]"
+        className="relative size-[240px] touch-none rounded-2xl border border-white/12 [background-origin:border-box] bg-[#25272c] max-sm:size-[220px]"
       >
+        {/* Clip the surface content, never the thumbs. */}
         <div
           aria-hidden="true"
-          className="absolute inset-0"
-          style={{
-            backgroundImage:
-              'linear-gradient(to right, rgb(255 255 255 / 0.08) 1px, transparent 1px), linear-gradient(to bottom, rgb(255 255 255 / 0.08) 1px, transparent 1px)',
-            backgroundSize: '16.666% 16.666%',
-          }}
-        />
-        <div
-          aria-hidden="true"
-          className="absolute top-1/2 left-1/2 flex size-24 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-xl border border-white/15 bg-[#363941] text-[10px] font-medium tracking-wide text-white/55"
-          style={{
-            boxShadow: `${elevation}px ${elevation}px ${blur}px rgb(0 0 0 / 0.65)`,
-          }}
+          className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]"
         >
-          SURFACE
+          <div
+            aria-hidden="true"
+            className="absolute inset-0"
+            style={{
+              backgroundImage:
+                'linear-gradient(to right, rgb(255 255 255 / 0.08) 1px, transparent 1px), linear-gradient(to bottom, rgb(255 255 255 / 0.08) 1px, transparent 1px)',
+              backgroundSize: '16.666% 16.666%',
+            }}
+          />
+          <div
+            aria-hidden="true"
+            className="absolute top-1/2 left-1/2 flex size-24 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-xl border border-white/15 bg-[#363941] text-[10px] font-medium tracking-wide text-white/55"
+            style={{
+              boxShadow: `${elevation}px ${elevation}px ${blur}px rgb(0 0 0 / 0.65)`,
+            }}
+          >
+            SURFACE
+          </div>
         </div>
         <PlaneThumb
           aria-label="Shadow character"

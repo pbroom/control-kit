@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { Plane, PlaneThumb, type PlaneValue } from '@pbroom/control-kit';
 
 const EXAMPLE_PLANE_CLASS_NAME =
-  'relative size-[240px] touch-none overflow-hidden rounded-2xl border border-white/12 [background-origin:border-box] bg-[#171718] max-sm:size-[220px]';
+  'relative size-[240px] touch-none rounded-2xl border border-white/12 [background-origin:border-box] bg-[#171718] max-sm:size-[220px]';
 const EXAMPLE_THUMB_CLASS_NAME =
   'size-6 border-2 border-white bg-[#171718] shadow-[0_2px_10px_rgba(0,0,0,0.45)]';
 
@@ -65,16 +65,22 @@ export function CropFocalPointExample() {
             'radial-gradient(circle at 72% 34%, #fef3c7 0 6%, transparent 6.5%), linear-gradient(155deg, #38bdf8 0 48%, #0ea5e9 48% 54%, #15803d 54% 70%, #14532d 70%)',
         }}
       >
+        {/* Clip the surface content, never the thumbs. */}
         <div
           aria-hidden="true"
-          className="absolute inset-x-10 inset-y-5 rounded-lg border-2 border-white/70 shadow-[0_0_0_999px_rgb(0_0_0/0.28)]"
+          className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]"
         >
-          <span className="absolute -top-0.5 -left-0.5 size-3 border-t-2 border-l-2 border-white" />
-          <span className="absolute -top-0.5 -right-0.5 size-3 border-t-2 border-r-2 border-white" />
-          <span className="absolute -bottom-0.5 -left-0.5 size-3 border-b-2 border-l-2 border-white" />
-          <span className="absolute -right-0.5 -bottom-0.5 size-3 border-r-2 border-b-2 border-white" />
+          <div
+            aria-hidden="true"
+            className="absolute inset-x-10 inset-y-5 rounded-lg border-2 border-white/70 shadow-[0_0_0_999px_rgb(0_0_0/0.28)]"
+          >
+            <span className="absolute -top-0.5 -left-0.5 size-3 border-t-2 border-l-2 border-white" />
+            <span className="absolute -top-0.5 -right-0.5 size-3 border-t-2 border-r-2 border-white" />
+            <span className="absolute -bottom-0.5 -left-0.5 size-3 border-b-2 border-l-2 border-white" />
+            <span className="absolute -right-0.5 -bottom-0.5 size-3 border-r-2 border-b-2 border-white" />
+          </div>
+          <CrosshairLayer value={value} />
         </div>
-        <CrosshairLayer value={value} />
         <PlaneThumb
           className={EXAMPLE_THUMB_CLASS_NAME}
           getAriaValueText={formatFocalPoint}

@@ -24,23 +24,29 @@ export function PitchYawExample() {
     <div className="flex min-h-[360px] flex-col items-center justify-center gap-4 p-6 max-sm:min-h-[340px] max-sm:p-4">
       <Plane
         aria-label="Pitch and yaw"
-        className="relative size-[240px] touch-none overflow-hidden rounded-2xl border border-white/12 [background-origin:border-box] bg-[radial-gradient(circle_at_center,#26384a_0%,#111820_68%)] max-sm:size-[220px]"
+        className="relative size-[240px] touch-none rounded-2xl border border-white/12 [background-origin:border-box] bg-[radial-gradient(circle_at_center,#26384a_0%,#111820_68%)] max-sm:size-[220px]"
       >
-        <div aria-hidden="true" className="absolute inset-0">
-          <span className="absolute top-1/2 left-1/2 h-px w-28 -translate-x-1/2 bg-cyan-200/35" />
-          <span className="absolute top-1/2 left-1/2 h-28 w-px -translate-y-1/2 bg-cyan-200/35" />
-          <span
-            className="absolute top-1/2 left-1/2 size-16 -translate-x-1/2 -translate-y-1/2 rounded-full border border-cyan-100/30"
-            style={{
-              transform: `translate(calc(-50% + ${yaw / 2}px), calc(-50% - ${pitch / 2}px))`,
-            }}
-          />
-          <span
-            className="absolute top-1/2 left-1/2 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-100/75"
-            style={{
-              transform: `translate(calc(-50% + ${yaw / 2}px), calc(-50% - ${pitch / 2}px))`,
-            }}
-          />
+        {/* Clip the surface content, never the thumbs. */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]"
+        >
+          <div aria-hidden="true" className="absolute inset-0">
+            <span className="absolute top-1/2 left-1/2 h-px w-28 -translate-x-1/2 bg-cyan-200/35" />
+            <span className="absolute top-1/2 left-1/2 h-28 w-px -translate-y-1/2 bg-cyan-200/35" />
+            <span
+              className="absolute top-1/2 left-1/2 size-16 -translate-x-1/2 -translate-y-1/2 rounded-full border border-cyan-100/30"
+              style={{
+                transform: `translate(calc(-50% + ${yaw / 2}px), calc(-50% - ${pitch / 2}px))`,
+              }}
+            />
+            <span
+              className="absolute top-1/2 left-1/2 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-100/75"
+              style={{
+                transform: `translate(calc(-50% + ${yaw / 2}px), calc(-50% - ${pitch / 2}px))`,
+              }}
+            />
+          </div>
         </div>
         <PlaneThumb
           aria-label="Aim direction"

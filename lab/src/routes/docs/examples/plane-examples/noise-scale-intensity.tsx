@@ -23,19 +23,25 @@ export function NoiseScaleIntensityExample() {
     <div className="flex min-h-[360px] flex-col items-center justify-center gap-4 p-6 max-sm:min-h-[340px] max-sm:p-4">
       <Plane
         aria-label="Noise scale and intensity"
-        className="relative size-[240px] touch-none overflow-hidden rounded-2xl border border-white/12 [background-origin:border-box] bg-[#232129] max-sm:size-[220px]"
+        className="relative size-[240px] touch-none rounded-2xl border border-white/12 [background-origin:border-box] bg-[#232129] max-sm:size-[220px]"
       >
+        {/* Clip the surface content, never the thumbs. */}
         <div
           aria-hidden="true"
-          className="absolute inset-0"
-          style={{
-            backgroundImage:
-              'radial-gradient(circle, rgb(216 180 254 / 0.9) 0 1px, transparent 1.5px), radial-gradient(circle, rgb(96 165 250 / 0.85) 0 1px, transparent 1.5px)',
-            backgroundPosition: `0 0, ${scale / 2}px ${scale / 2}px`,
-            backgroundSize: `${scale}px ${scale}px`,
-            opacity: 0.12 + value.y * 0.78,
-          }}
-        />
+          className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]"
+        >
+          <div
+            aria-hidden="true"
+            className="absolute inset-0"
+            style={{
+              backgroundImage:
+                'radial-gradient(circle, rgb(216 180 254 / 0.9) 0 1px, transparent 1.5px), radial-gradient(circle, rgb(96 165 250 / 0.85) 0 1px, transparent 1.5px)',
+              backgroundPosition: `0 0, ${scale / 2}px ${scale / 2}px`,
+              backgroundSize: `${scale}px ${scale}px`,
+              opacity: 0.12 + value.y * 0.78,
+            }}
+          />
+        </div>
         <PlaneThumb
           aria-label="Noise texture"
           className="size-6 border-2 border-white bg-[#171718] shadow-[0_2px_10px_rgba(0,0,0,0.45)]"

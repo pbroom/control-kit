@@ -85,7 +85,10 @@ type PlaneLabPageController = ReturnType<typeof usePlaneLabPageController>;
 
 function PlaneGuides({ active: activeSet }: { active: ReadonlySet<number> }) {
   return (
-    <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+    <div
+      aria-hidden="true"
+      className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]"
+    >
       {GUIDE_TARGETS.map((target, index) => {
         const active = activeSet.has(index);
         const tone = active ? 'bg-sky-400/80' : 'bg-white/15';
@@ -175,7 +178,7 @@ function PlanePreview({ controller }: { controller: PlaneLabPageController }) {
       <Plane
         data-testid="plane-demo"
         aria-label="Normalized position"
-        className="size-[300px] overflow-hidden rounded-2xl border border-white/10 bg-[#151516] max-[520px]:size-[220px]"
+        className="size-[300px] rounded-2xl border border-white/10 bg-[#151516] max-[520px]:size-[220px]"
         disabled={controller.disabled}
         readOnly={controller.readOnly}
         dragBehavior={controller.relativeDrag ? 'relative' : 'absolute'}

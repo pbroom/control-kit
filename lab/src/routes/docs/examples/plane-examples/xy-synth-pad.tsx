@@ -14,7 +14,7 @@ import {
 } from '@pbroom/control-kit';
 
 const EXAMPLE_PLANE_CLASS_NAME =
-  'relative size-[240px] touch-none overflow-hidden rounded-2xl border border-white/12 bg-[#111216] p-0 [background-origin:border-box] max-sm:size-[220px]';
+  'relative size-[240px] touch-none rounded-2xl border border-white/12 bg-[#111216] p-0 [background-origin:border-box] max-sm:size-[220px]';
 const EXAMPLE_THUMB_CLASS_NAME =
   'z-20 size-6 border-2 border-white bg-[#16171b] shadow-[0_2px_12px_rgba(0,0,0,0.65),0_0_0_1px_rgba(255,255,255,0.15)]';
 const GRID_SIZE = 21;
@@ -568,13 +568,19 @@ export function XySynthPadExample() {
           className={EXAMPLE_PLANE_CLASS_NAME}
           data-synth-plane
         >
-          <DotWaveform engineRef={engineRef} value={value} />
-          <CornerLabels
-            bottomLeft="Dark / dry"
-            bottomRight="Bright / dry"
-            topLeft="Dark / mod"
-            topRight="Bright / mod"
-          />
+          {/* Clip the surface content, never the thumbs. */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]"
+          >
+            <DotWaveform engineRef={engineRef} value={value} />
+            <CornerLabels
+              bottomLeft="Dark / dry"
+              bottomRight="Bright / dry"
+              topLeft="Dark / mod"
+              topRight="Bright / mod"
+            />
+          </div>
           <PlaneThumb
             className={EXAMPLE_THUMB_CLASS_NAME}
             getAriaValueText={formatSynth}

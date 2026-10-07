@@ -14,27 +14,33 @@ export function FloorPlanPositionExample() {
     <div className="flex min-h-[360px] flex-col items-center justify-center gap-4 p-6 max-sm:min-h-[340px] max-sm:p-4">
       <Plane
         aria-label="Floor plan position"
-        className="relative size-[240px] touch-none overflow-hidden rounded-2xl border border-white/12 [background-origin:border-box] bg-[#20231f] max-sm:size-[220px]"
+        className="relative size-[240px] touch-none rounded-2xl border border-white/12 [background-origin:border-box] bg-[#20231f] max-sm:size-[220px]"
       >
+        {/* Clip the surface content, never the thumbs. */}
         <div
           aria-hidden="true"
-          className="absolute inset-5 border-2 border-white/30"
+          className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]"
         >
-          <span className="absolute top-0 bottom-[42%] left-[42%] w-0 border-l-2 border-white/30" />
-          <span className="absolute top-[58%] right-0 left-0 h-0 border-t-2 border-white/30" />
-          <span className="absolute top-[58%] right-[30%] bottom-0 w-0 border-l-2 border-white/30" />
-          <span className="absolute top-2 left-2 text-[9px] tracking-wide text-white/35">
-            STUDIO
-          </span>
-          <span className="absolute top-2 right-2 text-[9px] tracking-wide text-white/35">
-            OFFICE
-          </span>
-          <span className="absolute bottom-2 left-2 text-[9px] tracking-wide text-white/35">
-            LOUNGE
-          </span>
-          <span className="absolute right-2 bottom-2 text-[9px] tracking-wide text-white/35">
-            ENTRY
-          </span>
+          <div
+            aria-hidden="true"
+            className="absolute inset-5 border-2 border-white/30"
+          >
+            <span className="absolute top-0 bottom-[42%] left-[42%] w-0 border-l-2 border-white/30" />
+            <span className="absolute top-[58%] right-0 left-0 h-0 border-t-2 border-white/30" />
+            <span className="absolute top-[58%] right-[30%] bottom-0 w-0 border-l-2 border-white/30" />
+            <span className="absolute top-2 left-2 text-[9px] tracking-wide text-white/35">
+              STUDIO
+            </span>
+            <span className="absolute top-2 right-2 text-[9px] tracking-wide text-white/35">
+              OFFICE
+            </span>
+            <span className="absolute bottom-2 left-2 text-[9px] tracking-wide text-white/35">
+              LOUNGE
+            </span>
+            <span className="absolute right-2 bottom-2 text-[9px] tracking-wide text-white/35">
+              ENTRY
+            </span>
+          </div>
         </div>
         <PlaneThumb
           aria-label="Device location"

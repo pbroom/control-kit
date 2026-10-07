@@ -307,6 +307,26 @@ arrow keys move to the next grid line. Callbacks report the hit as
 `springMotion()`, which animates snaps and keyboard jumps while free drags
 follow the pointer; the reported value never lags.
 
+Don't clip the Plane root. A thumb is centred on its value, so at an edge or
+corner half of it lies outside the plane; `overflow: hidden` on the root cuts it
+in half. Keep the root `overflow: visible` (the default) and put any clipped
+surface content in an inner layer:
+
+```tsx
+<Plane
+  aria-label="Position"
+  className="relative size-72 rounded-xl border bg-zinc-900"
+>
+  <div
+    aria-hidden="true"
+    className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]"
+  >
+    {/* Images, canvases, oversized guides: clipped here. */}
+  </div>
+  <PlaneThumb value={point} onValueChange={setPoint} />
+</Plane>
+```
+
 ## Development
 
 ```sh

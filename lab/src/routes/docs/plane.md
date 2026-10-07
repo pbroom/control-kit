@@ -26,6 +26,22 @@ Top-level thumb coordinates are clamped from `0` to `1`. X increases from left t
 - In controlled mode, update the thumb's `value` from `onValueChange`. The rendered thumb only moves when the controlled value changes.
 - Use `getAriaValueText` to express domain values instead of normalized percentages—for example, “50% saturation, 75% lightness” for a color plane.
 - Hide decorative guides, canvas layers, and SVG content from assistive technology when they do not add information beyond the two axis controls.
+- Don't clip the Plane root: a thumb is centred on its value, so at an edge or corner half of it sits outside the plane. Keep the root `overflow: visible` (the default) and put clipped surface content in an inner layer, so thumbs at the edges stay whole. The root's own background, border and radius need no clipping.
+
+```tsx
+<Plane
+  aria-label="Position"
+  className="relative size-72 rounded-xl border bg-zinc-900"
+>
+  <div
+    aria-hidden="true"
+    className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]"
+  >
+    {/* Images, canvases, oversized guides: clipped here. */}
+  </div>
+  <PlaneThumb value={point} onValueChange={setPoint} />
+</Plane>
+```
 
 ## Controlled state
 

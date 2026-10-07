@@ -17,28 +17,34 @@ export function ImagePanAndFocalPointExample() {
     <div className="flex min-h-[380px] scroll-mt-24 flex-col items-center justify-center gap-4 bg-[#111112] p-6 max-sm:p-4">
       <Plane
         aria-label="Image pan and focal point"
-        className="relative aspect-[4/3] w-full max-w-[360px] cursor-grab touch-none overflow-hidden rounded-2xl border border-white/12 bg-[#233d45] [background-origin:border-box] data-[dragging]:cursor-grabbing"
+        className="relative aspect-[4/3] w-full max-w-[360px] cursor-grab touch-none rounded-2xl border border-white/12 bg-[#233d45] [background-origin:border-box] data-[dragging]:cursor-grabbing"
         dragBehavior="relative"
         pressBehavior="nearest"
       >
+        {/* Clip the surface content, never the thumbs. */}
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute -inset-1/2"
-          style={{
-            transform: `translate(${(pan.x - 0.5) * 50}%, ${(0.5 - pan.y) * 50}%)`,
-          }}
+          className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]"
         >
-          <img
-            alt=""
-            className="size-full object-cover"
-            draggable={false}
-            src={owlPhotoUrl}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -inset-1/2"
+            style={{
+              transform: `translate(${(pan.x - 0.5) * 50}%, ${(0.5 - pan.y) * 50}%)`,
+            }}
+          >
+            <img
+              alt=""
+              className="size-full object-cover"
+              draggable={false}
+              src={owlPhotoUrl}
+            />
+          </div>
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-5 rounded-lg border border-white/35"
           />
         </div>
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-5 rounded-lg border border-white/35"
-        />
         <PlaneThumb
           aria-label="Image pan"
           className="size-7 border-white/60 bg-[#16363e]/80 text-white shadow-lg"

@@ -219,6 +219,15 @@ test('snapped drags do not add Plane layout reads', async ({ page }) => {
     planeNode.addEventListener('pointermove', () => {
       profile.pointerMoves += 1;
     });
+    // Count from the press on: the lab's Structure view may still be
+    // measuring after the panel changes above.
+    window.addEventListener(
+      'pointerdown',
+      () => {
+        profile.planeBoundsReads = 0;
+      },
+      { capture: true, once: true },
+    );
     Object.assign(window, { __planeSnapProfile: profile });
   });
 
@@ -277,4 +286,73 @@ test('combines perpendicular guide lines and highlights both', async ({
   await page.mouse.up();
   await expect(readout).toHaveText('X 0.50 · Y 0.50');
   await expect(snapReadout).toHaveText('2 targets · xy');
+});
+
+test('snapped and spring-animated thumbs reach every corner unclipped', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'desktop', 'desktop pointer coverage');
+  const { plane, thumb } = await openPlane(page);
+  await page
+    .getByRole('checkbox', { name: 'Snap guides', exact: true })
+    .click();
+  await setNumberField(page, 'Grid X', '0.25');
+  await setNumberField(page, 'Grid Y', '0.25');
+  await page.getByLabel('Snap transition: Spring', { exact: true }).click();
+  await expect(plane).toHaveCSS('overflow-x', 'visible');
+  await expect(plane).toHaveCSS('overflow-y', 'visible');
+  await plane.scrollIntoViewIfNeeded();
+  const box = (await plane.boundingBox())!;
+  const beyond = 60;
+  const corners: Array<[string, number, number]> = [
+    ['top-left', box.x - beyond, box.y - beyond],
+    ['top-right', box.x + box.width + beyond, box.y - beyond],
+    ['bottom-left', box.x - beyond, box.y + box.height + beyond],
+    ['bottom-right', box.x + box.width + beyond, box.y + box.height + beyond],
+  ];
+  for (const [name, x, y] of corners) {
+    const start = await thumbCenter(page);
+    await page.mouse.move(start.x, start.y);
+    await page.mouse.down();
+    await page.mouse.move(x, y, { steps: 8 });
+    await page.mouse.up();
+    // The spring settles the drawn position on the corner.
+    await expect
+      .poll(async () => {
+        const thumbBox = (await thumb.boundingBox())!;
+        const cx = thumbBox.x + thumbBox.width / 2;
+        const cy = thumbBox.y + thumbBox.height / 2;
+        return (
+          Math.min(Math.abs(cx - box.x), Math.abs(cx - box.x - box.width)) <
+            3 &&
+          Math.min(Math.abs(cy - box.y), Math.abs(cy - box.y - box.height)) < 3
+        );
+      }, name)
+      .toBe(true);
+    const clippedBy = await thumb.evaluate((node) => {
+      const rect = node.getBoundingClientRect();
+      const clips: string[] = [];
+      for (
+        let ancestor = node.parentElement;
+        ancestor && ancestor !== document.documentElement;
+        ancestor = ancestor.parentElement
+      ) {
+        const style = getComputedStyle(ancestor);
+        if (style.overflowX === 'visible' && style.overflowY === 'visible') {
+          continue;
+        }
+        const clip = ancestor.getBoundingClientRect();
+        if (
+          rect.left < clip.left - 0.5 ||
+          rect.right > clip.right + 0.5 ||
+          rect.top < clip.top - 0.5 ||
+          rect.bottom > clip.bottom + 0.5
+        ) {
+          clips.push(`${ancestor.tagName}.${String(ancestor.className)}`);
+        }
+      }
+      return clips;
+    });
+    expect(clippedBy, name).toEqual([]);
+  }
 });

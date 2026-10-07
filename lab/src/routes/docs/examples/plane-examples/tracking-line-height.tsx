@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { Plane, PlaneThumb, type PlaneValue } from '@pbroom/control-kit';
 
 const EXAMPLE_PLANE_CLASS_NAME =
-  'relative size-[240px] touch-none overflow-hidden rounded-2xl border border-white/12 [background-origin:border-box] bg-[#171718] max-sm:size-[220px]';
+  'relative size-[240px] touch-none rounded-2xl border border-white/12 [background-origin:border-box] bg-[#171718] max-sm:size-[220px]';
 const EXAMPLE_THUMB_CLASS_NAME =
   "size-6 border-0 bg-transparent shadow-none transition-opacity data-[dragging]:opacity-20 after:absolute after:top-1/2 after:left-1/2 after:size-4 after:-translate-x-1/2 after:-translate-y-1/2 after:rounded-full after:border-2 after:border-white after:bg-white after:shadow-sm after:content-['']";
 
@@ -51,20 +51,26 @@ export function TrackingLineHeightExample() {
         aria-label="Tracking and line height"
         className={EXAMPLE_PLANE_CLASS_NAME}
       >
-        <p
+        {/* Clip the surface content, never the thumbs. */}
+        <div
           aria-hidden="true"
-          className="absolute inset-8 m-0 flex items-center text-[13px] text-white/55"
-          style={{
-            letterSpacing: `${typography.tracking}em`,
-            lineHeight: typography.lineHeight,
-          }}
+          className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]"
         >
-          Space shapes the voice.
-          <br />
-          Rhythm guides the eye.
-          <br />
-          Type becomes texture.
-        </p>
+          <p
+            aria-hidden="true"
+            className="absolute inset-8 m-0 flex items-center text-[13px] text-white/55"
+            style={{
+              letterSpacing: `${typography.tracking}em`,
+              lineHeight: typography.lineHeight,
+            }}
+          >
+            Space shapes the voice.
+            <br />
+            Rhythm guides the eye.
+            <br />
+            Type becomes texture.
+          </p>
+        </div>
         <PlaneThumb
           className={EXAMPLE_THUMB_CLASS_NAME}
           getAriaValueText={formatTypography}
