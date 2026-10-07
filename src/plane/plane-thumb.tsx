@@ -21,6 +21,8 @@ import {
   getArrowChordValue,
   getArrowStep,
   getAxisKeyValue,
+  getGridArrowChordValue,
+  getGridAxisKeyValue,
   getKeyAxis,
   isOwnThumbEvent,
   isPlaneArrowKey,
@@ -28,15 +30,35 @@ import {
   type PlaneArrowKey,
   type PlaneAxis,
 } from './keyboard.js';
+import {
+  DEFAULT_SNAP_RADIUS,
+  getLockedAxis,
+  getPlaneGridAxes,
+  getPlaneGridHit,
+  isOnGridLine,
+  planeSnapHitsEqual,
+  quantizeToGrid,
+  resolvePlaneSnap,
+} from './snap.js';
 import { usePlaneThumbHover } from './use-plane-thumb-hover.js';
 import type {
   PlaneKeyboardReason,
+  PlaneResolvedPointerValue,
+  PlaneSnapHit,
   PlaneThumbContextValue,
   PlaneThumbProps,
   PlaneThumbRegistration,
   PlaneValue,
   PlaneValueChangeSource,
 } from './types.js';
+
+// The snap hit recorded with the value it produced. `transition` marks values
+// reached by entering, moving between, or leaving snap positions.
+type PlaneSnapState = {
+  value: PlaneValue;
+  hit: PlaneSnapHit | null;
+  transition: boolean;
+};
 
 function getDefaultAriaValueText(value: PlaneValue) {
   return `${Math.round(value.x * 100)}% horizontal, ${Math.round(value.y * 100)}% vertical`;
@@ -66,6 +88,10 @@ export function PlaneThumb({
   xAriaLabel,
   yAriaLabel,
   getAriaValueText = getDefaultAriaValueText,
+  snap: snapProp,
+  snapRadius: snapRadiusProp,
+  axisLock: axisLockProp,
+  snapBypass: snapBypassProp,
   className,
   style,
   children,
@@ -83,6 +109,22 @@ export function PlaneThumb({
   const context = useInternalPlaneContext();
   const parentThumb = React.useContext(PlaneThumbContext);
   const parentSlot = React.useContext(NestedThumbSlotContext);
+  const { snapDefaults } = context;
+  // Plane snap targets are in plane space, so nested thumbs do not inherit them.
+  const snapTargets = snapProp ?? (parentThumb ? undefined : snapDefaults.snap);
+  const snapRadius = snapRadiusProp ?? snapDefaults.snapRadius;
+  const axisLock = axisLockProp ?? snapDefaults.axisLock;
+  const snapBypass =
+    snapBypassProp !== undefined
+      ? snapBypassProp
+      : snapDefaults.snapBypass !== undefined
+        ? snapDefaults.snapBypass
+        : 'alt';
+  const gridAxes = React.useMemo(
+    () => getPlaneGridAxes(snapTargets),
+    [snapTargets],
+  );
+  const hasGrid = gridAxes.x !== undefined || gridAxes.y !== undefined;
   const [nestedSlotElement, setNestedSlotElement] =
     React.useState<HTMLDivElement | null>(null);
   const [nestedThumbCount, setNestedThumbCount] = React.useState(0);
@@ -142,6 +184,19 @@ export function PlaneThumb({
     [parentX, parentY, renderedX, renderedY],
   );
   const interactionValueRef = React.useRef(renderedValue);
+  const [snapState, setSnapState] = React.useState<PlaneSnapState | null>(null);
+  const snapStateRef = React.useRef<PlaneSnapState | null>(null);
+  // Hysteresis input for the next pointer sample of the current drag.
+  const pointerSnapRef = React.useRef<PlaneSnapHit | null>(null);
+  // Controlled values set by the parent are not snapped; a stale hit for a
+  // different value is dropped.
+  const snapped =
+    snapState && planeValuesEqual(snapState.value, renderedValue)
+      ? snapState.hit
+      : null;
+  const snapTransition = Boolean(
+    snapState?.transition && planeValuesEqual(snapState.value, renderedValue),
+  );
   const isDragging = context.activeThumbKey === internalKey;
   const isDisabled = context.disabled || parentThumb?.disabled || disabled;
   const isReadOnly = context.readOnly || parentThumb?.readOnly || readOnly;
@@ -235,8 +290,48 @@ export function PlaneThumb({
     renderedValue,
   ]);
 
+  const recordSnap = React.useCallback(
+    (value: PlaneValue, hit: PlaneSnapHit | null) => {
+      const previous = snapStateRef.current;
+      const previousHit =
+        previous &&
+        planeValuesEqual(previous.value, interactionValueRef.current)
+          ? previous.hit
+          : null;
+      // A free move after a free (or leaving) value clears the record. Without
+      // snapping this never sets state.
+      if (!hit && !previousHit) {
+        if (previous) {
+          snapStateRef.current = null;
+          setSnapState(null);
+        }
+        return;
+      }
+      const next: PlaneSnapState = {
+        value,
+        hit,
+        transition: hit !== null || previousHit !== null,
+      };
+      if (
+        previous &&
+        planeValuesEqual(previous.value, next.value) &&
+        planeSnapHitsEqual(previous.hit, next.hit) &&
+        previous.transition === next.transition
+      ) {
+        return;
+      }
+      snapStateRef.current = next;
+      setSnapState(next);
+    },
+    [],
+  );
+
   const publishValue = React.useCallback(
-    (nextValue: PlaneValue, source: PlaneValueChangeSource) => {
+    (
+      nextValue: PlaneValue,
+      source: PlaneValueChangeSource,
+      hit: PlaneSnapHit | null = null,
+    ) => {
       if (isDisabled || isReadOnly) return false;
       const normalizedValue = normalizeValue(nextValue);
 
@@ -244,9 +339,13 @@ export function PlaneThumb({
         return false;
       }
 
+      recordSnap(normalizedValue, hit);
       interactionValueRef.current = normalizedValue;
       if (!isControlled) setUncontrolledValue(normalizedValue);
-      onValueChange?.(normalizedValue, getValueChangeDetails(source, thumbId));
+      onValueChange?.(
+        normalizedValue,
+        getValueChangeDetails(source, thumbId, hit),
+      );
       return true;
     },
     [
@@ -255,9 +354,17 @@ export function PlaneThumb({
       isReadOnly,
       normalizeValue,
       onValueChange,
+      recordSnap,
       thumbId,
     ],
   );
+
+  const getCurrentSnapHit = () => {
+    const state = snapStateRef.current;
+    return state && planeValuesEqual(state.value, interactionValueRef.current)
+      ? state.hit
+      : null;
+  };
 
   const setKeyboardValue = React.useCallback(
     (
@@ -265,31 +372,52 @@ export function PlaneThumb({
       reason: PlaneKeyboardReason,
       originalEvent?: Event,
     ) => {
-      const changed = publishValue(nextValue, {
-        interaction: 'keyboard',
-        reason,
-        originalEvent,
-      });
+      // Keyboard and input changes only report grid hits; magnetic targets
+      // do not affect them.
+      const normalizedValue = normalizeValue(nextValue);
+      const changed = publishValue(
+        normalizedValue,
+        { interaction: 'keyboard', reason, originalEvent },
+        hasGrid ? getPlaneGridHit(normalizedValue, snapTargets) : null,
+      );
       keyboardDirtyRef.current ||= changed;
       return changed;
     },
-    [publishValue],
+    [hasGrid, normalizeValue, publishValue, snapTargets],
   );
+
+  const getChordValue = (value: PlaneValue) => {
+    if (hasGrid) {
+      return getGridArrowChordValue(
+        value,
+        pressedArrowKeysRef.current,
+        {
+          smallStep: smallStepRef.current,
+          step: stepRef.current,
+          largeStep: largeStepRef.current,
+        },
+        modifierKeysRef.current,
+        gridAxes,
+        minimum,
+      );
+    }
+    return getArrowChordValue(
+      value,
+      pressedArrowKeysRef.current,
+      getArrowStep(
+        smallStepRef.current,
+        stepRef.current,
+        largeStepRef.current,
+        modifierKeysRef.current.alt,
+        modifierKeysRef.current.shift,
+      ),
+    );
+  };
 
   applyArrowChordRef.current = () => {
     if (pressedArrowKeysRef.current.size === 0) return;
     setKeyboardValue(
-      getArrowChordValue(
-        interactionValueRef.current,
-        pressedArrowKeysRef.current,
-        getArrowStep(
-          smallStepRef.current,
-          stepRef.current,
-          largeStepRef.current,
-          modifierKeysRef.current.alt,
-          modifierKeysRef.current.shift,
-        ),
-      ),
+      getChordValue(interactionValueRef.current),
       'keyboard',
       keyboardOriginalEventRef.current,
     );
@@ -309,6 +437,7 @@ export function PlaneThumb({
         getValueChangeDetails(
           { interaction: 'keyboard', reason, originalEvent },
           thumbId,
+          getCurrentSnapHit(),
         ),
       );
       keyboardOriginalEventRef.current = undefined;
@@ -321,12 +450,56 @@ export function PlaneThumb({
     (source: PlaneValueChangeSource) => {
       onCommit?.(
         interactionValueRef.current,
-        getValueChangeDetails(source, thumbId),
+        getValueChangeDetails(source, thumbId, getCurrentSnapHit()),
       );
+      pointerSnapRef.current = null;
       if (isControlled) interactionValueRef.current = renderedValue;
     },
     [isControlled, onCommit, renderedValue, thumbId],
   );
+
+  const resolvePointer: PlaneThumbRegistration['resolvePointer'] = (input) => {
+    const local = { x: input.value.x - parentX, y: input.value.y - parentY };
+    let value = local;
+    let hit: PlaneSnapHit | null = null;
+    if (axisLock !== undefined || snapTargets?.length) {
+      const start = { x: input.start.x - parentX, y: input.start.y - parentY };
+      const boundsPx = {
+        width: input.bounds.width,
+        height: input.bounds.height,
+      };
+      const lockedAxis = getLockedAxis(
+        axisLock,
+        local,
+        start,
+        boundsPx,
+        input.modifiers.shiftKey,
+      );
+      if (lockedAxis) value = { ...value, [lockedAxis]: start[lockedAxis] };
+      if (snapTargets?.length) {
+        const result = resolvePlaneSnap(value, {
+          targets: snapTargets,
+          boundsPx,
+          previous: pointerSnapRef.current,
+          bypass:
+            (snapBypass === 'alt' && input.modifiers.altKey) ||
+            (snapBypass === 'meta' && input.modifiers.metaKey),
+          radiusPx: snapRadius ?? DEFAULT_SNAP_RADIUS,
+          space: parentThumb ? 'local' : 'unit',
+          lockedAxis,
+        });
+        value = result.value;
+        hit = result.hit;
+      }
+    }
+    const clamped = normalizeValue(value);
+    const resolved: PlaneResolvedPointerValue = {
+      local: clamped,
+      world: { x: parentX + clamped.x, y: parentY + clamped.y },
+      hit,
+    };
+    return resolved;
+  };
 
   const beginRelativeDrag = () => {
     // A controlled consumer may not have accepted a previous keyboard change.
@@ -343,7 +516,9 @@ export function PlaneThumb({
       ...pointerHover,
       key: internalKey,
       getValue: () => worldValue,
-      constrainWorldValue: (value) => value,
+      resolvePointer,
+      publishPointer: () => false,
+      beginPointer: () => {},
       beginRelativeDrag,
       getHoverSize: () => {
         const bounds = thumbRef.current?.getBoundingClientRect();
@@ -355,7 +530,6 @@ export function PlaneThumb({
       isControlled: () => isControlled,
       isInteractive: () => !isDisabled && !isReadOnly,
       acceptsPlanePress: () => pressBehavior !== 'none',
-      publishValue,
       commitPointerValue,
       focus: () => {
         const input = thumbRef.current?.querySelector<HTMLInputElement>(
@@ -375,20 +549,18 @@ export function PlaneThumb({
 
   const registration = registrationRef.current;
   registration.getValue = () => worldValue;
-  registration.constrainWorldValue = (value) => {
-    const local = normalizeValue({
-      x: value.x - parentX,
-      y: value.y - parentY,
-    });
-    return { x: parentX + local.x, y: parentY + local.y };
+  registration.resolvePointer = resolvePointer;
+  registration.publishPointer = (resolved, source) => {
+    pointerSnapRef.current = resolved.hit;
+    return publishValue(resolved.local, source, resolved.hit);
+  };
+  registration.beginPointer = () => {
+    pointerSnapRef.current = null;
   };
   registration.beginRelativeDrag = beginRelativeDrag;
   registration.isControlled = () => isControlled;
   registration.isInteractive = () => !isDisabled && !isReadOnly;
   registration.acceptsPlanePress = () => pressBehavior !== 'none';
-  // The Plane publishes world coordinates; convert to parent-relative ones.
-  registration.publishValue = (value, source) =>
-    publishValue({ x: value.x - parentX, y: value.y - parentY }, source);
   registration.commitPointerValue = commitPointerValue;
 
   const thumbContext = React.useMemo<PlaneThumbContextValue>(
@@ -403,8 +575,10 @@ export function PlaneThumb({
       focusVisible,
       disabled: isDisabled,
       readOnly: isReadOnly,
+      snapped,
     }),
     [
+      snapped,
       focusVisible,
       focused,
       focusedWithin,
@@ -423,6 +597,22 @@ export function PlaneThumb({
     [registerThumb, registration],
   );
 
+  // Expose the grid size as the native step when the value sits on a grid
+  // line aligned with `min`; otherwise "any", so the browser never
+  // sanitizes an off-grid value (from a bypassed drag, an Alt step, or a
+  // controlled value) into a different one.
+  const getAxisInputStep = (axis: PlaneAxis) => {
+    const gridAxis = gridAxes[axis];
+    if (
+      !gridAxis ||
+      !isOnGridLine(renderedValue[axis], gridAxis) ||
+      !isOnGridLine(minimum, gridAxis)
+    ) {
+      return 'any';
+    }
+    return gridAxis.size;
+  };
+
   const renderAxisInput = (axis: PlaneAxis, axisAriaLabel: string) => (
     <input
       data-plane-axis={axis}
@@ -430,7 +620,7 @@ export function PlaneThumb({
       type="range"
       min={minimum}
       max={1}
-      step="any"
+      step={getAxisInputStep(axis)}
       tabIndex={tabbableAxis === axis ? 0 : -1}
       value={renderedValue[axis]}
       name={axis === 'x' ? xName : yName}
@@ -443,10 +633,14 @@ export function PlaneThumb({
       aria-roledescription="2D slider axis"
       onChange={(event) => {
         if (isReadOnly) return;
+        const inputValue = Number(event.currentTarget.value);
+        const gridAxis = gridAxes[axis];
         const changed = setKeyboardValue(
           {
             ...renderedValue,
-            [axis]: Number(event.currentTarget.value),
+            [axis]: gridAxis
+              ? (quantizeToGrid(inputValue, gridAxis, minimum, 1) ?? inputValue)
+              : inputValue,
           },
           'input-change',
           event.nativeEvent,
@@ -465,6 +659,15 @@ export function PlaneThumb({
       data-thumb-id={thumbId}
       data-hovered={hovered || undefined}
       data-dragging={isDragging || undefined}
+      data-snapped={snapped ? true : undefined}
+      data-snapped-axis={
+        snapped && snapped.axes.length > 0
+          ? snapped.axes.length > 1
+            ? 'both'
+            : snapped.axes[0]
+          : undefined
+      }
+      data-snap-transition={snapTransition || undefined}
       data-disabled={isDisabled || undefined}
       data-readonly={isReadOnly || undefined}
       data-focused={focused || undefined}
@@ -578,29 +781,30 @@ export function PlaneThumb({
             event.preventDefault();
             return;
           }
-          nextValue = getArrowChordValue(
-            interactionValueRef.current,
-            pressedArrowKeysRef.current,
-            getArrowStep(
-              smallStepRef.current,
-              stepRef.current,
-              largeStepRef.current,
-              modifierKeysRef.current.alt,
-              modifierKeysRef.current.shift,
-            ),
-          );
+          nextValue = getChordValue(interactionValueRef.current);
         } else {
-          nextValue = getAxisKeyValue(
-            sourceAxis,
-            event.key,
-            interactionValueRef.current,
-            normalizedSmallStep,
-            normalizedStep,
-            normalizedLargeStep,
-            event.altKey,
-            event.shiftKey,
-            minimum,
-          );
+          nextValue =
+            (hasGrid && !event.altKey
+              ? getGridAxisKeyValue(
+                  sourceAxis,
+                  event.key,
+                  interactionValueRef.current,
+                  normalizedLargeStep,
+                  gridAxes,
+                  minimum,
+                )
+              : null) ??
+            getAxisKeyValue(
+              sourceAxis,
+              event.key,
+              interactionValueRef.current,
+              normalizedSmallStep,
+              normalizedStep,
+              normalizedLargeStep,
+              event.altKey,
+              event.shiftKey,
+              minimum,
+            );
         }
         if (!nextValue) return;
 

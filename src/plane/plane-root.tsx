@@ -21,7 +21,9 @@ import type {
   PlaneBounds,
   PlanePoint,
   PlanePointerReason,
+  PlanePointerInput,
   PlaneProps,
+  PlaneSnapProps,
   PlaneThumbRegistration,
   PlaneThumbSize,
   PlaneValue,
@@ -44,6 +46,10 @@ export function Plane({
   pressBehavior = 'auto',
   dragBehavior = 'absolute',
   dragSensitivity = 1,
+  snap,
+  snapRadius,
+  axisLock,
+  snapBypass,
   className,
   children,
   ref,
@@ -73,12 +79,32 @@ export function Plane({
   const relativeDragOriginRef = React.useRef<PlaneRelativeDragOrigin | null>(
     null,
   );
+  const dragStartValueRef = React.useRef<PlaneValue | null>(null);
 
   function getPointerValue(point: PlanePoint, bounds: PlaneBounds): PlaneValue {
     const origin = relativeDragOriginRef.current;
     // Unclamped: the target thumb clamps in its own local space.
     if (!origin) return getRawPlaneValueFromPoint(point, bounds);
     return getRelativeDragValue(origin, point, bounds);
+  }
+
+  // Pointer pipeline: raw pointer -> relative drag -> (thumb) axis lock ->
+  // snap -> clamp -> publish.
+  function getPointerInput(
+    event: React.PointerEvent<HTMLDivElement>,
+    bounds: PlaneBounds,
+    start: PlaneValue,
+  ): PlanePointerInput {
+    return {
+      value: getPointerValue(event, bounds),
+      start,
+      bounds,
+      modifiers: {
+        altKey: event.altKey,
+        metaKey: event.metaKey,
+        shiftKey: event.shiftKey,
+      },
+    };
   }
 
   const activePointerThumbSizeRef = React.useRef<PlaneThumbSize | null>(null);
@@ -110,6 +136,7 @@ export function Plane({
       activePointerIdRef.current = null;
       activePointerBoundsRef.current = null;
       relativeDragOriginRef.current = null;
+      dragStartValueRef.current = null;
       activePointerThumbSizeRef.current = null;
       activePointerReasonRef.current = null;
       activeThumbKeyRef.current = null;
@@ -154,16 +181,29 @@ export function Plane({
     onHoverValueChange,
   );
 
+  const snapDefaults = React.useMemo<PlaneSnapProps>(
+    () => ({ snap, snapRadius, axisLock, snapBypass }),
+    [snap, snapRadius, axisLock, snapBypass],
+  );
+
   const context = React.useMemo<InternalPlaneContextValue>(
     () => ({
       disabled,
       readOnly,
       dragging: activeThumbKey !== null,
       activeThumbKey,
+      snapDefaults,
       registerThumb,
       cancelThumbInteraction,
     }),
-    [activeThumbKey, cancelThumbInteraction, disabled, readOnly, registerThumb],
+    [
+      activeThumbKey,
+      cancelThumbInteraction,
+      disabled,
+      readOnly,
+      registerThumb,
+      snapDefaults,
+    ],
   );
 
   return (
@@ -278,15 +318,19 @@ export function Plane({
           activePointerThumbSizeRef.current = thumbSize;
           activePointerReasonRef.current = reason;
           activeThumbKeyRef.current = registration.key;
+          dragStartValueRef.current = registration.getValue();
+          registration.beginPointer();
           setActiveThumbKey(registration.key);
           event.currentTarget.setPointerCapture(event.pointerId);
-          // Publish the raw pointer value; the thumb clamps it in its own
-          // local space, avoiding world/local round-trip rounding. Hover
-          // checks use the clamped position the thumb actually renders at.
-          const pointerValue = getPointerValue(event, bounds);
-          const nextValue = registration.constrainWorldValue(pointerValue);
+          // Pass the raw pointer value; the thumb locks, snaps, and clamps it
+          // in its own local space, avoiding world/local round-trip rounding.
+          // Hover checks use the position the thumb actually renders at.
+          const resolved = registration.resolvePointer(
+            getPointerInput(event, bounds, dragStartValueRef.current),
+          );
+          const nextValue = resolved.world;
           if (!relativeDragOriginRef.current) {
-            registration.publishValue(pointerValue, {
+            registration.publishPointer(resolved, {
               interaction: 'pointer',
               reason,
               originalEvent: event.nativeEvent,
@@ -332,9 +376,15 @@ export function Plane({
             : undefined;
           if (bounds && registration?.isInteractive()) {
             const reason = activePointerReasonRef.current ?? 'thumb-drag';
-            const pointerValue = getPointerValue(event, bounds);
-            const nextValue = registration.constrainWorldValue(pointerValue);
-            registration.publishValue(pointerValue, {
+            const resolved = registration.resolvePointer(
+              getPointerInput(
+                event,
+                bounds,
+                dragStartValueRef.current ?? registration.getValue(),
+              ),
+            );
+            const nextValue = resolved.world;
+            registration.publishPointer(resolved, {
               interaction: 'pointer',
               reason,
               originalEvent: event.nativeEvent,
@@ -379,15 +429,21 @@ export function Plane({
           );
           const bounds = activePointerBoundsRef.current;
           const reason = activePointerReasonRef.current ?? 'thumb-drag';
-          const pointerValue = bounds ? getPointerValue(event, bounds) : null;
-          // Reconcile hover against the clamped position the thumb renders at,
-          // not the raw pointer, which may lie outside the thumb's range.
-          const nextValue =
-            pointerValue && registration
-              ? registration.constrainWorldValue(pointerValue)
+          // Reconcile hover against the position the thumb renders at, not
+          // the raw pointer, which may lie outside the thumb's range.
+          const resolved =
+            bounds && registration
+              ? registration.resolvePointer(
+                  getPointerInput(
+                    event,
+                    bounds,
+                    dragStartValueRef.current ?? registration.getValue(),
+                  ),
+                )
               : null;
-          if (canPublish && pointerValue && registration) {
-            registration.publishValue(pointerValue, {
+          const nextValue = resolved?.world ?? null;
+          if (canPublish && resolved && registration) {
+            registration.publishPointer(resolved, {
               interaction: 'pointer',
               reason,
               originalEvent: event.nativeEvent,

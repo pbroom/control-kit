@@ -1,5 +1,11 @@
 import * as React from 'react';
 import { getModifiedStep } from '../number-value.js';
+import {
+  getNextGridLine,
+  quantizeToGrid,
+  type PlaneGridAxes,
+  type PlaneGridAxis,
+} from './snap.js';
 import type { PlaneValue } from './types.js';
 
 export type PlaneAxis = 'x' | 'y';
@@ -79,6 +85,115 @@ export function getAxisKeyValue(
 
   // Unclamped; the thumb clamps to its own range when publishing.
   return nextValue;
+}
+
+export type PlaneKeyboardSteps = {
+  smallStep: number;
+  step: number;
+  largeStep: number;
+};
+
+/**
+ * Moves one axis on a grid. A plain step goes to the next grid line in
+ * `direction`; a large step goes `largeStep` further, rounded to the grid, but
+ * always at least one line. Stays put when no line exists in that direction.
+ */
+export function getGridAxisStep(
+  value: number,
+  direction: 1 | -1,
+  large: boolean,
+  grid: Pick<PlaneGridAxis, 'size' | 'origin'>,
+  largeStep: number,
+  minimum: number,
+): number {
+  const next = getNextGridLine(value, direction, grid, minimum, 1);
+  if (next === null) return value;
+  if (!large) return next;
+  const rounded = quantizeToGrid(
+    value + direction * largeStep,
+    grid,
+    minimum,
+    1,
+  );
+  if (rounded === null) return next;
+  return direction > 0 ? Math.max(rounded, next) : Math.min(rounded, next);
+}
+
+/**
+ * Arrow-chord stepping with grid snapping. Axes without a grid, and every
+ * axis while Alt is held, step by the regular (modified) step amount.
+ */
+export function getGridArrowChordValue(
+  value: PlaneValue,
+  keys: ReadonlySet<PlaneArrowKey>,
+  steps: PlaneKeyboardSteps,
+  modifiers: { alt: boolean; shift: boolean },
+  grid: PlaneGridAxes,
+  minimum: number,
+): PlaneValue {
+  const amount = getArrowStep(
+    steps.smallStep,
+    steps.step,
+    steps.largeStep,
+    modifiers.alt,
+    modifiers.shift,
+  );
+  const next = { ...value };
+  const directions: Record<PlaneAxis, number> = {
+    x: (keys.has('ArrowRight') ? 1 : 0) - (keys.has('ArrowLeft') ? 1 : 0),
+    y: (keys.has('ArrowUp') ? 1 : 0) - (keys.has('ArrowDown') ? 1 : 0),
+  };
+  for (const axis of ['x', 'y'] as const) {
+    const direction = directions[axis];
+    if (direction === 0) continue;
+    const gridAxis = grid[axis];
+    next[axis] =
+      gridAxis && !modifiers.alt
+        ? getGridAxisStep(
+            value[axis],
+            direction > 0 ? 1 : -1,
+            modifiers.shift,
+            gridAxis,
+            steps.largeStep,
+            minimum,
+          )
+        : value[axis] + direction * amount;
+  }
+  return next;
+}
+
+/**
+ * Home/End/PageUp/PageDown with a grid on `axis`: Home/End go to the
+ * outermost grid line, Page keys take a large grid step. Returns null for
+ * other keys or when the axis has no grid.
+ */
+export function getGridAxisKeyValue(
+  axis: PlaneAxis,
+  key: string,
+  value: PlaneValue,
+  largeStep: number,
+  grid: PlaneGridAxes,
+  minimum: number,
+): PlaneValue | null {
+  const gridAxis = grid[axis];
+  if (!gridAxis) return null;
+  const next = { ...value };
+  if (key === 'Home' || key === 'End') {
+    const bound = key === 'Home' ? minimum : 1;
+    next[axis] = quantizeToGrid(bound, gridAxis, minimum, 1) ?? bound;
+  } else if (key === 'PageUp' || key === 'PageDown') {
+    next[axis] = getGridAxisStep(
+      value[axis],
+      key === 'PageUp' ? 1 : -1,
+      true,
+      gridAxis,
+      largeStep,
+      minimum,
+    );
+  } else {
+    return null;
+  }
+  return next;
 }
 
 export function isOwnThumbEvent(event: React.SyntheticEvent<HTMLElement>) {

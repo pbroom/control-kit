@@ -110,12 +110,14 @@ export {
   PlaneThumb,
   clampPlaneValue,
   getPlaneValueFromPoint,
+  resolvePlaneSnap,
   usePlaneContext,
   usePlaneThumbContext,
 } from './plane.js';
 export { PlaneAttachment } from './plane-attachment.js';
 export type { PlaneAttachmentProps } from './plane-attachment.js';
 export type {
+  PlaneAxisLock,
   PlaneBounds,
   PlaneContextValue,
   PlaneHoverValueChangeDetails,
@@ -123,6 +125,14 @@ export type {
   PlanePoint,
   PlanePressBehavior,
   PlaneDragBehavior,
+  PlaneSnapAxis,
+  PlaneSnapBypass,
+  PlaneSnapContext,
+  PlaneSnapHit,
+  PlaneSnapProps,
+  PlaneSnapResult,
+  PlaneSnapSpace,
+  PlaneSnapTarget,
   PlaneThumbPressBehavior,
   PlaneProps,
   PlaneThumbProps,

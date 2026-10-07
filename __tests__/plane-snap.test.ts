@@ -1,8 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { PlaneSnapTarget } from '../src/plane/types.js';
 import {
   resolvePlaneSnap,
   type PlaneSnapContext,
+  type PlaneSnapTarget,
+} from '../src/plane.js';
+import {
+  getGridArrowChordValue,
+  getGridAxisKeyValue,
+  getGridAxisStep,
+} from '../src/plane/keyboard.js';
+import {
   getLockedAxis,
   getNextGridLine,
   getPlaneGridAxes,
@@ -419,5 +426,76 @@ describe('snap helpers', () => {
         true,
       ),
     ).toBe('x');
+  });
+});
+
+describe('keyboard grid stepping', () => {
+  const grid = { size: 0.25, origin: 0 };
+
+  it('moves to the next grid line rather than adding a step', () => {
+    expect(getGridAxisStep(0.5, 1, false, grid, 0.1, 0)).toBe(0.75);
+    expect(getGridAxisStep(0.6, 1, false, grid, 0.1, 0)).toBe(0.75);
+    expect(getGridAxisStep(0.6, -1, false, grid, 0.1, 0)).toBe(0.5);
+    expect(getGridAxisStep(1, 1, false, grid, 0.1, 0)).toBe(1);
+    expect(getGridAxisStep(-1, -1, false, grid, 0.1, -1)).toBe(-1);
+  });
+
+  it('takes a large step rounded to the grid, at least one line', () => {
+    const fine = { size: 0.05, origin: 0 };
+    expect(getGridAxisStep(0.5, 1, true, fine, 0.2, 0)).toBe(0.7);
+    expect(getGridAxisStep(0.5, -1, true, fine, 0.2, 0)).toBe(0.3);
+    // largeStep smaller than the grid still moves one line.
+    expect(getGridAxisStep(0.5, 1, true, grid, 0.1, 0)).toBe(0.75);
+    // Large steps past the edge stop at the last line.
+    expect(getGridAxisStep(0.9, 1, true, fine, 0.2, 0)).toBe(1);
+  });
+
+  it('steps chords per axis and ignores the grid with Alt', () => {
+    const axes = { x: { ...grid, index: 0 } };
+    const steps = { smallStep: 0.001, step: 0.01, largeStep: 0.1 };
+    const keys = new Set(['ArrowRight', 'ArrowUp'] as const);
+    expect(
+      getGridArrowChordValue(
+        { x: 0.5, y: 0.5 },
+        keys,
+        steps,
+        { alt: false, shift: false },
+        axes,
+        0,
+      ),
+    ).toEqual({ x: 0.75, y: 0.51 });
+    expect(
+      getGridArrowChordValue(
+        { x: 0.5, y: 0.5 },
+        keys,
+        steps,
+        { alt: true, shift: false },
+        axes,
+        0,
+      ),
+    ).toEqual({ x: 0.501, y: 0.501 });
+  });
+
+  it('maps Home, End, and Page keys onto the grid', () => {
+    const axes = { x: { size: 0.3, origin: 0, index: 0 } };
+    const value = { x: 0.3, y: 0.5 };
+    expect(getGridAxisKeyValue('x', 'End', value, 0.1, axes, 0)).toEqual({
+      x: 0.9,
+      y: 0.5,
+    });
+    expect(getGridAxisKeyValue('x', 'Home', value, 0.1, axes, 0)).toEqual({
+      x: 0,
+      y: 0.5,
+    });
+    expect(getGridAxisKeyValue('x', 'PageUp', value, 0.1, axes, 0)).toEqual({
+      x: 0.6,
+      y: 0.5,
+    });
+    expect(getGridAxisKeyValue('x', 'PageDown', value, 0.1, axes, 0)).toEqual({
+      x: 0,
+      y: 0.5,
+    });
+    expect(getGridAxisKeyValue('y', 'End', value, 0.1, axes, 0)).toBeNull();
+    expect(getGridAxisKeyValue('x', 'Tab', value, 0.1, axes, 0)).toBeNull();
   });
 });
