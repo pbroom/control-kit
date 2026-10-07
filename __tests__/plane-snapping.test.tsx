@@ -7,6 +7,7 @@ import {
   Plane,
   PlaneThumb,
   usePlaneThumbContext,
+  type PlaneMotion,
   type PlaneProps,
   type PlaneSnapTarget,
   type PlaneThumbProps,
@@ -532,5 +533,103 @@ describe('PlaneThumb keyboard snapping', () => {
     });
     expect(lastValue(onValueChange)).toEqual({ x: 0.75, y: 0.5 });
     expect(lastDetails(onValueChange).reason).toBe('input-change');
+  });
+});
+
+describe('PlaneThumb motion', () => {
+  function stubAnimationFrames() {
+    let callbacks: FrameRequestCallback[] = [];
+    let now = 0;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      callbacks.push(cb);
+      return callbacks.length;
+    });
+    vi.stubGlobal('cancelAnimationFrame', () => {
+      callbacks = [];
+    });
+    vi.spyOn(performance, 'now').mockImplementation(() => now);
+    return {
+      pending: () => callbacks.length,
+      frame(ms = 16) {
+        now += ms;
+        const run = callbacks;
+        callbacks = [];
+        act(() => run.forEach((cb) => cb(now)));
+      },
+    };
+  }
+
+  // Moves halfway to the target each frame; done within 0.01.
+  const halfway: PlaneMotion = {
+    step(current, target) {
+      const value = {
+        x: current.x + (target.x - current.x) / 2,
+        y: current.y + (target.y - current.y) / 2,
+      };
+      const done =
+        Math.abs(value.x - target.x) < 0.01 &&
+        Math.abs(value.y - target.y) < 0.01;
+      return { value: done ? target : value, done };
+    },
+  };
+
+  it('animates the presented position while the logical value never lags', () => {
+    const frames = stubAnimationFrames();
+    const { plane, thumb, axis, onValueChange } = mount({
+      motion: halfway,
+      defaultValue: { x: 0.2, y: 0.5 },
+    });
+    expect(frames.pending()).toBe(0);
+    drag(plane, plane, [at(0.6, 0.5)]);
+    expect(lastValue(onValueChange)).toEqual({ x: 0.6, y: 0.5 });
+    expect(axis('x').value).toBe('0.6');
+    expect(thumb.style.left).toBe('20%');
+    frames.frame();
+    expect(parseFloat(thumb.style.left)).toBeCloseTo(40);
+    for (let i = 0; i < 10 && frames.pending() > 0; i += 1) frames.frame();
+    expect(thumb.style.left).toBe('60%');
+    expect(frames.pending()).toBe(0);
+  });
+
+  it('settles instantly without motion', () => {
+    const frames = stubAnimationFrames();
+    const { plane, thumb } = mount({ defaultValue: { x: 0.2, y: 0.5 } });
+    drag(plane, plane, [at(0.6, 0.5)]);
+    expect(thumb.style.left).toBe('60%');
+    expect(frames.pending()).toBe(0);
+  });
+
+  it('inherits motion from Plane and moves nested thumbs with the presented parent', () => {
+    const frames = stubAnimationFrames();
+    const { container, plane } = render(
+      <Plane motion={halfway}>
+        <PlaneThumb thumbId="parent" defaultValue={{ x: 0.2, y: 0.5 }}>
+          <PlaneThumb thumbId="child" defaultValue={{ x: 0.1, y: 0 }} />
+        </PlaneThumb>
+      </Plane>,
+    );
+    const thumb = (id: string) =>
+      container.querySelector(`[data-thumb-id="${id}"]`) as HTMLElement;
+    drag(plane, thumb('parent'), [at(0.2, 0.5), at(0.6, 0.5)]);
+    expect(thumb('parent').style.left).toBe('20%');
+    expect(parseFloat(thumb('child').style.left)).toBeCloseTo(30);
+    frames.frame();
+    expect(parseFloat(thumb('parent').style.left)).toBeCloseTo(40);
+    expect(parseFloat(thumb('child').style.left)).toBeCloseTo(50);
+  });
+
+  it('hit-tests against the logical value during motion', () => {
+    stubAnimationFrames();
+    const { plane, thumb, onValueChange } = mount(
+      { motion: halfway, defaultValue: { x: 0.2, y: 0.5 } },
+      { pressBehavior: 'nearest' },
+    );
+    drag(plane, plane, [at(0.8, 0.5)]);
+    // Presented still at 20%, but the logical position (80%) is what a
+    // nearest-thumb press measures from.
+    expect(thumb.style.left).toBe('20%');
+    onValueChange.mockClear();
+    drag(plane, plane, [at(0.79, 0.5)]);
+    expect(lastValue(onValueChange).x).toBeCloseTo(0.79);
   });
 });

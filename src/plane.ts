@@ -5,11 +5,13 @@ export { PlaneThumb } from './plane/plane-thumb.js';
 export { clampPlaneValue, getPlaneValueFromPoint } from './plane/geometry.js';
 export { usePlaneContext, usePlaneThumbContext } from './plane/context.js';
 export { resolvePlaneSnap } from './plane/snap.js';
+export { springMotion } from './plane/motion.js';
 export type {
   PlaneSnapContext,
   PlaneSnapResult,
   PlaneSnapSpace,
 } from './plane/snap.js';
+export type { PlaneSpringOptions } from './plane/motion.js';
 export type {
   PlaneAxisLock,
   PlaneBounds,
@@ -17,6 +19,7 @@ export type {
   PlaneDragBehavior,
   PlaneHoverValueChangeDetails,
   PlaneInteraction,
+  PlaneMotion,
   PlanePoint,
   PlanePressBehavior,
   PlaneProps,

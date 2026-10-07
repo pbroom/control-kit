@@ -50,6 +50,7 @@ export function Plane({
   snapRadius,
   axisLock,
   snapBypass,
+  motion,
   className,
   children,
   ref,
@@ -182,8 +183,8 @@ export function Plane({
   );
 
   const snapDefaults = React.useMemo<PlaneSnapProps>(
-    () => ({ snap, snapRadius, axisLock, snapBypass }),
-    [snap, snapRadius, axisLock, snapBypass],
+    () => ({ snap, snapRadius, axisLock, snapBypass, motion }),
+    [snap, snapRadius, axisLock, snapBypass, motion],
   );
 
   const context = React.useMemo<InternalPlaneContextValue>(

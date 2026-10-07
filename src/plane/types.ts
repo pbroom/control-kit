@@ -48,6 +48,19 @@ export type PlaneAxisLock = PlaneSnapAxis | 'dominant-with-shift';
 /** Modifier that disables snapping while held during a pointer drag. */
 export type PlaneSnapBypass = 'alt' | 'meta' | false;
 
+/**
+ * Presentation-only motion. Moves the rendered thumb from its current
+ * presented position toward the logical value; the logical value (and every
+ * callback) never lags.
+ */
+export type PlaneMotion = {
+  step(
+    current: PlaneValue,
+    target: PlaneValue,
+    dtMs: number,
+  ): { value: PlaneValue; done: boolean };
+};
+
 export type PlaneValueChangeDetails = {
   interaction: PlaneInteraction;
   reason: PlaneValueChangeReason;
@@ -78,7 +91,7 @@ export type PlaneHoverValueChangeDetails = {
   originalEvent: PointerEvent;
 };
 
-/** Snapping props shared by Plane (as defaults) and PlaneThumb. */
+/** Snapping and motion props shared by Plane (as defaults) and PlaneThumb. */
 export type PlaneSnapProps = {
   /**
    * Snap targets. Grids always quantize; lines and points are magnetic within
@@ -93,6 +106,8 @@ export type PlaneSnapProps = {
   axisLock?: PlaneAxisLock;
   /** Modifier that disables snapping during a pointer drag. @default 'alt' */
   snapBypass?: PlaneSnapBypass;
+  /** Presentation motion toward the logical value. @default instant */
+  motion?: PlaneMotion;
 };
 
 export type PlaneProps = Omit<

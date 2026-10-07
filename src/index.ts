@@ -111,6 +111,7 @@ export {
   clampPlaneValue,
   getPlaneValueFromPoint,
   resolvePlaneSnap,
+  springMotion,
   usePlaneContext,
   usePlaneThumbContext,
 } from './plane.js';
@@ -122,6 +123,7 @@ export type {
   PlaneContextValue,
   PlaneHoverValueChangeDetails,
   PlaneInteraction,
+  PlaneMotion,
   PlanePoint,
   PlanePressBehavior,
   PlaneDragBehavior,
@@ -133,6 +135,7 @@ export type {
   PlaneSnapResult,
   PlaneSnapSpace,
   PlaneSnapTarget,
+  PlaneSpringOptions,
   PlaneThumbPressBehavior,
   PlaneProps,
   PlaneThumbProps,

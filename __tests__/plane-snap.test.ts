@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   resolvePlaneSnap,
+  springMotion,
   type PlaneSnapContext,
   type PlaneSnapTarget,
 } from '../src/plane.js';
@@ -497,5 +498,52 @@ describe('keyboard grid stepping', () => {
     });
     expect(getGridAxisKeyValue('y', 'End', value, 0.1, axes, 0)).toBeNull();
     expect(getGridAxisKeyValue('x', 'Tab', value, 0.1, axes, 0)).toBeNull();
+  });
+});
+
+describe('springMotion', () => {
+  it('converges on the target and reports done', () => {
+    const motion = springMotion({ stiffness: 400, damping: 40 });
+    let value = { x: 0, y: 0 };
+    const target = { x: 1, y: 0.5 };
+    let done = false;
+    let frames = 0;
+    while (!done && frames < 600) {
+      const result = motion.step(value, target, 16);
+      value = result.value;
+      done = result.done;
+      frames += 1;
+    }
+    expect(done).toBe(true);
+    expect(value).toBe(target);
+    expect(frames).toBeGreaterThan(3);
+  });
+
+  it('tracks velocity per presented value', () => {
+    const motion = springMotion();
+    const target = { x: 1, y: 0 };
+    const first = motion.step({ x: 0, y: 0 }, target, 16).value;
+    const second = motion.step(first, target, 16).value;
+    // A fresh value with the same coordinates starts at rest, so it moves
+    // less than one that carries velocity.
+    const fresh = motion.step({ ...first }, target, 16).value;
+    expect(second.x - first.x).toBeGreaterThan(fresh.x - first.x);
+  });
+
+  it('settles instantly under prefers-reduced-motion', () => {
+    const matchMedia = vi.fn(() => ({ matches: true }));
+    vi.stubGlobal('matchMedia', matchMedia);
+    try {
+      const target = { x: 1, y: 1 };
+      expect(springMotion().step({ x: 0, y: 0 }, target, 16)).toEqual({
+        value: target,
+        done: true,
+      });
+      expect(matchMedia).toHaveBeenCalledWith(
+        '(prefers-reduced-motion: reduce)',
+      );
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

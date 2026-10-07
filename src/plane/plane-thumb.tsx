@@ -30,6 +30,7 @@ import {
   type PlaneArrowKey,
   type PlaneAxis,
 } from './keyboard.js';
+import { usePlaneMotion } from './motion.js';
 import {
   DEFAULT_SNAP_RADIUS,
   getLockedAxis,
@@ -59,6 +60,10 @@ type PlaneSnapState = {
   hit: PlaneSnapHit | null;
   transition: boolean;
 };
+
+// Nested thumbs position relative to their parent's presented (possibly
+// animating) position, while hit-testing keeps using logical values.
+const PresentedWorldValueContext = React.createContext<PlaneValue | null>(null);
 
 function getDefaultAriaValueText(value: PlaneValue) {
   return `${Math.round(value.x * 100)}% horizontal, ${Math.round(value.y * 100)}% vertical`;
@@ -92,6 +97,7 @@ export function PlaneThumb({
   snapRadius: snapRadiusProp,
   axisLock: axisLockProp,
   snapBypass: snapBypassProp,
+  motion: motionProp,
   className,
   style,
   children,
@@ -109,6 +115,7 @@ export function PlaneThumb({
   const context = useInternalPlaneContext();
   const parentThumb = React.useContext(PlaneThumbContext);
   const parentSlot = React.useContext(NestedThumbSlotContext);
+  const parentPresentedWorld = React.useContext(PresentedWorldValueContext);
   const { snapDefaults } = context;
   // Plane snap targets are in plane space, so nested thumbs do not inherit them.
   const snapTargets = snapProp ?? (parentThumb ? undefined : snapDefaults.snap);
@@ -120,6 +127,7 @@ export function PlaneThumb({
       : snapDefaults.snapBypass !== undefined
         ? snapDefaults.snapBypass
         : 'alt';
+  const motion = motionProp ?? snapDefaults.motion;
   const gridAxes = React.useMemo(
     () => getPlaneGridAxes(snapTargets),
     [snapTargets],
@@ -196,6 +204,14 @@ export function PlaneThumb({
       : null;
   const snapTransition = Boolean(
     snapState?.transition && planeValuesEqual(snapState.value, renderedValue),
+  );
+  const presentedLocal = usePlaneMotion(renderedValue, motion);
+  const presentedWorld = React.useMemo(
+    () => ({
+      x: (parentPresentedWorld?.x ?? parentX) + presentedLocal.x,
+      y: (parentPresentedWorld?.y ?? parentY) + presentedLocal.y,
+    }),
+    [parentPresentedWorld, parentX, parentY, presentedLocal],
   );
   const isDragging = context.activeThumbKey === internalKey;
   const isDisabled = context.disabled || parentThumb?.disabled || disabled;
@@ -677,8 +693,8 @@ export function PlaneThumb({
         className,
       )}
       style={{
-        left: `${worldValue.x * 100}%`,
-        top: `${(1 - worldValue.y) * 100}%`,
+        left: `${presentedWorld.x * 100}%`,
+        top: `${(1 - presentedWorld.y) * 100}%`,
         ...style,
       }}
       onPointerEnter={(event) => {
@@ -850,11 +866,13 @@ export function PlaneThumb({
       }}
     >
       <PlaneThumbContext.Provider value={thumbContext}>
-        <NestedThumbSlotContext.Provider value={nestedSlot}>
-          {renderAxisInput('x', resolvedXAriaLabel)}
-          {renderAxisInput('y', resolvedYAriaLabel)}
-          {children}
-        </NestedThumbSlotContext.Provider>
+        <PresentedWorldValueContext.Provider value={presentedWorld}>
+          <NestedThumbSlotContext.Provider value={nestedSlot}>
+            {renderAxisInput('x', resolvedXAriaLabel)}
+            {renderAxisInput('y', resolvedYAriaLabel)}
+            {children}
+          </NestedThumbSlotContext.Provider>
+        </PresentedWorldValueContext.Provider>
       </PlaneThumbContext.Provider>
     </div>
   );
