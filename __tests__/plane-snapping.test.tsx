@@ -1115,17 +1115,80 @@ describe('per-axis snap transitions', () => {
     act(() => pointer(plane, 'pointerup', at(0.79, 0.51)));
   });
 
-  it('does not transition grid steps along a grid axis', () => {
+  it('transitions each grid step on the grid axis while the free axis follows', () => {
     const { plane, thumb } = mount({
       snap: [{ type: 'grid', x: 0.1 }],
       defaultValue: { x: 0.1, y: 0.1 },
     });
     act(() => pointer(plane, 'pointerdown', at(0.12, 0.1)));
+    let steps = 0;
     for (let i = 1; i < 10; i += 1) {
-      act(() => pointer(plane, 'pointermove', at(0.12 + i * 0.05, 0.3)));
-      expect(thumb.hasAttribute('data-snap-transition')).toBe(false);
+      const y = 0.1 + i * 0.03;
+      const before = thumb.style.left;
+      act(() => pointer(plane, 'pointermove', at(0.12 + i * 0.05, y)));
+      // y tracks the pointer continuously: never listed, drawn at once.
+      expect(parseFloat(thumb.style.top)).toBeCloseTo((1 - y) * 100, 6);
+      expect(thumb.dataset.snapTransition ?? '').not.toContain('y');
+      if (thumb.style.left !== before) {
+        steps += 1;
+        expect(thumb.dataset.snapTransition).toBe('x');
+      }
     }
-    act(() => pointer(plane, 'pointerup', at(0.57, 0.3)));
+    expect(steps).toBeGreaterThan(3);
+    act(() => pointer(plane, 'pointerup', at(0.57, 0.37)));
+  });
+
+  it('transitions both axes for grid steps on a two-axis grid', () => {
+    const { plane, thumb } = mount({
+      snap: [{ type: 'grid', x: 0.125, y: 0.125 }],
+      defaultValue: { x: 0.125, y: 0.125 },
+    });
+    act(() => pointer(plane, 'pointerdown', at(0.13, 0.13)));
+    act(() => pointer(plane, 'pointermove', at(0.26, 0.26)));
+    expect(thumb.dataset.snapTransition).toBe('x y');
+    // A step on x only keeps y listed while the same grid line holds it.
+    act(() => pointer(plane, 'pointermove', at(0.38, 0.27)));
+    expect(thumb.style.left).toBe('37.5%');
+    expect(thumb.dataset.snapTransition).toBe('x y');
+    act(() => pointer(plane, 'pointerup', at(0.38, 0.27)));
+  });
+
+  it('transitions grid steps on x and line entry on y, independently', () => {
+    const { plane, thumb } = mount({
+      snap: [
+        { type: 'grid', x: 0.1 },
+        { type: 'line', axis: 'y', at: 0.5 },
+      ],
+      defaultValue: { x: 0.1, y: 0.1 },
+    });
+    act(() => pointer(plane, 'pointerdown', at(0.1, 0.1)));
+    act(() => pointer(plane, 'pointermove', at(0.12, 0.3)));
+    // Grid x unchanged (0.1); y free.
+    expect(thumb.hasAttribute('data-snap-transition')).toBe(false);
+    act(() => pointer(plane, 'pointermove', at(0.12, 0.52)));
+    expect(thumb.dataset.snapTransition).toBe('y');
+    act(() => pointer(plane, 'pointermove', at(0.22, 0.51)));
+    expect(thumb.dataset.snapTransition).toBe('x y');
+    act(() => pointer(plane, 'pointerup', at(0.22, 0.51)));
+  });
+
+  it('springs grid steps: the drawn position lags, then settles', () => {
+    const frames = stubFrames();
+    const { plane, thumb } = mount({
+      snap: [{ type: 'grid', x: 0.25, y: 0.25 }],
+      motion: springMotion(),
+      defaultValue: { x: 0.25, y: 0.25 },
+    });
+    act(() => pointer(plane, 'pointerdown', at(0.26, 0.26)));
+    act(() => pointer(plane, 'pointermove', at(0.49, 0.26)));
+    expect(thumb.style.left).toBe('25%');
+    frames.frame();
+    const mid = parseFloat(thumb.style.left);
+    expect(mid).toBeGreaterThan(25);
+    expect(mid).toBeLessThan(50);
+    frames.settle();
+    expect(thumb.style.left).toBe('50%');
+    act(() => pointer(plane, 'pointerup', at(0.49, 0.26)));
   });
 
   it('springs only the jumped axis; the free axis follows the pointer exactly', () => {

@@ -390,10 +390,10 @@ export function PlaneThumb({
     renderedValue,
   ]);
 
-  // Records the snap for a new value and returns the axes that jumped
-  // because their snap target changed. An axis stays a transition axis while
-  // the same target holds its value, and stops as soon as it follows the
-  // pointer again.
+  // Records the snap for a new value and returns the axes whose value jumped
+  // because of snapping. An axis stays a transition axis while the same
+  // target holds it (so a transition can finish; a new jump retargets it),
+  // and stops as soon as it tracks the pointer continuously again.
   const recordSnap = React.useCallback(
     (value: PlaneValue, hit: PlaneSnapHit | null): PlaneSnapAxis[] => {
       const previous = snapStateRef.current;
@@ -401,10 +401,16 @@ export function PlaneThumb({
       const current =
         previous && planeValuesEqual(previous.value, before) ? previous : null;
       const previousHit = current?.hit ?? null;
+      // An axis jumps when its value changes discontinuously because of
+      // snapping: it is snapped now (including a step to another grid line),
+      // or its snap target changed (entering, leaving, switching). Only an
+      // axis tracking the pointer continuously, unsnapped before and after,
+      // follows without a transition.
       const jumped = AXES.filter(
         (axis) =>
           value[axis] !== before[axis] &&
-          !sameSnapAxisSource(previousHit, hit, axis),
+          (Boolean(hit?.axes.includes(axis)) ||
+            !sameSnapAxisSource(previousHit, hit, axis)),
       );
       const jumpAxes = AXES.filter(
         (axis) =>

@@ -304,31 +304,36 @@ test('snapped and spring-animated thumbs reach every corner unclipped', async ({
   await plane.scrollIntoViewIfNeeded();
   const box = (await plane.boundingBox())!;
   const beyond = 60;
-  const corners: Array<[string, number, number]> = [
-    ['top-left', box.x - beyond, box.y - beyond],
-    ['top-right', box.x + box.width + beyond, box.y - beyond],
-    ['bottom-left', box.x - beyond, box.y + box.height + beyond],
-    ['bottom-right', box.x + box.width + beyond, box.y + box.height + beyond],
+  const corners: Array<[string, number, number, string, string]> = [
+    ['top-left', box.x - beyond, box.y - beyond, '0%', '0%'],
+    ['top-right', box.x + box.width + beyond, box.y - beyond, '100%', '0%'],
+    ['bottom-left', box.x - beyond, box.y + box.height + beyond, '0%', '100%'],
+    [
+      'bottom-right',
+      box.x + box.width + beyond,
+      box.y + box.height + beyond,
+      '100%',
+      '100%',
+    ],
   ];
-  for (const [name, x, y] of corners) {
+  for (const [name, x, y, left, top] of corners) {
     const start = await thumbCenter(page);
     await page.mouse.move(start.x, start.y);
     await page.mouse.down();
     await page.mouse.move(x, y, { steps: 8 });
     await page.mouse.up();
-    // The spring settles the drawn position on the corner.
+    // The spring settles the drawn position exactly on the corner (an
+    // "any edge within 3px" check can pass mid-overshoot).
     await expect
-      .poll(async () => {
-        const thumbBox = (await thumb.boundingBox())!;
-        const cx = thumbBox.x + thumbBox.width / 2;
-        const cy = thumbBox.y + thumbBox.height / 2;
-        return (
-          Math.min(Math.abs(cx - box.x), Math.abs(cx - box.x - box.width)) <
-            3 &&
-          Math.min(Math.abs(cy - box.y), Math.abs(cy - box.y - box.height)) < 3
-        );
-      }, name)
-      .toBe(true);
+      .poll(
+        () =>
+          thumb.evaluate((node) => [
+            (node as HTMLElement).style.left,
+            (node as HTMLElement).style.top,
+          ]),
+        { message: name },
+      )
+      .toEqual([left, top]);
     const clippedBy = await thumb.evaluate((node) => {
       const rect = node.getBoundingClientRect();
       const clips: string[] = [];
@@ -443,13 +448,19 @@ test('the docs Snapping demo thumb stays whole at every corner', async ({
   const thumb = demo.locator('[data-slot="plane-thumb"]');
   await expect(plane).toHaveCSS('overflow-x', 'visible');
   const box = (await plane.boundingBox())!;
-  const corners: Array<[string, number, number]> = [
-    ['top-left', box.x - 60, box.y - 60],
-    ['top-right', box.x + box.width + 60, box.y - 60],
-    ['bottom-left', box.x - 60, box.y + box.height + 60],
-    ['bottom-right', box.x + box.width + 60, box.y + box.height + 60],
+  const corners: Array<[string, number, number, string, string]> = [
+    ['top-left', box.x - 60, box.y - 60, '0%', '0%'],
+    ['top-right', box.x + box.width + 60, box.y - 60, '100%', '0%'],
+    ['bottom-left', box.x - 60, box.y + box.height + 60, '0%', '100%'],
+    [
+      'bottom-right',
+      box.x + box.width + 60,
+      box.y + box.height + 60,
+      '100%',
+      '100%',
+    ],
   ];
-  for (const [name, x, y] of corners) {
+  for (const [name, x, y, left, top] of corners) {
     const current = (await thumb.boundingBox())!;
     await page.mouse.move(
       current.x + current.width / 2,
@@ -458,18 +469,17 @@ test('the docs Snapping demo thumb stays whole at every corner', async ({
     await page.mouse.down();
     await page.mouse.move(x, y, { steps: 8 });
     await page.mouse.up();
+    // The spring settles the drawn position exactly on the corner.
     await expect
-      .poll(async () => {
-        const t = (await thumb.boundingBox())!;
-        const cx = t.x + t.width / 2;
-        const cy = t.y + t.height / 2;
-        return (
-          Math.min(Math.abs(cx - box.x), Math.abs(cx - box.x - box.width)) <
-            3 &&
-          Math.min(Math.abs(cy - box.y), Math.abs(cy - box.y - box.height)) < 3
-        );
-      }, name)
-      .toBe(true);
+      .poll(
+        () =>
+          thumb.evaluate((node) => [
+            (node as HTMLElement).style.left,
+            (node as HTMLElement).style.top,
+          ]),
+        { message: name },
+      )
+      .toEqual([left, top]);
     const clippedBy = await thumb.evaluate((node) => {
       const rect = node.getBoundingClientRect();
       const clips: string[] = [];
@@ -542,4 +552,94 @@ test('the docs demo thumb tracks the pointer while sliding along a guide line wi
   }
   await page.mouse.up();
   expect(misses).toEqual([]);
+});
+
+test('the docs demo animates grid steps and line entry per jumped axis', async ({
+  page,
+}) => {
+  await page.goto('/docs/plane#snapping');
+  const demo = page.getByRole('figure', { name: 'Snapping demo', exact: true });
+  await demo.scrollIntoViewIfNeeded();
+  const plane = demo.locator('[data-slot="plane"]');
+  const thumb = demo.locator('[data-slot="plane-thumb"]');
+  const transitionOf = () =>
+    thumb.evaluate((node) => {
+      const style = getComputedStyle(node);
+      return {
+        axes: node.getAttribute('data-snap-transition'),
+        property: style.transitionProperty,
+        duration: style.transitionDuration,
+      };
+    });
+  const bounds = await planeInputBounds(plane);
+  const at = (x: number, y: number) => ({
+    x: bounds.x + bounds.width * x,
+    y: bounds.y + bounds.height * (1 - y),
+  });
+
+  // CSS mode with the default 0.125 grid: a step on x transitions left.
+  const start = (await thumb.boundingBox())!;
+  await page.mouse.move(start.x + start.width / 2, start.y + start.height / 2);
+  await page.mouse.down();
+  const a = at(0.13, 0.2);
+  await page.mouse.move(a.x, a.y, { steps: 4 });
+  const b = at(0.26, 0.21);
+  await page.mouse.move(b.x, b.y);
+  const step = await transitionOf();
+  expect(step.axes).toContain('x');
+  expect(step.property).toContain('left');
+  expect(step.duration).toBe('0.12s');
+  await page.mouse.up();
+
+  // Grid off: entering the y = 0.5 line transitions top only.
+  await demo.getByRole('checkbox', { name: 'Grid', exact: true }).click();
+  const thumbBox = (await thumb.boundingBox())!;
+  await page.mouse.move(
+    thumbBox.x + thumbBox.width / 2,
+    thumbBox.y + thumbBox.height / 2,
+  );
+  await page.mouse.down();
+  const free = at(0.15, 0.3);
+  await page.mouse.move(free.x, free.y, { steps: 3 });
+  const onLine = at(0.18, 0.51);
+  await page.mouse.move(onLine.x, onLine.y);
+  const entry = await transitionOf();
+  expect(entry).toEqual({ axes: 'y', property: 'top', duration: '0.12s' });
+  await page.mouse.up();
+});
+
+test('the docs demo springs a grid step: it lags, then settles', async ({
+  page,
+}) => {
+  await page.goto('/docs/plane#snapping');
+  const demo = page.getByRole('figure', { name: 'Snapping demo', exact: true });
+  await demo.scrollIntoViewIfNeeded();
+  await demo.getByRole('button', { name: 'Spring', exact: true }).click();
+  const plane = demo.locator('[data-slot="plane"]');
+  const thumb = demo.locator('[data-slot="plane-thumb"]');
+  const bounds = await planeInputBounds(plane);
+  const start = (await thumb.boundingBox())!;
+  await page.mouse.move(start.x + start.width / 2, start.y + start.height / 2);
+  await page.mouse.down();
+  // Settle on the 0.125 grid line, then step to 0.375 in one sample.
+  await page.mouse.move(
+    bounds.x + bounds.width * 0.13,
+    bounds.y + bounds.height * 0.8,
+    { steps: 4 },
+  );
+  await expect
+    .poll(() => thumb.evaluate((node) => (node as HTMLElement).style.left))
+    .toBe('12.5%');
+  await page.mouse.move(
+    bounds.x + bounds.width * 0.37,
+    bounds.y + bounds.height * 0.8,
+  );
+  const drawn = await thumb.evaluate((node) =>
+    Number.parseFloat((node as HTMLElement).style.left),
+  );
+  expect(drawn).toBeLessThan(37.5);
+  await expect
+    .poll(() => thumb.evaluate((node) => (node as HTMLElement).style.left))
+    .toBe('37.5%');
+  await page.mouse.up();
 });

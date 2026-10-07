@@ -27,8 +27,9 @@ the package adheres to [Semantic Versioning](https://semver.org/).
   `usePlaneThumbContext().snapped` (omitted when nothing snapped, so details
   are unchanged without snapping), and `data-snapped` / `data-snapped-axis` /
   `data-snap-transition` thumb attributes report the active snap targets.
-  `data-snap-transition` lists only the axes a snap change made jump
-  (`"x"`, `"y"`, or `"x y"`), never an axis following the pointer.
+  `data-snap-transition` lists only the axes snapping made jump, including
+  grid steps (`"x"`, `"y"`, or `"x y"`), never an axis tracking the pointer
+  continuously.
 - `onSnapChange(hit, details)` on `PlaneThumb` (and `Plane` for top-level
   thumbs) fires whenever the snap changes, including snaps that leave the
   value unchanged, and when a snap ends because a controlled value or the
