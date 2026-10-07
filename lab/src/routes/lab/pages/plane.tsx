@@ -195,7 +195,7 @@ function PlanePreview({ controller }: { controller: PlaneLabPageController }) {
           getAriaValueText={formatPosition}
           className={`size-6 border-white/30 bg-white shadow-none data-[snapped]:border-sky-400 ${
             snapTransition === 'css'
-              ? 'data-[snap-transition]:transition-[left,top] data-[snap-transition]:duration-[120ms] data-[snap-transition]:ease-out'
+              ? 'data-[snap-transition]:duration-[120ms] data-[snap-transition]:ease-out data-[snap-transition=x]:transition-[left] data-[snap-transition=y]:transition-[top] data-[snap-transition=x_y]:transition-[left,top]'
               : ''
           }`}
         >

@@ -202,19 +202,25 @@ Each axis input's native `step` is the grid size while its value sits on a grid 
 
 Snapping is instant by default. Callbacks always receive the snapped value immediately; motion only changes where the thumb is drawn. Hover and nearest-thumb hit-testing use the logical value.
 
-For CSS transitions, animate the inline `left` and `top` only while a snap changes the position. `data-snap-transition` is present on updates that enter, move between, or leave snap positions, and is removed by the next free update, so ordinary dragging stays immediate:
+For CSS transitions, animate only the axes a snap moved. `data-snap-transition` lists the axes whose value jumped because their snap target changed (entering, leaving, or switching targets): `"x"`, `"y"`, or `"x y"`. An axis stays listed while the same target holds it, so a transition can finish, and is removed as soon as that axis follows the pointer again. An axis that is following the pointer, such as the free axis while sliding along a guide line or an axis stepping along a grid, is never listed, so dragging stays immediate:
 
 ```css
-[data-slot='plane-thumb'][data-snap-transition] {
+[data-slot='plane-thumb'][data-snap-transition~='x'] {
+  transition: left 120ms ease-out;
+}
+[data-slot='plane-thumb'][data-snap-transition~='y'] {
+  transition: top 120ms ease-out;
+}
+[data-slot='plane-thumb'][data-snap-transition='x y'] {
   transition:
     left 120ms ease-out,
     top 120ms ease-out;
 }
 ```
 
-The attribute persists until the next unsnapped update rather than lasting a single frame, because removing a transition mid-flight cancels it.
+Avoid transitioning both `left` and `top` whenever the attribute is present. While the thumb slides along a line, the snapped axis is listed but the other axis follows the pointer, and an eased free axis lags behind it.
 
-For JavaScript motion, pass `motion` to a thumb (or to `Plane` as a default). `springMotion({ stiffness, damping, mass })` is built in; it settles instantly when the user prefers reduced motion. Motion animates snap transitions (entering, moving between, or leaving targets), keyboard changes, and programmatic value changes. Free drag samples follow the pointer instantly unless the motion sets `smoothDrag: true`. One animation-frame loop runs only while the thumb is moving; new targets retarget it without restarting. Nested thumbs follow their parent's drawn position.
+For JavaScript motion, pass `motion` to a thumb (or to `Plane` as a default). `springMotion({ stiffness, damping, mass })` is built in; it settles instantly when the user prefers reduced motion. Motion animates the axes a snap transition moved (entering, moving between, or leaving targets), keyboard changes, and programmatic value changes. During a drag, every axis that follows the pointer is drawn at the pointer in the same render, including the free axis while the other is snapped and grid steps, unless the motion sets `smoothDrag: true`. One animation-frame loop runs only while the thumb is moving; new targets retarget it without restarting. Nested thumbs follow their parent's drawn position.
 
 ```tsx
 const spring = springMotion({ stiffness: 500, damping: 38 });
@@ -278,19 +284,19 @@ A pointer interaction commits on release, cancellation, or lost capture. Changin
 
 **Data attributes**
 
-| Attribute                 | When present                                     |
-| ------------------------- | ------------------------------------------------ |
-| `data-slot="plane-thumb"` | Always.                                          |
-| `data-thumb-id`           | When `thumbId` is set.                           |
-| `data-hovered`            | While a mouse or hovering pen is over the thumb. |
-| `data-dragging`           | While this thumb is being dragged.               |
-| `data-disabled`           | When `disabled` is `true`.                       |
-| `data-readonly`           | When `readOnly` is `true`.                       |
-| `data-focused`            | While either axis input contains focus.          |
-| `data-focus-visible`      | While keyboard focus is visible.                 |
-| `data-snapped`            | While the value rests on a snap target.          |
-| `data-snapped-axis`       | `x`, `y`, or `both`: the snapped axes.           |
-| `data-snap-transition`    | From a snap change until the next free update.   |
+| Attribute                 | When present                                                                           |
+| ------------------------- | -------------------------------------------------------------------------------------- |
+| `data-slot="plane-thumb"` | Always.                                                                                |
+| `data-thumb-id`           | When `thumbId` is set.                                                                 |
+| `data-hovered`            | While a mouse or hovering pen is over the thumb.                                       |
+| `data-dragging`           | While this thumb is being dragged.                                                     |
+| `data-disabled`           | When `disabled` is `true`.                                                             |
+| `data-readonly`           | When `readOnly` is `true`.                                                             |
+| `data-focused`            | While either axis input contains focus.                                                |
+| `data-focus-visible`      | While keyboard focus is visible.                                                       |
+| `data-snapped`            | While the value rests on a snap target.                                                |
+| `data-snapped-axis`       | `x`, `y`, or `both`: the snapped axes.                                                 |
+| `data-snap-transition`    | `x`, `y`, or `x y`: axes a snap change made jump, until they follow the pointer again. |
 
 ### PlaneAttachment
 

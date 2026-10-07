@@ -303,7 +303,7 @@ drags to one axis, or to the dominant axis while Shift is held. With a grid,
 arrow keys move to the next grid line. Value callbacks report the hit as
 `details.snap` (omitted when nothing snapped); `onSnapChange` reports every snap
 change, even without a value change, and the thumb gets `data-snapped`. Snapping is instant by default: animate `left`/`top` under
-`[data-snap-transition]`, or pass a hoisted `motion={spring}` from
+`[data-snap-transition~="x"]` / `~="y"` (the axes a snap made jump), or pass a hoisted `motion={spring}` from
 `springMotion()`, which animates snaps and keyboard jumps while free drags
 follow the pointer; the reported value never lags.
 

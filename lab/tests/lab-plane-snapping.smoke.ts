@@ -169,7 +169,7 @@ test('animates snaps with CSS transitions or a spring', async ({ page }) => {
     bounds.y + bounds.height * 0.75,
     { steps: 8 },
   );
-  await expect(thumb).toHaveAttribute('data-snap-transition', 'true');
+  await expect(thumb).toHaveAttribute('data-snap-transition', /x|y/);
   await expect(thumb).toHaveCSS('transition-duration', '0.12s');
   await page.mouse.up();
   await expect(readout).toHaveText('X 0.75 · Y 0.25');
@@ -497,4 +497,49 @@ test('the docs Snapping demo thumb stays whole at every corner', async ({
     });
     expect(clippedBy, name).toEqual([]);
   }
+});
+
+test('the docs demo thumb tracks the pointer while sliding along a guide line with CSS transitions', async ({
+  page,
+}) => {
+  await page.goto('/docs/plane#snapping');
+  const demo = page.getByRole('figure', { name: 'Snapping demo', exact: true });
+  await demo.scrollIntoViewIfNeeded();
+  // Lines and points only, with the default CSS snap transition.
+  await demo.getByRole('checkbox', { name: 'Grid', exact: true }).click();
+  await expect(
+    demo.getByRole('button', { name: 'CSS', exact: true }),
+  ).toHaveAttribute('aria-pressed', 'true');
+  const plane = demo.locator('[data-slot="plane"]');
+  const thumb = demo.locator('[data-slot="plane-thumb"]');
+  const bounds = await planeInputBounds(plane);
+  const start = (await thumb.boundingBox())!;
+  // 2px below the y = 0.5 line, left of the x = 0.5 line.
+  const lineY = bounds.y + bounds.height * 0.5 + 2;
+  await page.mouse.move(start.x + start.width / 2, start.y + start.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(bounds.x + bounds.width * 0.1, lineY, { steps: 4 });
+  await expect(thumb).toHaveAttribute('data-snapped-axis', 'y');
+  // Let the y snap transition finish before sliding.
+  await page.waitForTimeout(200);
+  const misses: string[] = [];
+  for (let i = 0; i <= 30; i += 1) {
+    const pointerX = bounds.x + bounds.width * (0.1 + (0.3 * i) / 30);
+    await page.mouse.move(pointerX, lineY);
+    const drawn = await thumb.evaluate((node) => {
+      const rect = node.getBoundingClientRect();
+      return {
+        x: rect.left + rect.width / 2,
+        transition: node.getAttribute('data-snap-transition'),
+      };
+    });
+    if (Math.abs(drawn.x - pointerX) > 1) {
+      misses.push(
+        `${i}: drawn ${drawn.x.toFixed(1)} vs ${pointerX.toFixed(1)}`,
+      );
+    }
+    if (drawn.transition?.includes('x')) misses.push(`${i}: x transition`);
+  }
+  await page.mouse.up();
+  expect(misses).toEqual([]);
 });

@@ -151,6 +151,25 @@ function getHitParts(hit: PlaneSnapHit): readonly PlaneSnapHitPart[] {
 }
 
 /**
+ * True when the same target (by index and value) fixes `axis` in both hits,
+ * or neither hit fixes it.
+ */
+export function sameSnapAxisSource(
+  a: PlaneSnapHit | null,
+  b: PlaneSnapHit | null,
+  axis: PlaneSnapAxis,
+) {
+  const partA = a
+    ? getHitParts(a).find((part) => part.axes.includes(axis))
+    : undefined;
+  const partB = b
+    ? getHitParts(b).find((part) => part.axes.includes(axis))
+    : undefined;
+  if (!partA || !partB) return !partA && !partB;
+  return partA.index === partB.index && sameTarget(partA.target, partB.target);
+}
+
+/**
  * True while every target a hit refers to is still present at its index in
  * `targets`. Hits for removed or replaced targets are stale.
  */

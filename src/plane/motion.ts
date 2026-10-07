@@ -154,21 +154,46 @@ export function springMotion(options: PlaneSpringOptions = {}): PlaneMotion {
 }
 
 /**
+ * Moves the given axes of a presented value straight to the target, keeping
+ * any spring state for the other axes.
+ */
+function jumpAxes(
+  from: PlaneValue,
+  goal: PlaneValue,
+  axes: readonly ('x' | 'y')[],
+): PlaneValue {
+  const next = { ...from };
+  for (const axis of axes) next[axis] = goal[axis];
+  const state = springStates.get(from);
+  if (state) {
+    springStates.set(next, {
+      vx: axes.includes('x') ? 0 : state.vx,
+      vy: axes.includes('y') ? 0 : state.vy,
+      elapsedMs: state.elapsedMs,
+    });
+  }
+  return next;
+}
+
+/**
  * Returns the presented value for `target`.
  *
  * Without `motion` this is `target` itself: no state and no frames. With
- * `motion`, one animation-frame loop runs while the presented value is
- * moving. It reads the latest target and reason from refs, so changes during
- * an animation retarget it without restarting, and computes `dt` from frame
- * timestamps. `'drag'` changes jump instantly unless `motion.smoothDrag`.
+ * `motion`, `instantAxes` (axes following the pointer) take the new target
+ * in the same render, unless `motion.smoothDrag`; the remaining axes animate
+ * in one animation-frame loop that runs only while something is moving. The
+ * loop reads the latest target and reason from refs, so changes retarget it
+ * without restarting, and computes `dt` from frame timestamps.
  */
 export function usePlaneMotion(
   target: PlaneValue,
   reason: PlaneMotionReason,
+  instantAxes: readonly ('x' | 'y')[],
   motion: PlaneMotion | undefined,
 ): PlaneValue {
-  const [presented, setPresented] = React.useState(target);
+  const [, rerender] = React.useReducer((count: number) => count + 1, 0);
   const presentedRef = React.useRef(target);
+  const lastTargetRef = React.useRef(target);
   const targetRef = React.useRef(target);
   const reasonRef = React.useRef(reason);
   const motionRef = React.useRef(motion);
@@ -178,6 +203,21 @@ export function usePlaneMotion(
   reasonRef.current = reason;
   motionRef.current = motion;
   const { x, y } = target;
+
+  // Applied during render so following axes never lag a frame.
+  if (!motion) {
+    presentedRef.current = target;
+    lastTargetRef.current = target;
+  } else if (
+    lastTargetRef.current.x !== target.x ||
+    lastTargetRef.current.y !== target.y
+  ) {
+    lastTargetRef.current = target;
+    const axes = motion.smoothDrag ? [] : instantAxes;
+    if (axes.length > 0) {
+      presentedRef.current = jumpAxes(presentedRef.current, target, axes);
+    }
+  }
 
   const stop = React.useCallback(() => {
     if (frameRef.current !== 0) cancelAnimationFrame(frameRef.current);
@@ -200,32 +240,22 @@ export function usePlaneMotion(
         )
       : { value: goal, done: true };
     presentedRef.current = result.done ? goal : result.value;
-    setPresented(presentedRef.current);
+    rerender();
     if (result.done) lastTimeRef.current = null;
     else frameRef.current = requestAnimationFrame(tick);
   }, []);
 
   React.useEffect(() => {
     const goal = targetRef.current;
-    const activeMotion = motionRef.current;
-    if (
-      !activeMotion ||
-      typeof requestAnimationFrame !== 'function' ||
-      (reasonRef.current === 'drag' && !activeMotion.smoothDrag)
-    ) {
-      // Jump: follow the target directly.
+    const presented = presentedRef.current;
+    if (presented.x === goal.x && presented.y === goal.y) {
       stop();
-      presentedRef.current = goal;
-      if (activeMotion) setPresented(goal);
       return;
     }
-    // Resume from wherever the thumb is drawn (also syncs state when motion
-    // was just enabled).
-    setPresented(presentedRef.current);
-    if (
-      presentedRef.current.x === goal.x &&
-      presentedRef.current.y === goal.y
-    ) {
+    if (!motionRef.current || typeof requestAnimationFrame !== 'function') {
+      stop();
+      presentedRef.current = goal;
+      rerender();
       return;
     }
     if (frameRef.current === 0) frameRef.current = requestAnimationFrame(tick);
@@ -233,5 +263,5 @@ export function usePlaneMotion(
 
   React.useEffect(() => stop, [stop]);
 
-  return motion ? presented : target;
+  return motion ? presentedRef.current : target;
 }

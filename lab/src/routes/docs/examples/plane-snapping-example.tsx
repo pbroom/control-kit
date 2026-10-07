@@ -135,9 +135,11 @@ export function PlaneSnappingExample() {
               : (axisLock as PlaneAxisLock)
           }
           motion={transition === 'spring' ? spring : undefined}
+          // Transition only the axes a snap made jump; the axis following
+          // the pointer is never eased.
           className={`size-5 border-white/30 bg-white shadow-none data-[snapped]:border-sky-400 ${
             transition === 'css'
-              ? 'data-[snap-transition]:transition-[left,top] data-[snap-transition]:duration-[120ms] data-[snap-transition]:ease-out'
+              ? 'data-[snap-transition]:duration-[120ms] data-[snap-transition]:ease-out data-[snap-transition=x]:transition-[left] data-[snap-transition=y]:transition-[top] data-[snap-transition=x_y]:transition-[left,top]'
               : ''
           }`}
         />

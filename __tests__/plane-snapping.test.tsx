@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   Plane,
   PlaneThumb,
+  springMotion,
   usePlaneThumbContext,
   type PlaneMotion,
   type PlaneProps,
@@ -460,11 +461,12 @@ describe('PlaneThumb snapping', () => {
     expect(thumb.hasAttribute('data-snap-transition')).toBe(false);
     expect(thumb.dataset.dragging).toBe('true');
     act(() => pointer(plane, 'pointermove', at(0.52, 0.5)));
-    expect(thumb.dataset.snapTransition).toBe('true');
-    // Leaving is also a snap transition.
+    // Both axes jumped onto the point.
+    expect(thumb.dataset.snapTransition).toBe('x y');
+    // Leaving is also a snap transition, for the axis that jumped.
     act(() => pointer(plane, 'pointermove', at(0.7, 0.5)));
     expect(thumb.hasAttribute('data-snapped')).toBe(false);
-    expect(thumb.dataset.snapTransition).toBe('true');
+    expect(thumb.dataset.snapTransition).toBe('x');
     // The next free move clears it.
     act(() => pointer(plane, 'pointermove', at(0.75, 0.5)));
     expect(thumb.hasAttribute('data-snap-transition')).toBe(false);
@@ -604,7 +606,7 @@ describe('PlaneThumb snapping regressions', () => {
     });
     key(axis('x'), 'ArrowRight');
     expect(lastDetails(onValueChange).snap.axes).toEqual(['x']);
-    expect(thumb.dataset.snapTransition).toBe('true');
+    expect(thumb.dataset.snapTransition).toBe('x');
     // y has no grid: no hit and no snap transition.
     key(axis('x'), 'ArrowUp');
     expect(lastDetails(onValueChange).snap).toBeUndefined();
@@ -1065,5 +1067,88 @@ describe('onSnapChange', () => {
     drag(plane, plane, [at(0.3, 0.3), at(0.7, 0.2)]);
     key(axis('x'), 'ArrowRight');
     expect(unconfigured).not.toHaveBeenCalled();
+  });
+});
+
+describe('per-axis snap transitions', () => {
+  const lineY: PlaneSnapTarget = { type: 'line', axis: 'y', at: 0.5 };
+
+  function stubFrames() {
+    let callbacks: FrameRequestCallback[] = [];
+    let now = 0;
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      callbacks.push(cb);
+      return callbacks.length;
+    });
+    vi.stubGlobal('cancelAnimationFrame', () => {
+      callbacks = [];
+    });
+    return {
+      frame(ms = 16) {
+        now += ms;
+        const run = callbacks;
+        callbacks = [];
+        act(() => run.forEach((cb) => cb(now)));
+      },
+      settle() {
+        for (let i = 0; i < 400 && callbacks.length > 0; i += 1) this.frame();
+      },
+    };
+  }
+
+  it('marks only the axis that jumped, and never the axis following the pointer', () => {
+    const { plane, thumb } = mount({
+      snap: [lineY],
+      defaultValue: { x: 0.1, y: 0.1 },
+    });
+    act(() => pointer(plane, 'pointerdown', at(0.1, 0.1)));
+    act(() => pointer(plane, 'pointermove', at(0.2, 0.52)));
+    // Entering the line made y jump; x moved with the pointer.
+    expect(thumb.dataset.snapTransition).toBe('y');
+    for (let i = 0; i < 30; i += 1) {
+      const x = 0.21 + i * 0.02;
+      act(() => pointer(plane, 'pointermove', at(x, 0.51)));
+      expect(parseFloat(thumb.style.left)).toBeCloseTo(x * 100, 6);
+      expect(thumb.style.top).toBe('50%');
+      expect(thumb.dataset.snapTransition ?? '').not.toContain('x');
+    }
+    act(() => pointer(plane, 'pointerup', at(0.79, 0.51)));
+  });
+
+  it('does not transition grid steps along a grid axis', () => {
+    const { plane, thumb } = mount({
+      snap: [{ type: 'grid', x: 0.1 }],
+      defaultValue: { x: 0.1, y: 0.1 },
+    });
+    act(() => pointer(plane, 'pointerdown', at(0.12, 0.1)));
+    for (let i = 1; i < 10; i += 1) {
+      act(() => pointer(plane, 'pointermove', at(0.12 + i * 0.05, 0.3)));
+      expect(thumb.hasAttribute('data-snap-transition')).toBe(false);
+    }
+    act(() => pointer(plane, 'pointerup', at(0.57, 0.3)));
+  });
+
+  it('springs only the jumped axis; the free axis follows the pointer exactly', () => {
+    const frames = stubFrames();
+    const { plane, thumb } = mount({
+      snap: [lineY],
+      motion: springMotion(),
+      defaultValue: { x: 0.1, y: 0.1 },
+    });
+    act(() => pointer(plane, 'pointerdown', at(0.1, 0.1)));
+    act(() => pointer(plane, 'pointermove', at(0.2, 0.53)));
+    // x is drawn at the pointer at once; y starts its spring from 0.1.
+    expect(parseFloat(thumb.style.left)).toBeCloseTo(20, 6);
+    expect(parseFloat(thumb.style.top)).toBeCloseTo(90, 6);
+    for (let i = 0; i < 20; i += 1) {
+      const x = 0.21 + i * 0.03;
+      act(() => pointer(plane, 'pointermove', at(x, 0.52)));
+      expect(parseFloat(thumb.style.left)).toBeCloseTo(x * 100, 6);
+      frames.frame();
+      expect(parseFloat(thumb.style.left)).toBeCloseTo(x * 100, 6);
+    }
+    frames.settle();
+    expect(thumb.style.top).toBe('50%');
+    act(() => pointer(plane, 'pointerup', at(0.78, 0.52)));
   });
 });

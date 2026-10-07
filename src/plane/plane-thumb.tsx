@@ -40,6 +40,7 @@ import {
   isOnGridLine,
   isSnapHitCurrent,
   planeSnapHitsEqual,
+  sameSnapAxisSource,
   quantizeToGrid,
   resolvePlaneSnap,
 } from './snap.js';
@@ -48,6 +49,7 @@ import type {
   PlaneKeyboardReason,
   PlaneMotionReason,
   PlaneResolvedPointerValue,
+  PlaneSnapAxis,
   PlaneSnapChangeSource,
   PlaneSnapHit,
   PlaneThumbContextValue,
@@ -57,12 +59,16 @@ import type {
   PlaneValueChangeSource,
 } from './types.js';
 
-// The snap hit recorded with the value it produced. `transition` marks values
-// reached by entering, moving between, or leaving snap positions.
+const AXES = ['x', 'y'] as const;
+const NO_AXES: PlaneSnapAxis[] = [];
+
+// The snap hit recorded with the value it produced. `jumpAxes` lists the
+// axes whose value jumped because their snap target changed (entering,
+// leaving, or switching), and that have not followed the pointer since.
 type PlaneSnapState = {
   value: PlaneValue;
   hit: PlaneSnapHit | null;
-  transition: boolean;
+  jumpAxes: PlaneSnapAxis[];
 };
 
 function getDefaultAriaValueText(value: PlaneValue) {
@@ -230,18 +236,27 @@ export function PlaneThumb({
     (!snapState.hit || isSnapHitCurrent(snapState.hit, snapTargets)),
   );
   const snapped = snapStateCurrent ? (snapState?.hit ?? null) : null;
-  const snapTransition = snapStateCurrent && Boolean(snapState?.transition);
+  const snapTransitionAxes =
+    snapStateCurrent && snapState?.jumpAxes.length
+      ? snapState.jumpAxes.join(' ')
+      : undefined;
   // Why the latest value changed, for the motion layer.
   const motionChangeRef = React.useRef<{
     value: PlaneValue;
     reason: PlaneMotionReason;
+    instantAxes: PlaneSnapAxis[];
   } | null>(null);
   const motionChange = motionChangeRef.current;
-  const motionReason: PlaneMotionReason =
+  const motionChangeCurrent =
     motionChange && planeValuesEqual(motionChange.value, renderedValue)
-      ? motionChange.reason
-      : 'programmatic';
-  const motionValue = usePlaneMotion(renderedValue, motionReason, motion);
+      ? motionChange
+      : null;
+  const motionValue = usePlaneMotion(
+    renderedValue,
+    motionChangeCurrent?.reason ?? 'programmatic',
+    motionChangeCurrent?.instantAxes ?? NO_AXES,
+    motion,
+  );
   // A motion can never draw the thumb outside its range.
   const presentedLocal = React.useMemo(
     () =>
@@ -375,38 +390,50 @@ export function PlaneThumb({
     renderedValue,
   ]);
 
-  // Returns whether the change entered, moved between, or left snap
-  // positions. Leaving only counts for pointer input.
+  // Records the snap for a new value and returns the axes that jumped
+  // because their snap target changed. An axis stays a transition axis while
+  // the same target holds its value, and stops as soon as it follows the
+  // pointer again.
   const recordSnap = React.useCallback(
-    (value: PlaneValue, hit: PlaneSnapHit | null, pointer: boolean) => {
+    (value: PlaneValue, hit: PlaneSnapHit | null): PlaneSnapAxis[] => {
       const previous = snapStateRef.current;
-      const previousHit =
-        previous &&
-        planeValuesEqual(previous.value, interactionValueRef.current)
-          ? previous.hit
-          : null;
-      const transition = hit !== null || (pointer && previousHit !== null);
-      // A free change after a free (or leaving) value clears the record.
-      // Without snapping this never sets state.
-      if (!transition) {
+      const before = interactionValueRef.current;
+      const current =
+        previous && planeValuesEqual(previous.value, before) ? previous : null;
+      const previousHit = current?.hit ?? null;
+      const jumped = AXES.filter(
+        (axis) =>
+          value[axis] !== before[axis] &&
+          !sameSnapAxisSource(previousHit, hit, axis),
+      );
+      const jumpAxes = AXES.filter(
+        (axis) =>
+          jumped.includes(axis) ||
+          (current?.jumpAxes.includes(axis) &&
+            value[axis] === before[axis] &&
+            sameSnapAxisSource(previousHit, hit, axis)),
+      );
+      // Nothing snapped and nothing animating: clear the record. Without
+      // snapping this never sets state.
+      if (!hit && jumpAxes.length === 0) {
         if (previous) {
           snapStateRef.current = null;
           setSnapState(null);
         }
-        return false;
+        return jumped;
       }
-      const next: PlaneSnapState = { value, hit, transition };
+      const next: PlaneSnapState = { value, hit, jumpAxes };
       if (
         previous &&
         planeValuesEqual(previous.value, next.value) &&
         planeSnapHitsEqual(previous.hit, next.hit) &&
-        previous.transition === next.transition
+        previous.jumpAxes.join() === next.jumpAxes.join()
       ) {
-        return transition;
+        return jumped;
       }
       snapStateRef.current = next;
       setSnapState(next);
-      return transition;
+      return jumped;
     },
     [],
   );
@@ -424,16 +451,26 @@ export function PlaneThumb({
       if (planeValuesEqual(normalizedValue, interactionValueRef.current)) {
         // No value change, but the snap state may still change (snapping to
         // a target the thumb already sits on, or a bypassed press there).
-        recordSnap(normalizedValue, hit, pointer);
+        recordSnap(normalizedValue, hit);
         reportSnap(hit, source);
         return false;
       }
 
-      const transition = recordSnap(normalizedValue, hit, pointer);
-      motionChangeRef.current = {
-        value: normalizedValue,
-        reason: pointer ? (transition ? 'snap' : 'drag') : 'keyboard',
-      };
+      const before = interactionValueRef.current;
+      const jumped = recordSnap(normalizedValue, hit);
+      // Pointer axes that moved without a snap change follow the pointer and
+      // are drawn instantly; jumped axes, and keyboard changes, animate.
+      motionChangeRef.current = pointer
+        ? {
+            value: normalizedValue,
+            reason: jumped.length > 0 ? 'snap' : 'drag',
+            instantAxes: AXES.filter(
+              (axis) =>
+                normalizedValue[axis] !== before[axis] &&
+                !jumped.includes(axis),
+            ),
+          }
+        : { value: normalizedValue, reason: 'keyboard', instantAxes: NO_AXES };
       interactionValueRef.current = normalizedValue;
       if (!isControlled) setUncontrolledValue(normalizedValue);
       onValueChange?.(
@@ -775,7 +812,7 @@ export function PlaneThumb({
             : snapped.axes[0]
           : undefined
       }
-      data-snap-transition={snapTransition || undefined}
+      data-snap-transition={snapTransitionAxes}
       data-disabled={isDisabled || undefined}
       data-readonly={isReadOnly || undefined}
       data-focused={focused || undefined}
