@@ -130,6 +130,78 @@ Pressing anywhere except the focal point selects the image-pan thumb, the only e
 
 [Try image panning and focal-point dragging](/docs/plane-examples#image-pan-and-focal-point).
 
+## Snapping
+
+Pass `snap` to quantize or attract a thumb's value. Targets are expressed in the thumb's own space: `0` to `1` for top-level thumbs, `-1` to `1` for nested offsets. Set targets on `Plane` to give every top-level thumb the same defaults; a thumb's own `snap` replaces them.
+
+```tsx
+<Plane snap={[{ type: 'grid', x: 0.1, y: 0.1 }]}>
+  <PlaneThumb
+    aria-label="Anchor"
+    snap={[
+      { type: 'grid', x: 0.25 },
+      { type: 'line', axis: 'y', at: 0.5 },
+      { type: 'point', x: 0.75, y: 0.25, id: 'corner' },
+    ]}
+    snapRadius={10}
+    onValueChange={(value, details) => {
+      setValue(value);
+      setGuide(details.snap?.target ?? null);
+    }}
+  />
+</Plane>
+```
+
+| Target                              | Behavior                                                                            |
+| ----------------------------------- | ----------------------------------------------------------------------------------- |
+| `{ type: 'grid', x?, y?, origin? }` | Always rounds each given axis to `origin + k × size`. An omitted axis stays free.   |
+| `{ type: 'line', axis, at }`        | Magnetic within `snapRadius`. `axis: 'x'` is a vertical line at `x = at`.           |
+| `{ type: 'point', x, y, id? }`      | Magnetic within `snapRadius`, measured as a pixel distance.                         |
+| `{ type: 'custom', resolve }`       | Runs first, in declaration order. Return a value to snap there, or `null` to defer. |
+
+- **Pipeline.** Pointer value → relative drag → axis lock → snap → clamp → `onValueChange`. Relative drags snap the resulting value, not the pointer delta.
+- **Priority.** Custom, then point, then line, then grid. The nearest target of a kind wins, and ties keep declaration order. A grid still quantizes any axis a line leaves free. Targets outside the thumb's range are ignored.
+- **Radius.** `snapRadius` (default `8`) is in CSS pixels and converted per axis from the measured plane size, so magnetism is the same horizontally and vertically on non-square planes.
+- **Hysteresis.** An engaged line or point releases only beyond 1.5 × the radius, so the thumb does not flicker at the edge.
+- **Bypass.** Holding Alt/Option during a drag disables snapping. Set `snapBypass="meta"` to use Command/Windows instead, or `false` to never bypass. Alt was chosen because it already means “finer, unsnapped” on the keyboard (Alt + Arrow uses `smallStep`), and the Windows key is reserved by the OS.
+- **Controlled values** set by the parent are never snapped.
+
+Use `axisLock="x"` or `axisLock="y"` to restrict pointer movement to one axis; the other stays at its value from the start of the drag. With `axisLock="dominant-with-shift"`, holding Shift during a drag locks to the axis with the greater pixel travel since the drag began. A locked axis is never snapped, and points do not engage while an axis is locked.
+
+`onValueChange` and `onValueCommitted` report the active target as `details.snap` (`{ target, index, axes }` or `null`). `index` is the target's position in the resolved `snap` array, and `axes` lists every axis that snapping changed. `usePlaneThumbContext().snapped` exposes the same hit for descendants, and the thumb receives `data-snapped` and `data-snapped-axis`.
+
+### Keyboard
+
+With a grid on an axis, arrow keys move to the next grid line in that direction instead of adding `step`. Shift + Arrow and Page Up/Page Down move `largeStep`, rounded to the grid, but always at least one line. Home and End go to the outermost grid lines. Alt/Option + Arrow moves by `smallStep` and ignores the grid, matching the pointer bypass. Magnetic targets do not affect keyboard input.
+
+Each axis input's native `step` is the grid size while its value sits on a grid line aligned with the input's minimum, and `"any"` otherwise, so the browser never rewrites an off-grid value. Native input changes are rounded to the grid. `aria-valuetext` always describes the snapped value.
+
+## Motion
+
+Snapping is instant by default. Callbacks always receive the snapped value immediately; motion only changes where the thumb is drawn. Hover and nearest-thumb hit-testing use the logical value.
+
+For CSS transitions, animate the inline `left` and `top` only while a snap changes the position. `data-snap-transition` is present on updates that enter, move between, or leave snap positions, and is removed by the next free update, so ordinary dragging stays immediate:
+
+```css
+[data-slot='plane-thumb'][data-snap-transition] {
+  transition:
+    left 120ms ease-out,
+    top 120ms ease-out;
+}
+```
+
+The attribute persists until the next unsnapped update rather than lasting a single frame, because removing a transition mid-flight cancels it.
+
+For JavaScript motion, pass `motion` to a thumb (or to `Plane` as a default). `springMotion({ stiffness, damping, mass })` is built in; it settles instantly when the user prefers reduced motion, and the animation frame loop runs only while the thumb is moving. Nested thumbs follow their parent's drawn position.
+
+```tsx
+const spring = springMotion({ stiffness: 500, damping: 38 });
+
+<PlaneThumb snap={[{ type: 'grid', x: 0.25, y: 0.25 }]} motion={spring} />;
+```
+
+A custom `PlaneMotion` implements `step(current, target, dtMs)` and returns `{ value, done }`. `current` is the object returned by the previous step, so per-thumb state can be keyed on it.
+
 ## Form
 
 Set `xName` and `yName` to include both coordinates in form data. Use `form` to associate the thumb with a form outside its DOM ancestry. Resetting the form restores an uncontrolled thumb to its `defaultValue`; controlled state remains owned by the application.
@@ -176,7 +248,7 @@ Owns a position, renders its visible marker, and supplies two accessible slider 
 
 <!-- props:plane-thumb -->
 
-`onValueChange` and `onValueCommitted` receive `details.interaction`, which groups changes as `'pointer'` or `'keyboard'`. `details.reason` identifies `'thumb-drag'`, `'plane-press'`, `'keyboard'`, or `'input-change'`, and `details.originalEvent` exposes the native event when available. When `thumbId` is set, callbacks also receive it as `details.thumbId`.
+`onValueChange` and `onValueCommitted` receive `details.interaction`, which groups changes as `'pointer'` or `'keyboard'`. `details.reason` identifies `'thumb-drag'`, `'plane-press'`, `'keyboard'`, or `'input-change'`, and `details.originalEvent` exposes the native event when available. When `thumbId` is set, callbacks also receive it as `details.thumbId`. `details.snap` is the snap hit that produced the value, or `null`.
 
 A pointer interaction commits on release, cancellation, or lost capture. Changing a thumb to `disabled` or `readOnly` during a drag ends the interaction without committing. Non-positive and non-finite step values fall back to their defaults.
 
@@ -192,6 +264,9 @@ A pointer interaction commits on release, cancellation, or lost capture. Changin
 | `data-readonly`           | When `readOnly` is `true`.                       |
 | `data-focused`            | While either axis input contains focus.          |
 | `data-focus-visible`      | While keyboard focus is visible.                 |
+| `data-snapped`            | While the value rests on a snap target.          |
+| `data-snapped-axis`       | `x`, `y`, or `both`: the snapped axes.           |
+| `data-snap-transition`    | From a snap change until the next free update.   |
 
 ### PlaneAttachment
 
@@ -215,8 +290,8 @@ For multiple thumbs, use `aria-label` on each thumb to prefix its default axis l
 
 | Key                      | Action                                                                                 |
 | ------------------------ | -------------------------------------------------------------------------------------- |
-| Left Arrow / Right Arrow | Decreases or increases X by `step`.                                                    |
-| Down Arrow / Up Arrow    | Decreases or increases Y by `step`.                                                    |
+| Left Arrow / Right Arrow | Decreases or increases X by `step`, or to the next grid line when X has a grid.        |
+| Down Arrow / Up Arrow    | Decreases or increases Y by `step`, or to the next grid line when Y has a grid.        |
 | Two held arrow keys      | Moves both axes when a horizontal and vertical direction are held together.            |
 | Alt/Option + Arrow       | Changes the corresponding axis by `smallStep`. Alt/Option takes precedence over Shift. |
 | Shift + Arrow            | Changes the corresponding axis by `largeStep`.                                         |
@@ -234,11 +309,19 @@ Returns `{ disabled, readOnly, dragging }` for a descendant visual layer. It thr
 
 ### usePlaneThumbContext
 
-Returns `{ value, worldValue, element, hovered, dragging, focused, focusedWithin, focusVisible, disabled, readOnly }` for a descendant of `PlaneThumb`. `value` is the thumb's own position or offset; `worldValue` is its accumulated plane position. `element` is its rendered element, and `focusedWithin` includes focus in descendant controls. Descendants inherit their parent thumb's `disabled` and `readOnly` states. It throws when called outside `PlaneThumb`.
+Returns `{ value, worldValue, element, hovered, dragging, focused, focusedWithin, focusVisible, disabled, readOnly, snapped }` for a descendant of `PlaneThumb`. `snapped` is the snap hit the current value rests on, or `null`. `value` is the thumb's own position or offset; `worldValue` is its accumulated plane position. `element` is its rendered element, and `focusedWithin` includes focus in descendant controls. Descendants inherit their parent thumb's `disabled` and `readOnly` states. It throws when called outside `PlaneThumb`.
 
 ### clampPlaneValue
 
 Clamps both coordinates to the `0` to `1` range. Non-finite coordinates become `0`.
+
+### resolvePlaneSnap
+
+`resolvePlaneSnap(raw, { targets, boundsPx, previous, bypass, radiusPx, space })` is the pure resolver PlaneThumb uses, returning `{ value, hit }`. Pass the previous `hit` back as `previous` for hysteresis. `space` is `'unit'` (`0` to `1`, default) or `'local'` (`-1` to `1`). The result is not clamped.
+
+### springMotion
+
+`springMotion({ stiffness = 500, damping = 38, mass = 1 })` returns a `PlaneMotion` for the `motion` prop. One instance can drive several thumbs.
 
 ### getPlaneValueFromPoint
 
@@ -246,23 +329,29 @@ Converts viewport coordinates and element bounds to a clamped Cartesian `PlaneVa
 
 ## Types
 
-| Type                           | Contract                                                                                |
-| ------------------------------ | --------------------------------------------------------------------------------------- |
-| `PlaneValue`                   | `{ x: number; y: number }`: a normalized position or signed nested offset.              |
-| `PlaneInteraction`             | `'pointer' \| 'keyboard'`.                                                              |
-| `PlaneHoverValueChangeDetails` | The pointer type and native pointer event for a hover-position change.                  |
-| `PlaneValueChangeReason`       | `'thumb-drag' \| 'plane-press' \| 'keyboard' \| 'input-change'`.                        |
-| `PlaneValueChangeDetails`      | Interaction, reason, optional thumb ID, and optional original event for a value change. |
-| `PlanePoint`                   | `{ clientX: number; clientY: number }`.                                                 |
-| `PlaneBounds`                  | `{ left: number; top: number; width: number; height: number }`.                         |
-| `PlanePressBehavior`           | `'auto' \| 'none' \| 'nearest'`.                                                        |
-| `PlaneDragBehavior`            | `'absolute' \| 'relative'`.                                                             |
-| `PlaneThumbPressBehavior`      | `'inherit' \| 'none'`.                                                                  |
-| `PlaneContextValue`            | The root `disabled`, `readOnly`, and `dragging` state.                                  |
-| `PlaneThumbContextValue`       | The thumb's value, interaction, hover, focus, `disabled`, and `readOnly` states.        |
-| `PlaneProps`                   | Native `div` props plus root interaction options.                                       |
-| `PlaneThumbProps`              | Native `div` props plus value, interaction, form, and axis options.                     |
-| `PlaneAttachmentProps`         | Native `div` props plus placement, collision, portal, and visibility options.           |
+| Type                           | Contract                                                                               |
+| ------------------------------ | -------------------------------------------------------------------------------------- |
+| `PlaneValue`                   | `{ x: number; y: number }`: a normalized position or signed nested offset.             |
+| `PlaneInteraction`             | `'pointer' \| 'keyboard'`.                                                             |
+| `PlaneHoverValueChangeDetails` | The pointer type and native pointer event for a hover-position change.                 |
+| `PlaneValueChangeReason`       | `'thumb-drag' \| 'plane-press' \| 'keyboard' \| 'input-change'`.                       |
+| `PlaneValueChangeDetails`      | Interaction, reason, snap hit, optional thumb ID, and optional original event.         |
+| `PlaneSnapTarget`              | A `grid`, `line`, `point`, or `custom` snap target.                                    |
+| `PlaneSnapHit`                 | `{ target; index; axes }`: the target that produced a value and the snapped axes.      |
+| `PlaneAxisLock`                | `'x' \| 'y' \| 'dominant-with-shift'`.                                                 |
+| `PlaneSnapBypass`              | `'alt' \| 'meta' \| false`.                                                            |
+| `PlaneMotion`                  | `{ step(current, target, dtMs): { value; done } }`: presentation-only motion.          |
+| `PlaneSnapProps`               | `snap`, `snapRadius`, `axisLock`, `snapBypass`, and `motion`, shared by both parts.    |
+| `PlanePoint`                   | `{ clientX: number; clientY: number }`.                                                |
+| `PlaneBounds`                  | `{ left: number; top: number; width: number; height: number }`.                        |
+| `PlanePressBehavior`           | `'auto' \| 'none' \| 'nearest'`.                                                       |
+| `PlaneDragBehavior`            | `'absolute' \| 'relative'`.                                                            |
+| `PlaneThumbPressBehavior`      | `'inherit' \| 'none'`.                                                                 |
+| `PlaneContextValue`            | The root `disabled`, `readOnly`, and `dragging` state.                                 |
+| `PlaneThumbContextValue`       | The thumb's value, interaction, hover, focus, snap, `disabled`, and `readOnly` states. |
+| `PlaneProps`                   | Native `div` props plus root interaction options.                                      |
+| `PlaneThumbProps`              | Native `div` props plus value, interaction, form, and axis options.                    |
+| `PlaneAttachmentProps`         | Native `div` props plus placement, collision, portal, and visibility options.          |
 
 ## Source
 

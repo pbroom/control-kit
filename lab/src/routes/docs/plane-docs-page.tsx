@@ -35,6 +35,44 @@ const PLANE_PROPS = [
       'Scales pointer distance during relative dragging. Smaller values provide finer control.',
   },
   {
+    name: 'snap',
+    shortType: 'PlaneSnapTarget[]',
+    type: 'readonly PlaneSnapTarget[] | undefined',
+    description:
+      'Default snap targets for top-level thumbs, in 0–1 plane space. Nested thumbs do not inherit them.',
+  },
+  {
+    name: 'snapRadius',
+    shortType: 'number',
+    type: 'number | undefined',
+    defaultValue: '8',
+    description:
+      'Magnetic radius for line and point targets, in CSS pixels, converted per axis from the measured plane size.',
+  },
+  {
+    name: 'axisLock',
+    shortType: "'x' | 'y' | 'dominant-with-shift'",
+    type: 'PlaneAxisLock | undefined',
+    description:
+      'Restricts pointer movement to one axis. dominant-with-shift locks to the axis of greater travel while Shift is held during a drag.',
+  },
+  {
+    name: 'snapBypass',
+    shortType: "'alt' | 'meta' | false",
+    type: 'PlaneSnapBypass | undefined',
+    defaultValue: "'alt'",
+    description:
+      'Modifier that disables snapping while held during a pointer drag. false never bypasses.',
+  },
+  {
+    name: 'motion',
+    shortType: 'PlaneMotion',
+    type: 'PlaneMotion | undefined',
+    defaultValue: 'instant',
+    description:
+      'Presentation-only motion toward the logical value, for example springMotion(). Callbacks never lag.',
+  },
+  {
     name: 'onHoverValueChange',
     shortType: 'function',
     type: '(value: PlaneValue | null, details: PlaneHoverValueChangeDetails) => void',
@@ -211,6 +249,44 @@ const PLANE_THUMB_PROPS = [
     type: 'string | undefined',
     shortType: 'string',
     description: 'The ID of the form associated with both axis inputs.',
+  },
+  {
+    name: 'snap',
+    shortType: 'PlaneSnapTarget[]',
+    type: 'readonly PlaneSnapTarget[] | undefined',
+    description:
+      "Grid, line, point, and custom targets in this thumb's own space. Replaces the Plane default.",
+  },
+  {
+    name: 'snapRadius',
+    shortType: 'number',
+    type: 'number | undefined',
+    defaultValue: '8',
+    description:
+      'Magnetic radius for line and point targets, in CSS pixels, converted per axis from the measured plane size.',
+  },
+  {
+    name: 'axisLock',
+    shortType: "'x' | 'y' | 'dominant-with-shift'",
+    type: 'PlaneAxisLock | undefined',
+    description:
+      'Restricts pointer movement to one axis. dominant-with-shift locks to the axis of greater travel while Shift is held during a drag.',
+  },
+  {
+    name: 'snapBypass',
+    shortType: "'alt' | 'meta' | false",
+    type: 'PlaneSnapBypass | undefined',
+    defaultValue: "'alt'",
+    description:
+      'Modifier that disables snapping while held during a pointer drag. false never bypasses.',
+  },
+  {
+    name: 'motion',
+    shortType: 'PlaneMotion',
+    type: 'PlaneMotion | undefined',
+    defaultValue: 'instant',
+    description:
+      'Presentation-only motion toward the logical value, for example springMotion(). Callbacks never lag.',
   },
 ] satisfies readonly PropReference[];
 

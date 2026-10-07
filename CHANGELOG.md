@@ -6,6 +6,34 @@ the package adheres to [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+### Added
+
+- Per-axis snapping for `Plane`. `PlaneThumb` (and `Plane`, as a default for
+  top-level thumbs) accepts `snap` targets: `grid` (always quantizes, with an
+  optional `origin`), magnetic `line` and `point` targets within `snapRadius`
+  CSS pixels (default `8`, converted per axis) with 1.5× release hysteresis,
+  and `custom` resolvers. Priority is custom, point, line, then grid. Snapping
+  applies to the resulting value after relative drag and before clamping.
+  Nested thumbs snap in their local space. Controlled values are not snapped.
+- `snapBypass` (default `'alt'`) disables snapping while the modifier is held
+  during a drag; `axisLock` (`'x'`, `'y'`, or `'dominant-with-shift'`)
+  restricts drags to one axis.
+- With a grid, arrow keys move to the next grid line, Shift and Page keys take
+  grid-rounded `largeStep` jumps, and Alt/Option steps by `smallStep` ignoring
+  the grid. Axis inputs expose the grid size as their native `step` when the
+  value is on the grid.
+- `PlaneValueChangeDetails.snap`, `usePlaneThumbContext().snapped`, and
+  `data-snapped` / `data-snapped-axis` / `data-snap-transition` thumb
+  attributes report the active snap target.
+- A presentation layer: `motion` accepts a `PlaneMotion`, and
+  `springMotion({ stiffness, damping, mass })` is built in (instant under
+  `prefers-reduced-motion`). Callbacks always receive the logical value
+  immediately; the default is instant.
+- `resolvePlaneSnap`, the pure snap resolver, plus the `PlaneSnapTarget`,
+  `PlaneSnapHit`, `PlaneSnapAxis`, `PlaneAxisLock`, `PlaneSnapBypass`,
+  `PlaneSnapProps`, `PlaneMotion`, `PlaneSnapContext`, `PlaneSnapResult`,
+  `PlaneSnapSpace`, and `PlaneSpringOptions` types.
+
 ## 0.1.0-next.0 - 2026-10-05
 
 ### Added
