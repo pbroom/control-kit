@@ -26,6 +26,7 @@ export type {
   PlaneProps,
   PlaneSnapAxis,
   PlaneSnapBypass,
+  PlaneSnapChangeDetails,
   PlaneSnapHit,
   PlaneSnapHitPart,
   PlaneSnapProps,

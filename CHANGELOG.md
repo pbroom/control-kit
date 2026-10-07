@@ -27,6 +27,10 @@ the package adheres to [Semantic Versioning](https://semver.org/).
   `usePlaneThumbContext().snapped` (omitted when nothing snapped, so details
   are unchanged without snapping), and `data-snapped` / `data-snapped-axis` /
   `data-snap-transition` thumb attributes report the active snap targets.
+- `onSnapChange(hit, details)` on `PlaneThumb` (and `Plane` for top-level
+  thumbs) fires whenever the snap changes, including snaps that leave the
+  value unchanged, and when a snap ends because a controlled value or the
+  targets changed (`interaction: 'programmatic'`).
 - A presentation layer: `motion` accepts a `PlaneMotion`, and
   `springMotion({ stiffness, damping, mass, smoothDrag })` is built in
   (closed-form and stable for all options, instant under
@@ -35,7 +39,7 @@ the package adheres to [Semantic Versioning](https://semver.org/).
   `smoothDrag` is set. Callbacks always receive the logical value
   immediately; the default is instant.
 - `resolvePlaneSnap`, the pure snap resolver, plus the `PlaneSnapTarget`,
-  `PlaneSnapHit`, `PlaneSnapHitPart`, `PlaneMotionReason`, `PlaneSnapAxis`, `PlaneAxisLock`, `PlaneSnapBypass`,
+  `PlaneSnapHit`, `PlaneSnapHitPart`, `PlaneSnapChangeDetails`, `PlaneMotionReason`, `PlaneSnapAxis`, `PlaneAxisLock`, `PlaneSnapBypass`,
   `PlaneSnapProps`, `PlaneMotion`, `PlaneSnapContext`, `PlaneSnapResult`,
   `PlaneSnapSpace`, and `PlaneSpringOptions` types.
 

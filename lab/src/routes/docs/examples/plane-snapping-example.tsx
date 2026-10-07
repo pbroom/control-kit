@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Checkbox,
   ControlInput,
@@ -7,7 +7,6 @@ import {
   ToggleGroup,
   ToggleGroupItem,
   springMotion,
-  usePlaneThumbContext,
   type PlaneAxisLock,
   type PlaneSnapHit,
   type PlaneSnapTarget,
@@ -41,18 +40,6 @@ function describeSnap(hit: PlaneSnapHit | undefined) {
       return `${name} (${axes.join('')})`;
     })
     .join(' + ');
-}
-
-// Reports the snap the thumb rests on, including snaps that do not change
-// the value (for example a point on a grid line).
-function SnapReporter({
-  onChange,
-}: {
-  onChange: (hit: PlaneSnapHit | undefined) => void;
-}) {
-  const { snapped } = usePlaneThumbContext();
-  useEffect(() => onChange(snapped), [onChange, snapped]);
-  return null;
 }
 
 export function PlaneSnappingExample() {
@@ -139,6 +126,8 @@ export function PlaneSnappingExample() {
           aria-label="Snapped point"
           value={value}
           onValueChange={setValue}
+          // Fires on every snap change, even when the value is unchanged.
+          onSnapChange={setHit}
           snap={snap}
           axisLock={
             axisLock === 'none' || !axisLock
@@ -151,9 +140,7 @@ export function PlaneSnappingExample() {
               ? 'data-[snap-transition]:transition-[left,top] data-[snap-transition]:duration-[120ms] data-[snap-transition]:ease-out'
               : ''
           }`}
-        >
-          <SnapReporter onChange={setHit} />
-        </PlaneThumb>
+        />
       </Plane>
       <output
         data-snapping-readout

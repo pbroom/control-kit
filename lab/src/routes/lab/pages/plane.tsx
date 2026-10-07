@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   NumberConfigField,
   PANEL_TWO_COLUMN_GRID_CLASS,
@@ -134,15 +134,8 @@ function PlanePreview({ controller }: { controller: PlaneLabPageController }) {
   const [snapHit, setSnapHit] = useState<PlaneSnapHit | null>(null);
   const { gridX, gridY, guides, snapTransition } = controller;
 
-  const valueRef = useRef(value);
-  valueRef.current = value;
-
+  // Panel edits replace the value; the thumb then reports the snap ended.
   useEffect(() => {
-    const local = valueRef.current;
-    // Edits from the properties panel are not snapped.
-    if (local.x !== controller.value.x || local.y !== controller.value.y) {
-      setSnapHit(null);
-    }
     setValue(controller.value);
   }, [controller.value]);
 
@@ -187,10 +180,8 @@ function PlanePreview({ controller }: { controller: PlaneLabPageController }) {
         <PlaneThumb
           data-testid="plane-demo-thumb"
           value={value}
-          onValueChange={(next, details) => {
-            setValue(next);
-            setSnapHit(details.snap ?? null);
-          }}
+          onValueChange={setValue}
+          onSnapChange={(hit) => setSnapHit(hit ?? null)}
           onValueCommitted={controller.setValue}
           step={0.01}
           largeStep={0.1}

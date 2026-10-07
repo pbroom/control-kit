@@ -543,7 +543,11 @@ describe('PlaneThumb snapping regressions', () => {
     expect(thumb.hasAttribute('data-snapped')).toBe(false);
     expect(thumb.hasAttribute('data-snap-transition')).toBe(false);
     expect(probe()).toBe('none');
+    // The ended snap is cleared: restoring the target does not bring it
+    // back without a new interaction.
     rerenderThumb({ snap: [point] });
+    expect(thumb.hasAttribute('data-snapped')).toBe(false);
+    drag(plane, plane, [at(0.52, 0.5)]);
     expect(thumb.dataset.snapped).toBe('true');
     rerenderThumb({ snap: undefined });
     expect(thumb.hasAttribute('data-snapped')).toBe(false);
@@ -907,5 +911,159 @@ describe('PlaneThumb motion', () => {
     expect(thumb.style.top).toBe('100%');
     frames.settle();
     expect(thumb.style.left).toBe('80%');
+  });
+});
+
+describe('onSnapChange', () => {
+  const pointA: PlaneSnapTarget = { type: 'point', x: 0.25, y: 0.75, id: 'A' };
+  const grid: PlaneSnapTarget = { type: 'grid', x: 0.125, y: 0.125 };
+
+  it('fires once when the snap switches from the grid to a point without a value change', () => {
+    const onSnapChange = vi.fn();
+    const { plane, onValueChange } = mount({
+      snap: [pointA, grid],
+      onSnapChange,
+      defaultValue: { x: 0.1, y: 0.1 },
+    });
+    act(() => pointer(plane, 'pointerdown', at(0.1, 0.1)));
+    // 9px from A: outside its radius, so the grid lands on (0.25, 0.75).
+    act(() => pointer(plane, 'pointermove', at(0.25 + 9 / 200, 0.75)));
+    expect(lastValue(onValueChange)).toEqual({ x: 0.25, y: 0.75 });
+    expect(onSnapChange).toHaveBeenCalledTimes(1);
+    expect(onSnapChange.mock.calls[0][0]).toEqual({
+      target: grid,
+      index: 1,
+      axes: ['x', 'y'],
+    });
+    onValueChange.mockClear();
+    onSnapChange.mockClear();
+    // 3px from A: the point engages but the value is unchanged.
+    act(() => pointer(plane, 'pointermove', at(0.25 + 3 / 200, 0.75)));
+    expect(onValueChange).not.toHaveBeenCalled();
+    expect(onSnapChange).toHaveBeenCalledTimes(1);
+    expect(onSnapChange).toHaveBeenCalledWith(
+      { target: pointA, index: 0, axes: ['x', 'y'] },
+      {
+        interaction: 'pointer',
+        reason: 'plane-press',
+        originalEvent: expect.any(Event),
+      },
+    );
+    act(() => pointer(plane, 'pointerup', at(0.25 + 3 / 200, 0.75)));
+    expect(onSnapChange).toHaveBeenCalledTimes(1);
+  });
+
+  it('fires on enter, switch, and leave, but not while a snap holds', () => {
+    const onSnapChange = vi.fn();
+    const lineX: PlaneSnapTarget = { type: 'line', axis: 'x', at: 0.5 };
+    const lineY: PlaneSnapTarget = { type: 'line', axis: 'y', at: 0.5 };
+    const { plane } = mount({
+      snap: [lineX, lineY],
+      onSnapChange,
+      thumbId: 'probe',
+      defaultValue: { x: 0.1, y: 0.1 },
+    });
+    act(() => pointer(plane, 'pointerdown', at(0.1, 0.1)));
+    act(() => pointer(plane, 'pointermove', at(0.51, 0.2)));
+    act(() => pointer(plane, 'pointermove', at(0.512, 0.3)));
+    act(() => pointer(plane, 'pointermove', at(0.512, 0.4)));
+    expect(onSnapChange).toHaveBeenCalledTimes(1);
+    expect(onSnapChange.mock.calls[0][0].axes).toEqual(['x']);
+    expect(onSnapChange.mock.calls[0][1].thumbId).toBe('probe');
+    // Both lines: the parts change.
+    act(() => pointer(plane, 'pointermove', at(0.512, 0.49)));
+    expect(onSnapChange).toHaveBeenCalledTimes(2);
+    expect(onSnapChange.mock.calls[1][0].parts).toHaveLength(2);
+    act(() => pointer(plane, 'pointermove', at(0.9, 0.9)));
+    expect(onSnapChange).toHaveBeenCalledTimes(3);
+    expect(onSnapChange.mock.calls[2][0]).toBeUndefined();
+    act(() => pointer(plane, 'pointermove', at(0.95, 0.95)));
+    act(() => pointer(plane, 'pointerup', at(0.95, 0.95)));
+    expect(onSnapChange).toHaveBeenCalledTimes(3);
+  });
+
+  it('fires after onValueChange', () => {
+    const order: string[] = [];
+    const { plane } = mount({
+      snap: [grid],
+      onValueChange: () => order.push('value'),
+      onSnapChange: () => order.push('snap'),
+    });
+    drag(plane, plane, [at(0.3, 0.3)]);
+    expect(order).toEqual(['value', 'snap']);
+  });
+
+  it('fires for keyboard grid steps and when leaving the grid', () => {
+    const onSnapChange = vi.fn();
+    const { axis } = mount({
+      snap: [{ type: 'grid', x: 0.25 }],
+      onSnapChange,
+      defaultValue: { x: 0.3, y: 0.3 },
+    });
+    key(axis('x'), 'ArrowRight');
+    expect(onSnapChange).toHaveBeenCalledTimes(1);
+    expect(onSnapChange.mock.calls[0][1]).toEqual(
+      expect.objectContaining({ interaction: 'keyboard', reason: 'keyboard' }),
+    );
+    // Another grid step keeps the same hit: no call.
+    key(axis('x'), 'ArrowRight');
+    expect(onSnapChange).toHaveBeenCalledTimes(1);
+    key(axis('x'), 'ArrowUp');
+    expect(onSnapChange).toHaveBeenCalledTimes(2);
+    expect(onSnapChange.mock.calls[1][0]).toBeUndefined();
+  });
+
+  it('fires with undefined when the snapped targets are removed or replaced', () => {
+    const onSnapChange = vi.fn();
+    const { plane, rerenderThumb } = mount({
+      snap: [pointA],
+      onSnapChange,
+      defaultValue: { x: 0.1, y: 0.1 },
+    });
+    drag(plane, plane, [at(0.26, 0.75)]);
+    expect(onSnapChange).toHaveBeenCalledTimes(1);
+    // Equal targets recreated: still current.
+    rerenderThumb({ snap: [{ ...pointA }] });
+    expect(onSnapChange).toHaveBeenCalledTimes(1);
+    rerenderThumb({ snap: [{ type: 'point', x: 0.5, y: 0.5 }] });
+    expect(onSnapChange).toHaveBeenCalledTimes(2);
+    expect(onSnapChange).toHaveBeenLastCalledWith(undefined, {
+      interaction: 'programmatic',
+      reason: 'snap-targets-change',
+    });
+  });
+
+  it('fires with undefined when a controlled update replaces the snapped value', () => {
+    const onSnapChange = vi.fn();
+    const { plane, rerenderThumb } = mount({
+      snap: [pointA],
+      onSnapChange,
+      value: { x: 0.1, y: 0.1 },
+    });
+    drag(plane, plane, [at(0.26, 0.75)]);
+    rerenderThumb({ value: { x: 0.25, y: 0.75 } });
+    expect(onSnapChange).toHaveBeenCalledTimes(1);
+    rerenderThumb({ value: { x: 0.6, y: 0.6 } });
+    expect(onSnapChange).toHaveBeenCalledTimes(2);
+    expect(onSnapChange).toHaveBeenLastCalledWith(undefined, {
+      interaction: 'programmatic',
+      reason: 'external-value-change',
+    });
+  });
+
+  it('is inherited from Plane by top-level thumbs and not called without snapping', () => {
+    const planeSnapChange = vi.fn();
+    const inherited = mount(
+      {},
+      { snap: [grid], onSnapChange: planeSnapChange },
+    );
+    drag(inherited.plane, inherited.plane, [at(0.3, 0.3)]);
+    expect(planeSnapChange).toHaveBeenCalledTimes(1);
+
+    const unconfigured = vi.fn();
+    const { plane, axis } = mount({ onSnapChange: unconfigured });
+    drag(plane, plane, [at(0.3, 0.3), at(0.7, 0.2)]);
+    key(axis('x'), 'ArrowRight');
+    expect(unconfigured).not.toHaveBeenCalled();
   });
 });

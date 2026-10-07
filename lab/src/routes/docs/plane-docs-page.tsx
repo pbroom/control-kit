@@ -75,6 +75,13 @@ const PLANE_PROPS = [
       'Presentation-only motion for snap transitions, keyboard, and programmatic changes; free drags follow the pointer. Hoist or memoize springMotion(). Callbacks never lag.',
   },
   {
+    name: 'onSnapChange',
+    shortType: 'function',
+    type: '(hit: PlaneSnapHit | undefined, details: PlaneSnapChangeDetails) => void',
+    description:
+      'Default for top-level thumbs: called whenever the snap changes, even without a value change. Nested thumbs do not inherit it.',
+  },
+  {
     name: 'onHoverValueChange',
     shortType: 'function',
     type: '(value: PlaneValue | null, details: PlaneHoverValueChangeDetails) => void',
@@ -289,6 +296,13 @@ const PLANE_THUMB_PROPS = [
     defaultValue: 'instant',
     description:
       'Presentation-only motion for snap transitions, keyboard, and programmatic changes; free drags follow the pointer. Hoist or memoize springMotion(). Callbacks never lag.',
+  },
+  {
+    name: 'onSnapChange',
+    shortType: 'function',
+    type: '(hit: PlaneSnapHit | undefined, details: PlaneSnapChangeDetails) => void',
+    description:
+      'Called whenever the snap changes (enter, leave, switch), even without a value change; after onValueChange. hit is undefined when the snap ends.',
   },
 ] satisfies readonly PropReference[];
 

@@ -85,6 +85,23 @@ export type PlaneMotion = {
   smoothDrag?: boolean;
 };
 
+/**
+ * Details for `onSnapChange`. Pointer and keyboard changes carry the same
+ * interaction and reason as value changes. Snaps that end without user input
+ * use `interaction: 'programmatic'` with reason `'external-value-change'`
+ * (a controlled or reset value replaced the snapped one) or
+ * `'snap-targets-change'` (the snapped targets were removed or replaced).
+ */
+export type PlaneSnapChangeDetails = {
+  interaction: PlaneInteraction | 'programmatic';
+  reason:
+    | PlaneValueChangeReason
+    | 'external-value-change'
+    | 'snap-targets-change';
+  thumbId?: string;
+  originalEvent?: Event;
+};
+
 export type PlaneValueChangeDetails = {
   interaction: PlaneInteraction;
   reason: PlaneValueChangeReason;
@@ -138,6 +155,17 @@ export type PlaneSnapProps = {
    * `springMotion()`). @default instant
    */
   motion?: PlaneMotion;
+  /**
+   * Called whenever the snap the value rests on changes: entering, leaving,
+   * or switching targets or axes, whether or not the value changed. Not
+   * called while the same snap holds, at mount, or without snapping. Fires
+   * after `onValueChange` in the same interaction. On `Plane`, a default for
+   * top-level thumbs.
+   */
+  onSnapChange?: (
+    hit: PlaneSnapHit | undefined,
+    details: PlaneSnapChangeDetails,
+  ) => void;
 };
 
 export type PlaneProps = Omit<
@@ -229,6 +257,8 @@ export type PlaneValueChangeSource = Pick<
   PlaneValueChangeDetails,
   'interaction' | 'reason' | 'originalEvent'
 >;
+
+export type PlaneSnapChangeSource = Omit<PlaneSnapChangeDetails, 'thumbId'>;
 
 export type PlanePointerModifiers = {
   altKey: boolean;

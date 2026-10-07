@@ -130,6 +130,7 @@ export type {
   PlaneDragBehavior,
   PlaneSnapAxis,
   PlaneSnapBypass,
+  PlaneSnapChangeDetails,
   PlaneSnapContext,
   PlaneSnapHit,
   PlaneSnapHitPart,

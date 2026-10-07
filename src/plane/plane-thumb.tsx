@@ -48,6 +48,7 @@ import type {
   PlaneKeyboardReason,
   PlaneMotionReason,
   PlaneResolvedPointerValue,
+  PlaneSnapChangeSource,
   PlaneSnapHit,
   PlaneThumbContextValue,
   PlaneThumbProps,
@@ -97,6 +98,7 @@ export function PlaneThumb({
   axisLock: axisLockProp,
   snapBypass: snapBypassProp,
   motion: motionProp,
+  onSnapChange: onSnapChangeProp,
   className,
   style,
   children,
@@ -129,6 +131,29 @@ export function PlaneThumb({
         ? snapDefaults.snapBypass
         : 'alt';
   const motion = motionProp ?? snapDefaults.motion;
+  // Like `snap`, the Plane default only applies to top-level thumbs.
+  const onSnapChange =
+    onSnapChangeProp ?? (parentThumb ? undefined : snapDefaults.onSnapChange);
+  const onSnapChangeRef = React.useRef(onSnapChange);
+  onSnapChangeRef.current = onSnapChange;
+  const thumbIdRef = React.useRef(thumbId);
+  thumbIdRef.current = thumbId;
+  // The snap hit last reported through onSnapChange.
+  const reportedSnapRef = React.useRef<PlaneSnapHit | null>(null);
+  const reportSnap = React.useCallback(
+    (hit: PlaneSnapHit | null, source: PlaneSnapChangeSource) => {
+      // Without snapping both are always null: no comparison, no call.
+      if (!hit && !reportedSnapRef.current) return;
+      if (planeSnapHitsEqual(reportedSnapRef.current, hit)) return;
+      reportedSnapRef.current = hit;
+      const id = thumbIdRef.current;
+      onSnapChangeRef.current?.(
+        hit ?? undefined,
+        id ? { ...source, thumbId: id } : source,
+      );
+    },
+    [],
+  );
   const gridAxes = React.useMemo(
     () => getPlaneGridAxes(snapTargets),
     [snapTargets],
@@ -311,8 +336,25 @@ export function PlaneThumb({
     if (record && !planeValuesEqual(record.value, renderedValue)) {
       snapStateRef.current = null;
       setSnapState(null);
+      reportSnap(null, {
+        interaction: 'programmatic',
+        reason: 'external-value-change',
+      });
     }
-  }, [renderedValue]);
+  }, [renderedValue, reportSnap]);
+
+  // Removing or replacing the snapped targets ends the snap.
+  React.useEffect(() => {
+    const reported = reportedSnapRef.current;
+    if (reported && !isSnapHitCurrent(reported, snapTargets)) {
+      snapStateRef.current = null;
+      setSnapState(null);
+      reportSnap(null, {
+        interaction: 'programmatic',
+        reason: 'snap-targets-change',
+      });
+    }
+  }, [reportSnap, snapTargets]);
 
   React.useEffect(() => {
     if (!isDisabled && !isReadOnly) return;
@@ -383,6 +425,7 @@ export function PlaneThumb({
         // No value change, but the snap state may still change (snapping to
         // a target the thumb already sits on, or a bypassed press there).
         recordSnap(normalizedValue, hit, pointer);
+        reportSnap(hit, source);
         return false;
       }
 
@@ -397,6 +440,7 @@ export function PlaneThumb({
         normalizedValue,
         getValueChangeDetails(source, thumbId, hit),
       );
+      reportSnap(hit, source);
       return true;
     },
     [
@@ -406,6 +450,7 @@ export function PlaneThumb({
       normalizeValue,
       onValueChange,
       recordSnap,
+      reportSnap,
       thumbId,
     ],
   );
