@@ -591,6 +591,56 @@ describe('keyboard grid stepping', () => {
 });
 
 describe('springMotion', () => {
+  function run(
+    options: Parameters<typeof springMotion>[0],
+    frameMs = 16,
+    from = { x: 0, y: 0 },
+    target = { x: 1, y: 0.5 },
+  ) {
+    const motion = springMotion(options);
+    let value = from;
+    let frames = 0;
+    let maxDistance = 0;
+    for (; frames < 10000; frames += 1) {
+      const result = motion.step(value, target, frameMs, { reason: 'snap' });
+      value = result.value;
+      expect(Number.isFinite(value.x) && Number.isFinite(value.y)).toBe(true);
+      maxDistance = Math.max(
+        maxDistance,
+        Math.hypot(value.x - target.x, value.y - target.y),
+      );
+      if (result.done) break;
+    }
+    return { value, frames, maxDistance, target };
+  }
+
+  it.each([
+    ['tiny mass', { mass: 0.01 }],
+    ['huge stiffness', { stiffness: 1e7 }],
+    ['zero damping', { damping: 0 }],
+    ['huge damping', { damping: 1e7 }],
+    ['tiny stiffness', { stiffness: 1e-6 }],
+    ['huge mass', { mass: 1e6 }],
+    ['all extreme', { mass: 1e-4, stiffness: 1e8, damping: 0 }],
+  ])('stays finite, bounded, and settles with %s', (_, options) => {
+    for (const frameMs of [1, 16, 100, 1000]) {
+      const { value, frames, maxDistance, target } = run(options, frameMs);
+      // Never overshoots by more than the starting distance.
+      expect(maxDistance).toBeLessThanOrEqual(Math.hypot(1, 0.5) + 1e-9);
+      expect(value).toEqual(target);
+      // Settles within the 3s cap.
+      expect(frames * Math.min(frameMs, 100)).toBeLessThanOrEqual(3100);
+    }
+  });
+
+  it('settles instead of producing non-finite output for a non-finite dt', () => {
+    const motion = springMotion();
+    const result = motion.step({ x: 0, y: 0 }, { x: 1, y: 1 }, Number.NaN, {
+      reason: 'snap',
+    });
+    expect(Number.isFinite(result.value.x)).toBe(true);
+  });
+
   it('converges on the target and reports done', () => {
     const motion = springMotion({ stiffness: 400, damping: 40 });
     let value = { x: 0, y: 0 };

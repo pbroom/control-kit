@@ -2,26 +2,36 @@ import * as React from 'react';
 import type { PlaneMotion, PlaneMotionReason, PlaneValue } from './types.js';
 
 export type PlaneSpringOptions = {
-  /** @default 500 */
+  /** Spring constant. Non-positive or non-finite values use the default. @default 500 */
   stiffness?: number;
-  /** @default 38 */
+  /**
+   * Damping coefficient. The damping ratio is kept between 0.05 and 10 times
+   * critical so the spring always settles; non-finite or negative values use
+   * the default. Any animation also settles within 3 seconds. @default 38
+   */
   damping?: number;
-  /** @default 1 */
+  /** Non-positive or non-finite values use the default. @default 1 */
   mass?: number;
   /** Also smooth free drag samples instead of following the pointer. */
   smoothDrag?: boolean;
 };
 
-// Integrate in small fixed slices so stiff springs stay stable on slow frames.
-const MAX_SLICE_MS = 4;
 const MAX_FRAME_MS = 100;
+const MIN_DAMPING_RATIO = 0.05;
+const MAX_DAMPING_RATIO = 10;
 const REST_DISTANCE = 1e-4;
 const REST_SPEED = 1e-3;
+// Settle by this time even for very soft or heavily overdamped springs.
+const MAX_DURATION_MS = 3000;
 
 // Velocity is keyed by the presented value object a spring returned, and
 // shared by every spring instance. A thumb therefore keeps its momentum even
 // when `motion={springMotion()}` creates a new instance on each render.
-const springVelocities = new WeakMap<PlaneValue, PlaneValue>();
+// It also tracks how long the animation has run, to bound it.
+const springStates = new WeakMap<
+  PlaneValue,
+  { vx: number; vy: number; elapsedMs: number }
+>();
 
 export function prefersReducedMotion() {
   return (
@@ -37,37 +47,107 @@ function positive(value: number | undefined, fallback: number) {
 }
 
 /**
- * A damped spring for `PlaneThumb` presentation. One instance can drive
+ * Advances a damped harmonic oscillator by `t` seconds using its closed-form
+ * solution, so any positive stiffness and mass, and any frame length, stay
+ * stable. `d` is the displacement from the target and `v` the velocity.
+ */
+export function stepDampedSpring(
+  d: number,
+  v: number,
+  t: number,
+  omega: number,
+  zeta: number,
+): { d: number; v: number } {
+  if (zeta < 1 - 1e-6) {
+    const wd = omega * Math.sqrt(1 - zeta * zeta);
+    const decay = Math.exp(-zeta * omega * t);
+    const b = (v + zeta * omega * d) / wd;
+    const cos = Math.cos(wd * t);
+    const sin = Math.sin(wd * t);
+    const a = zeta * omega;
+    return {
+      d: decay * (d * cos + b * sin),
+      v: decay * ((b * wd - a * d) * cos - (a * b + d * wd) * sin),
+    };
+  }
+  if (zeta <= 1 + 1e-6) {
+    const decay = Math.exp(-omega * t);
+    const b = v + omega * d;
+    return {
+      d: (d + b * t) * decay,
+      v: (b - omega * (d + b * t)) * decay,
+    };
+  }
+  const root = Math.sqrt(zeta * zeta - 1);
+  // -omega * (zeta - root), written to avoid cancellation for large zeta.
+  const r1 = -omega / (zeta + root);
+  const r2 = -omega * (zeta + root);
+  const c2 = (v - r1 * d) / (r2 - r1);
+  const c1 = d - c2;
+  const e1 = Math.exp(r1 * t);
+  const e2 = Math.exp(r2 * t);
+  return { d: c1 * e1 + c2 * e2, v: c1 * r1 * e1 + c2 * r2 * e2 };
+}
+
+/**
+ * A damped spring for `PlaneThumb` presentation, solved in closed form so it
+ * is stable for every accepted option and frame length, and always settles
+ * (the damping ratio is kept within 0.05–10, and any animation ends within
+ * 3 seconds). One instance can drive
  * several thumbs, and an inline `springMotion()` per render keeps momentum,
  * although hoisting it (or `useMemo`) avoids the allocation. Settles
  * instantly when the user prefers reduced motion.
  */
 export function springMotion(options: PlaneSpringOptions = {}): PlaneMotion {
   const stiffness = positive(options.stiffness, 500);
-  const damping = positive(options.damping, 38);
   const mass = positive(options.mass, 1);
+  const damping =
+    typeof options.damping === 'number' &&
+    Number.isFinite(options.damping) &&
+    options.damping >= 0
+      ? options.damping
+      : 38;
+  const omega = Math.sqrt(stiffness / mass);
+  const zeta = Math.min(
+    MAX_DAMPING_RATIO,
+    Math.max(MIN_DAMPING_RATIO, damping / (2 * Math.sqrt(stiffness * mass))),
+  );
 
   return {
     smoothDrag: options.smoothDrag === true,
     step(current, target, dtMs) {
       if (prefersReducedMotion()) return { value: target, done: true };
-      let { x, y } = current;
-      let { x: vx, y: vy } = springVelocities.get(current) ?? { x: 0, y: 0 };
-      let remaining = Math.max(0, Math.min(dtMs, MAX_FRAME_MS));
-      while (remaining > 0) {
-        const slice = Math.min(remaining, MAX_SLICE_MS) / 1000;
-        remaining -= MAX_SLICE_MS;
-        vx += ((-stiffness * (x - target.x) - damping * vx) / mass) * slice;
-        vy += ((-stiffness * (y - target.y) - damping * vy) / mass) * slice;
-        x += vx * slice;
-        y += vy * slice;
-      }
+      const state = springStates.get(current) ?? { vx: 0, vy: 0, elapsedMs: 0 };
+      const frameMs = Number.isFinite(dtMs)
+        ? Math.max(0, Math.min(dtMs, MAX_FRAME_MS))
+        : 0;
+      const elapsedMs = state.elapsedMs + frameMs;
+      const t = frameMs / 1000;
+      const nextX = stepDampedSpring(
+        current.x - target.x,
+        state.vx,
+        t,
+        omega,
+        zeta,
+      );
+      const nextY = stepDampedSpring(
+        current.y - target.y,
+        state.vy,
+        t,
+        omega,
+        zeta,
+      );
+      const finite = [nextX.d, nextX.v, nextY.d, nextY.v].every(
+        Number.isFinite,
+      );
       const done =
-        Math.hypot(x - target.x, y - target.y) < REST_DISTANCE &&
-        Math.hypot(vx, vy) < REST_SPEED;
+        !finite ||
+        elapsedMs >= MAX_DURATION_MS ||
+        (Math.hypot(nextX.d, nextY.d) < REST_DISTANCE &&
+          Math.hypot(nextX.v, nextY.v) < REST_SPEED);
       if (done) return { value: target, done: true };
-      const value = { x, y };
-      springVelocities.set(value, { x: vx, y: vy });
+      const value = { x: target.x + nextX.d, y: target.y + nextY.d };
+      springStates.set(value, { vx: nextX.v, vy: nextY.v, elapsedMs });
       return { value, done: false };
     },
   };

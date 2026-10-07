@@ -323,7 +323,7 @@ Clamps both coordinates to the `0` to `1` range. Non-finite coordinates become `
 
 ### springMotion
 
-`springMotion({ stiffness = 500, damping = 38, mass = 1, smoothDrag = false })` returns a `PlaneMotion` for the `motion` prop. One instance can drive several thumbs. Hoist it or memoize it.
+`springMotion({ stiffness = 500, damping = 38, mass = 1, smoothDrag = false })` returns a `PlaneMotion` for the `motion` prop. It is solved in closed form, so every accepted option and frame length is stable. The damping ratio is kept between `0.05` and `10` times critical so it always settles, and any animation ends within 3 seconds. Drawn positions are always clamped to the thumb's range. One instance can drive several thumbs. Hoist it or memoize it.
 
 ### getPlaneValueFromPoint
 

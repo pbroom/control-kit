@@ -474,6 +474,43 @@ describe('PlaneThumb snapping', () => {
 });
 
 describe('PlaneThumb snapping regressions', () => {
+  it('records a snap when the value is already at the target', () => {
+    const point: PlaneSnapTarget = { type: 'point', x: 0.5, y: 0.5 };
+    const { plane, thumb, onValueChange, onValueCommitted } = mount({
+      snap: [point],
+      defaultValue: { x: 0.5, y: 0.5 },
+    });
+    // Pressing near the point leaves the value unchanged but snaps to it.
+    drag(plane, plane, [at(0.52, 0.5)]);
+    expect(onValueChange).not.toHaveBeenCalled();
+    expect(thumb.dataset.snapped).toBe('true');
+    expect(lastDetails(onValueCommitted).snap).toEqual({
+      target: point,
+      index: 0,
+      axes: ['x', 'y'],
+    });
+    // An Alt-bypassed press back on the same spot reports no snap.
+    drag(plane, plane, [{ ...at(0.5, 0.5), altKey: true }]);
+    expect(thumb.hasAttribute('data-snapped')).toBe(false);
+    expect(lastDetails(onValueCommitted).snap).toBeUndefined();
+  });
+
+  it('does not restore an old snap when a controlled value returns to it', () => {
+    const point: PlaneSnapTarget = { type: 'point', x: 0.5, y: 0.5 };
+    const { plane, thumb, rerenderThumb } = mount({
+      snap: [point],
+      value: { x: 0.2, y: 0.2 },
+    });
+    drag(plane, plane, [at(0.52, 0.5)]);
+    rerenderThumb({ value: { x: 0.5, y: 0.5 } });
+    expect(thumb.dataset.snapped).toBe('true');
+    rerenderThumb({ value: { x: 0.7, y: 0.7 } });
+    expect(thumb.hasAttribute('data-snapped')).toBe(false);
+    rerenderThumb({ value: { x: 0.5, y: 0.5 } });
+    expect(thumb.hasAttribute('data-snapped')).toBe(false);
+    expect(thumb.hasAttribute('data-snap-transition')).toBe(false);
+  });
+
   it('positions thumbs of a Plane nested inside another thumb in their own plane', () => {
     const { container } = render(
       <Plane>
@@ -847,5 +884,28 @@ describe('PlaneThumb motion', () => {
     onValueChange.mockClear();
     drag(plane, plane, [at(0.79, 0.5)]);
     expect(lastValue(onValueChange).x).toBeCloseTo(0.79);
+  });
+
+  it('never draws the thumb outside its range, whatever the motion returns', () => {
+    const frames = stubAnimationFrames();
+    let call = 0;
+    const wild: PlaneMotion = {
+      step(_current, target) {
+        call += 1;
+        return call < 3
+          ? { value: { x: 5, y: Number.NaN }, done: false }
+          : { value: target, done: true };
+      },
+    };
+    const { thumb, rerenderThumb } = mount({
+      motion: wild,
+      value: { x: 0.2, y: 0.5 },
+    });
+    rerenderThumb({ value: { x: 0.8, y: 0.5 } });
+    frames.frame();
+    expect(thumb.style.left).toBe('100%');
+    expect(thumb.style.top).toBe('100%');
+    frames.settle();
+    expect(thumb.style.left).toBe('80%');
   });
 });

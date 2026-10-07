@@ -216,7 +216,13 @@ export function PlaneThumb({
     motionChange && planeValuesEqual(motionChange.value, renderedValue)
       ? motionChange.reason
       : 'programmatic';
-  const presentedLocal = usePlaneMotion(renderedValue, motionReason, motion);
+  const motionValue = usePlaneMotion(renderedValue, motionReason, motion);
+  // A motion can never draw the thumb outside its range.
+  const presentedLocal = React.useMemo(
+    () =>
+      motionValue === renderedValue ? motionValue : normalizeValue(motionValue),
+    [motionValue, normalizeValue, renderedValue],
+  );
   const presentedWorld = React.useMemo(
     () => ({
       x: (parentPresentedWorld?.x ?? parentX) + presentedLocal.x,
@@ -298,6 +304,16 @@ export function PlaneThumb({
     }
   }, [isDragging, renderedValue]);
 
+  // An external value (for example a controlled update) replaces the
+  // recorded snap, so returning to that value later does not restore it.
+  React.useEffect(() => {
+    const record = snapStateRef.current;
+    if (record && !planeValuesEqual(record.value, renderedValue)) {
+      snapStateRef.current = null;
+      setSnapState(null);
+    }
+  }, [renderedValue]);
+
   React.useEffect(() => {
     if (!isDisabled && !isReadOnly) return;
     keyboardDirtyRef.current = false;
@@ -362,11 +378,14 @@ export function PlaneThumb({
       if (isDisabled || isReadOnly) return false;
       const normalizedValue = normalizeValue(nextValue);
 
+      const pointer = source.interaction === 'pointer';
       if (planeValuesEqual(normalizedValue, interactionValueRef.current)) {
+        // No value change, but the snap state may still change (snapping to
+        // a target the thumb already sits on, or a bypassed press there).
+        recordSnap(normalizedValue, hit, pointer);
         return false;
       }
 
-      const pointer = source.interaction === 'pointer';
       const transition = recordSnap(normalizedValue, hit, pointer);
       motionChangeRef.current = {
         value: normalizedValue,

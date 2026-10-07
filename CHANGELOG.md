@@ -29,7 +29,8 @@ the package adheres to [Semantic Versioning](https://semver.org/).
   `data-snap-transition` thumb attributes report the active snap targets.
 - A presentation layer: `motion` accepts a `PlaneMotion`, and
   `springMotion({ stiffness, damping, mass, smoothDrag })` is built in
-  (instant under `prefers-reduced-motion`). Motion animates snap transitions,
+  (closed-form and stable for all options, instant under
+  `prefers-reduced-motion`; drawn positions stay in range). Motion animates snap transitions,
   keyboard, and programmatic changes; free drags follow the pointer unless
   `smoothDrag` is set. Callbacks always receive the logical value
   immediately; the default is instant.
