@@ -77,11 +77,6 @@
     "access": "public",
     "tag": "next"
   },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild"
-    ]
-  },
   "dependencies": {
     "@floating-ui/react": "^0.27.20",
     "class-variance-authority": "^0.7.1",
