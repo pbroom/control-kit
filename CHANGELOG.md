@@ -6,6 +6,8 @@ the package adheres to [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+## 0.1.0-next.1 - 2026-10-14
+
 ### Added
 
 - Per-axis snapping for `Plane`. `PlaneThumb` (and `Plane`, as a default for
