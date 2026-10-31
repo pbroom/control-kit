@@ -1,8 +1,8 @@
 # @pbroom/control-kit
 
-React UI primitives for building operational color controls.
+React UI primitives for compact editor controls: number fields, a 2D plane, sliders, tabs, toggles, checkboxes, and tooltips.
 
-Control Kit is a standalone package maintained in [pbroom/control-kit](https://github.com/pbroom/control-kit), with imports from `@pbroom/control-kit`. It was originally extracted from the `packages/control-kit` workspace in Color Kit and does not require Color Kit as a dependency. Component props can change as the API evolves; check the migration guidance before upgrading an existing consumer.
+Control Kit is a standalone package maintained in [pbroom/control-kit](https://github.com/pbroom/control-kit), with imports from `@pbroom/control-kit`. It was extracted from the `packages/control-kit` workspace in Color Kit and does not depend on Color Kit. Props can change between prereleases; read the migration notes below before upgrading.
 
 ## Install
 
@@ -28,8 +28,8 @@ The `--allow-build=@pbroom/control-kit` flag (pnpm 10) allows Git installs to ru
 ## Compatibility
 
 - **React 19 or newer** is required (`react` and `react-dom` are peer
-  dependencies with a `>=19.0.0` floor). This is a deliberate choice to build
-  on current React semantics rather than carry compatibility shims.
+  dependencies with a `>=19.0.0` floor). The package uses current React
+  semantics and ships no compatibility shims for older versions.
 - `@base-ui/react` 1.7 or newer within version 1 is a peer dependency used for the headless primitives.
 - Node 18+ is required to build the package.
 
@@ -305,9 +305,9 @@ arrow keys move to the next grid line. Value callbacks report the hit as
 change, even without a value change, and the thumb gets `data-snapped`. Snapping is instant by default: animate `left`/`top` under
 `[data-snap-transition~="x"]` / `~="y"` (the axes a snap made jump), or pass a hoisted `motion={spring}` from
 `springMotion()`, which animates snaps and keyboard jumps while free drags
-follow the pointer; the reported value never lags.
+follow the pointer; callbacks still receive the snapped value immediately.
 
-Don't clip the Plane root. A thumb is centred on its value, so at an edge or
+Don't clip the `Plane` root. A thumb is centered on its value, so at an edge or
 corner half of it lies outside the plane; `overflow: hidden` on the root cuts it
 in half. Keep the root `overflow: visible` (the default) and put any clipped
 surface content in an inner layer:
@@ -338,8 +338,8 @@ pnpm typecheck
 
 ## Lab
 
-This repo includes a focused Vite lab for demoing and refining the package UI
-primitives without the larger `color-kit` docs site.
+The `lab/` directory holds a Vite app that serves the docs (`/docs/*`) and an
+interactive lab page for each component (`/lab/*`).
 
 ```sh
 pnpm dev
@@ -347,8 +347,7 @@ pnpm lab:typecheck
 pnpm lab:build
 ```
 
-The lab imports the package source directly, so local component edits are visible
-without packing or publishing the package.
+The lab imports the package source directly, so component edits show up
+without rebuilding, packing, or publishing the package.
 
-Use `pnpm dev:package` when you specifically want the package build watcher
-instead of the lab server.
+`pnpm dev:package` runs the package build watcher instead of the lab server.
