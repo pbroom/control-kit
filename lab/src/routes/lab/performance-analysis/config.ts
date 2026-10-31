@@ -142,14 +142,14 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
   plane: {
     label: 'Plane',
     primitiveStructure: structure(
-      'Plane primitive',
-      'A normalized two-dimensional input surface with an accessible marker.',
+      'Plane structure',
+      'A normalized 2D input with one thumb.',
       {
         children: [
           {
             component: 'PlaneThumb',
             detail:
-              'Positioned marker with two native range axes for keyboard and assistive input.',
+              'Positioned marker with two native range inputs, one per axis.',
             id: 'plane-thumb',
             label: 'Thumb',
             measure: {
@@ -163,7 +163,7 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
         ],
         component: 'Plane',
         detail:
-          'Pointer-capturing normalized XY interaction surface and composition root.',
+          'Root that captures the pointer and maps it to normalized X and Y.',
         id: 'plane-root',
         label: 'Plane',
         measure: slot('plane'),
@@ -174,14 +174,13 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
   colorPlane: {
     label: 'ColorPlane',
     primitiveStructure: structure(
-      'ColorPlane primitive',
-      'A bounded interactive plane composed from a base surface, gamut raster, overlay helpers, and an input thumb anchored above the render layer.',
+      'ColorPlane structure',
+      'A color area with a background, a gamut raster, optional overlays, and a thumb on top.',
       {
         children: [
           {
             component: 'Background',
-            detail:
-              'Optional checkerboard fill rendered in the ColorArea children slot.',
+            detail: 'Optional checkerboard rendered as a ColorArea child.',
             id: 'checkerboard-background',
             label: 'Background',
             measure: '[data-color-area-background]',
@@ -191,7 +190,8 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
           },
           {
             component: 'ColorPlane',
-            detail: 'Canvas/WebGL color field for the selected axes.',
+            detail:
+              'Canvas color field for the selected axes, drawn with WebGL or CPU.',
             id: 'gamut-raster',
             label: 'Gamut raster',
             measure: '[data-color-area-plane]',
@@ -202,8 +202,7 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
             children: [
               {
                 component: 'GamutBoundaryLayer',
-                detail:
-                  'Optional Display P3 / sRGB boundary path inside the overlay slot.',
+                detail: 'Optional Display P3 and sRGB boundary paths.',
                 id: 'gamut-boundaries',
                 label: 'Gamut boundaries',
                 measure: {
@@ -216,8 +215,7 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
               },
               {
                 component: 'FallbackPointsLayer',
-                detail:
-                  'Optional point samples that annotate fallback geometry.',
+                detail: 'Optional points that mark gamut-fallback colors.',
                 id: 'fallback-points',
                 label: 'Fallback points',
                 measure: '[data-color-area-fallback-points-layer]',
@@ -227,8 +225,7 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
               },
             ],
             component: 'Layer',
-            detail:
-              'Overlay slot for boundaries and helper points, drawn above the raster.',
+            detail: 'Boundaries and points, drawn above the raster.',
             id: 'overlay-boundaries',
             label: 'Overlay paths',
             relation: 'slot',
@@ -237,7 +234,7 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
           },
           {
             component: 'Thumb',
-            detail: 'Keyboard and pointer handle that commits color changes.',
+            detail: 'Focusable thumb for keyboard and pointer color changes.',
             id: 'active-thumb',
             label: 'Thumb',
             measure: {
@@ -262,15 +259,15 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
   input: {
     label: 'Control Input',
     primitiveStructure: structure(
-      'ControlInput primitive',
-      'A compact field shell with a value cell, focus ring, and optional scrub handle arranged on one horizontal control plane.',
+      'ControlInput structure',
+      'A compact field with a value cell, a focus ring, and an optional scrub handle.',
       {
         children: [
           {
             children: [
               {
                 component: 'ScrubArea',
-                detail: 'Optional drag affordance for coarse/fine stepping.',
+                detail: 'Optional scrub handle; drag to change the value.',
                 id: 'scrub-handle',
                 label: 'Scrub handle',
                 measure: slot('control-field-scrub-area'),
@@ -279,7 +276,7 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
               },
               {
                 component: 'Input',
-                detail: 'Editable text/input region with numeric parsing.',
+                detail: 'Text input that parses numbers and expressions.',
                 id: 'value-cell',
                 label: 'Value cell',
                 measure: slot('control-field-input'),
@@ -288,7 +285,7 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
               },
             ],
             component: 'Group',
-            detail: 'Stable rounded field surface and hit area.',
+            detail: 'Rounded field surface and hit area.',
             id: 'input-shell',
             label: 'Shell',
             measure: slot('control-field-group'),
@@ -308,16 +305,15 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
   controlField: {
     label: 'Control Field',
     primitiveStructure: structure(
-      'ControlField',
-      'A compact Base UI number field composition with an inline scrub handle and optional affix.',
+      'ControlField structure',
+      'A compact Base UI number field with an inline scrub handle and an optional affix.',
       {
         children: [
           {
             children: [
               {
                 component: 'ScrubArea',
-                detail:
-                  'Inline pointer drag target for direct value adjustment.',
+                detail: 'Inline drag target that scrubs the value.',
                 id: 'control-field-scrub-area',
                 label: 'Scrub handle',
                 measure: slot('control-field-scrub-area'),
@@ -327,7 +323,7 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
               {
                 component: 'Input',
                 detail:
-                  'Locale-aware numeric entry and expression draft surface.',
+                  'Locale-aware number entry that also accepts expressions.',
                 id: 'control-field-input',
                 label: 'Input',
                 measure: slot('control-field-input'),
@@ -336,8 +332,7 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
               },
               {
                 component: 'Affix',
-                detail:
-                  'Optional prefix/suffix unit rendered inside the group.',
+                detail: 'Optional unit or status text inside the group.',
                 id: 'control-field-affix',
                 label: 'Affix',
                 measure: { all: true, selector: slot('control-field-affix') },
@@ -369,7 +364,7 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
           },
         ],
         component: 'ControlField',
-        detail: 'Value, formatting, validation, and Control Kit behavior.',
+        detail: 'Owns the value, formatting, validation, and stepping.',
         id: 'control-field-root',
         label: 'Root',
         measure: slot('control-field'),
@@ -380,15 +375,15 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
   inputMulti: {
     label: 'Input Multi',
     primitiveStructure: structure(
-      'MultiInputControl',
-      'A segmented value editor made from repeated primitive inputs inside a shared channel group.',
+      'MultiInputControl structure',
+      'Several ControlInput segments in one shared group.',
       {
         children: [
           {
             children: [
               {
                 component: 'ScrubArea',
-                detail: 'Per-channel drag handle (letter or unit affix).',
+                detail: 'Per-segment scrub handle: a letter or the unit.',
                 id: 'channel-scrub',
                 label: 'Scrub handles',
                 measure: {
@@ -400,7 +395,7 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
               },
             ],
             component: 'ControlInput',
-            detail: 'Repeated primitive input segment, one per channel.',
+            detail: 'One ControlInput segment per field.',
             id: 'channel-fields',
             label: 'Channel fields',
             measure: {
@@ -412,7 +407,7 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
           },
         ],
         component: 'MultiInput',
-        detail: 'Shared rounded container for channel fields.',
+        detail: 'Shared rounded container for the segments.',
         id: 'group-shell',
         label: 'Group shell',
         measure: ':scope > div > div',
@@ -423,15 +418,15 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
   checkbox: {
     label: 'Checkbox',
     primitiveStructure: structure(
-      'Checkbox primitive',
-      'A row target with an independent indicator box, check glyph layer, and label surface.',
+      'Checkbox structure',
+      'A row target with an indicator box, a check mark, and a label.',
       {
         children: [
           {
             children: [
               {
                 component: 'CheckIcon',
-                detail: 'Pressed/checked mark drawn above the indicator.',
+                detail: 'Check mark drawn above the indicator when checked.',
                 id: 'check-mark',
                 label: 'State glyph',
                 measure: `${slot('checkbox-indicator')} svg`,
@@ -440,7 +435,7 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
               },
             ],
             component: 'Indicator',
-            detail: 'Visual checkbox box and state surface.',
+            detail: 'The visible box that reflects the checked state.',
             id: 'indicator-box',
             label: 'Indicator',
             measure: slot('checkbox-indicator'),
@@ -449,7 +444,7 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
           },
           {
             component: 'Label',
-            detail: 'Text alignment layer beside the indicator.',
+            detail: 'Label text beside the indicator.',
             id: 'label-copy',
             label: 'Label',
             measure: slot('checkbox-label'),
@@ -469,8 +464,8 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
   slider: {
     label: 'Slider',
     primitiveStructure: structure(
-      'ColorSlider primitive',
-      'A rail-driven value control with gradient track, active range, markers, and a draggable thumb on top.',
+      'ColorSlider structure',
+      'A rail with a gradient track, an active range, markers, and a draggable thumb.',
       {
         children: [
           {
@@ -496,7 +491,7 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
           },
           {
             component: 'Thumb',
-            detail: 'Draggable value handle over the rail.',
+            detail: 'Draggable thumb over the rail.',
             id: 'slider-thumb',
             label: 'Thumb',
             measure: slot('slider-thumb'),
@@ -516,8 +511,8 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
   tooltip: {
     label: 'Tooltip',
     primitiveStructure: structure(
-      'Tooltip primitive',
-      'A trigger element paired with a floating content layer that portals above it when open.',
+      'Tooltip structure',
+      'A trigger and a floating content layer, portaled while open.',
       {
         children: [
           {
@@ -536,7 +531,7 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
           },
         ],
         component: 'TooltipTrigger',
-        detail: 'Focusable control that owns tooltip intent.',
+        detail: 'Focusable element that opens the tooltip on hover or focus.',
         id: 'trigger',
         label: 'Trigger',
         measure: slot('tooltip-trigger'),
@@ -548,15 +543,15 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
   menu: {
     label: 'Menu',
     primitiveStructure: structure(
-      'Menu primitive',
-      'A trigger connected to a floating menu surface with grouped item rows and optional nested submenu layers.',
+      'Menu structure',
+      'A trigger and a floating menu of grouped items, with an optional submenu.',
       {
         children: [
           {
             children: [
               {
                 component: 'MenuItem',
-                detail: 'Repeated command rows inside the content surface.',
+                detail: 'Command rows inside the menu.',
                 id: 'menu-items',
                 label: 'Item rows',
                 measure: {
@@ -588,7 +583,7 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
               },
             ],
             component: 'MenuPopup',
-            detail: 'Portal-mounted menu surface; measured while open.',
+            detail: 'Portaled menu popup; measured while open.',
             id: 'menu-content',
             label: 'Menu content',
             measure: {
@@ -602,7 +597,7 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
           },
         ],
         component: 'MenuTrigger',
-        detail: 'Button that opens the floating menu layer.',
+        detail: 'Button that opens the menu.',
         id: 'menu-trigger',
         label: 'Trigger',
         measure: MENU_TRIGGER,
@@ -614,8 +609,8 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
   select: {
     label: 'Select',
     primitiveStructure: structure(
-      'Select primitive',
-      'A closed trigger surface and floating option list with active item, icon, and value text layers.',
+      'Select structure',
+      'A trigger that shows the selected value, and a floating option list.',
       {
         children: [
           {
@@ -633,7 +628,7 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
               },
             ],
             component: 'SelectPopup',
-            detail: 'Floating listbox surface; measured while open.',
+            detail: 'Floating menu of options; measured while open.',
             id: 'select-content',
             label: 'Option list',
             measure: {
@@ -659,16 +654,15 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
   tabs: {
     label: 'Tabs',
     primitiveStructure: structure(
-      'Tabs primitive',
-      'A tablist shell containing repeated tab triggers, active-state feedback, optional icon/label content, and a roving selection model.',
+      'Tabs structure',
+      'A tab list of triggers with roving focus, and one panel per value.',
       {
         children: [
           {
             children: [
               {
                 component: 'TabsTrigger',
-                detail:
-                  'Peer trigger surface that participates in roving focus.',
+                detail: 'Inactive trigger in the roving focus order.',
                 id: 'inactive-tabs',
                 label: 'TabsTrigger',
                 measure: {
@@ -680,7 +674,7 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
               },
               {
                 component: 'TabsTrigger',
-                detail: 'Selected trigger surface with active-state styling.',
+                detail: 'Active trigger.',
                 id: 'active-tab',
                 label: 'TabsTrigger',
                 measure: `${slot('tabs-trigger')}[data-active]`,
@@ -689,7 +683,7 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
               },
             ],
             component: 'TabsList',
-            detail: 'Shared segmented shell that groups the tab triggers.',
+            detail: 'Container that groups the triggers.',
             id: 'tabs-list',
             label: 'TabsList',
             measure: slot('tabs-list'),
@@ -698,8 +692,7 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
           },
           {
             component: 'TabsContent',
-            detail:
-              'Selected panel content associated with the active tab value.',
+            detail: 'Panel for the active tab.',
             id: 'tab-content',
             label: 'TabsContent',
             measure: `${slot('tabs-content')}:not([hidden])`,
@@ -708,8 +701,7 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
           },
           {
             component: 'TabsContent',
-            detail:
-              'Inactive panel content kept as a sibling in the Tabs composition.',
+            detail: 'Panel for an inactive tab, a sibling of the active panel.',
             id: 'inactive-tab-content',
             label: 'TabsContent',
             relation: 'sibling',
@@ -717,7 +709,7 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
           },
         ],
         component: 'Tabs',
-        detail: 'State owner for the active tab value.',
+        detail: 'Owns the active tab value.',
         id: 'tabs-root',
         label: 'Tabs',
         measure: slot('tabs'),
@@ -728,8 +720,8 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
   toggleButton: {
     label: 'Toggle Button',
     primitiveStructure: structure(
-      'ToggleButton primitive',
-      'A single pressable state container with icon/text content and layered selection feedback.',
+      'ToggleButton structure',
+      'A two-state button with icon and label content and an on/off fill.',
       {
         children: [
           {
@@ -743,7 +735,7 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
           },
         ],
         component: 'ToggleButton',
-        detail: 'Button target, focus boundary and on/off fill.',
+        detail: 'Button target, focus ring, and on/off fill.',
         id: 'toggle-hit-area',
         label: 'Hit area',
         measure: 'button',
@@ -754,13 +746,13 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
   toggle: {
     label: 'Toggle Group',
     primitiveStructure: structure(
-      'ToggleGroup primitive',
-      'A roving group surface containing repeated toggle buttons and one shared selection model.',
+      'ToggleGroup structure',
+      'A group of toggle buttons with roving focus and shared selection.',
       {
         children: [
           {
             component: 'ToggleGroupItem',
-            detail: 'Repeated button primitives.',
+            detail: 'The toggle buttons.',
             id: 'toggle-items',
             label: 'Toggle items',
             measure: {
@@ -772,7 +764,7 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
           },
           {
             component: 'ToggleGroupItem',
-            detail: 'Pressed item layer and active state.',
+            detail: 'The pressed item.',
             id: 'toggle-item-selected',
             label: 'Selected item',
             measure: {
@@ -784,7 +776,7 @@ export const LAB_PERFORMANCE_ANALYSIS: Record<
           },
         ],
         component: 'ToggleGroup',
-        detail: 'Shared segmented-control container.',
+        detail: 'Container that groups the items.',
         id: 'toggle-group-shell',
         label: 'Group shell',
         measure: slot('toggle-group'),

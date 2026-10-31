@@ -45,7 +45,7 @@ export function TrackingLineHeightExample() {
 
   return (
     <PlaneExampleFrame
-      readout={`tracking ${typography.tracking.toFixed(2)}em · leading ${typography.lineHeight.toFixed(2)}`}
+      readout={`Tracking ${typography.tracking.toFixed(2)}em · Line height ${typography.lineHeight.toFixed(2)}`}
     >
       <Plane
         aria-label="Tracking and line height"
@@ -64,11 +64,11 @@ export function TrackingLineHeightExample() {
               lineHeight: typography.lineHeight,
             }}
           >
-            Space shapes the voice.
+            Tracking sets the space between letters.
             <br />
-            Rhythm guides the eye.
+            Line height sets the space between lines.
             <br />
-            Type becomes texture.
+            Together they set how dense a paragraph reads.
           </p>
         </div>
         <PlaneThumb

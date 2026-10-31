@@ -56,7 +56,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@pbroom/control-kit';
 
 ### Manual activation
 
-Set `activateOnFocus={false}` on `TabsList` when moving focus should not switch potentially expensive content. Arrow keys move focus; Space or Enter activates the focused tab.
+Set `activateOnFocus={false}` on `TabsList` when moving focus should not switch expensive content. Arrow keys move focus; Space or Enter activates the focused tab.
 
 <!-- demo:manual -->
 
@@ -102,7 +102,7 @@ Renders the panel associated with a trigger value. Renders a `div` with `data-sl
 
 ## Accessibility
 
-The list, triggers, and panels use the tabs pattern and maintain the required relationships automatically. Horizontal lists use Left and Right Arrow; vertical lists use Up and Down Arrow. Home and End move to the first and last enabled tabs.
+The list, triggers, and panels follow the ARIA tabs pattern and wire up their `aria-controls` and `aria-labelledby` relationships. Horizontal lists use Left and Right Arrow; vertical lists use Up and Down Arrow. Home and End move to the first and last enabled tabs.
 
 ## Source
 

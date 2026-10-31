@@ -55,7 +55,7 @@ export function ContainerAnchorExample() {
 
   return (
     <PlaneExampleFrame
-      readout={`anchor ${formatPercent(value.x)} · ${formatPercent(value.y)}`}
+      readout={`Anchor ${formatPercent(value.x)} · ${formatPercent(value.y)}`}
     >
       <Plane
         aria-label="Container anchor point"

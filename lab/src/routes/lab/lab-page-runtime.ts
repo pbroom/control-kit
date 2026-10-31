@@ -36,7 +36,7 @@ type PageRouteMetadata = {
 export const PAGE_ROUTE_REGISTRY = {
   planeExamples: {
     slug: 'plane-examples',
-    label: 'Plane Examples',
+    label: 'Plane examples',
     section: 'Examples',
   },
   plane: { slug: 'plane', label: 'Plane', section: 'Primitives' },

@@ -55,7 +55,7 @@ Control Kit exports Checkbox as one assembled component rather than exposing Bas
 - A mounted indicator renders the check icon and exposes checked, unchecked, and disabled states.
 - Children render as the checkbox label inside the same interactive root.
 
-Use `className`, `indicatorClassName`, and `labelClassName` as attachment points when a composition needs layout adjustments. The default visual treatment works without additional classes.
+Use `className`, `indicatorClassName`, and `labelClassName` when a composition needs layout adjustments. The default styling needs no extra classes.
 
 ## Examples
 
@@ -67,7 +67,7 @@ Use `className`, `indicatorClassName`, and `labelClassName` to adapt the assembl
 
 ### States
 
-The same component covers checked, unchecked, and disabled states. A disabled checkbox ignores interaction and receives the corresponding Base UI data attribute.
+A disabled checkbox ignores interaction and gets Base UI's `data-disabled` attribute.
 
 <!-- demo:states -->
 
@@ -89,7 +89,7 @@ The wrapper forwards the corresponding Base UI Root props unless Control Kit doc
 
 ## Accessibility
 
-The root exposes checkbox semantics and derives its accessible name from its children. Space toggles the value while the checkbox has keyboard focus. Disabled and readonly state pass through to Base UI, and the hidden input preserves native form behavior.
+The root exposes checkbox semantics and derives its accessible name from its children. Space toggles the value while the checkbox has keyboard focus. Disabled and read-only state pass through to Base UI, and the hidden input preserves native form behavior.
 
 For a related set of checkboxes, group them with a `fieldset` and `legend`.
 

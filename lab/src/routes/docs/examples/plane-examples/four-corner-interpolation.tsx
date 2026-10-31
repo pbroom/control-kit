@@ -62,10 +62,10 @@ function formatBlend(value: PlaneValue) {
 export function FourCornerInterpolationExample() {
   const [value, setValue] = useState(initialValue);
   const weights = {
-    calm: (1 - value.x) * value.y,
-    bold: value.x * value.y,
-    precise: (1 - value.x) * (1 - value.y),
-    playful: value.x * (1 - value.y),
+    Calm: (1 - value.x) * value.y,
+    Bold: value.x * value.y,
+    Precise: (1 - value.x) * (1 - value.y),
+    Playful: value.x * (1 - value.y),
   };
   const strongest = Object.entries(weights).sort((a, b) => b[1] - a[1])[0];
 

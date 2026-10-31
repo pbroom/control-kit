@@ -72,7 +72,7 @@ const PLANE_PROPS = [
     type: 'PlaneMotion | undefined',
     defaultValue: 'instant',
     description:
-      'Presentation-only motion for snap transitions, keyboard, and programmatic changes; free drags follow the pointer. Hoist or memoize springMotion(). Callbacks never lag.',
+      'Presentation-only motion for snap transitions, keyboard, and programmatic changes; free drags follow the pointer. Callbacks still receive the target value immediately. Hoist or memoize springMotion().',
   },
   {
     name: 'onSnapChange',
@@ -204,14 +204,16 @@ const PLANE_THUMB_PROPS = [
     type: 'string | undefined',
     shortType: 'string',
     defaultValue: "'Horizontal position'",
-    description: 'Overrides the corresponding aria-label axis name.',
+    description:
+      'Replaces the derived horizontal axis name. The aria-label prefix is not added.',
   },
   {
     name: 'yAriaLabel',
     type: 'string | undefined',
     shortType: 'string',
     defaultValue: "'Vertical position'",
-    description: 'Overrides the corresponding aria-label axis name.',
+    description:
+      'Replaces the derived vertical axis name. The aria-label prefix is not added.',
   },
   {
     name: 'getAriaValueText',
@@ -239,7 +241,7 @@ const PLANE_THUMB_PROPS = [
     type: 'number | undefined',
     shortType: 'number',
     defaultValue: '0.1',
-    description: 'The Shift+Arrow and Page Up or Page Down increment.',
+    description: 'The Shift + Arrow and Page Up/Page Down increment.',
   },
   {
     name: 'xName',
@@ -295,7 +297,7 @@ const PLANE_THUMB_PROPS = [
     type: 'PlaneMotion | undefined',
     defaultValue: 'instant',
     description:
-      'Presentation-only motion for snap transitions, keyboard, and programmatic changes; free drags follow the pointer. Hoist or memoize springMotion(). Callbacks never lag.',
+      'Presentation-only motion for snap transitions, keyboard, and programmatic changes; free drags follow the pointer. Callbacks still receive the target value immediately. Hoist or memoize springMotion().',
   },
   {
     name: 'onSnapChange',
@@ -385,7 +387,7 @@ const PLANE_ATTACHMENT_PROPS = [
     type: "'always' | 'hover' | 'focus-within' | undefined",
     defaultValue: "'always'",
     description:
-      'Shows continuously, while hovered or focused within, or only while focused within. Includes the attachment content.',
+      "'always' stays visible. 'hover' shows while the thumb or attachment is hovered or contains focus. 'focus-within' shows only while either contains focus.",
   },
 ] satisfies readonly PropReference[];
 

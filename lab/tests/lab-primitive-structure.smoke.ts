@@ -322,7 +322,7 @@ test('renders the primitive structure tab as a measured isometric figure', async
     colorPlanePanel.getByRole('tabpanel', { name: 'Structure', exact: true }),
   ).toHaveAttribute('tabindex', '0');
   await expect(
-    colorPlanePanel.getByText('ColorPlane primitive', { exact: true }),
+    colorPlanePanel.getByText('ColorPlane structure', { exact: true }),
   ).toBeVisible();
 
   const structureShell = colorPlanePanel.getByTestId(
@@ -754,7 +754,7 @@ test('renders the primitive structure tab as a measured isometric figure', async
   await expect(page).toHaveURL(/\/lab\/checkbox$/);
   const checkboxPanel = performancePanelFor(page, 'Checkbox');
   await expect(
-    checkboxPanel.getByText('Checkbox primitive', { exact: true }),
+    checkboxPanel.getByText('Checkbox structure', { exact: true }),
   ).toBeVisible();
   await expectFigureDrawn(checkboxPanel, 4);
   await expectCalloutCount(checkboxPanel, 4);
@@ -765,7 +765,7 @@ test('renders the primitive structure tab as a measured isometric figure', async
   await expect(page).toHaveURL(/\/lab\/menu$/);
   const menuPanel = performancePanelFor(page, 'Menu');
   await expect(
-    menuPanel.getByText('Menu primitive', { exact: true }),
+    menuPanel.getByText('Menu structure', { exact: true }),
   ).toBeVisible();
   await expectFigureDrawn(menuPanel, 1);
   // Closed popups are drawn as ghosts at their expected place, so the frame
@@ -820,7 +820,7 @@ test('renders the primitive structure tab as a measured isometric figure', async
   await expect(page).toHaveURL(/\/lab\/tabs$/);
   const tabsPanel = performancePanelFor(page, 'Tabs');
   await expect(
-    tabsPanel.getByText('A tablist shell containing repeated tab triggers', {
+    tabsPanel.getByText('A tab list of triggers with roving focus', {
       exact: false,
     }),
   ).toBeVisible();
@@ -895,7 +895,7 @@ test('renders the primitive structure tab as a measured isometric figure', async
   await expect(page).toHaveURL(/\/lab\/select$/);
   const selectPanel = performancePanelFor(page, 'Select');
   await expect(
-    selectPanel.getByText('Select primitive', { exact: true }),
+    selectPanel.getByText('Select structure', { exact: true }),
   ).toBeVisible();
   await expect(
     selectPanel.locator('[data-primitive-layer="select-content"]'),

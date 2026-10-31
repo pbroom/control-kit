@@ -111,7 +111,7 @@ const TABS_CONTENT_PROPS = [
     shortType: 'boolean',
     defaultValue: 'false',
     description:
-      'Keeps the panel mounted when inactive for animation or state-preservation needs.',
+      'Keeps the panel mounted while inactive, preserving its DOM state and allowing exit animations.',
   },
   {
     name: 'render',

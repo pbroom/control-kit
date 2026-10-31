@@ -26,21 +26,20 @@ export const LAB_COLLAPSED_PANEL_HANDLE_HEIGHT = 32;
 
 const LAB_PAGE_PANEL_TEXT = {
   plane: 'Move a normalized 2D position with pointer or keyboard input.',
-  colorPlane: 'Drive the current sample color.',
+  colorPlane: 'Set the color the plane displays.',
   input: 'Choose what appears inside the scrub handle.',
   controlField:
     'Compose Base UI number behavior with expression editing and cyclic bounds.',
-  inputMulti: 'Configure the selected color channel input.',
+  inputMulti: 'Configure the selected segment.',
   checkbox:
     'Preview the compact checkbox row used throughout the properties panel.',
-  slider:
-    'Preview one ColorSlider instance and tune its slider-specific props.',
-  tooltip: 'Tune the Base UI initial hover delay',
+  slider: 'Tune the props of one ColorSlider.',
+  tooltip: 'Set the initial hover delay',
   menu: 'Configure the command menu trigger, content, and interaction.',
   select: 'Choose one value from a long, scrollable list.',
   tabs: 'Preview the UI3 tab group and selected tab content.',
   toggleButton: 'Preview selection separately from interaction feedback.',
-  toggle: 'Preview the toggle group icon layout.',
+  toggle: 'Choose where the items show their icons.',
 } satisfies Record<(typeof LAB_PAGE_NAVIGATION)[number]['value'], string>;
 
 export const LAB_PAGES = LAB_PAGE_NAVIGATION.map((labPage) => ({

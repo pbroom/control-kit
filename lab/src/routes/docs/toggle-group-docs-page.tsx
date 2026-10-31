@@ -52,7 +52,7 @@ const TOGGLE_GROUP_PROPS = [
     shortType: 'boolean',
     defaultValue: 'false',
     description:
-      'Single mode only. When true, clicking or keyboard-toggling the pressed item does not deselect it — the group always keeps a selection.',
+      'Single mode only. When true, clicking or keyboard-toggling the pressed item does not deselect it. Once an item is pressed, one stays pressed.',
   },
   {
     name: 'variant',

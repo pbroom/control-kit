@@ -195,7 +195,7 @@ export function StructurePropertiesSection({ pageKey }: { pageKey: string }) {
             ? 'Saved'
             : dirty
               ? 'Uncommitted changes'
-              : 'No unsaved changes'));
+              : 'No uncommitted changes'));
   const sectionRef = useRef<HTMLElement | null>(null);
   const demo = overrides.demos[pageKey];
   const liveExplode = liveExplodeByPage[pageKey];

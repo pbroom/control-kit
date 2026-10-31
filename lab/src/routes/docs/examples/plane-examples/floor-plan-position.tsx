@@ -4,7 +4,7 @@ import { Plane, PlaneThumb, type PlaneValue } from '@pbroom/control-kit';
 const initialValue: PlaneValue = { x: 0.72, y: 0.34 };
 
 function describeLocation(value: PlaneValue) {
-  return `Floor-plan position ${Math.round(value.x * 100)}% · ${Math.round(value.y * 100)}%`;
+  return `Floor plan position ${Math.round(value.x * 100)}% · ${Math.round(value.y * 100)}%`;
 }
 
 export function FloorPlanPositionExample() {

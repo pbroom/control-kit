@@ -97,7 +97,7 @@ The previous prop names are not compatibility aliases.
 
 - `TooltipProvider` coordinates delay and pointer handoff across a group.
 - `Tooltip` owns controlled or uncontrolled open state.
-- `TooltipTrigger` composes intent and accessible description onto the trigger.
+- `TooltipTrigger` adds hover and focus handling to the trigger element.
 - `TooltipContent` portals the positioned surface and its optional pointer.
 
 ## Examples
@@ -110,7 +110,7 @@ Content uses the solid inverse treatment by default. Use the surfaced treatment 
 
 ### Pointer
 
-The decorative pointer is included by default and can be removed without changing positioning or accessible behavior.
+The decorative pointer is shown by default. Removing it does not change positioning or accessibility.
 
 <!-- demo:pointer -->
 
@@ -158,7 +158,7 @@ Composes Base UI's portal, positioner, popup, and optional arrow into one styled
 
 ## Accessibility
 
-Base UI tooltips are visual labels rather than accessible descriptions. Give the trigger an accessible name that closely matches the tooltip text; do not use a tooltip as the only label or source of important information. Tooltips open from pointer hover or keyboard focus and close when the trigger activates or Escape is pressed. Keep content short and noninteractive; use visible text or a popover when the content must be available to touch or assistive technology users.
+Base UI tooltips are visual labels, not accessible descriptions. Give the trigger an accessible name that closely matches the tooltip text; do not use a tooltip as the only label or source of important information. Tooltips open from pointer hover or keyboard focus and close when the trigger activates or Escape is pressed. Keep content short and noninteractive; use visible text or a popover when the content must be available to touch or assistive technology users.
 
 ## Source
 

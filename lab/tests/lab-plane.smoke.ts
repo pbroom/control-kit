@@ -182,7 +182,7 @@ test('drives the composed Plane with pointer, keyboard, and properties', async (
   const performancePanel = performancePanelFor(page, 'Plane');
   await expect(performancePanel).toBeVisible();
   await expect(
-    performancePanel.getByText('Plane primitive', { exact: true }),
+    performancePanel.getByText('Plane structure', { exact: true }),
   ).toBeVisible();
   await expect(
     performancePanel.locator('[data-primitive-layer="plane-thumb"]'),

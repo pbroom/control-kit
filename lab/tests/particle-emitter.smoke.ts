@@ -4,7 +4,7 @@ import { collectBrowserErrors, planeInputBounds } from './lab-smoke-utils.js';
 async function openEmitterExample(page: Page) {
   await page.goto('/docs/plane-examples#particle-emitter-direction-spread');
   const example = page.getByRole('figure', {
-    name: 'Particle emitter direction/spread demo',
+    name: 'Particle emitter direction × spread demo',
     exact: true,
   });
   await example.scrollIntoViewIfNeeded();

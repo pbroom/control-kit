@@ -37,8 +37,8 @@ function renderToggleGroupPreview(controller: ToggleGroupLabPageController) {
 function renderToggleGroupProperties(controller: ToggleGroupLabPageController) {
   return (
     <PanelSection
-      title="Icon"
-      description="Preview the toggle group icon layout."
+      title="Toggle Group"
+      description="Choose where the items show their icons."
     >
       <div className="space-y-3">
         <SegmentedField

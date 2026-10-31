@@ -327,7 +327,7 @@ function renderInputProperties(controller: InputLabPageController) {
       </PanelSection>
 
       <PanelSection
-        title="Drag Handle"
+        title="Scrub handle"
         description="Choose what appears inside the scrub handle."
       >
         <div className="space-y-3">
@@ -425,7 +425,7 @@ function renderInputProperties(controller: InputLabPageController) {
 
       <PanelSection
         title="Behavior"
-        description="Toggle text-entry affordances for the focused input."
+        description="Text-entry options for the focused input."
       >
         <div className="space-y-3">
           <ToggleField
@@ -460,7 +460,7 @@ function renderInputProperties(controller: InputLabPageController) {
 
       <PanelSection
         title="Scrub"
-        description="Adjust how far the pointer moves per channel step."
+        description="Turn scrubbing on or off and set how far the pointer moves before a scrub starts."
       >
         <div className="space-y-3">
           <ToggleField
@@ -483,8 +483,8 @@ function renderInputProperties(controller: InputLabPageController) {
       <Separator className="bg-white/8" />
 
       <PanelSection
-        title="Visual State"
-        description="Preview input sizing and state variants."
+        title="Appearance and state"
+        description="Preview density, validity, and disabled or read-only states."
       >
         <div className="space-y-3">
           <SegmentedField
