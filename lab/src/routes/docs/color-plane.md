@@ -54,7 +54,7 @@ The default axes are lightness on X and chroma on Y. Pass `axes` to choose anoth
 
 ### Rendering
 
-`renderer="auto"` selects a supported backend. Edge behavior and resolution can be adjusted independently.
+`renderer="auto"` selects a supported backend. Edge behavior and resolution are set separately.
 
 <!-- demo:rendering -->
 
@@ -62,7 +62,7 @@ The default axes are lightness on X and chroma on Y. Pass `axes` to choose anoth
 
 ### Interaction tuning
 
-Use the explicit `thumb` slot when the marker is wrapped or supplied across a module boundary. Performance and pointer-update props can be tuned together for a particular surface.
+Use the explicit `thumb` prop when the thumb is wrapped or comes from another module. The performance and pointer-update props tune how often the area responds to pointer movement.
 
 <!-- demo:interaction -->
 

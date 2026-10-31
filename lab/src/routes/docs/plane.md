@@ -6,7 +6,7 @@ A composable two-dimensional input for selecting normalized X and Y values. `Pla
 
 ## Anatomy
 
-Import the parts and compose them together:
+Import the parts and compose them:
 
 ```tsx
 import { Plane, PlaneThumb, PlaneAttachment } from '@pbroom/control-kit';
@@ -26,7 +26,7 @@ Top-level thumb coordinates are clamped from `0` to `1`. X increases from left t
 - In controlled mode, update the thumb's `value` from `onValueChange`. The rendered thumb only moves when the controlled value changes.
 - Use `getAriaValueText` to express domain values instead of normalized percentages—for example, “50% saturation, 75% lightness” for a color plane.
 - Hide decorative guides, canvas layers, and SVG content from assistive technology when they do not add information beyond the two axis controls.
-- Don't clip the Plane root: a thumb is centred on its value, so at an edge or corner half of it sits outside the plane. Keep the root `overflow: visible` (the default) and put clipped surface content in an inner layer, so thumbs at the edges stay whole. The root's own background, border and radius need no clipping.
+- Don't clip the `Plane` root: a thumb is centered on its value, so at an edge or corner half of it sits outside the plane. Keep the root `overflow: visible` (the default) and put clipped surface content in an inner layer, so thumbs at the edges stay whole. The root's own background, border and radius need no clipping.
 
 ```tsx
 <Plane
@@ -97,9 +97,9 @@ const [radius, setRadius] = React.useState({ x: 0.3, y: 0 });
 </Plane>;
 ```
 
-Moving a parent carries its descendants without changing their offsets or firing their value callbacks. Moving a child changes only that child's offset. Each child retains its own keyboard axes, controlled state, and form fields. Descendants can extend beyond the plane when their parent moves; their offsets are not shortened to keep the group inside the plane. Keep overflowing thumbs visible by clipping decorative content separately from the handles. Nested thumbs render into the plane root so their positioning is independent of their parent marker’s size; style each thumb directly rather than relying on DOM descendant selectors.
+Moving a parent carries its descendants without changing their offsets or firing their value callbacks. Moving a child changes only that child's offset. Each child retains its own keyboard axes, controlled state, and form fields. Descendants can extend beyond the plane when their parent moves; their offsets are not shortened to keep the group inside the plane. Keep overflowing thumbs visible by clipping decorative content separately from the thumbs. Nested thumbs render into the plane root so their positioning is independent of their parent marker’s size; style each thumb directly rather than relying on DOM descendant selectors.
 
-[Try gradient origin and radius](/docs/plane-examples#plane-examples-position-and-alignment).
+[Try gradient origin and radius](/docs/plane-examples#gradient-origin-and-radius).
 
 ## Controls inside a thumb
 
@@ -188,13 +188,13 @@ Drag near the guide lines and points, change the grid, lock an axis, or pick a s
 
 Use `axisLock="x"` or `axisLock="y"` to restrict pointer movement to one axis; the other stays at its value from the start of the drag. With `axisLock="dominant-with-shift"`, holding Shift during a drag locks to the axis with the greater pixel travel since the drag began. A locked axis is never snapped, and points do not engage while an axis is locked.
 
-`onValueChange` and `onValueCommitted` report the snap as `details.snap`: `{ target, index, axes, parts? }`. `target` and `index` (its position in the resolved `snap` array) name the highest-priority target applied, and `axes` lists every snapped axis. When more than one target applied, such as two perpendicular lines or a line plus a grid, `parts` lists each one with its own `axes`. `usePlaneThumbContext().snapped` exposes the same hit for descendants, and the thumb receives `data-snapped` and `data-snapped-axis`. Both keys are omitted entirely when nothing snapped, so a Plane without snapping reports exactly the same details as before.
+`onValueChange` and `onValueCommitted` report the snap as `details.snap`: `{ target, index, axes, parts? }`. `target` and `index` (its position in the resolved `snap` array) name the highest-priority target applied, and `axes` lists every snapped axis. When more than one target applied, such as two perpendicular lines or a line plus a grid, `parts` lists each one with its own `axes`. `usePlaneThumbContext().snapped` exposes the same hit for descendants, and the thumb receives `data-snapped` and `data-snapped-axis`. Both keys are omitted when nothing snapped, so a `Plane` without snapping reports no snap fields.
 
-Use `onSnapChange(hit, details)` to track snap changes. `details.snap` only arrives with value changes, but a snap can change without the value changing, for example when a point engages on a grid line the thumb already sits on. `onSnapChange` fires whenever the snap changes: entering, leaving, or switching targets, parts, or axes. It does not fire while the same snap holds, at mount, or when snapping is not configured. In an interaction it fires after `onValueChange`. `hit` is `undefined` when the snap ends. `details` carries the `interaction`, `reason`, `thumbId`, and `originalEvent` of the pointer or keyboard input. Snaps that end without input use `interaction: 'programmatic'` with reason `'external-value-change'` (a controlled update or form reset replaced the value) or `'snap-targets-change'` (the snapped targets were removed or replaced). Set it on `Plane` as a default for top-level thumbs.
+`details.snap` only arrives with value changes, but a snap can change without the value changing, for example when a point engages on a grid line the thumb already sits on. `onSnapChange(hit, details)` fires whenever the snap changes: entering, leaving, or switching targets, parts, or axes. It does not fire while the same snap holds, at mount, or when snapping is not configured. In an interaction it fires after `onValueChange`. `hit` is `undefined` when the snap ends. `details` carries the `interaction`, `reason`, `thumbId`, and `originalEvent` of the pointer or keyboard input. Snaps that end without input use `interaction: 'programmatic'` with reason `'external-value-change'` (a controlled update or form reset replaced the value) or `'snap-targets-change'` (the snapped targets were removed or replaced). Set it on `Plane` as a default for top-level thumbs.
 
 ### Keyboard
 
-With a grid on an axis, arrow keys move to the next grid line in that direction instead of adding `step`. Shift + Arrow and Page Up/Page Down move `largeStep`, rounded to the grid, but always at least one line. Past the last grid line in a direction, keys move to the bound, so a grid that does not divide the range (such as `0.3`) still reaches both ends. Home and End go to the outermost grid line when it lies beyond the value, and otherwise to the bound; they never move away from it. Only axes the grid actually moved are reported as snapped. Alt/Option + Arrow moves by `smallStep` and ignores the grid, matching the pointer bypass. Magnetic targets do not affect keyboard input.
+With a grid on an axis, arrow keys move to the next grid line in that direction instead of adding `step`. Shift + Arrow and Page Up/Page Down move `largeStep`, rounded to the grid, but always at least one line. Past the last grid line in a direction, keys move to the bound, so a grid that does not divide the range (such as `0.3`) still reaches both ends. Home and End go to the outermost grid line when it lies beyond the value, and otherwise to the bound; they never move away from it. Only axes the grid moved are reported as snapped. Alt/Option + Arrow moves by `smallStep` and ignores the grid, matching the pointer bypass. Magnetic targets do not affect keyboard input.
 
 Each axis input's native `step` is the grid size while its value sits on a grid line aligned with the input's minimum, and `"any"` otherwise, so the browser never rewrites an off-grid value. Native input changes are rounded to the grid. `aria-valuetext` always describes the snapped value.
 

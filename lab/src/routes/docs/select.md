@@ -2,15 +2,13 @@
 
 A menu-backed single-selection recipe used by the Control Kit Lab.
 
-> Lab prototype — Select is not currently exported from `@pbroom/control-kit`. It composes the Lab's Base UI Menu wrapper rather than Base UI Select.
+> Lab prototype: Select is not exported from `@pbroom/control-kit`. It composes the Lab's Base UI Menu wrapper, not Base UI Select.
 
 <!-- demo:basic -->
 
 ## Installation
 
 ### Manual
-
-Select is currently a Lab recipe rather than a package export.
 
 1. Install the implementation dependencies:
 
@@ -64,27 +62,27 @@ Positioning props pass through to the Lab's Base UI Menu wrapper.
 
 ### Selection behavior
 
-Keep the list open after selection with `closeOnSelect={false}`. Set `openAlignment="none"` to preserve normal anchored positioning instead of aligning the selected row to the trigger. Item density and typeahead labels remain independently configurable.
+Keep the list open after selection with `closeOnSelect={false}`. Set `openAlignment="none"` to keep normal anchored positioning instead of aligning the selected row with the trigger. Item density and typeahead labels are set per item.
 
 <!-- demo:behavior -->
 
 ## API reference
 
-The following tables describe the current Lab recipe, not a stable package API.
+These tables describe the current Lab recipe, not a stable package API.
 
-### SelectTrigger (current Lab contract)
+### SelectTrigger
 
 Renders the styled native button used by `DropdownMenuTrigger`.
 
 <!-- props:select-trigger -->
 
-### SelectList (current Lab contract)
+### SelectList
 
 Provides the selected value and selection behavior to its items.
 
 <!-- props:select-list -->
 
-### SelectListItem (current Lab contract)
+### SelectListItem
 
 Renders a selectable `menuitemradio` row in the surrounding menu.
 

@@ -2,15 +2,13 @@
 
 A two-state button that keeps selection separate from transient pointer and keyboard feedback.
 
-> Lab prototype — Toggle Button is not currently exported from `@pbroom/control-kit`. The current implementation is a styled native button used to evaluate Control Kit states and sizing.
+> Lab prototype: Toggle Button is not exported from `@pbroom/control-kit`. It is a styled native button used to evaluate Control Kit states and sizing.
 
 <!-- demo:basic -->
 
 ## Installation
 
 ### Manual
-
-Toggle Button is currently a Lab prototype rather than a package export.
 
 1. Copy the [focused native-button implementation and state styles](https://github.com/pbroom/control-kit/blob/main/lab/src/routes/docs/examples/toggle-button-basic-example.tsx) into your project.
 2. Install `lucide-react` if you use the example icons:
@@ -60,13 +58,13 @@ Selection and disabled state remain independent. Hover, focus, and active feedba
 
 ### Density
 
-Use compact sizing for dense toolbars and comfortable sizing when the control benefits from a larger target.
+Use compact sizing for dense toolbars and comfortable sizing where a larger target helps.
 
 <!-- demo:density -->
 
 ## API reference
 
-### ToggleButton (current Lab contract)
+### ToggleButton
 
 These inputs describe the current Lab preview and are not a stable package API.
 

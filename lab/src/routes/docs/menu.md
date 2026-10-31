@@ -2,15 +2,13 @@
 
 A composed command menu built on [Base UI Menu](https://base-ui.com/react/components/menu). The Control Kit Lab wrapper adds the UI3 visual treatment, keyboard typeahead, shortcuts, selection indicators, and submenu presentation.
 
-> Lab prototype — Menu is not currently exported from `@pbroom/control-kit`.
+> Lab prototype: Menu is not exported from `@pbroom/control-kit`.
 
 <!-- demo:basic -->
 
 ## Installation
 
 ### Manual
-
-Menu is currently a Lab prototype rather than a package export.
 
 1. Install the implementation dependencies:
 
@@ -54,7 +52,7 @@ Select remains a separate value-selection recipe. It persists a current value an
 
 ### Reduced presentation
 
-Hide optional icons, shortcuts, submenus, dividers, and trailing hints when the command set does not need them. This example uses the same interactive composition and styles as the Lab.
+Leave out icons, shortcuts, submenus, dividers, and trailing hints when the command set does not need them. This example uses the same composition and styles as the Lab.
 
 <!-- demo:minimal -->
 
@@ -66,69 +64,69 @@ Positioning props pass through to the Base UI positioner. This example opens abo
 
 ### Item density and typeahead
 
-Choose compact or comfortable item height independently of the menu surface. Supply `typeaheadLabel` when visible content is abbreviated or otherwise insufficient for keyboard matching.
+Choose compact or comfortable item height independently of the menu surface. Set `typeaheadLabel` when the visible text is abbreviated or otherwise a poor match for typeahead.
 
 <!-- demo:item-options -->
 
 ## API reference
 
-These tables describe the current Lab wrapper. Menu is not a stable Control Kit package API; unlisted props follow Base UI unless the wrapper changes them below.
+These tables describe the current Lab wrapper, not a stable package API. Unlisted props follow Base UI.
 
-### DropdownMenu (current Lab contract)
+### DropdownMenu
 
 Owns open state and coordinates the trigger with the popup.
 
 <!-- props:dropdown-menu -->
 
-### DropdownMenuTrigger (current Lab contract)
+### DropdownMenuTrigger
 
 Opens the menu and can compose its behavior onto a supplied button.
 
 <!-- props:dropdown-menu-trigger -->
 
-### DropdownMenuContent (current Lab contract)
+### DropdownMenuContent
 
 Portals and positions the command surface. `variant="ui3"` applies the Control Kit surface, spacing, and open animation.
 
 <!-- props:dropdown-menu-content -->
 
-### DropdownMenuItem (current Lab contract)
+### DropdownMenuItem
 
 Runs a command and closes the menu by default. The Lab additions provide item variants, density, and normalized typeahead labels.
 
 <!-- props:dropdown-menu-item -->
 
-### DropdownMenuCheckboxItem (current Lab contract)
+### DropdownMenuCheckboxItem
 
 Represents an on/off setting inside the command menu.
 
 <!-- props:dropdown-menu-checkbox-item -->
 
-### DropdownMenuRadioGroup (current Lab contract)
+### DropdownMenuRadioGroup
 
 Owns the selected value for a related set of radio items.
 
 <!-- props:dropdown-menu-radio-group -->
 
-### DropdownMenuRadioItem (current Lab contract)
+### DropdownMenuRadioItem
 
 Selects one value from its surrounding radio group.
 
 <!-- props:dropdown-menu-radio-item -->
 
-### DropdownMenuSub (current Lab contract)
+### DropdownMenuSub
 
 Owns the open state for a nested menu.
 
 <!-- props:dropdown-menu-sub -->
 
-### DropdownMenuSubTrigger (current Lab contract)
+### DropdownMenuSubTrigger
 
 Opens a nested menu and matches the selected item treatment.
 
 <!-- props:dropdown-menu-sub-trigger -->
 
-### DropdownMenuSubContent (current Lab contract)
+### DropdownMenuSubContent
 
 Positions the nested command surface and accepts the same visual and positioning inputs as `DropdownMenuContent`.
 

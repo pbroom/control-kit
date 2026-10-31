@@ -56,7 +56,7 @@ import { ControlField } from '@pbroom/control-kit';
 
 - `ControlField.Root` owns the numeric value, stepping, formatting, form value, and Control Kit additions.
 - `ControlField.Group` is the compact value surface.
-- `ControlField.ScrubArea` is the leading drag target. Replace `V` with a property marker or icon when useful.
+- `ControlField.ScrubArea` is the leading drag target. Replace `V` with a property marker or icon.
 - `ControlField.Input` keeps ordinary locale-aware number entry in Base UI and switches to an expression draft only when expression syntax is entered.
 - `ControlField.Affix` renders optional non-interactive unit or status content.
 - `ControlField.Increment`, `ControlField.Decrement`, `ControlField.Label`, and `ControlField.Description` are optional composition parts rather than default anatomy.
@@ -93,7 +93,7 @@ Use `precision` (with `trimTrailingZeros`) for fixed fraction digits, or Base UI
 
 ### Stepper buttons
 
-Add `ControlField.Decrement` and `ControlField.Increment` only where persistent step controls are useful. The default compact composition omits them.
+Add `ControlField.Decrement` and `ControlField.Increment` where visible step buttons help. The default compact composition omits them.
 
 <!-- demo:steppers -->
 

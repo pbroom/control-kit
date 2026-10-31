@@ -28,8 +28,8 @@ import { MultiInputControl } from '@pbroom/control-kit';
 
 - Keep the `fields`, `values`, and `config` records keyed by the same field-ID union.
 - Use `displayScale` when stored and displayed values use different units, such as storing opacity from `0` to `1` while displaying percent.
-- Use `unit` for a trailing scrub handle and `showLeadingLabels` when compact field labels are needed inside the group.
-- Prefer the `segments` form when data has already been normalized with `createMultiInputSegments`.
+- Use a field's `unit` for a trailing scrub handle, and `showLeadingLabels` to show compact field labels inside the group.
+- Pass `segments` instead when you have already joined the data with `createMultiInputSegments`.
 - `onFieldChange` fires for every change, including each parseable keystroke. Put expensive work in `onFieldCommit`, which fires once per finished edit.
 
 ## Configuration
@@ -73,9 +73,9 @@ The helper returns `MultiInputSegmentModel[]`. It throws when a field is missing
 
 ## Accessibility
 
-Each segment is a labelled Base UI number field text input. The field's `tooltip` supplies its accessible label and supplemental tooltip text. Keyboard stepping, draft editing, invalid state, and pointer scrubbing follow Control Field behavior.
+Each segment is a labeled Base UI number field text input. The field's `tooltip` supplies its accessible label and supplemental tooltip text. Keyboard stepping, draft editing, invalid state, and pointer scrubbing follow Control Field behavior.
 
-Focus can move between segments with Tab. Group hover, focus, and scrubbing affect only the shared visual border; they do not replace the semantics of the individual inputs.
+Tab moves focus between segments. Group hover, focus, and scrubbing affect only the shared visual border; they do not replace the semantics of the individual inputs.
 
 ## Types
 
@@ -89,7 +89,7 @@ Focus can move between segments with Tab. Group hover, focus, and scrubbing affe
 | `MultiInputSegmentModel`          | A field joined with its value and configuration.              |
 | `CreateMultiInputSegmentsOptions` | Fields, values, and configuration accepted by the helper.     |
 
-The root package does not currently export named prop types for `MultiInputControl` or `MultiInputSegment`. Use `React.ComponentProps<typeof MultiInputControl>` or `React.ComponentProps<typeof MultiInputSegment>` when a reusable prop type is needed.
+The root package does not export named prop types for `MultiInputControl` or `MultiInputSegment`. Use `React.ComponentProps<typeof MultiInputControl>` or `React.ComponentProps<typeof MultiInputSegment>` when a reusable prop type is needed.
 
 ## Source
 
