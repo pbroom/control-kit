@@ -1,8 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { planeInputBounds } from './lab-smoke-utils.js';
 
-const EXAMPLE_NAME =
-  'Color grading controls — Circular controls (3-way color adjuster) demo';
+const EXAMPLE_NAME = 'Three-way color adjuster demo';
 const TONE_LABELS = ['Highlights', 'Midtones', 'Shadows'] as const;
 
 function center(bounds: {

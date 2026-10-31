@@ -2,38 +2,38 @@ import { expect, test, type Page } from '@playwright/test';
 import { collectBrowserErrors } from './lab-smoke-utils.js';
 
 const FOCUSED_PLANE_EXAMPLE_TITLES = [
-  'Saturation × brightness/value',
-  'Color grading controls — Circular controls (3-way color adjuster)',
+  'Saturation × value',
+  'Three-way color adjuster',
   'Mesh gradient',
   'Image pan and focal point',
-  'Gradient origin + radius',
-  'Pattern/texture offset',
+  'Gradient origin and radius',
+  'Pattern offset',
   'Drop-shadow offset',
   'Image crop focal point',
   'Anchor point inside a container',
-  'Variable-font axis pairs, e.g. weight × width',
-  'Tracking × line-height',
+  'Variable font weight × width',
+  'Tracking × line height',
   'Bezier control-point editor',
   'Spring stiffness × damping',
-  'Motion direction/intensity',
+  'Motion direction × intensity',
   'Slingshot color picker',
   'Gravity vector',
-  'Joystick/game controls',
-  'Fluid-flow direction',
-  'Particle emitter direction/spread',
+  'Joystick',
+  'Fluid flow direction',
+  'Particle emitter direction × spread',
   'XY synth pads',
   'Filter cutoff × resonance',
-  'Timbre morphing between parameters',
-  'Spatial-audio source positioning',
-  'Color curves control',
-  'Choosing an interpolation point between four states',
+  'Timbre morphing',
+  'Spatial audio source position',
+  'Color curves',
+  'Four-corner interpolation',
   'Familiar ↔ novel × safe ↔ adventurous',
   'Border radius × border width',
   'Elevation × blur',
   'Noise scale × intensity',
   'Minimap viewport position',
   'Canvas pan',
-  'Relative position within a floor plan',
+  'Floor plan position',
   'Light direction',
   'Camera orbit: azimuth × elevation',
   'Pitch × yaw',
@@ -65,7 +65,7 @@ test('renders the focused Plane examples with executable source', async ({
   await page.goto('/lab/plane');
   await page
     .getByRole('navigation', { name: 'Lab pages' })
-    .getByRole('link', { name: 'Plane Examples', exact: true })
+    .getByRole('link', { name: 'Plane examples', exact: true })
     .click();
   await expect(page).toHaveURL(/\/docs\/plane-examples$/);
 
@@ -75,7 +75,7 @@ test('renders the focused Plane examples with executable source', async ({
   await expect(page).toHaveURL(/\/docs\/plane-examples$/);
   await expect(
     page.getByRole('heading', {
-      name: 'Plane Examples',
+      name: 'Plane examples',
       exact: true,
       level: 1,
     }),
@@ -83,7 +83,7 @@ test('renders the focused Plane examples with executable source', async ({
 
   const navigation = page.getByRole('navigation', { name: 'Lab pages' });
   await expect(
-    navigation.getByRole('link', { name: 'Plane Examples', exact: true }),
+    navigation.getByRole('link', { name: 'Plane examples', exact: true }),
   ).toHaveAttribute('aria-current', 'page');
   const navigationSections = await navigation.locator('h2').allTextContents();
   expect(navigationSections.indexOf('Examples')).toBeLessThan(
@@ -223,7 +223,7 @@ test('renders the focused Plane examples with executable source', async ({
   );
 
   const threeWayExample = gallery.getByRole('figure', {
-    name: 'Color grading controls — Circular controls (3-way color adjuster) demo',
+    name: 'Three-way color adjuster demo',
     exact: true,
   });
   const colorBalance = threeWayExample.getByRole('region', {
@@ -1501,7 +1501,7 @@ test('renders and exercises the documented primitive and component pages', async
 
   await page.goto('/docs/color-plane');
   const colorThumb = page
-    .getByLabel('Color plane demo', { exact: true })
+    .getByLabel('ColorPlane demo', { exact: true })
     .getByRole('slider', { name: 'Lightness and chroma', exact: true });
   const initialColorX = await colorThumb.getAttribute('data-x');
   await colorThumb.press('ArrowRight');

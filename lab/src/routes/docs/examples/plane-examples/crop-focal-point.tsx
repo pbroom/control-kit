@@ -55,7 +55,7 @@ export function CropFocalPointExample() {
 
   return (
     <PlaneExampleFrame
-      readout={`${formatPercent(value.x)} · ${formatPercent(value.y)}`}
+      readout={`Focal point ${formatPercent(value.x)} · ${formatPercent(value.y)}`}
     >
       <Plane
         aria-label="Image crop focal point"

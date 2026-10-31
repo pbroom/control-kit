@@ -44,7 +44,7 @@ const INPUT_PROPS = [
     name: 'placeholder',
     type: 'string | undefined',
     shortType: 'string',
-    description: 'Placeholder text shown when the value is empty.',
+    description: 'Text shown while the input is empty.',
   },
   {
     name: 'min',
@@ -219,7 +219,7 @@ export function InputDocsPage() {
     <MarkdownDocsPage
       slots={{
         'demo:basic': (
-          <DocsExample code={inputExampleCode} label="Control input">
+          <DocsExample code={inputExampleCode} label="Control Input">
             <ControlInputExample />
           </DocsExample>
         ),

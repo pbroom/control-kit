@@ -4,7 +4,7 @@ import { collectBrowserErrors, planeInputBounds } from './lab-smoke-utils.js';
 async function openMotionExample(page: Page) {
   await page.goto('/docs/plane-examples#motion-direction-intensity');
   const example = page.getByRole('figure', {
-    name: 'Motion direction/intensity demo',
+    name: 'Motion direction × intensity demo',
     exact: true,
   });
   await example.scrollIntoViewIfNeeded();

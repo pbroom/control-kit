@@ -66,7 +66,7 @@ const TOOLTIP_PROPS = [
     shortType: 'boolean',
     defaultValue: 'false',
     description:
-      'Controls whether the tooltip may remain open while its popup is hovered.',
+      'When true, the tooltip closes once the pointer leaves the trigger, even if it moves onto the popup.',
   },
   {
     name: 'trackCursorAxis',

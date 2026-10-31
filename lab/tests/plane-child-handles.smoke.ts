@@ -7,7 +7,7 @@ test('gradient origin carries its radius thumb; the radius changes independently
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/docs/plane-examples');
   const example = page.getByRole('figure', {
-    name: 'Gradient origin + radius demo',
+    name: 'Gradient origin and radius demo',
     exact: true,
   });
   await example.scrollIntoViewIfNeeded();

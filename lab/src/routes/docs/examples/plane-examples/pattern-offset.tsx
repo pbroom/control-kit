@@ -59,7 +59,7 @@ export function PatternOffsetExample() {
   const offset = toOffset(value);
 
   return (
-    <PlaneExampleFrame readout={`offset ${offset.x}px · ${offset.y}px`}>
+    <PlaneExampleFrame readout={`Offset ${offset.x}px · ${offset.y}px`}>
       <Plane
         aria-label="Pattern offset"
         className={EXAMPLE_PLANE_CLASS_NAME}

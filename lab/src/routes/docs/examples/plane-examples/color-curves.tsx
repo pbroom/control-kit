@@ -307,7 +307,7 @@ export function ColorCurvesExample() {
           </div>
           <Plane
             ref={planeRef}
-            aria-label="Color curves control"
+            aria-label="Color curves"
             pressBehavior="none"
             className="aspect-square w-full rounded-[3px] bg-[#303030] p-0 [background-origin:border-box]"
             onPointerDown={(event) => {

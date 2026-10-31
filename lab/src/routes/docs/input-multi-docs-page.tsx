@@ -144,7 +144,7 @@ export function InputMultiDocsPage() {
     <MarkdownDocsPage
       slots={{
         'demo:basic': (
-          <DocsExample code={inputMultiExampleCode} label="Multi input">
+          <DocsExample code={inputMultiExampleCode} label="Input Multi">
             <InputMultiExample />
           </DocsExample>
         ),

@@ -18,7 +18,7 @@ test('photo curves edit pixels and manage focused points in equal square frames'
   );
   await page.goto('/docs/plane-examples');
   const plane = page.getByRole('group', {
-    name: 'Color curves control',
+    name: 'Color curves',
     exact: true,
   });
   const frame = page.locator('figure').filter({ has: plane });
@@ -101,7 +101,7 @@ test('photo loading failure offers a working retry', async ({ page }) => {
   await page.route(PHOTO, (route) => route.abort());
   await page.goto('/docs/plane-examples');
   const plane = page.getByRole('group', {
-    name: 'Color curves control',
+    name: 'Color curves',
     exact: true,
   });
   const frame = page.locator('figure').filter({ has: plane });
@@ -129,7 +129,7 @@ test('bundled portrait remains editable when remote image hosts are unavailable'
   await page.route('https://images.unsplash.com/**', (route) => route.abort());
   await page.goto('/docs/plane-examples#color-curves');
   const plane = page.getByRole('group', {
-    name: 'Color curves control',
+    name: 'Color curves',
     exact: true,
   });
   const frame = page.locator('figure').filter({ has: plane });

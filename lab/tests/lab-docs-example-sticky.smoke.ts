@@ -28,7 +28,7 @@ test('keeps an expanded example footer scoped while its code scrolls', async ({
   });
   await expect(
     page.getByRole('heading', {
-      name: 'Plane Examples',
+      name: 'Plane examples',
       exact: true,
       level: 1,
     }),

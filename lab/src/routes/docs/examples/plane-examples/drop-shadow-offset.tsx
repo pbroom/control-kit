@@ -45,7 +45,7 @@ export function DropShadowOffsetExample() {
 
   return (
     <PlaneExampleFrame
-      readout={`light ${Math.round(value.x * 100)}% left · ${Math.round(value.y * 100)}% bottom → shadows ${offset.x}px ${offset.y}px · 4 / 10 / 22px blur`}
+      readout={`Light ${Math.round(value.x * 100)}% left · ${Math.round(value.y * 100)}% bottom → shadow ${offset.x}px ${offset.y}px · 4 / 10 / 22px blur`}
     >
       <Plane
         aria-label="Drop shadow offset"

@@ -5,7 +5,7 @@ test('curve keyboard movement reverses immediately at neighbor bounds', async ({
 }) => {
   await page.goto('/docs/plane-examples');
   const plane = page.getByRole('group', {
-    name: 'Color curves control',
+    name: 'Color curves',
     exact: true,
   });
   await plane.scrollIntoViewIfNeeded();

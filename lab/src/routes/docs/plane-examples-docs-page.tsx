@@ -34,15 +34,13 @@ const PLANE_EXAMPLE_GROUPS: readonly PlaneExampleGroup[] = [
       {
         file: 'saturation-value',
         exportName: 'SaturationValueExample',
-        outlineTitle: 'Saturation / value',
-        title: 'Saturation × brightness/value',
+        title: 'Saturation × value',
       },
       {
         file: 'three-way-color-adjuster',
         exportName: 'ThreeWayColorAdjusterExample',
-        outlineTitle: '3-way color grading',
-        title:
-          'Color grading controls — Circular controls (3-way color adjuster)',
+        outlineTitle: 'Three-way color',
+        title: 'Three-way color adjuster',
       },
       {
         file: 'mesh-gradient',
@@ -64,12 +62,12 @@ const PLANE_EXAMPLE_GROUPS: readonly PlaneExampleGroup[] = [
       {
         file: 'gradient-origin',
         exportName: 'GradientOriginExample',
-        title: 'Gradient origin + radius',
+        title: 'Gradient origin and radius',
       },
       {
         file: 'pattern-offset',
         exportName: 'PatternOffsetExample',
-        title: 'Pattern/texture offset',
+        title: 'Pattern offset',
       },
       {
         file: 'drop-shadow-offset',
@@ -96,12 +94,12 @@ const PLANE_EXAMPLE_GROUPS: readonly PlaneExampleGroup[] = [
         file: 'variable-font-axes',
         exportName: 'VariableFontAxesExample',
         outlineTitle: 'Variable font axes',
-        title: 'Variable-font axis pairs, e.g. weight × width',
+        title: 'Variable font weight × width',
       },
       {
         file: 'tracking-line-height',
         exportName: 'TrackingLineHeightExample',
-        title: 'Tracking × line-height',
+        title: 'Tracking × line height',
       },
     ],
   },
@@ -125,7 +123,7 @@ const PLANE_EXAMPLE_GROUPS: readonly PlaneExampleGroup[] = [
         file: 'motion-direction-intensity',
         exportName: 'MotionDirectionIntensityExample',
         outlineTitle: 'Direction / intensity',
-        title: 'Motion direction/intensity',
+        title: 'Motion direction × intensity',
       },
     ],
   },
@@ -147,18 +145,18 @@ const PLANE_EXAMPLE_GROUPS: readonly PlaneExampleGroup[] = [
       {
         file: 'joystick',
         exportName: 'JoystickExample',
-        title: 'Joystick/game controls',
+        title: 'Joystick',
       },
       {
         file: 'fluid-flow',
         exportName: 'FluidFlowExample',
-        title: 'Fluid-flow direction',
+        title: 'Fluid flow direction',
       },
       {
         file: 'particle-emitter',
         exportName: 'ParticleEmitterExample',
         outlineTitle: 'Particle direction',
-        title: 'Particle emitter direction/spread',
+        title: 'Particle emitter direction × spread',
       },
     ],
   },
@@ -180,13 +178,13 @@ const PLANE_EXAMPLE_GROUPS: readonly PlaneExampleGroup[] = [
         file: 'timbre-morph',
         exportName: 'TimbreMorphExample',
         outlineTitle: 'Timbre morph',
-        title: 'Timbre morphing between parameters',
+        title: 'Timbre morphing',
       },
       {
         file: 'spatial-audio',
         exportName: 'SpatialAudioExample',
         outlineTitle: 'Spatial audio',
-        title: 'Spatial-audio source positioning',
+        title: 'Spatial audio source position',
       },
     ],
   },
@@ -196,7 +194,7 @@ const PLANE_EXAMPLE_GROUPS: readonly PlaneExampleGroup[] = [
       {
         file: 'color-curves',
         exportName: 'ColorCurvesExample',
-        title: 'Color curves control',
+        title: 'Color curves',
       },
     ],
   },
@@ -207,13 +205,12 @@ const PLANE_EXAMPLE_GROUPS: readonly PlaneExampleGroup[] = [
       {
         file: 'four-corner-interpolation',
         exportName: 'FourCornerInterpolationExample',
-        outlineTitle: '4-corner interpolation',
-        title: 'Choosing an interpolation point between four states',
+        title: 'Four-corner interpolation',
       },
     ],
   },
   {
-    title: 'Search and recommendation tuning',
+    title: 'Recommendation tuning',
     outlineTitle: 'Search tuning',
     examples: [
       {
@@ -225,8 +222,7 @@ const PLANE_EXAMPLE_GROUPS: readonly PlaneExampleGroup[] = [
     ],
   },
   {
-    title: 'Design-system and visual styling',
-    outlineTitle: 'Visual styling',
+    title: 'Visual styling',
     examples: [
       {
         file: 'radius-border-width',
@@ -270,14 +266,12 @@ const PLANE_EXAMPLE_GROUPS: readonly PlaneExampleGroup[] = [
       {
         file: 'floor-plan-position',
         exportName: 'FloorPlanPositionExample',
-        outlineTitle: 'Floor-plan position',
-        title: 'Relative position within a floor plan',
+        title: 'Floor plan position',
       },
     ],
   },
   {
-    title: '3D tools represented in 2D',
-    outlineTitle: '3D tools',
+    title: '3D tools',
     examples: [
       {
         file: 'light-direction',
@@ -314,7 +308,7 @@ const PLANE_EXAMPLE_GROUPS: readonly PlaneExampleGroup[] = [
     ],
   },
   {
-    title: 'AI and generative controls',
+    title: 'Generative AI controls',
     outlineTitle: 'AI controls',
     examples: [
       {

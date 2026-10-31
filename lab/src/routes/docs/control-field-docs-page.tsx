@@ -389,7 +389,7 @@ export function ControlFieldDocsPage() {
         'demo:formatting': (
           <DocsExample
             code={controlFieldFormattingCode}
-            label="Formatted Control Fields"
+            label="Control Field formatting"
           >
             <ControlFieldFormattingExample />
           </DocsExample>

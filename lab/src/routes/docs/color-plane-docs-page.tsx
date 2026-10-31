@@ -153,22 +153,19 @@ export function ColorPlaneDocsPage() {
       format="component"
       slots={{
         'demo:basic': (
-          <DocsExample code={colorPlaneExampleCode} label="Color plane">
+          <DocsExample code={colorPlaneExampleCode} label="ColorPlane">
             <ColorPlaneExample />
           </DocsExample>
         ),
         'demo:axes': (
-          <DocsExample
-            code={colorPlaneAxesExampleCode}
-            label="Color plane axes"
-          >
+          <DocsExample code={colorPlaneAxesExampleCode} label="ColorPlane axes">
             <ColorPlaneAxesExample />
           </DocsExample>
         ),
         'demo:rendering': (
           <DocsExample
             code={colorPlaneRenderingExampleCode}
-            label="Color plane rendering"
+            label="ColorPlane rendering"
           >
             <ColorPlaneRenderingExample />
           </DocsExample>
@@ -176,7 +173,7 @@ export function ColorPlaneDocsPage() {
         'demo:interaction': (
           <DocsExample
             code={colorPlaneInteractionExampleCode}
-            label="Color plane interaction tuning"
+            label="ColorPlane interaction tuning"
           >
             <ColorPlaneInteractionExample />
           </DocsExample>
