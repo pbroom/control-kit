@@ -820,7 +820,7 @@ test('renders the primitive structure tab as a measured isometric figure', async
   await expect(page).toHaveURL(/\/lab\/tabs$/);
   const tabsPanel = performancePanelFor(page, 'Tabs');
   await expect(
-    tabsPanel.getByText('A tablist shell containing repeated tab triggers', {
+    tabsPanel.getByText('A tab list of triggers with roving focus', {
       exact: false,
     }),
   ).toBeVisible();

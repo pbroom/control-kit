@@ -60,7 +60,7 @@ test('renders performance metrics, ranges, lcp attribution, and timeline', async
       /^(Matched resources|Resources)$/,
     );
     await expect(resourcesRow).toContainText(
-      'Route module fetches - 0ms total',
+      'Route module fetches · 0ms total',
     );
     await expect(metricLabel(metricsTable, 'long-tasks')).toHaveText(
       /^(Long tasks|Tasks)$/,

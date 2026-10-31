@@ -40,7 +40,7 @@ function renderSelectPreview(controller: SelectLabPageController) {
 function renderSelectProperties(controller: SelectLabPageController) {
   return (
     <PanelSection
-      title="Menu Select"
+      title="Select"
       description="Choose one value from a long, scrollable list."
     >
       <div className="space-y-3">

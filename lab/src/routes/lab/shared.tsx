@@ -961,11 +961,7 @@ function LabMenuOptionRows({
         return (
           <Fragment key={option.value}>
             {heading ? (
-              <div
-                aria-label={`${heading} heading`}
-                className={LAB_MENU_HEADING_CLASS}
-                role="heading"
-              >
+              <div className={LAB_MENU_HEADING_CLASS} role="heading">
                 {heading}
               </div>
             ) : null}
@@ -2480,11 +2476,7 @@ function InlineLabMenuContent({
           <>
             {showDividers ? <DropdownMenuPanelSeparator /> : null}
             {showHeadings ? (
-              <div
-                aria-label="Options heading"
-                className={LAB_MENU_HEADING_CLASS}
-                role="heading"
-              >
+              <div className={LAB_MENU_HEADING_CLASS} role="heading">
                 Options
               </div>
             ) : null}

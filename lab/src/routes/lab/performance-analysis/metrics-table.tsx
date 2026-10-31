@@ -735,7 +735,7 @@ export function LabMetricTable({ vitals }: { vitals: LabPerformanceVitals }) {
       id: 'resources',
       label: 'Matched resources',
       shortLabel: 'Resources',
-      attribution: `Route module fetches - ${vitals.resources.moduleDurationMs}ms total`,
+      attribution: `Route module fetches · ${vitals.resources.moduleDurationMs}ms total`,
       value: String(vitals.resources.moduleRequests),
       tone: vitals.resources.moduleRequests > 0 ? 'okay' : 'neutral',
     },

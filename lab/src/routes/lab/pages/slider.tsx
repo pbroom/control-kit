@@ -116,7 +116,7 @@ function renderSliderProperties(controller: SliderLabPageController) {
   return (
     <PanelSection
       title="Slider"
-      description="Preview one ColorSlider instance and tune its slider-specific props."
+      description="Tune the props of one ColorSlider."
     >
       <div className="space-y-3">
         <SegmentedField

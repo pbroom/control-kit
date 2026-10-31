@@ -182,7 +182,10 @@ function renderColorPlanePreview(controller: ColorPlaneLabPageController) {
 function renderColorPlaneProperties(controller: ColorPlaneLabPageController) {
   return (
     <>
-      <PanelSection title="Color" description="Drive the current sample color.">
+      <PanelSection
+        title="Color"
+        description="Set the color the plane displays."
+      >
         <div className="w-full min-w-0 max-w-full space-y-3">
           <PropertyFieldTooltip label="Hex">
             <div className="w-full min-w-0 max-w-full space-y-2">
@@ -308,7 +311,7 @@ function renderColorPlaneProperties(controller: ColorPlaneLabPageController) {
 
       <PanelSection
         title="Rendering"
-        description="Tune how aggressively the area optimizes pointer updates."
+        description="Trade render quality for pointer responsiveness."
       >
         <SegmentedField
           label="Performance profile"

@@ -275,7 +275,7 @@ function PlaneProperties({
               data-testid="plane-demo-bypass-hint"
               className="text-[12px] text-white/45"
             >
-              Grid steps quantize; guides are magnetic within 8px. Hold Alt
+              Grid steps quantize; guides attract within 8 px. Hold Alt/Option
               while dragging to bypass snapping.
             </p>
           </div>
@@ -320,7 +320,11 @@ function PlaneProperties({
             onChange={controller.setSnapTransition}
             options={[
               { value: 'none', label: 'None' },
-              { value: 'css', label: 'CSS', tooltip: '120ms on snap changes' },
+              {
+                value: 'css',
+                label: 'CSS',
+                tooltip: '120 ms transition on axes a snap moves',
+              },
               { value: 'spring', label: 'Spring' },
             ]}
           />

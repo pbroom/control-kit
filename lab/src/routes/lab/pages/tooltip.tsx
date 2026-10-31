@@ -57,7 +57,7 @@ function renderTooltipProperties(controller: TooltipLabPageController) {
     <>
       <PanelSection
         title="Timing"
-        description="Tune the Base UI initial hover delay and the window that marks adjacent tooltip handoffs."
+        description="Set the initial hover delay and the handoff window in which adjacent tooltips open immediately."
       >
         <div className={PANEL_TWO_COLUMN_GRID_CLASS}>
           <NumberConfigField
@@ -79,7 +79,7 @@ function renderTooltipProperties(controller: TooltipLabPageController) {
 
       <PanelSection
         title="Placement"
-        description="Move the tooltip around each trigger while preserving the same handoff behavior."
+        description="Choose the side and alignment relative to each trigger."
       >
         <PlacementGridField
           label="Placement"

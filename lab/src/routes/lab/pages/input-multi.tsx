@@ -112,7 +112,7 @@ function renderInputMultiProperties(controller: InputMultiLabPageController) {
     <>
       <PanelSection
         title="Input Multi"
-        description="Configure the selected color channel input."
+        description="Configure the selected segment."
       >
         <div className="space-y-4">
           <SegmentedField

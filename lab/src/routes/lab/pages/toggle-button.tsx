@@ -66,7 +66,7 @@ function renderToggleButtonProperties(
   return (
     <>
       <PanelSection
-        title="Button"
+        title="Toggle Button"
         description="Preview selection separately from interaction feedback."
       >
         <div className="space-y-3">
