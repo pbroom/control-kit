@@ -62,6 +62,7 @@ const PLANE_EXAMPLE_GROUPS: readonly PlaneExampleGroup[] = [
       {
         file: 'gradient-origin',
         exportName: 'GradientOriginExample',
+        outlineTitle: 'Gradient origin',
         title: 'Gradient origin and radius',
       },
       {
@@ -205,6 +206,7 @@ const PLANE_EXAMPLE_GROUPS: readonly PlaneExampleGroup[] = [
       {
         file: 'four-corner-interpolation',
         exportName: 'FourCornerInterpolationExample',
+        outlineTitle: 'Corner interpolation',
         title: 'Four-corner interpolation',
       },
     ],
