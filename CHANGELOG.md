@@ -46,6 +46,14 @@ the package adheres to [Semantic Versioning](https://semver.org/).
   `PlaneSnapProps`, `PlaneMotion`, `PlaneSnapContext`, `PlaneSnapResult`,
   `PlaneSnapSpace`, and `PlaneSpringOptions` types.
 
+### Fixed
+
+- Git installs no longer recurse when the consumer's pnpm store is inside its
+  own workspace (as on Vercel). The repository now has its own
+  `pnpm-workspace.yaml`, so the nested `pnpm install` that runs `prepare`
+  stops at this package instead of installing the consumer's workspace. The
+  `onlyBuiltDependencies` setting moved there from `package.json`.
+
 ## 0.1.0-next.0 - 2026-10-05
 
 ### Added
