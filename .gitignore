@@ -6,3 +6,5 @@ output
 *.tgz
 # Per-developer Structure editor preferences (lab dev server)
 lab/structure-editor.local.json
+# Claude Code agent worktrees
+.claude/worktrees/

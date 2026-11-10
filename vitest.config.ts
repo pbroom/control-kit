@@ -1,5 +1,5 @@
 import { fileURLToPath } from 'node:url';
-import { defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig } from 'vitest/config';
 
 const fromRoot = (path: string) =>
   fileURLToPath(new URL(path, import.meta.url));
@@ -21,6 +21,9 @@ export default defineConfig({
     ],
   },
   test: {
+    // Agent worktrees hold full repo copies with their own node_modules;
+    // collecting their tests loads a second React and fails hooks.
+    exclude: [...configDefaults.exclude, '.claude/worktrees/**'],
     server: {
       deps: {
         // Ships ESM with extensionless imports that Node cannot resolve.
