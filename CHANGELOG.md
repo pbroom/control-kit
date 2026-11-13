@@ -8,7 +8,8 @@ the package adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- `getControlInteraction(details)` groups a change from any control as
+- `getControlInteraction(details)` groups a change from any control that
+  passes details (all but `MultiInputControl`) as
   `'text-input'`, `'keyboard'`, `'pointer'` or `'programmatic'`, with the
   `ControlChangeDetails` and `ControlInteraction` types. It reads Plane's
   `interaction`, then the reason, then the native event.

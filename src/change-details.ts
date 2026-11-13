@@ -9,8 +9,9 @@ export type ControlInteraction =
   | 'programmatic';
 
 /**
- * What every change, commit and snap callback's details share. Each control
+ * What the details of change, commit and snap callbacks share. Each control
  * adds its own fields, such as Plane's `snap` or Base UI's `cancel()`.
+ * `MultiInputControl`'s field callbacks pass no details.
  */
 export type ControlChangeDetails = {
   /** What happened, such as `'drag'`, `'keyboard'` or `'input-commit'`. */
@@ -66,10 +67,11 @@ function interactionOfEvent(event: Event | undefined) {
 }
 
 /**
- * Says how a change was produced, from the details any Control Kit callback
- * receives: `onValueChange`, `onValueCommitted` and `onSnapChange` on every
- * control. Use it to tell a drag from a typed value without matching each
- * control's reasons.
+ * Says how a change was produced, from the details a Control Kit callback
+ * receives: `onValueChange`, `onValueCommitted`, `onCheckedChange` and
+ * `onSnapChange`. Use it to tell a drag from a typed value without matching
+ * each control's reasons. `MultiInputControl`'s field callbacks pass no
+ * details, so there is nothing to read there.
  *
  * It reads `details.interaction` when the control sets it, then the reason,
  * then the native event. A change with none of those is `'programmatic'`.

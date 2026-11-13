@@ -199,12 +199,15 @@ text.
 
 ## Change details
 
-Every `onValueChange` and `onValueCommitted` callback receives the value and a
-`details` object. Whatever the control, `details.reason` names what happened
+`ControlField`, `ControlInput`, `Slider`, `PlaneThumb`, `Tabs`, `ToggleGroup`
+and `Checkbox` pass a `details` object as the second argument of their change
+and commit callbacks. On each of them, `details.reason` names what happened
 and `details.event` is the native event behind it, when there is one. Base UI
 controls add `cancel()`; Plane adds `interaction`, `thumbId` and `snap`.
+`MultiInputControl` is the exception: `onFieldChange`, `onFieldCommit` and
+`MultiInputSegment`'s `onValueChange` receive only the value.
 
-`getControlInteraction(details)` groups any control's change as
+`getControlInteraction(details)` groups a change from any of those details as
 `'text-input'`, `'keyboard'`, `'pointer'` or `'programmatic'`, so shared code
 such as history or analytics does not match each control's reasons:
 
