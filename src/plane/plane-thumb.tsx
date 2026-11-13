@@ -524,7 +524,12 @@ export function PlaneThumb({
       );
       const changed = publishValue(
         normalizedValue,
-        { interaction: 'keyboard', reason, originalEvent },
+        {
+          interaction: 'keyboard',
+          reason,
+          event: originalEvent,
+          originalEvent,
+        },
         hasGrid && gridStepped
           ? getPlaneGridHit(normalizedValue, snapTargets, movedAxes)
           : null,
@@ -585,7 +590,12 @@ export function PlaneThumb({
       onCommit?.(
         committedValue,
         getValueChangeDetails(
-          { interaction: 'keyboard', reason, originalEvent },
+          {
+            interaction: 'keyboard',
+            reason,
+            event: originalEvent,
+            originalEvent,
+          },
           thumbId,
           getCurrentSnapHit(),
         ),

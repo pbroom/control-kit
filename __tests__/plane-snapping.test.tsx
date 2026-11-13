@@ -188,9 +188,11 @@ describe('PlaneThumb snapping', () => {
       expect(details).toEqual({
         interaction: 'pointer',
         reason: 'plane-press',
+        event: expect.any(Event),
         originalEvent: expect.any(Event),
       });
       expect(Object.keys(details).sort()).toEqual([
+        'event',
         'interaction',
         'originalEvent',
         'reason',
@@ -198,6 +200,7 @@ describe('PlaneThumb snapping', () => {
     }
     key(axis('x'), 'ArrowRight');
     expect(Object.keys(lastDetails(onValueChange)).sort()).toEqual([
+      'event',
       'interaction',
       'originalEvent',
       'reason',
@@ -948,6 +951,7 @@ describe('onSnapChange', () => {
       {
         interaction: 'pointer',
         reason: 'plane-press',
+        event: expect.any(Event),
         originalEvent: expect.any(Event),
       },
     );

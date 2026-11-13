@@ -197,6 +197,27 @@ Tailwind's `red-400` text color; override its `className` when needed. The
 `--ck-border-invalid` token controls invalid input borders, not error-message
 text.
 
+## Change details
+
+Every `onValueChange` and `onValueCommitted` callback receives the value and a
+`details` object. Whatever the control, `details.reason` names what happened
+and `details.event` is the native event behind it, when there is one. Base UI
+controls add `cancel()`; Plane adds `interaction`, `thumbId` and `snap`.
+
+`getControlInteraction(details)` groups any control's change as
+`'text-input'`, `'keyboard'`, `'pointer'` or `'programmatic'`, so shared code
+such as history or analytics does not match each control's reasons:
+
+```tsx
+import { getControlInteraction } from '@pbroom/control-kit';
+
+<PlaneThumb
+  onValueCommitted={(value, details) => {
+    if (getControlInteraction(details) === 'pointer') recordDrag(value);
+  }}
+/>;
+```
+
 ## Number input
 
 `ControlField` is the numeric input primitive: compose its parts for custom

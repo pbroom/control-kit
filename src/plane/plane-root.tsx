@@ -336,6 +336,7 @@ export function Plane({
             registration.publishPointer(resolved, {
               interaction: 'pointer',
               reason,
+              event: event.nativeEvent,
               originalEvent: event.nativeEvent,
             });
           }
@@ -390,6 +391,7 @@ export function Plane({
             registration.publishPointer(resolved, {
               interaction: 'pointer',
               reason,
+              event: event.nativeEvent,
               originalEvent: event.nativeEvent,
             });
             const thumbSize = activePointerThumbSizeRef.current;
@@ -449,6 +451,7 @@ export function Plane({
             registration.publishPointer(resolved, {
               interaction: 'pointer',
               reason,
+              event: event.nativeEvent,
               originalEvent: event.nativeEvent,
             });
           }
@@ -486,6 +489,7 @@ export function Plane({
             registration.commitPointerValue({
               interaction: 'pointer',
               reason,
+              event: event.nativeEvent,
               originalEvent: event.nativeEvent,
             });
             registration.focus();
@@ -513,6 +517,7 @@ export function Plane({
             registration.commitPointerValue({
               interaction: 'pointer',
               reason,
+              event: event.nativeEvent,
               originalEvent: event.nativeEvent,
             });
           }
@@ -538,6 +543,7 @@ export function Plane({
             registration.commitPointerValue({
               interaction: 'pointer',
               reason,
+              event: event.nativeEvent,
               originalEvent: event.nativeEvent,
             });
           }

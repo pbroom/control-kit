@@ -76,9 +76,9 @@ function getPointValueText(label: string, value: PlaneValue) {
 function isShiftModified(details: PlaneValueChangeDetails) {
   return (
     details.interaction === 'pointer' &&
-    details.originalEvent !== undefined &&
-    'shiftKey' in details.originalEvent &&
-    details.originalEvent.shiftKey === true
+    details.event !== undefined &&
+    'shiftKey' in details.event &&
+    details.event.shiftKey === true
   );
 }
 

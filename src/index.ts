@@ -1,5 +1,10 @@
 export { cn } from './utils.js';
 export { controlKitColor } from './theme.js';
+export { getControlInteraction } from './change-details.js';
+export type {
+  ControlChangeDetails,
+  ControlInteraction,
+} from './change-details.js';
 export type { ControlKitColorToken } from './theme.js';
 export { Checkbox } from './checkbox.js';
 export type { CheckboxProps } from './checkbox.js';
