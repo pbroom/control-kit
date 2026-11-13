@@ -91,6 +91,18 @@ Controls one color channel through the shared Base UI slider foundation.
 
 `ColorSlider` accepts native `div` styling and semantic props except `onChange` and `defaultValue`. Base UI owns pointer capture and positioning; the color adapter supplies channel keyboard steps.
 
+### Slider
+
+The numeric slider exported from `@pbroom/control-kit`. It also accepts the other [Base UI Slider root](https://base-ui.com/react/components/slider) props, such as `name`, `format`, and `locale`.
+
+<!-- props:slider -->
+
+### ColorValueSlider
+
+The numeric color slider exported from `@pbroom/control-kit`. It takes the same props as `Slider` except `showIndicator`: the track never renders a filled portion, so the application's gradient stays visible. Its thumb carries `data-color-slider-thumb`.
+
+<!-- props:color-value-slider -->
+
 ## Accessibility
 
 The thumb input has slider semantics, reports the active channel range and value, and exposes the matching `aria-orientation`. Arrow keys move one percent of the range; Shift + Arrow moves ten percent. Home and End select the range endpoints. Values clamp to the active range.

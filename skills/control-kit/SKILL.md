@@ -38,8 +38,8 @@ Colors come from `--ck-*` custom properties with dark defaults. Set `data-ck-the
 ## Rules
 
 - **Import from the root.** Everything comes from `@pbroom/control-kit`; there are no per-component entries.
-- **Default or controlled.** Pass `defaultValue` to start, or `value` with `onValueChange` to control it. A controlled control only moves when its `value` changes.
-- **Live or committed.** `onValueChange` runs on every change, including each step of a drag or scrub. Put saving and expensive work in `onValueCommitted`, which runs once when the interaction ends.
+- **Default or controlled.** `ControlField`, `ControlInput`, `Slider`, `PlaneThumb`, `Tabs` and `ToggleGroup` take `defaultValue` to start, or `value` with `onValueChange` to control them. A controlled control only moves when its `value` changes. Two controls differ: `Checkbox` is always controlled, with `checked` and `onCheckedChange`, and `MultiInputControl` takes `values` with `onFieldChange(field, value)`.
+- **Live or committed.** `onValueChange` runs on every change, including each step of a drag or scrub. Put saving and expensive work in `onValueCommitted`, which runs once when the interaction ends. `ControlField`, `ControlInput`, `Slider` and `PlaneThumb` have it; `MultiInputControl` calls it `onFieldCommit(field, value)`. `Tabs`, `ToggleGroup` and `Checkbox` change once per press and have no commit callback.
 - **Read details the same way everywhere.** Callbacks get `(value, details)`: `details.reason` says what happened and `details.event` is the native event. `getControlInteraction(details)` returns `'text-input'`, `'keyboard'`, `'pointer'` or `'programmatic'` for any control.
 - **Name every control.** Give it a `label` or `aria-label`. `PlaneThumb` takes `xAriaLabel` and `yAriaLabel`, and `getAriaValueText` for values in the domain's own words.
 - **Pick the numeric control by need.** `ControlInput` is the ready-made compact field with a scrub handle and unit. Compose `ControlField` parts only for a custom layout. `MultiInputControl` groups several fields, like X and Y.

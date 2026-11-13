@@ -225,6 +225,57 @@ Props for `ColorSlider`:
 
 `ColorSlider` accepts native `div` styling and semantic props except `onChange` and `defaultValue`. Base UI owns pointer capture and positioning; the color adapter supplies channel keyboard steps.
 
+### Slider
+
+The numeric slider exported from `@pbroom/control-kit`. It also accepts the other [Base UI Slider root](https://base-ui.com/react/components/slider) props, such as `name`, `format`, and `locale`.
+
+Props for `Slider`:
+
+| Prop               | Type                                                                    | Default        | Description                                                                                        |
+| ------------------ | ----------------------------------------------------------------------- | -------------- | -------------------------------------------------------------------------------------------------- |
+| `value`            | `number \| undefined`                                                   | —              | The controlled value. Update it from onValueChange.                                                |
+| `defaultValue`     | `number \| undefined`                                                   | —              | The initial value in uncontrolled mode.                                                            |
+| `onValueChange`    | `(value: number, eventDetails: Slider.Root.ChangeEventDetails) => void` | —              | Called for every change, including each step of a drag. Details carry the reason and native event. |
+| `onValueCommitted` | `(value: number, eventDetails: Slider.Root.CommitEventDetails) => void` | —              | Called once when a drag ends or a key changes the value. Use it for saving.                        |
+| `min`              | `number \| undefined`                                                   | `0`            | The lowest value. It should not equal max.                                                         |
+| `max`              | `number \| undefined`                                                   | `100`          | The highest value. It should not equal min.                                                        |
+| `step`             | `number \| undefined`                                                   | `1`            | The increment for arrow keys and the grid values snap to.                                          |
+| `largeStep`        | `number \| undefined`                                                   | `10`           | The increment for Page Up, Page Down, and Shift with an arrow.                                     |
+| `orientation`      | `'horizontal' \| 'vertical' \| undefined`                               | `'horizontal'` | Sets the layout and arrow-key direction. Give a vertical slider an explicit height.                |
+| `disabled`         | `boolean \| undefined`                                                  | `false`        | Prevents interaction and dims the slider.                                                          |
+| `unstyled`         | `boolean \| undefined`                                                  | `false`        | Keeps interaction and positioning while dropping the default rail and thumb styles.                |
+| `showIndicator`    | `boolean \| undefined`                                                  | `true`         | Renders the filled portion of the track.                                                           |
+| `controlProps`     | `Slider.Control.Props \| undefined`                                     | —              | Props for the control part, including className, style, and data attributes.                       |
+| `trackProps`       | `Slider.Track.Props \| undefined`                                       | —              | Props for the track part. Set a background here for a custom rail.                                 |
+| `thumbProps`       | `Slider.Thumb.Props \| undefined`                                       | —              | Props for the thumb part.                                                                          |
+| `aria-label`       | `string \| undefined`                                                   | —              | Names the slider. It is forwarded to the thumb input, as are aria-labelledby and aria-valuetext.   |
+| `className`        | `string \| undefined`                                                   | —              | Adds classes to the root.                                                                          |
+
+### ColorValueSlider
+
+The numeric color slider exported from `@pbroom/control-kit`. It takes the same props as `Slider` except `showIndicator`: the track never renders a filled portion, so the application's gradient stays visible. Its thumb carries `data-color-slider-thumb`.
+
+Props for `ColorValueSlider`:
+
+| Prop               | Type                                                                    | Default        | Description                                                                                        |
+| ------------------ | ----------------------------------------------------------------------- | -------------- | -------------------------------------------------------------------------------------------------- |
+| `value`            | `number \| undefined`                                                   | —              | The controlled value. Update it from onValueChange.                                                |
+| `defaultValue`     | `number \| undefined`                                                   | —              | The initial value in uncontrolled mode.                                                            |
+| `onValueChange`    | `(value: number, eventDetails: Slider.Root.ChangeEventDetails) => void` | —              | Called for every change, including each step of a drag. Details carry the reason and native event. |
+| `onValueCommitted` | `(value: number, eventDetails: Slider.Root.CommitEventDetails) => void` | —              | Called once when a drag ends or a key changes the value. Use it for saving.                        |
+| `min`              | `number \| undefined`                                                   | `0`            | The lowest value. It should not equal max.                                                         |
+| `max`              | `number \| undefined`                                                   | `100`          | The highest value. It should not equal min.                                                        |
+| `step`             | `number \| undefined`                                                   | `1`            | The increment for arrow keys and the grid values snap to.                                          |
+| `largeStep`        | `number \| undefined`                                                   | `10`           | The increment for Page Up, Page Down, and Shift with an arrow.                                     |
+| `orientation`      | `'horizontal' \| 'vertical' \| undefined`                               | `'horizontal'` | Sets the layout and arrow-key direction. Give a vertical slider an explicit height.                |
+| `disabled`         | `boolean \| undefined`                                                  | `false`        | Prevents interaction and dims the slider.                                                          |
+| `unstyled`         | `boolean \| undefined`                                                  | `false`        | Keeps interaction and positioning while dropping the default rail and thumb styles.                |
+| `controlProps`     | `Slider.Control.Props \| undefined`                                     | —              | Props for the control part, including className, style, and data attributes.                       |
+| `trackProps`       | `Slider.Track.Props \| undefined`                                       | —              | Props for the track part. Set a background here for a custom rail.                                 |
+| `thumbProps`       | `Slider.Thumb.Props \| undefined`                                       | —              | Props for the thumb part.                                                                          |
+| `aria-label`       | `string \| undefined`                                                   | —              | Names the slider. It is forwarded to the thumb input, as are aria-labelledby and aria-valuetext.   |
+| `className`        | `string \| undefined`                                                   | —              | Adds classes to the root.                                                                          |
+
 ## Accessibility
 
 The thumb input has slider semantics, reports the active channel range and value, and exposes the matching `aria-orientation`. Arrow keys move one percent of the range; Shift + Arrow moves ten percent. Home and End select the range endpoints. Values clamp to the active range.
