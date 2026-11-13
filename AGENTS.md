@@ -19,6 +19,10 @@ duplicating them here. Key ones:
 
 Non-obvious notes:
 
+- `docs/` is generated from the lab's docs pages (`lab/src/routes/docs/*.md` and their
+  `*-docs-page.tsx` slots) and ships in the npm package. After changing a docs page for an
+  exported component, run `pnpm docs:package` and commit the result; `pnpm test` fails when
+  `docs/` is stale. Never edit `docs/` by hand.
 - The lab imports the library **source** (`src/index.ts`) directly via a Vite alias, so
   library edits hot-reload in the lab without rebuilding `dist/`.
 - `pnpm lab:smoke` (Playwright) starts its own Vite server on port `5185` and requires

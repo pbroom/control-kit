@@ -27,6 +27,8 @@
   },
   "files": [
     "dist",
+    "docs",
+    "skills",
     "src",
     "styles",
     "LICENSE",
@@ -41,6 +43,7 @@
     "clean": "rm -rf dist",
     "dev": "vite --config lab/vite.config.ts --host 127.0.0.1 --port 5175 --strictPort --clearScreen false",
     "dev:package": "tsup --watch",
+    "docs:package": "vitest run lab/src/routes/docs/package-docs.test.ts -u",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lab": "pnpm dev",

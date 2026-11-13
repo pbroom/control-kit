@@ -8,6 +8,9 @@ the package adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- The package ships its component docs as Markdown in `docs/`, indexed by
+  `docs/llms.txt`, and an agent skill in `skills/control-kit/`. Both match the
+  installed version.
 - Per-axis snapping for `Plane`. `PlaneThumb` (and `Plane`, as a default for
   top-level thumbs) accepts `snap` targets: `grid` (always quantizes, with an
   optional `origin`), magnetic `line` and `point` targets within `snapRadius`

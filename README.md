@@ -33,6 +33,24 @@ The `--allow-build=@pbroom/control-kit` flag (pnpm 10) allows Git installs to ru
 - `@base-ui/react` 1.7 or newer within version 1 is a peer dependency used for the headless primitives.
 - Node 18+ is required to build the package.
 
+## Docs and agents
+
+Component docs ship in the package as Markdown, so they match the installed
+version: start at `node_modules/@pbroom/control-kit/docs/llms.txt`, which
+indexes one page per component with usage, examples and an API reference.
+They are generated from the lab's docs pages; run `pnpm docs:package` after
+changing one.
+
+The package also ships a skill that tells a coding agent where those docs are
+and which conventions to follow. Install it with the
+[skills CLI](https://github.com/vercel-labs/skills):
+
+```sh
+npx skills add pbroom/control-kit --skill control-kit
+```
+
+Or point your agent at `node_modules/@pbroom/control-kit/skills/control-kit/SKILL.md`.
+
 ## Releases
 
 Changes are tracked in [CHANGELOG.md](./CHANGELOG.md). Versions before 1.0
