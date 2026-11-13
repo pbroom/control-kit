@@ -64,6 +64,7 @@ export function usePlaneHoverValue(
           hoverValueRef.current = remainingValue ?? null;
           notifyHoverValueChange(remainingValue ?? null, {
             pointerType: event.pointerType,
+            event: event.nativeEvent,
             originalEvent: event.nativeEvent,
           });
         }
@@ -82,6 +83,7 @@ export function usePlaneHoverValue(
       hoverValueRef.current = value;
       notifyHoverValueChange(value, {
         pointerType: event.pointerType,
+        event: event.nativeEvent,
         originalEvent: event.nativeEvent,
       });
     },
@@ -106,6 +108,7 @@ export function usePlaneHoverValue(
         hoverValueRef.current = remainingValue ?? null;
         onHoverValueChangeRef.current?.(remainingValue ?? null, {
           pointerType: event.pointerType,
+          event: event.nativeEvent,
           originalEvent: event.nativeEvent,
         });
       }

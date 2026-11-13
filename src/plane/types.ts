@@ -99,6 +99,9 @@ export type PlaneSnapChangeDetails = {
     | 'external-value-change'
     | 'snap-targets-change';
   thumbId?: string;
+  /** The native event behind the change, when there is one. */
+  event?: Event;
+  /** @deprecated Use `event`. */
   originalEvent?: Event;
 };
 
@@ -106,6 +109,9 @@ export type PlaneValueChangeDetails = {
   interaction: PlaneInteraction;
   reason: PlaneValueChangeReason;
   thumbId?: string;
+  /** The native event behind the change, when there is one. */
+  event?: Event;
+  /** @deprecated Use `event`. */
   originalEvent?: Event;
   /** The snap that produced this value. Omitted when nothing snapped. */
   snap?: PlaneSnapHit;
@@ -129,6 +135,9 @@ export type PlaneThumbPressBehavior = 'inherit' | 'none';
 
 export type PlaneHoverValueChangeDetails = {
   pointerType: string;
+  /** The native pointer event. */
+  event: PointerEvent;
+  /** @deprecated Use `event`. */
   originalEvent: PointerEvent;
 };
 
@@ -255,7 +264,7 @@ export type PlaneThumbContextValue = {
 
 export type PlaneValueChangeSource = Pick<
   PlaneValueChangeDetails,
-  'interaction' | 'reason' | 'originalEvent'
+  'interaction' | 'reason' | 'event' | 'originalEvent'
 >;
 
 export type PlaneSnapChangeSource = Omit<PlaneSnapChangeDetails, 'thumbId'>;

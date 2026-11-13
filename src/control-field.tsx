@@ -2,6 +2,10 @@ import * as React from 'react';
 import { Field } from '@base-ui/react/field';
 import { NumberField } from '@base-ui/react/number-field';
 import {
+  getControlInteraction,
+  type ControlInteraction,
+} from './change-details.js';
+import {
   resolveControlFieldExpression,
   type ControlFieldExpressionResolver,
 } from './control-field-expression.js';
@@ -24,7 +28,10 @@ export type ControlFieldCustomReason =
   | 'input-commit';
 
 /** How a value change was produced, independent of the exact event reason. */
-export type ControlFieldInteraction = 'text-input' | 'keyboard' | 'pointer';
+export type ControlFieldInteraction = Exclude<
+  ControlInteraction,
+  'programmatic'
+>;
 
 export interface ControlFieldCustomEventDetails {
   reason: ControlFieldCustomReason;
@@ -204,33 +211,19 @@ function useControlFieldContext() {
  */
 export const ControlFieldLegacyKeysContext = React.createContext(false);
 
-const TEXT_INPUT_REASONS = new Set<string>([
-  'input-change',
-  'input-clear',
-  'input-blur',
-  'input-commit',
-  'input-paste',
-  'expression',
-  'none',
-]);
-const POINTER_REASONS = new Set<string>([
-  'scrub',
-  'increment-press',
-  'decrement-press',
-  'wheel',
-]);
-
 /**
  * Maps change or commit details to the kind of interaction that produced
  * them: typed text (including expressions), keyboard stepping, or pointer
- * gestures (scrub, stepper buttons, wheel).
+ * gestures (scrub, stepper buttons, wheel). `getControlInteraction` does the
+ * same for every control.
  */
 export function getControlFieldInteraction(details: {
   reason: string;
 }): ControlFieldInteraction {
-  if (TEXT_INPUT_REASONS.has(details.reason)) return 'text-input';
-  if (POINTER_REASONS.has(details.reason)) return 'pointer';
-  return 'keyboard';
+  // A number field reports `'none'` for text it parsed itself.
+  if (details.reason === 'none') return 'text-input';
+  const interaction = getControlInteraction({ reason: details.reason });
+  return interaction === 'programmatic' ? 'keyboard' : interaction;
 }
 
 function normalizeValue(

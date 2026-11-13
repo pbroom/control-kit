@@ -589,7 +589,7 @@ Props for `Plane`:
 
 The root captures the primary pointer for a drag and measures its bounds once at the start. Changing the root to `disabled` or `readOnly` during a drag ends the interaction without committing. Native pointer handlers run before Plane's internal handling, so calling `preventDefault()` cancels the corresponding internal step.
 
-`onHoverValueChange` reports normalized mouse and hovering-pen coordinates without moving a thumb. It receives `null` when the pointer leaves. `details.pointerType` identifies the pointer, and `details.originalEvent` exposes the native pointer event. Touch input does not report hover values.
+`onHoverValueChange` reports normalized mouse and hovering-pen coordinates without moving a thumb. It receives `null` when the pointer leaves. `details.pointerType` identifies the pointer, and `details.event` exposes the native pointer event. Touch input does not report hover values.
 
 **Data attributes**
 
@@ -634,7 +634,7 @@ Props for `PlaneThumb`:
 | `motion`           | `PlaneMotion \| undefined`                                                  | `instant`                                               | Presentation-only motion for snap transitions, keyboard, and programmatic changes; free drags follow the pointer. Hoist or memoize springMotion(). Callbacks never lag. |
 | `onSnapChange`     | `(hit: PlaneSnapHit \| undefined, details: PlaneSnapChangeDetails) => void` | —                                                       | Called whenever the snap changes (enter, leave, switch), even without a value change; after onValueChange. hit is undefined when the snap ends.                         |
 
-`onValueChange` and `onValueCommitted` receive `details.interaction`, which groups changes as `'pointer'` or `'keyboard'`. `details.reason` identifies `'thumb-drag'`, `'plane-press'`, `'keyboard'`, or `'input-change'`, and `details.originalEvent` exposes the native event when available. When `thumbId` is set, callbacks also receive it as `details.thumbId`. `details.snap` is the snap hit that produced the value; it is omitted when nothing snapped.
+`onValueChange` and `onValueCommitted` receive `details.interaction`, which groups changes as `'pointer'` or `'keyboard'`. `details.reason` identifies `'thumb-drag'`, `'plane-press'`, `'keyboard'`, or `'input-change'`, and `details.event` exposes the native event when available. `details.originalEvent` is a deprecated alias. `getControlInteraction(details)` reads the same grouping from any Control Kit control's details. When `thumbId` is set, callbacks also receive it as `details.thumbId`. `details.snap` is the snap hit that produced the value; it is omitted when nothing snapped.
 
 A pointer interaction commits on release, cancellation, or lost capture. Changing a thumb to `disabled` or `readOnly` during a drag ends the interaction without committing. Non-positive and non-finite step values fall back to their defaults.
 
@@ -729,32 +729,32 @@ Converts viewport coordinates and element bounds to a clamped Cartesian `PlaneVa
 
 ## Types
 
-| Type                           | Contract                                                                                                       |
-| ------------------------------ | -------------------------------------------------------------------------------------------------------------- |
-| `PlaneValue`                   | `{ x: number; y: number }`: a normalized position or signed nested offset.                                     |
-| `PlaneInteraction`             | `'pointer' \| 'keyboard'`.                                                                                     |
-| `PlaneHoverValueChangeDetails` | The pointer type and native pointer event for a hover-position change.                                         |
-| `PlaneValueChangeReason`       | `'thumb-drag' \| 'plane-press' \| 'keyboard' \| 'input-change'`.                                               |
-| `PlaneValueChangeDetails`      | Interaction, reason, snap hit, optional thumb ID, and optional original event.                                 |
-| `PlaneSnapTarget`              | A `grid`, `line`, `point`, or `custom` snap target.                                                            |
-| `PlaneSnapHit`                 | `{ target; index; axes; parts? }`: the targets that produced a value and the snapped axes.                     |
-| `PlaneSnapChangeDetails`       | `{ interaction; reason; thumbId?; originalEvent? }` for `onSnapChange`. `interaction` may be `'programmatic'`. |
-| `PlaneSnapHitPart`             | `{ target; index; axes }`: one applied target in `PlaneSnapHit.parts`.                                         |
-| `PlaneMotionReason`            | `'drag' \| 'snap' \| 'keyboard' \| 'programmatic'`.                                                            |
-| `PlaneAxisLock`                | `'x' \| 'y' \| 'dominant-with-shift'`.                                                                         |
-| `PlaneSnapBypass`              | `'alt' \| 'meta' \| false`.                                                                                    |
-| `PlaneMotion`                  | `{ step(current, target, dtMs, { reason }): { value; done }; smoothDrag? }`: presentation-only motion.         |
-| `PlaneSnapProps`               | `snap`, `snapRadius`, `axisLock`, `snapBypass`, `motion`, and `onSnapChange`, shared by both parts.            |
-| `PlanePoint`                   | `{ clientX: number; clientY: number }`.                                                                        |
-| `PlaneBounds`                  | `{ left: number; top: number; width: number; height: number }`.                                                |
-| `PlanePressBehavior`           | `'auto' \| 'none' \| 'nearest'`.                                                                               |
-| `PlaneDragBehavior`            | `'absolute' \| 'relative'`.                                                                                    |
-| `PlaneThumbPressBehavior`      | `'inherit' \| 'none'`.                                                                                         |
-| `PlaneContextValue`            | The root `disabled`, `readOnly`, and `dragging` state.                                                         |
-| `PlaneThumbContextValue`       | The thumb's value, interaction, hover, focus, snap, `disabled`, and `readOnly` states.                         |
-| `PlaneProps`                   | Native `div` props plus root interaction options.                                                              |
-| `PlaneThumbProps`              | Native `div` props plus value, interaction, form, and axis options.                                            |
-| `PlaneAttachmentProps`         | Native `div` props plus placement, collision, portal, and visibility options.                                  |
+| Type                           | Contract                                                                                               |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------ |
+| `PlaneValue`                   | `{ x: number; y: number }`: a normalized position or signed nested offset.                             |
+| `PlaneInteraction`             | `'pointer' \| 'keyboard'`.                                                                             |
+| `PlaneHoverValueChangeDetails` | The pointer type and native pointer event for a hover-position change.                                 |
+| `PlaneValueChangeReason`       | `'thumb-drag' \| 'plane-press' \| 'keyboard' \| 'input-change'`.                                       |
+| `PlaneValueChangeDetails`      | Interaction, reason, snap hit, optional thumb ID, and optional native event.                           |
+| `PlaneSnapTarget`              | A `grid`, `line`, `point`, or `custom` snap target.                                                    |
+| `PlaneSnapHit`                 | `{ target; index; axes; parts? }`: the targets that produced a value and the snapped axes.             |
+| `PlaneSnapChangeDetails`       | `{ interaction; reason; thumbId?; event? }` for `onSnapChange`. `interaction` may be `'programmatic'`. |
+| `PlaneSnapHitPart`             | `{ target; index; axes }`: one applied target in `PlaneSnapHit.parts`.                                 |
+| `PlaneMotionReason`            | `'drag' \| 'snap' \| 'keyboard' \| 'programmatic'`.                                                    |
+| `PlaneAxisLock`                | `'x' \| 'y' \| 'dominant-with-shift'`.                                                                 |
+| `PlaneSnapBypass`              | `'alt' \| 'meta' \| false`.                                                                            |
+| `PlaneMotion`                  | `{ step(current, target, dtMs, { reason }): { value; done }; smoothDrag? }`: presentation-only motion. |
+| `PlaneSnapProps`               | `snap`, `snapRadius`, `axisLock`, `snapBypass`, `motion`, and `onSnapChange`, shared by both parts.    |
+| `PlanePoint`                   | `{ clientX: number; clientY: number }`.                                                                |
+| `PlaneBounds`                  | `{ left: number; top: number; width: number; height: number }`.                                        |
+| `PlanePressBehavior`           | `'auto' \| 'none' \| 'nearest'`.                                                                       |
+| `PlaneDragBehavior`            | `'absolute' \| 'relative'`.                                                                            |
+| `PlaneThumbPressBehavior`      | `'inherit' \| 'none'`.                                                                                 |
+| `PlaneContextValue`            | The root `disabled`, `readOnly`, and `dragging` state.                                                 |
+| `PlaneThumbContextValue`       | The thumb's value, interaction, hover, focus, snap, `disabled`, and `readOnly` states.                 |
+| `PlaneProps`                   | Native `div` props plus root interaction options.                                                      |
+| `PlaneThumbProps`              | Native `div` props plus value, interaction, form, and axis options.                                    |
+| `PlaneAttachmentProps`         | Native `div` props plus placement, collision, portal, and visibility options.                          |
 
 ## Source
 
