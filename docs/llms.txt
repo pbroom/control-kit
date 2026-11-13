@@ -1,0 +1,20 @@
+# @pbroom/control-kit
+
+> React UI primitives for building operational color controls
+
+These pages match the installed version. Read the page for the component
+you are using; each one has usage, examples, accessibility notes and an
+API reference. Installation, Tailwind setup and theming tokens are in the
+package `README.md`.
+
+## Components
+
+- [Checkbox](./checkbox.md): A compact controlled checkbox with an integrated label. Built on [Base UI Checkbox](https://base-ui.com/react/components/checkbox); Control Kit assembles the indicator, icon, label, and visual states into one component.
+- [Control Field](./control-field.md): The numeric input primitive for Control Kit, built on Base UI Field and Number Field. Control Field keeps Base UI's number-field semantics and adds modifier-aware keyboard stepping, arithmetic expressions, precise pointer scrubbing, and clamp, wrap, or free bounds. For a ready-made compact input, use the [Control Input](./input.md) preset.
+- [Control Input](./input.md): A compact numeric input preset built from [Control Field](./control-field.md) parts. It adds width presets, density, an optional unit, and a scrub handle to Control Field's keyboard stepping, expressions, and precise scrubbing. Every prop is optional.
+- [Input Multi](./input-multi.md): A grouped numeric editor that composes several [Control Input](./input.md) segments into one compact control.
+- [Plane](./plane.md): A composable two-dimensional input for selecting normalized X and Y values. `Plane` owns geometry and pointer routing while its children own their positions and visual layers.
+- [Slider](./slider.md): A composed one-dimensional color-channel control. Control Kit supplies the shared Base UI slider foundation; the Color Kit adapter supplies color-channel state and markers.
+- [Tabs](./tabs.md): A styled tab set for switching between related sections of content. Built on [Base UI Tabs](https://base-ui.com/react/components/tabs); Control Kit adds its compact visual treatment and stable styling hooks.
+- [Toggle Group](./toggle-group.md): A styled set of two-state buttons for choosing one or more related options. Built on [Base UI Toggle Group](https://base-ui.com/react/components/toggle-group); Control Kit adds its visual variants and a scalar API for single selection.
+- [Tooltip](./tooltip.md): A styled tooltip for short, descriptive labels. Built on [Base UI Tooltip](https://base-ui.com/react/components/tooltip); Control Kit adds its visual treatment, pointer options, and animation policy.
